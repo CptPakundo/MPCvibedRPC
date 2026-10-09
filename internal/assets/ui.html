@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>MPCvibedRPC</title>
 <link rel="icon" href="/icon.ico">
 <style>
@@ -62,6 +63,18 @@
   .sw input:checked + span { background: var(--accent); }
   .sw input:checked + span::after { transform: translateX(16px); }
   .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card.preview { padding: 10px 14px; margin-bottom: 8px; }
+  .pv-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; font-weight: 650; }
+  .pv-card { display: flex; gap: 12px; align-items: flex-start; }
+  .pv-card img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: var(--field); flex: none; }
+  .pv-text { min-width: 0; flex: 1; font-size: 13px; line-height: 1.35; }
+  .pv-text > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-name { font-weight: 650; }
+  .pv-muted { color: var(--muted); }
+  .pv-bar { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+  .pv-track { flex: 1; height: 4px; background: var(--line); border-radius: 2px; }
+  .pv-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0; }
+  .pv-button { margin-top: 6px; display: inline-block; font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
   .sources .src { padding: 8px 0; border-top: 1px solid var(--line); }
   .sources .src .help { margin-top: 1px; }
   #log { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -104,6 +117,20 @@
         <button id="toggle">Start presence</button>
       </div>
       <div class="now" id="now"></div>
+    </section>
+
+    <section class="card preview hidden" id="preview" aria-label="How your status looks on Discord">
+      <div class="pv-head">How it looks on Discord</div>
+      <div class="pv-card">
+        <img id="pvImg" alt="" width="64" height="64" referrerpolicy="no-referrer">
+        <div class="pv-text">
+          <div class="pv-name" id="pvName"></div>
+          <div id="pvDetails"></div>
+          <div id="pvState" class="pv-muted"></div>
+          <div class="pv-bar hidden" id="pvBar"><span id="pvElapsed"></span><div class="pv-track"><div class="pv-fill" id="pvFill"></div></div><span id="pvTotal"></span></div>
+          <div class="pv-button hidden" id="pvButton"></div>
+        </div>
+      </div>
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
@@ -250,7 +277,7 @@
     const box = el('div', {});
     box.append(
       el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves this PC' }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. MPC-HC and Discord are only ever reached on this computer. There is no analytics or tracking, and file paths are never sent.' }))
+      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves this PC' }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. MPC-HC and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
     );
     return box;
   }
@@ -286,7 +313,26 @@
   }
   ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'updateRepo'].forEach((id) => autosave($(id), 'app', id));
 
+  const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  // a picture of the Discord card, built from the activity the program actually sent
+  function paintPreview(p) {
+    const box = $('preview');
+    box.classList.toggle('hidden', !p);
+    if (!p) return;
+    $('pvName').textContent = (p.watching ? 'Watching ' : 'Playing ') + p.name;
+    $('pvDetails').textContent = p.details || '';
+    $('pvState').textContent = p.state || '';
+    const img = $('pvImg'); const src = p.largeImage || '/icon.ico';
+    if (img.dataset.src !== src) { img.dataset.src = src; img.onerror = () => { img.onerror = null; img.src = '/icon.ico'; }; img.src = src; }
+    img.title = p.largeText || '';
+    const bar = $('pvBar'); const timed = p.start && p.end && p.end > p.start;
+    bar.classList.toggle('hidden', !timed);
+    if (timed) { const total = (p.end - p.start) / 1000; const done = Math.min(total, Math.max(0, (Date.now() - p.start) / 1000)); $('pvElapsed').textContent = mmss(done); $('pvTotal').textContent = mmss(total); $('pvFill').style.width = (100 * done / total).toFixed(1) + '%'; }
+    const btn = $('pvButton'); btn.textContent = p.button || ''; btn.classList.toggle('hidden', !p.button);
+  }
+
   function paint(s) {
+    paintPreview(s.preview);
     const d = $('pDiscord'), p = $('pMpc');
     d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '');
     d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : 'Discord idle';
