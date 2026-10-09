@@ -152,7 +152,8 @@ func (p player) installed(running []string, inis []string) bool {
 
 // belongs reports whether an executable path is one of the player's programs.
 func (p player) belongs(exe string) bool {
-	base := strings.ToLower(strings.TrimSuffix(filepath.Base(exe), filepath.Ext(exe)))
+	base := strings.ToLower(exe[strings.LastIndexAny(exe, `\/`)+1:])
+	base = strings.TrimSuffix(base, ".exe")
 	for _, n := range p.procs {
 		if base == n {
 			return true
