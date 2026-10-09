@@ -23,6 +23,8 @@ type Options struct {
 	CacheFile    string
 	DiscordPaths []string     // nil = the usual IPC locations
 	HTTPClient   *http.Client // used for MPC-HC and artwork lookups
+	// PauseUnit is how long one "minute" of Config.PauseClearMinutes lasts (zero = a real minute; tests shorten it).
+	PauseUnit time.Duration
 	// DiscordAttempt, when set, replaces the Discord login (tests).
 	NewDiscord func() *discord.Client
 }
@@ -34,6 +36,8 @@ type Status struct {
 	MPC        bool    `json:"mpc"`
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
+	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
+	PauseCleared bool `json:"pauseCleared"`
 	LastError  *string `json:"lastError"`
 	Since      *int64  `json:"since"`
 }
@@ -65,6 +69,11 @@ type Engine struct {
 	lastError  *string
 	since      *int64
 
+	// pause handling: when the current pause began, and whether the status was cleared because of it
+	pausedSince  time.Time
+	pauseCleared bool
+	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
+
 	// stopMu serialises Start/Stop/ApplySettings.
 	stopMu sync.Mutex
 }
@@ -75,7 +84,11 @@ func New(cfg core.Config, opts Options) *Engine {
 	if lg == nil {
 		lg = func(string, string) {}
 	}
-	return &Engine{opts: opts, log: lg, cfg: cfg}
+	unit := opts.PauseUnit
+	if unit <= 0 {
+		unit = time.Minute
+	}
+	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit}
 }
 
 // Config returns the settings the engine is using.
@@ -239,6 +252,7 @@ func (e *Engine) tick(r *run) {
 		}
 		e.mu.Lock()
 		e.shown, e.prev, e.nowPlaying = false, nil, nil
+		e.pausedSince, e.pauseCleared = time.Time{}, false
 		e.mu.Unlock()
 		return
 	}
@@ -248,9 +262,40 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 	rpc := e.rpc
-	update, next := core.NeedsUpdate(e.prev, info, time.Now().UnixMilli())
+	now := time.Now()
+	if e.pauseCleared && (cfg.PauseClearMinutes <= 0 || info.State != 1) {
+		// the setting was switched off, or playback resumed: show the status again
+		e.pauseCleared = false
+		e.prev = nil
+	}
+	update, next := core.NeedsUpdate(e.prev, info, now.UnixMilli())
 	e.prev = next
 	e.paused = info.State == 1
+	if info.State != 1 {
+		e.pausedSince = time.Time{}
+	} else if update || e.pausedSince.IsZero() {
+		e.pausedSince = now // pausing, seeking or switching file restarts the wait
+	}
+	if update {
+		e.pauseCleared = false
+	}
+	if info.State == 1 && cfg.PauseClearMinutes > 0 && !update && now.Sub(e.pausedSince) >= time.Duration(cfg.PauseClearMinutes)*e.pauseUnit {
+		// paused for long enough: take the status down until something changes
+		var clear *discord.Client
+		if !e.pauseCleared {
+			e.pauseCleared = true
+			if e.shown {
+				clear = rpc
+			}
+			e.shown = false
+		}
+		e.mu.Unlock()
+		if clear != nil {
+			_ = clear.ClearActivity()
+			e.log("INFO", fmt.Sprintf("Paused for %d min - presence cleared (it returns when you resume).", cfg.PauseClearMinutes))
+		}
+		return
+	}
 	art := e.art
 	e.mu.Unlock()
 	if !update {
@@ -354,6 +399,7 @@ func (e *Engine) start() {
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
 	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc = false, nil, false, false, false
+	e.pausedSince, e.pauseCleared = time.Time{}, false
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -407,6 +453,7 @@ func (e *Engine) stop() {
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since = nil, nil
+	e.pausedSince, e.pauseCleared = time.Time{}, false
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }
@@ -442,6 +489,7 @@ func (e *Engine) Status() Status {
 		}
 		s.MPC = e.mpcUp
 		s.NowPlaying = e.nowPlaying
+		s.PauseCleared = e.pauseCleared
 	}
 	return s
 }

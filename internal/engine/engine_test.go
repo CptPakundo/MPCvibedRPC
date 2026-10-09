@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,23 +47,26 @@ func newMPC(t *testing.T) *mpc {
 
 func (m *mpc) set(f func(*mpc)) { m.mu.Lock(); f(m); m.mu.Unlock() }
 
+// fakeListener accepts the engine's connections to the fake Discord: a Unix socket, or a named pipe on Windows.
+type fakeListener interface {
+	Accept() (io.ReadWriteCloser, error)
+	Close() error
+}
+
 type disc struct {
 	path   string
 	mu     sync.Mutex
 	acts   []map[string]any // args of each SET_ACTIVITY
 	reject bool             // reject activities that carry a "type"
-	ln     net.Listener
-	conns  []net.Conn
+	ln     fakeListener
+	conns  []io.ReadWriteCloser
 }
 
 func newDisc(t *testing.T) *disc {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake Discord uses a Unix socket; the Windows named pipe is covered by the smoke test in CI")
-	}
-	d := &disc{path: filepath.Join(t.TempDir(), "discord-ipc-0")}
-	ln, err := net.Listen("unix", d.path)
+	d := &disc{path: fakePath(t.TempDir())}
+	ln, err := listenFake(d.path)
 	if err != nil {
-		t.Skip("no unix sockets")
+		t.Skip("cannot listen for the fake Discord: " + err.Error())
 	}
 	d.ln = ln
 	t.Cleanup(func() {
@@ -91,7 +92,7 @@ func newDisc(t *testing.T) *disc {
 	return d
 }
 
-func reply(c net.Conn, v any) {
+func reply(c io.Writer, v any) {
 	b, _ := json.Marshal(v)
 	h := make([]byte, 8)
 	binary.LittleEndian.PutUint32(h, 1)
@@ -99,7 +100,7 @@ func reply(c net.Conn, v any) {
 	c.Write(append(h, b...))
 }
 
-func (d *disc) serve(c net.Conn) {
+func (d *disc) serve(c io.ReadWriteCloser) {
 	h := make([]byte, 8)
 	for {
 		if _, err := io.ReadFull(c, h); err != nil {
@@ -152,7 +153,7 @@ func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
 	t.Cleanup(e.Stop)
 	return e, m, d, l
 }
@@ -265,12 +266,8 @@ func TestBasicModeFallback(t *testing.T) {
 }
 
 func TestDiscordLateAndReconnect(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Unix-socket fake; see the smoke test")
-	}
 	m := newMPC(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "discord-ipc-0")
+	path := fakePath(t.TempDir())
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	l := &logs{}
@@ -283,7 +280,7 @@ func TestDiscordLateAndReconnect(t *testing.T) {
 	}
 	// Discord starts later
 	d := &disc{path: path}
-	ln, err := net.Listen("unix", path)
+	ln, err := listenFake(path)
 	if err != nil {
 		t.Skip(err)
 	}
@@ -335,5 +332,93 @@ func TestApplySettingsRestarts(t *testing.T) {
 	e.ApplySettings(cfg)
 	if e.Status().Running {
 		t.Fatal("should not have started")
+	}
+}
+
+// ---- clearing the status after a long pause ----
+
+// isClear reports whether the fake Discord's last message was a clear (no activity).
+func isClear(d *disc) bool {
+	l := d.list()
+	if len(l) == 0 {
+		return false
+	}
+	_, has := l[len(l)-1]["activity"]
+	return !has
+}
+
+// pauseSetup starts the engine playing with the given pause limit (the test engine's "minute" lasts 300 ms).
+func pauseSetup(t *testing.T, minutes int) (*Engine, *mpc, *disc) {
+	e, m, d, _ := setup(t)
+	cfg := e.Config()
+	cfg.PauseClearMinutes = minutes
+	e.ApplySettings(cfg)
+	e.Start()
+	eventually(t, "playing update", func() bool { return len(d.list()) >= 1 })
+	return e, m, d
+}
+
+func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
+	e, m, d := pauseSetup(t, 1)
+	n := len(d.list())
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "paused update", func() bool { return len(d.list()) > n })
+	if isClear(d) {
+		t.Fatal("the pause itself must still show the status")
+	}
+	eventually(t, "status cleared after the limit", func() bool { return isClear(d) })
+	if s := e.Status(); !s.PauseCleared || s.NowPlaying == nil || !s.Paused {
+		t.Fatalf("status while cleared: %+v", s)
+	}
+	// nothing more is sent while nothing changes
+	n = len(d.list())
+	time.Sleep(900 * time.Millisecond)
+	if len(d.list()) != n {
+		t.Fatalf("expected silence while paused and cleared, got %d new messages", len(d.list())-n)
+	}
+	// resuming brings the status back
+	m.set(func(m *mpc) { m.state = 2 })
+	eventually(t, "status back on resume", func() bool { return len(d.list()) > n && !isClear(d) })
+	if s := e.Status(); s.PauseCleared || s.Paused {
+		t.Fatalf("status after resume: %+v", s)
+	}
+}
+
+func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
+	e, m, d := pauseSetup(t, 1)
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "cleared", func() bool { return isClear(d) && e.Status().PauseCleared })
+	n := len(d.list())
+	m.set(func(m *mpc) { m.pos += 120000 }) // the user moves around while paused: they are still there
+	eventually(t, "status back after a seek", func() bool { return len(d.list()) > n && !isClear(d) })
+	if e.Status().PauseCleared {
+		t.Fatal("PauseCleared should be false once the status is back")
+	}
+	// and the wait starts over: it clears again if nothing else happens
+	eventually(t, "cleared again", func() bool { return isClear(d) && e.Status().PauseCleared })
+}
+
+func TestPauseClearOffByDefault(t *testing.T) {
+	e, m, d := pauseSetup(t, 0)
+	n := len(d.list())
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "paused update", func() bool { return len(d.list()) > n })
+	n = len(d.list())
+	time.Sleep(1200 * time.Millisecond) // several "minutes" of the shortened unit
+	if len(d.list()) != n || isClear(d) || e.Status().PauseCleared {
+		t.Fatal("with the limit at 0 a paused video must keep its status")
+	}
+}
+
+func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
+	e, m, d := pauseSetup(t, 1)
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "cleared", func() bool { return isClear(d) })
+	cfg := e.Config()
+	cfg.PauseClearMinutes = 0 // switched off while hidden: the status returns
+	e.ApplySettings(cfg)
+	eventually(t, "status back when the setting is turned off", func() bool { return !isClear(d) })
+	if e.Status().PauseCleared {
+		t.Fatal("PauseCleared should be false after the setting is turned off")
 	}
 }
