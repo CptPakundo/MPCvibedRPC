@@ -18,7 +18,7 @@ trap cleanup EXIT
 live() {
   local name="$1"; shift
   echo "== $name"
-  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -run TestLivePlayer -v ./internal/engine
+  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
 wait_socket() { for _ in $(seq 1 80); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
@@ -58,30 +58,41 @@ else
   export MPCRPC_HOME="$work/home" MPCRPC_BROWSER=none MPCRPC_FOREGROUND=1
   mkdir -p "$MPCRPC_HOME"
   printf '%s' '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true},"port":1}' > "$MPCRPC_HOME/config.json"
-  "$work/MPCvibedRPC" &
-  app=$!
-  for _ in $(seq 1 60); do [ -s "$MPCRPC_HOME/ipc.json" ] && break; sleep 0.25; done
-  port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"
-  curl -sf -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data '{"closeMpc":false}' "http://127.0.0.1:$port/api/mpc-web" | tee "$work/setup.json"
+  app="" port="" token=""
+  # every wait below has a limit: a CI machine has nobody to answer a dialog
+  start_app() {
+    "$work/MPCvibedRPC" &
+    app=$!
+    for _ in $(seq 1 60); do [ -s "$MPCRPC_HOME/ipc.json" ] && break; sleep 0.25; done
+    [ -s "$MPCRPC_HOME/ipc.json" ] || { echo "the program did not start"; exit 1; }
+    port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"
+  }
+  api() { curl -sf -m 60 -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data "$2" "http://127.0.0.1:$port/api/$1"; }
+  stop_app() {
+    api quit '{}' > /dev/null || true
+    for _ in $(seq 1 40); do kill -0 "$app" 2> /dev/null || return 0; sleep 0.25; done
+    echo "the program did not quit"; kill "$app"; exit 1
+  }
+  echo "-- first setup"
+  start_app
+  api mpc-web '{"closeMpc":false}' | tee "$work/setup.json"
   echo
-  curl -sf -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data '{}' "http://127.0.0.1:$port/api/quit" > /dev/null
-  wait "$app" || true
+  stop_app
   defaults read com.colliderli.iina enableAdvancedSettings | grep -qx 1 || { echo "IINA's advanced settings are off"; exit 1; }
-  defaults read com.colliderli.iina userOptions | tee /dev/stderr | grep -q "input-ipc-server" || { echo "IINA has no input-ipc-server"; exit 1; }
-  # a second setup keeps what is there
-  "$work/MPCvibedRPC" &
-  app=$!
-  for _ in $(seq 1 60); do [ -s "$MPCRPC_HOME/ipc.json" ] && break; sleep 0.25; done
-  port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"
-  curl -sf -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data '{"closeMpc":false}' "http://127.0.0.1:$port/api/mpc-web" | grep -q "IINA was already set up" || { echo "the second setup should find IINA set up"; exit 1; }
-  curl -sf -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data '{}' "http://127.0.0.1:$port/api/quit" > /dev/null
-  wait "$app" || true
+  defaults read com.colliderli.iina userOptions | grep -q "input-ipc-server" || { echo "IINA has no input-ipc-server"; exit 1; }
+  echo "-- second setup keeps what is there"
+  start_app
+  api mpc-web '{"closeMpc":false}' > "$work/setup2.json" || true
+  cat "$work/setup2.json"; echo
+  stop_app
+  grep -q "IINA was already set up" "$work/setup2.json" || { echo "the second setup should find IINA set up"; exit 1; }
   unset MPCRPC_HOME MPCRPC_BROWSER MPCRPC_FOREGROUND
 
+  echo "-- opening IINA"
   open -a IINA "$video"
   wait_socket "$tmp/iina-mpvsocket" || { ls -la "$tmp"; exit 1; }
   live IINA
-  osascript -e 'tell application "IINA" to quit' || true
+  pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
 echo "live player tests passed"
 [ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE" # proof for CI that the script got to the end

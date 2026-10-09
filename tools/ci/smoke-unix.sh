@@ -22,8 +22,8 @@ wait_for() { # wait_for "what" command...
 have_ipc() { [ -s "$MPCRPC_HOME/ipc.json" ] && curl -sf "http://127.0.0.1:$(jq -r .port "$MPCRPC_HOME/ipc.json")/api/ping" > /dev/null; }
 port=""; token=""
 read_ipc() { port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"; }
-get() { curl -sf -H "X-Token: $token" "http://127.0.0.1:$port/api/$1"; }
-post() { curl -sf -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data "${2:-"{}"}" "http://127.0.0.1:$port/api/$1"; }
+get() { curl -sf -m 60 -H "X-Token: $token" "http://127.0.0.1:$port/api/$1"; }
+post() { curl -sf -m 60 -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data "${2:-"{}"}" "http://127.0.0.1:$port/api/$1"; }
 gone() { ! kill -0 "$1" 2> /dev/null; }
 
 echo "== start"
