@@ -243,7 +243,8 @@ func TestReplayLookups(t *testing.T) {
 		cfg := core.LoadConfig(inst.Cfg)
 		rt := &replayTransport{}
 		var logs []string
-		aw := New(&cfg, Options{Client: &http.Client{Transport: rt}, Log: func(l, m string) { logs = append(logs, l+": "+m) }})
+		var logMu sync.Mutex // the finder logs from background goroutines
+		aw := New(&cfg, Options{Client: &http.Client{Transport: rt}, Log: func(l, m string) { logMu.Lock(); logs = append(logs, l+": "+m); logMu.Unlock() }})
 		for li, lk := range inst.Lookups {
 			// The JS test suite only started the next lookup after the previous one had settled.
 			for i := 0; i < 300; i++ {
@@ -266,7 +267,10 @@ func TestReplayLookups(t *testing.T) {
 			if !reflect.DeepEqual(canonJSON(gotJSON), canonJSON(lk.Result)) {
 				bad++
 				if bad <= 15 {
-					t.Errorf("instance %d lookup %d (%q S%v E%v):\n got  %s\n want %s\n logs: %v", inst.ID, li, media.Title, lk.Media["season"], lk.Media["episode"], gotJSON, lk.Result, logs)
+					logMu.Lock()
+					snap := append([]string(nil), logs...)
+					logMu.Unlock()
+					t.Errorf("instance %d lookup %d (%q S%v E%v):\n got  %s\n want %s\n logs: %v", inst.ID, li, media.Title, lk.Media["season"], lk.Media["episode"], gotJSON, lk.Result, snap)
 				}
 			}
 			rt.mu.Lock()
