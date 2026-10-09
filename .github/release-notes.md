@@ -7,6 +7,7 @@ New in this version:
 - **MPC-BE confirmed.** Tried with MPC-BE 1.9.1; the "untested" note is gone.
 - The window names the player it found (MPC-HC, MPC-BE, MPC-QT or mpv), and **Copy diagnostics** includes it.
 - The **Turn on the web interface** button is now **Set up the player connection**, since it also handles mpv.
+- **Fix:** Quit from the tray could hang for good if Discord stopped responding mid-update. It now finishes within a few seconds.
 
 Tried with MPC-BE 1.9.1, MPC-QT 26.07 and mpv 0.41.0 on Windows 11, besides MPC-HC.
 
