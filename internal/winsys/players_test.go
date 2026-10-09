@@ -61,3 +61,15 @@ func TestMpcBeIniEdit(t *testing.T) {
 		t.Errorf("got %q", out)
 	}
 }
+func TestParseRegDword(t *testing.T) {
+	out := "\r\nHKEY_CURRENT_USER\\Software\\MPC-HC\\MPC-HC\\Settings\r\n    EnableWebServer    REG_DWORD    0x1\r\n\r\n"
+	if n := parseRegDword(out); n != 1 {
+		t.Errorf("got %d", n)
+	}
+	if n := parseRegDword("    WebServerPort    REG_DWORD    0x350b\r\n"); n != 13579 {
+		t.Errorf("port: got %d", n)
+	}
+	if n := parseRegDword("ERROR: The system was unable to find the specified registry key or value."); n != -1 {
+		t.Errorf("missing: got %d", n)
+	}
+}

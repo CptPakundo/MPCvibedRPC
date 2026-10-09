@@ -114,7 +114,7 @@
     </header>
 
     <section class="card notice info hidden" id="welcome">
-      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Then press <b>Start presence</b> and play something in MPC-HC, MPC-BE, MPC-QT or mpv.</p>
+      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in MPC-HC, MPC-BE, MPC-QT or mpv.</p>
       <p>You decide what is shown: the <b>Privacy</b> tab can hide titles or particular files, and switch off the online services that look up covers.</p>
       <div class="row"><button id="welcomeOk" class="primary">Got it</button><button id="welcomeGo">Open the Privacy tab</button></div>
     </section>
@@ -359,7 +359,8 @@
     paintPreview(s.preview);
     const d = $('pDiscord'), p = $('pMpc');
     d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '');
-    d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : 'Discord idle';
+    d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : s.discord === 'standby' ? 'Discord on standby' : 'Discord idle';
+    d.title = s.discord === 'standby' ? 'Discord is contacted as soon as something plays.' : s.discord === 'waiting' ? 'Discord was not found yet. Is the desktop app running?' : '';
     p.className = 'pill ' + (s.mpc ? 'good' : s.running ? 'warn' : '');
     p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : s.running ? 'No player found' : 'Player idle';
     const now = $('now');
@@ -404,7 +405,7 @@
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
   $('reset').onclick = () => {
-    if (!confirm('Restore every setting to its default?\n\nThis also turns off Start with Windows and clears the TMDB key, name aliases and pinned covers.')) return;
+    if (!confirm('Restore every setting to its default?\n\nThis also turns off Start with Windows and clears the TMDB key, name aliases, pinned covers and your Never show list.')) return;
     queue = queue.then(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
@@ -415,6 +416,7 @@
       let r = await api('mpc-web', { closeMpc: false });
       if (r.needsClose) { if (!confirm('MPC-HC or MPC-BE is open and has to be closed for a moment (it will reopen). Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
       $('webMsg').textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
+      if (r.mpvPipe) { try { fill(await api('state')); } catch (_) {} } // the mpv name may have been taken over from mpv.conf
     } catch (e) { $('webMsg').textContent = e.message; }
   };
   $('checkUpd').onclick = async () => {

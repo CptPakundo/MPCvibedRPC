@@ -60,6 +60,26 @@ func SetIniValue(text, section, key, value string) string {
 	return strings.Join(out, eol)
 }
 
+// GetIniValue reads key inside [section] of INI text (both matched without regard to case).
+func GetIniValue(text, section, key string) (string, bool) {
+	head := core.LowerJS("[" + section + "]")
+	in := false
+	for _, l := range reEOL.Split(strings.TrimPrefix(text, "\ufeff"), -1) {
+		t := core.Trim(l)
+		if reSection.MatchString(l) {
+			in = core.LowerJS(t) == head
+			continue
+		}
+		if !in {
+			continue
+		}
+		if k, v, ok := strings.Cut(t, "="); ok && core.LowerJS(core.Trim(k)) == core.LowerJS(key) {
+			return core.Trim(v), true
+		}
+	}
+	return "", false
+}
+
 // ReadIni reads an INI file that is either UTF-8 or UTF-16 with a BOM (MPC-HC writes the latter).
 func ReadIni(file string) (text string, utf16le bool, err error) {
 	b, err := os.ReadFile(file)

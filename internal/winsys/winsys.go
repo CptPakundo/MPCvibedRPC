@@ -81,6 +81,7 @@ type player struct {
 	section     string   // the same two values inside the player's .ini file
 	enableKey   string
 	portKey     string
+	localKey    string // "answer this PC only"
 	iniNames    []string
 	installDirs []string // under Program Files
 	userIniDir  string   // under %APPDATA%, where a player may keep its .ini
@@ -90,14 +91,14 @@ type player struct {
 var players = []player{
 	{
 		name: "MPC-HC", procs: []string{"mpc-hc", "mpc-hc64"},
-		regKey: `HKCU\Software\MPC-HC\MPC-HC\Settings`, section: "Settings", enableKey: "EnableWebServer", portKey: "WebServerPort",
+		regKey: `HKCU\Software\MPC-HC\MPC-HC\Settings`, section: "Settings", enableKey: "EnableWebServer", portKey: "WebServerPort", localKey: "WebServerLocalhostOnly",
 		iniNames:    []string{"mpc-hc.ini", "mpc-hc64.ini"},
 		installDirs: []string{"MPC-HC", `K-Lite Codec Pack\MPC-HC64`, `K-Lite Codec Pack\MPC-HC`},
 		always:      true,
 	},
 	{
 		name: "MPC-BE", procs: []string{"mpc-be", "mpc-be64"},
-		regKey: `HKCU\Software\MPC-BE\WebServer`, section: "WebServer", enableKey: "EnableWebServer", portKey: "Port",
+		regKey: `HKCU\Software\MPC-BE\WebServer`, section: "WebServer", enableKey: "EnableWebServer", portKey: "Port", localKey: "LocalhostOnly",
 		iniNames:    []string{"mpc-be.ini", "mpc-be64.ini"},
 		installDirs: []string{"MPC-BE", "MPC-BE x64"},
 		userIniDir:  "MPC-BE",
@@ -255,6 +256,7 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 	ok := true
 	edited := []string{}
 	var done []string
+	locked := false // a web interface we switched on answers this PC only
 	for _, p := range players {
 		var running, dirs []string
 		for _, e := range exes {
@@ -268,9 +270,23 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 		if !p.always && !present {
 			continue
 		}
+		// Switched on by us, the web interface only answers this PC: the players' default would also open it (a remote
+		// control and file browser) to the whole network. A web interface the user had on already keeps their choice.
+		wasOn := regDword(p.regKey, p.enableKey) == 1
+		for _, f := range inis {
+			if text, _, err := ReadIni(f); err == nil {
+				if v, found := GetIniValue(text, p.section, p.enableKey); found && v == "1" {
+					wasOn = true
+				}
+			}
+		}
 		a := run("reg", "add", p.regKey, "/v", p.enableKey, "/t", "REG_DWORD", "/d", "1", "/f")
 		b := run("reg", "add", p.regKey, "/v", p.portKey, "/t", "REG_DWORD", "/d", prt, "/f")
 		ok = ok && a.ok && b.ok
+		if !wasOn {
+			locked = true
+			run("reg", "add", p.regKey, "/v", p.localKey, "/t", "REG_DWORD", "/d", "1", "/f")
+		}
 		for _, f := range inis {
 			text, u16, err := ReadIni(f)
 			if err != nil {
@@ -278,6 +294,9 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 			}
 			t := SetIniValue(text, p.section, p.enableKey, "1")
 			t = SetIniValue(t, p.section, p.portKey, prt)
+			if !wasOn {
+				t = SetIniValue(t, p.section, p.localKey, "1")
+			}
 			if WriteIni(f, t, u16) == nil { // read-only install folder: the registry value still applies when no ini exists
 				edited = append(edited, f)
 			}
@@ -318,6 +337,9 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 			done = append(done, players[0].name)
 		}
 		m := fmt.Sprintf("%s web interface switched on (port %d).", strings.Join(done, " and "), port)
+		if locked {
+			m = fmt.Sprintf("%s web interface switched on (port %d, for this PC only).", strings.Join(done, " and "), port)
+		}
 		if len(exes) > 0 {
 			m += " The player was reopened."
 		}
@@ -331,6 +353,28 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 		ok = ok && mpv.OK
 	}
 	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using}
+}
+
+// regDword reads a REG_DWORD value (-1 when it is not there).
+func regDword(key, name string) int {
+	r := run("reg", "query", key, "/v", name)
+	if !r.ok {
+		return -1
+	}
+	return parseRegDword(r.stdout)
+}
+
+// parseRegDword finds the number in reg.exe's answer ("    EnableWebServer    REG_DWORD    0x1").
+func parseRegDword(out string) int {
+	f := strings.Fields(out)
+	for i := 0; i+1 < len(f); i++ {
+		if f[i] == "REG_DWORD" {
+			if n, err := strconv.ParseInt(strings.TrimPrefix(f[i+1], "0x"), 16, 64); err == nil {
+				return int(n)
+			}
+		}
+	}
+	return -1
 }
 
 func dirExists(p string) bool {

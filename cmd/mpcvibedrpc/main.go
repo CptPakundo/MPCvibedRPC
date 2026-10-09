@@ -26,7 +26,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.6"
+var version = "0.9.7"
 
 const preferredPort = 47654
 
@@ -433,7 +433,7 @@ func run() error {
 				t += "stopped"
 			case s.NowPlaying != nil:
 				t += *s.NowPlaying
-			case s.Discord == "connected":
+			case s.Discord == "connected" || s.Discord == "standby":
 				t += "ready"
 			default:
 				t += "waiting for Discord"
