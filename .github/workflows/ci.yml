@@ -135,12 +135,14 @@ jobs:
       - uses: actions/setup-go@v7
         with: { go-version: '1.24', cache: false }
       - name: Install players (Linux)
+        timeout-minutes: 10 # a slow package mirror once hung here
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends ffmpeg mpv mpv-mpris vlc vlc-plugin-base celluloid xvfb dbus dbus-x11 > /dev/null
           mpv --version | head -n 1; cvlc --version 2> /dev/null | head -n 1; celluloid --version || true
       - name: Install players (macOS)
+        timeout-minutes: 10
         if: runner.os == 'macOS'
         run: |
           brew install --quiet mpv ffmpeg

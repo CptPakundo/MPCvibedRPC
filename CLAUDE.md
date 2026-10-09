@@ -57,7 +57,7 @@ friend of the owner on a real Mac.
 | `internal/diag` | "Copy diagnostics" with redaction (titles, paths, URL queries, secrets) |
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
-| `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves, so opening the app again reaches the running copy; also gives a login-started copy a TMPDIR |
+| `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
 | `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe), `smoke-unix.sh` (macOS/Linux), `live-players.sh` (real players on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
