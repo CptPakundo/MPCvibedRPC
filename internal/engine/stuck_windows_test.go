@@ -43,7 +43,7 @@ func TestStopDoesNotHangOnAStuckDiscord(t *testing.T) {
 	m := newMPC(t)
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
-	e := New(cfg, Options{Pipes: noPipes, DiscordPaths: []string{path}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{path}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
 	e.Start()
 	eventually(t, "connected", func() bool { return e.Status().Discord == "connected" })
 	time.Sleep(500 * time.Millisecond) // the activity write is now stuck

@@ -24,6 +24,9 @@ type Field struct {
 	Min     *int              `json:"min,omitempty"`
 	Max     *int              `json:"max,omitempty"`
 	Sources []core.SourceInfo `json:"sources,omitempty"`
+	// OS, when set, limits the field to these systems (runtime.GOOS; "linux" also stands for the other D-Bus systems).
+	// Elsewhere the setting keeps its value but is not shown.
+	OS []string `json:"-"`
 }
 
 // Section groups fields in the window.
@@ -67,6 +70,8 @@ var Sections = []Section{
 		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "The input-ipc-server name in mpv.conf (Set up the player connection adds it). Leave empty to not look for mpv."},
 		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "The password of VLC's web interface (Preferences > All > Interface > Main interfaces > Lua). Set up the player connection switches the interface on and fills this in. Leave empty to not look for VLC."},
 		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
+		{Key: "iinaPipe", Type: "text", Label: "IINA connection", Help: "The input-ipc-server path in IINA's mpv options (IINA Settings > Advanced). Set up the player connection adds it; IINA reads it when it next starts. Leave empty to not look for IINA.", OS: []string{"darwin"}},
+		{Key: "mpris", Type: "bool", Label: "Find video players through MPRIS", Help: "Reads VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and other video players over D-Bus, with nothing to set up. Music players and web browsers are never shown.", OS: []string{"linux"}},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
@@ -79,6 +84,38 @@ func AllFields() []Field {
 	var out []Field
 	for _, s := range Sections {
 		out = append(out, s.Fields...)
+	}
+	return out
+}
+
+// ShownOn reports whether the field belongs in the window on the system goos.
+func (f Field) ShownOn(goos string) bool {
+	if len(f.OS) == 0 {
+		return true
+	}
+	if goos != "windows" && goos != "darwin" {
+		goos = "linux"
+	}
+	for _, o := range f.OS {
+		if o == goos {
+			return true
+		}
+	}
+	return false
+}
+
+// SectionsFor is the window's layout on the system goos (fields of other systems left out).
+func SectionsFor(goos string) []Section {
+	out := make([]Section, 0, len(Sections))
+	for _, s := range Sections {
+		c := s
+		c.Fields = nil
+		for _, f := range s.Fields {
+			if f.ShownOn(goos) {
+				c.Fields = append(c.Fields, f)
+			}
+		}
+		out = append(out, c)
 	}
 	return out
 }

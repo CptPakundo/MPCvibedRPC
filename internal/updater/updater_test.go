@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func init() { RequireMZ = true }
+func init() { Asset, Magic = "MPCvibedRPC.exe", "MZ" } // the Windows release, whatever system runs the tests
 
 func TestCompare(t *testing.T) {
 	cases := []struct {
@@ -157,5 +157,39 @@ func TestSwapRollsBackWhenStartFails(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(exe); string(b) != "old" {
 		t.Fatal("old program must be back")
+	}
+}
+
+func TestAssetFor(t *testing.T) {
+	cases := map[[2]string]string{
+		{"windows", "amd64"}: "MPCvibedRPC.exe",
+		{"linux", "amd64"}:   "MPCvibedRPC-linux-amd64",
+		{"linux", "arm64"}:   "MPCvibedRPC-linux-arm64",
+		{"linux", "386"}:     "",
+		{"darwin", "arm64"}:  "", // an app bundle: the release page is offered instead
+		{"freebsd", "amd64"}: "",
+	}
+	for in, want := range cases {
+		if got := AssetFor(in[0], in[1]); got != want {
+			t.Errorf("AssetFor(%s, %s) = %q, want %q", in[0], in[1], got, want)
+		}
+	}
+}
+
+// Where the program cannot install a release itself, Check still reports it, with only the page to go to.
+func TestCheckWithoutAsset(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"v3.1.0","html_url":"https://example/rel","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"x"}]}`)
+	}))
+	defer srv.Close()
+	old, oldAPI := Asset, APIBase
+	Asset, APIBase = "", srv.URL
+	defer func() { Asset, APIBase = old, oldAPI }()
+	info, err := Check(nil, "o/r", "3.0.0")
+	if err != nil || !info.Newer || info.CanInstall || info.URL != "" || info.Page != "https://example/rel" {
+		t.Fatalf("got %+v, %v", info, err)
+	}
+	if _, err := Download(nil, info, filepath.Join(t.TempDir(), "x")); err == nil || !strings.Contains(err.Error(), "release page") {
+		t.Errorf("Download should point to the release page, got %v", err)
 	}
 }

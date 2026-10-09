@@ -1,9 +1,10 @@
 // Package updater updates the program from GitHub Releases. Publish a release whose tag is a version ("v1.2.0")
-// with an asset named MPCvibedRPC.exe (and optionally MPCvibedRPC.exe.sha256); the app offers it,
-// downloads it and swaps itself in.
+// with the program for each system (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...; see AssetFor) and optionally a
+// .sha256 next to each; the app offers it, downloads it and swaps itself in. On macOS it only offers the release page.
 package updater
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,8 +24,20 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
 )
 
-// Asset is the file name a release has to carry.
-const Asset = "MPCvibedRPC.exe"
+// Asset is the file a release has to carry for this system to update itself ("" where it does not: on macOS the
+// program is an app bundle, and the user is sent to the release page instead).
+var Asset = AssetFor(runtime.GOOS, runtime.GOARCH)
+
+// AssetFor names the release file of a system: MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...
+func AssetFor(goos, goarch string) string {
+	switch {
+	case goos == "windows":
+		return "MPCvibedRPC.exe"
+	case goos == "linux" && (goarch == "amd64" || goarch == "arm64"):
+		return "MPCvibedRPC-linux-" + goarch
+	}
+	return ""
+}
 
 // APIBase is GitHub's API root (tests point it elsewhere).
 var APIBase = "https://api.github.com"
@@ -32,8 +45,8 @@ var APIBase = "https://api.github.com"
 // MinSize is the smallest believable program (guards against saving an error page as the program).
 var MinSize int64 = 1024 * 1024
 
-// RequireMZ makes Download insist on a Windows executable header ("MZ"); off elsewhere so the flow can be tested.
-var RequireMZ = runtime.GOOS == "windows"
+// Magic is how a program file of this system starts ("MZ" on Windows, "\x7fELF" on Linux); Download insists on it.
+var Magic = map[string]string{"windows": "MZ", "linux": "\x7fELF"}[runtime.GOOS]
 
 // Info is the answer of Check (the shape the settings window reads).
 type Info struct {
@@ -46,6 +59,8 @@ type Info struct {
 	URL        string `json:"url,omitempty"`
 	ShaURL     string `json:"shaUrl,omitempty"`
 	Page       string `json:"page,omitempty"`
+	// CanInstall is true when the program can install the release itself; otherwise the window links to Page.
+	CanInstall bool `json:"canInstall"`
 }
 
 type version struct {
@@ -160,19 +175,24 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	}
 	info.Notes = string(notes)
 	for _, a := range rel.Assets {
-		switch a.Name {
-		case Asset:
+		switch {
+		case Asset == "":
+		case a.Name == Asset:
 			info.URL = a.URL
-		case Asset + ".sha256":
+		case a.Name == Asset+".sha256":
 			info.ShaURL = a.URL
 		}
 	}
+	info.CanInstall = info.URL != ""
 	return info, nil
 }
 
 // Download fetches the new program next to exe (as exe+".new") and returns its path.
 func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if info == nil || info.URL == "" {
+		if Asset == "" {
+			return "", errors.New("Download the new version from its release page.")
+		}
 		return "", fmt.Errorf("The release has no %s file.", Asset)
 	}
 	if client == nil {
@@ -196,7 +216,10 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if int64(len(buf)) < MinSize || (RequireMZ && (buf[0] != 'M' || buf[1] != 'Z')) {
+	if int64(len(buf)) < MinSize || !bytes.HasPrefix(buf, []byte(Magic)) {
+		if runtime.GOOS == "linux" {
+			return "", errors.New("The downloaded file does not look like a Linux program.")
+		}
 		return "", errors.New("The downloaded file does not look like a Windows program.")
 	}
 	if info.ShaURL != "" {

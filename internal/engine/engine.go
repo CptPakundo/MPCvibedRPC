@@ -1,5 +1,5 @@
-// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC), looks up artwork and
-// keeps Discord up to date.
+// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA or a player found
+// through MPRIS on Linux), looks up artwork and keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +19,9 @@ import (
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
@@ -36,19 +39,33 @@ type Options struct {
 	NewDiscord func() *discord.Client
 	// Pipes, when not nil, replaces the IPC endpoints asked after the web interface (tests); see PlayerPipes.
 	Pipes func(cfg core.Config) []PlayerPipe
+	// MPRIS, when not nil, replaces the MPRIS players asked on Linux (tests); see QueryMPRIS.
+	MPRIS func(timeout time.Duration) []*core.Info
 }
 
 // PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.
 type PlayerPipe struct{ Name, Path string }
 
-// PlayerPipes are the endpoints asked when no web interface answers: MPC-QT's, which is always there, and mpv's,
-// which the user turns on with input-ipc-server (empty mpvPipe = don't look for mpv).
+// PlayerPipes are the endpoints asked when no web interface answers: MPC-QT's, which is always there, mpv's, which
+// the user turns on with input-ipc-server (empty mpvPipe = don't look for mpv), and on macOS IINA's (an mpv option
+// in IINA's settings; empty iinaPipe = don't look for IINA).
 func PlayerPipes(cfg core.Config) []PlayerPipe {
 	out := []PlayerPipe{{"MPC-QT", pipe.Path("cmdrkotori.mpc-qt.mpv")}}
 	if cfg.MpvPipe != "" {
 		out = append(out, PlayerPipe{"mpv", pipe.Path(cfg.MpvPipe)})
 	}
+	if runtime.GOOS == "darwin" && cfg.IinaPipe != "" {
+		out = append(out, PlayerPipe{"IINA", pipe.Path(cfg.IinaPipe)})
+	}
 	return out
+}
+
+// HasMPRIS is true where players are read through MPRIS (Linux and the other systems that use D-Bus).
+const HasMPRIS = runtime.GOOS != "windows" && runtime.GOOS != "darwin"
+
+// QueryMPRIS asks the video players on the user's session bus.
+func QueryMPRIS(timeout time.Duration) []*core.Info {
+	return mpris.Query(dbus.SessionAddress(), timeout)
 }
 
 // Status is what the settings window shows.
@@ -56,7 +73,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv or VLC
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, or a Linux player found through MPRIS
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
@@ -264,6 +281,21 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 				info = in
 			}
 		}
+		if info == nil && HasMPRIS && cfg.Mpris {
+			if ctx.Err() != nil {
+				return nil
+			}
+			query := QueryMPRIS
+			if e.opts.MPRIS != nil {
+				query = e.opts.MPRIS
+			}
+			for _, in := range query(1500 * time.Millisecond) {
+				if playing(in) {
+					info = in
+					break
+				}
+			}
+		}
 		if info == nil {
 			info = first
 		}
@@ -378,11 +410,15 @@ func (e *Engine) tick(r *run) {
 	if !e.isCurrent(r) {
 		return
 	}
-	if info != nil && info.Player == "mpv" && cfg.AppName == core.DefaultConfig().AppName {
-		cfg.AppName = "mpv" // the default name describes Media Player Classic; mpv is called what it is
-	}
-	if info != nil && info.Player == "VLC" && cfg.AppName == core.DefaultConfig().AppName {
-		cfg.AppName = "VLC media player"
+	if info != nil && cfg.AppName == core.DefaultConfig().AppName {
+		// the default name describes Media Player Classic; other players are called what they are
+		switch info.Player {
+		case "MPC-HC", "MPC-BE", "MPC-QT", "":
+		case "VLC":
+			cfg.AppName = "VLC media player"
+		default:
+			cfg.AppName = info.Player
+		}
 	}
 
 	e.mu.Lock()
@@ -610,8 +646,14 @@ func (e *Engine) start() {
 	if cfg.MpvPipe != "" {
 		places = append(places, fmt.Sprintf("mpv's (%s)", cfg.MpvPipe))
 	}
+	if runtime.GOOS == "darwin" && cfg.IinaPipe != "" {
+		places = append(places, fmt.Sprintf("IINA's (%s)", cfg.IinaPipe))
+	}
 	if cfg.VlcPassword != "" {
 		places = append(places, fmt.Sprintf("VLC's web interface on port %d", cfg.VlcPort))
+	}
+	if HasMPRIS && cfg.Mpris {
+		places = append(places, "the video players on D-Bus (MPRIS)")
 	}
 	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")

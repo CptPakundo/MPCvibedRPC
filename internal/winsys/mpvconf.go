@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 )
 
 const mpvIPCKey = "input-ipc-server"
@@ -47,6 +49,10 @@ func AddMpvConfLine(text, key, value string) string {
 // mpvConfPaths lists where mpv reads its settings, most specific first: portable_config next to a known mpv.exe,
 // then the user's mpv folder. present tells whether mpv seems to be on this PC at all.
 func mpvConfPaths(exeDirs []string) (paths []string, present bool) {
+	if !IsWindows {
+		home, _ := os.UserHomeDir()
+		return mpvConfPathsUnix(home)
+	}
 	if p, err := exec.LookPath("mpv"); err == nil {
 		exeDirs = append(exeDirs, filepath.Dir(p))
 	}
@@ -92,7 +98,11 @@ func enableMpvIPC(name string, exeDirs []string) mpvResult {
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		return mpvResult{Message: "mpv: could not create " + filepath.Dir(file) + "."}
 	}
-	if err := os.WriteFile(file, []byte(AddMpvConfLine(string(b), mpvIPCKey, name)), 0o644); err != nil {
+	value := name
+	if !IsWindows {
+		value = pipe.Path(name) // a bare name would be a file in whatever folder mpv was started from
+	}
+	if err := os.WriteFile(file, []byte(AddMpvConfLine(string(b), mpvIPCKey, value)), 0o644); err != nil {
 		return mpvResult{Message: "mpv: could not write " + file + "."}
 	}
 	return mpvResult{Message: "mpv set up (mpv.conf); it takes effect the next time mpv starts.", Using: name, Edited: file, OK: true}

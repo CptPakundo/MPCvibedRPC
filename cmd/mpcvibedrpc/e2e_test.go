@@ -138,6 +138,14 @@ func TestEndToEnd(t *testing.T) {
 
 	home := filepath.Join(dir, "home")
 	xdg := filepath.Join(dir, "run")
+	if runtime.GOOS == "darwin" { // a socket path may only be 104 bytes long there, and the temporary folder is long
+		short, err := os.MkdirTemp("/tmp", "e2e")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.RemoveAll(short) })
+		xdg = filepath.Join(short, "run")
+	}
 	os.MkdirAll(xdg, 0o755)
 	disc := startDiscord(t, filepath.Join(xdg, "discord-ipc-0"))
 
@@ -156,7 +164,7 @@ func TestEndToEnd(t *testing.T) {
 	rel = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/releases/latest"):
-			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%s/dl"}]}`, rel.URL)
+			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%s/dl"},{"name":"MPCvibedRPC-linux-amd64","browser_download_url":"%s/dl"},{"name":"MPCvibedRPC-linux-arm64","browser_download_url":"%s/dl"}]}`, rel.URL, rel.URL, rel.URL)
 		case r.URL.Path == "/dl":
 			w.Write(newBytes)
 		}
@@ -167,7 +175,7 @@ func TestEndToEnd(t *testing.T) {
 	cfg := fmt.Sprintf(`{"port":%d,"pollInterval":250,"showArtwork":false,"clientId":"1"}`, mpcPort)
 	os.WriteFile(filepath.Join(home, "config.json"), []byte(cfg), 0o644)
 
-	env := append(os.Environ(), "MPCRPC_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPCRPC_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent")
+	env := append(os.Environ(), "MPCRPC_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPCRPC_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPCRPC_BROWSER=none", "MPCRPC_FOREGROUND=1")
 	cmd := exec.Command(exe, "--background")
 	cmd.Env = env
 	var out bytes.Buffer
@@ -263,6 +271,18 @@ func TestEndToEnd(t *testing.T) {
 	_, st = a.call(t, "GET", "state", "")
 	if st["update"] == nil {
 		t.Fatal("state should now carry the update")
+	}
+	if runtime.GOOS == "darwin" {
+		// a Mac only gets the release page: the program is an app bundle there
+		if u["canInstall"] != false {
+			t.Fatalf("macOS cannot install updates itself: %v", u)
+		}
+		a.call(t, "POST", "quit", "{}")
+		waitFor(t, "ipc.json removed", func() bool { _, ok := readIPC(home); return !ok })
+		return
+	}
+	if u["canInstall"] != true {
+		t.Fatalf("the update should be installable: %v", u)
 	}
 	a.call(t, "POST", "update-install", "{}")
 	select {

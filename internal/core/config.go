@@ -16,6 +16,8 @@ type Config struct {
 	MpvPipe      string `json:"mpvPipe"`     // mpv's input-ipc-server name; empty = don't look for mpv
 	VlcPort      int    `json:"vlcPort"`     // VLC's web interface (http-port)
 	VlcPassword  string `json:"vlcPassword"` // its password (http-password); empty = don't look for VLC
+	IinaPipe     string `json:"iinaPipe"`    // macOS: the input-ipc-server path in IINA's mpv options; empty = don't look for IINA
+	Mpris        bool   `json:"mpris"`       // Linux: read video players through MPRIS (D-Bus)
 
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
@@ -83,6 +85,8 @@ func DefaultConfig() Config {
 		PollInterval: 5000,
 		MpvPipe:      "mpvsocket",
 		VlcPort:      8080,
+		IinaPipe:     "iina-mpvsocket",
+		Mpris:        true,
 
 		PauseClearMinutes: 30,
 

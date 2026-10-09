@@ -64,7 +64,7 @@ type disc struct {
 }
 
 func newDisc(t *testing.T) *disc {
-	d := &disc{path: fakePath(t.TempDir())}
+	d := &disc{path: fakePath(sockDir(t))}
 	ln, err := listenFake(d.path)
 	if err != nil {
 		t.Skip("cannot listen for the fake Discord: " + err.Error())
@@ -150,6 +150,9 @@ func eventually(t *testing.T, what string, f func() bool) {
 // noPipes keeps a player that happens to run on this computer (MPC-QT, mpv) out of the tests.
 func noPipes(core.Config) []PlayerPipe { return nil }
 
+// noMPRIS keeps video players on this computer's D-Bus (Linux) out of the tests.
+func noMPRIS(time.Duration) []*core.Info { return nil }
+
 func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
 	m, d := newMPC(t), newDisc(t)
 	cfg := core.DefaultConfig()
@@ -157,7 +160,7 @@ func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
 	t.Cleanup(e.Stop)
 	return e, m, d, l
 }
@@ -271,11 +274,11 @@ func TestBasicModeFallback(t *testing.T) {
 
 func TestDiscordLateAndReconnect(t *testing.T) {
 	m := newMPC(t)
-	path := fakePath(t.TempDir())
+	path := fakePath(sockDir(t))
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{path}})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{path}})
 	defer e.Stop()
 	e.Start()
 	eventually(t, "waiting warning", func() bool { return l.has("Could not reach Discord") })
@@ -432,7 +435,7 @@ func TestClearArtworkCache(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	cache := filepath.Join(t.TempDir(), "c.json")
-	e := New(cfg, Options{Pipes: noPipes, DiscordPaths: []string{d.path}, CacheFile: cache})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{d.path}, CacheFile: cache})
 	t.Cleanup(e.Stop)
 
 	// stopped: the file on disk is removed
@@ -544,7 +547,7 @@ func privacySetup(t *testing.T, edit func(*core.Config)) (*Engine, *mpc, *disc, 
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, true
 	edit(&cfg)
 	l, lc := &logs{}, &lookupCounter{}
-	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
 	t.Cleanup(e.Stop)
 	return e, m, d, l, lc
 }
