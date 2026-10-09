@@ -9,10 +9,13 @@ a video player is playing as Discord Rich Presence: "Watching <title>" with a pr
 ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**. It talks to the Discord desktop app over its
 local IPC pipe; the settings window is a local web page shown in an Edge/Chrome `--app=` window.
 
-It also runs on **macOS** (a universal `.app` with no Dock icon, running in the background; IINA, mpv, VLC, MPC-QT) and
-**Linux** (a plain binary; MPRIS players such as VLC, Celluloid, Haruna, plus mpv). Neither has a tray icon: opening the
-program again shows the window, and Quit is in the window. Windows is the main system and its behaviour must not change
-for the others. The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI below).
+It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
+MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
+window of its own (`internal/winsys/macapp_darwin.go`: Cocoa through cgo, so the macOS build is made on a Mac with
+cgo; without cgo it falls back to the browser and no icon). Linux has no tray icon: running the program again shows
+the window, and Quit is in the window. Windows is the main system and its behaviour must not change for the others.
+The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI below), and once by a
+friend of the owner on a real Mac.
 
 - The program is **entirely AI-generated**, and the repo says so (README banner, release notes, exe file properties,
   repo description). Keep those statements; never present the code as written by the repository owner.

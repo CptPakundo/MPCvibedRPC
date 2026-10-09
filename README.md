@@ -36,11 +36,11 @@ desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 2. The app is not notarized by Apple (that needs a paid developer account), so the first time macOS refuses to open it.
    Open it once, then go to System Settings > Privacy & Security and choose **Open Anyway** (on macOS 14 and earlier,
    right-click the app > Open works too). Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MPCvibedRPC.app`.
-3. The settings window opens (in Chrome, Edge, Brave or Vivaldi as an app window if you have one, else in your default
-   browser) and presence is already on. For **IINA**, press **Set up the player connection** once and reopen IINA; mpv
-   and VLC are set up the same way, MPC-QT needs nothing.
-4. The program has no Dock or menu bar icon: it keeps running in the background. Open the app again to show its window;
-   **Quit** is at the bottom of the window. **Start at login** (General tab) starts it in the background when you log in.
+3. The settings window opens (a window of the app's own; no browser is needed) and presence is already on. For **IINA**,
+   press **Set up the player connection** once and reopen IINA; mpv and VLC are set up the same way, MPC-QT needs nothing.
+4. The program lives in the **menu bar** (top right), with no Dock icon. Click its icon for the status, **Open
+   settings**, **Start/Stop presence** and **Quit**; closing the window leaves it running there, and opening the app
+   again shows the window too. **Start at login** (General tab) starts it straight to the menu bar when you log in.
 
 ### Linux
 1. Download **MPCvibedRPC-linux-amd64** (or `-arm64`), make it executable (`chmod +x MPCvibedRPC-linux-amd64`) and run it.
@@ -91,7 +91,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 (or in `config.json` under `app.updateRepo`). It then checks daily, and **Check now / Install** downloads the new
 `MPCvibedRPC.exe` (Linux: `MPCvibedRPC-linux-amd64` or `-arm64`), verifies it (and its `.sha256` if the release has one), swaps itself in and restarts.
 On macOS the Updates tab offers the release page instead: download the new zip and replace the app (settings are kept).
-On macOS and Linux the update shows up in the window only (there is no tray icon to show a notification next to). To publish
+On macOS and Linux the update shows up in the window only (no notification). To publish
 a version:
 
 1. `git tag v0.9.8 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
@@ -114,7 +114,7 @@ Without a GitHub repository, just replace the program by hand; settings are kept
 | `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
-| `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process) |
+| `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
 | `tools/` | the resource (.syso) and icon writers and the CI scripts (smoke tests, live player tests, the macOS app) |
 | `docs/` | the full settings reference (`docs/config.md`) |
@@ -232,7 +232,7 @@ The program asks the players in this order and shows the first one that is playi
 | VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. On macOS the same, in `~/Library/Preferences/org.videolan.vlc/vlcrc`. On Linux VLC needs none of this: it is found through MPRIS. |
 | Linux video players | MPRIS over D-Bus: VLC, Celluloid, Haruna, SMPlayer, GNOME Videos (Totem), Showtime, Clapper, Dragon Player, Kodi, Parole, QMPlay2, MPC-QT, and mpv with the mpv-mpris script | none; **Advanced > Find video players through MPRIS** switches it off. Music players and web browsers are left out. |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord; they have not been tried on a real desktop with the real Discord yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; MPRIS players come last.
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; MPRIS players come last.
 
 ## Troubleshooting
 - Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
@@ -242,7 +242,7 @@ MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 2
 - Discord pill: "on standby" until something plays (Discord is only contacted then). If it stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser); starting it before or after the program both work.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.
-- No window appears: run the program again, or right-click its tray icon > Open settings. On macOS and Linux, open the app (or run the program) again.
+- No window appears: run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings, or open the app again; on Linux, run the program again.
 - macOS says the app "cannot be opened" or "is damaged": it is not notarized; see [macOS](#macos) step 2.
 - IINA is not found: after **Set up the player connection**, quit IINA completely (IINA > Quit IINA) and open it again.
 - Linux: a player that is not found probably has no MPRIS support or is not on the list above (it is a list, so that
