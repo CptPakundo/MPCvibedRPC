@@ -6,6 +6,7 @@ version="$1"; out="$2"
 work="$(mktemp -d)"
 app="$work/MPCvibedRPC.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out"
+out="$(cd "$out" && pwd)" # the zip is written from inside $work
 
 for arch in arm64 amd64; do
   CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/MPCvibedRPC-$arch" ./cmd/mpcvibedrpc
