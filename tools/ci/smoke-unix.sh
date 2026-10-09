@@ -115,7 +115,7 @@ if [ -n "$app" ]; then
   [ "$(windows "$server" 0)" = 0 ] || fail "a window is open although openWindow is off"
 
   echo "== macOS: the settings window"
-  open --env "MPCRPC_HOME=$MPCRPC_HOME" "$app" # opening the app again shows the window
+  open "$app" # opening the app again: macOS tells the running app, which shows its window
   sleep 5
   [ "$(jq -r .pid "$MPCRPC_HOME/ipc.json")" = "$server" ] || fail "opening the app again started another copy"
   n="$(pgrep -f "MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" | wc -l | tr -d ' ')"

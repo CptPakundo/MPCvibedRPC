@@ -19,11 +19,18 @@ static NSWindow *window;
 static WKWebView *web;
 static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit
 
-@interface MRController : NSObject <NSWindowDelegate, WKUIDelegate, WKNavigationDelegate>
+@interface MRController : NSObject <NSApplicationDelegate, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate>
 @end
 
 @implementation MRController
 - (void)act:(NSMenuItem *)sender { atomic_store(&pending, (int)sender.tag); }
+
+// The app is opened again (Finder, Dock, Spotlight) while it runs: macOS does not start a second copy but tells this
+// one, which shows its window.
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)app hasVisibleWindows:(BOOL)visible {
+	atomic_store(&pending, 1);
+	return NO;
+}
 
 - (void)windowWillClose:(NSNotification *)n { window = nil; web = nil; }
 
@@ -88,6 +95,7 @@ static void macRunApp(void) {
 		[NSApplication sharedApplication];
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 		controller = [MRController new];
+		NSApp.delegate = controller;
 		mainMenu();
 		[NSApp run];
 	}
