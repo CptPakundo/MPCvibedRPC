@@ -21,6 +21,11 @@ type Config struct {
 	ProgressWidth     int    `json:"progressWidth"`
 	ShowRemainingTime bool   `json:"showRemainingTime"`
 
+	// HideTitle shows only "Watching a video" (no title, cover or details) and looks nothing up online.
+	HideTitle bool `json:"hideTitle"`
+	// HideFiles lists files that are never shown (see MatchesHideList); they are not looked up either.
+	HideFiles []string `json:"hideFiles"`
+
 	// PauseClearMinutes clears the status after the video has been paused this long (0 = never). It comes back on resume.
 	PauseClearMinutes int `json:"pauseClearMinutes"`
 
@@ -89,6 +94,7 @@ func DefaultConfig() Config {
 		ShowArtwork:      true,
 		ArtworkSources:   []string{"tmdb", "imdb", "cinemeta", "tvmaze", "anilist", "kitsu", "jikan", "wikipedia"},
 		DisabledSources:  []string{},
+		HideFiles:         []string{},
 		ArtworkAliases:   map[string]string{},
 		ArtworkOverrides: map[string]string{},
 		ArtworkWaitMs:    1500,

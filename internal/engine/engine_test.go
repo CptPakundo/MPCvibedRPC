@@ -513,3 +513,121 @@ func TestPreviewClearsWhenDiscordGoesAway(t *testing.T) {
 	// after the reconnect the engine sends again and the preview returns; in between it must not be stale
 	eventually(t, "preview back after reconnect", func() bool { return e.Status().Preview != nil })
 }
+
+// ---- privacy mode ----
+
+// lookupCounter is an HTTP client that serves the fake MPC-HC normally and records (and refuses) everything else.
+type lookupCounter struct {
+	mu     sync.Mutex
+	remote []string
+}
+
+func (l *lookupCounter) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.HasPrefix(req.URL.Host, "127.0.0.1") || strings.HasPrefix(req.URL.Host, "localhost") {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	l.mu.Lock()
+	l.remote = append(l.remote, req.URL.Host)
+	l.mu.Unlock()
+	return nil, fmt.Errorf("no network in this test")
+}
+
+func (l *lookupCounter) count() int { l.mu.Lock(); defer l.mu.Unlock(); return len(l.remote) }
+
+// privacySetup is setup() with artwork lookups switched on and watched, so a test can prove none were made.
+func privacySetup(t *testing.T, edit func(*core.Config)) (*Engine, *mpc, *disc, *logs, *lookupCounter) {
+	m, d := newMPC(t), newDisc(t)
+	cfg := core.DefaultConfig()
+	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, true
+	edit(&cfg)
+	l, lc := &logs{}, &lookupCounter{}
+	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	t.Cleanup(e.Stop)
+	return e, m, d, l, lc
+}
+
+func TestHideTitleRevealsNothingAndLooksNothingUp(t *testing.T) {
+	e, m, d, l, lc := privacySetup(t, func(c *core.Config) { c.HideTitle = true })
+	e.Start()
+	eventually(t, "a status is sent", func() bool { return len(d.list()) >= 1 })
+	for _, state := range []int{2, 1} {
+		if state == 1 {
+			n := len(d.list())
+			m.set(func(m *mpc) { m.state = 1 })
+			eventually(t, "paused update", func() bool { return len(d.list()) > n })
+		}
+		last := d.list()[len(d.list())-1]
+		b, _ := json.Marshal(last)
+		js := strings.ToLower(string(b))
+		for _, leak := range []string{"show", "name.s01", "season", "s01e01", "720p", ".mkv", "http"} {
+			if strings.Contains(js, leak) {
+				t.Errorf("state %d: the status mentions %q: %s", state, leak, b)
+			}
+		}
+		if !strings.Contains(js, "watching a video") {
+			t.Errorf("state %d: expected the generic text: %s", state, b)
+		}
+	}
+	s := e.Status()
+	if s.NowPlaying == nil || strings.Contains(strings.ToLower(*s.NowPlaying), "show") {
+		t.Errorf("the window must not show the title either: %+v", s.NowPlaying)
+	}
+	if p := s.Preview; p == nil || strings.Contains(strings.ToLower(p.Name+p.Details+p.State), "show") || p.LargeImage != "" || p.Button != "" {
+		t.Errorf("preview: %+v", p)
+	}
+	l.mu.Lock()
+	all := strings.ToLower(strings.Join(l.l, "\n"))
+	l.mu.Unlock()
+	if strings.Contains(all, "show") || strings.Contains(all, "mkv") {
+		t.Errorf("the log must not record the title:\n%s", all)
+	}
+	if lc.count() != 0 {
+		t.Errorf("hidden titles must not be looked up, but %d request(s) went out: %v", lc.count(), lc.remote)
+	}
+}
+
+func TestDontShowListHidesAndLooksNothingUp(t *testing.T) {
+	// the fake player is playing C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv
+	e, m, d, l, lc := privacySetup(t, func(c *core.Config) { c.HideFiles = []string{"tv/show name"} })
+	e.Start()
+	eventually(t, "MPC-HC detected", func() bool { return e.Status().MPC })
+	time.Sleep(1200 * time.Millisecond) // several polls
+	if len(d.list()) != 0 {
+		t.Fatalf("a listed file must show nothing, but %d message(s) were sent: %v", len(d.list()), d.list())
+	}
+	if s := e.Status(); !s.Hidden || s.NowPlaying != nil || s.Preview != nil {
+		t.Fatalf("status for a listed file: %+v", s)
+	}
+	if lc.count() != 0 {
+		t.Errorf("a listed file must not be looked up: %v", lc.remote)
+	}
+	l.mu.Lock()
+	all := strings.ToLower(strings.Join(l.l, "\n"))
+	l.mu.Unlock()
+	if strings.Contains(all, "show") {
+		t.Errorf("the log must not record a listed file's name:\n%s", all)
+	}
+
+	// another file is shown as usual
+	m.set(func(m *mpc) { m.file = "Other.Thing.mkv"; m.filepath = `C:\Movies\Other.Thing.mkv` })
+	eventually(t, "an unlisted file is shown", func() bool { s := e.Status(); return len(d.list()) >= 1 && !s.Hidden && s.NowPlaying != nil })
+
+	// going back to the listed file takes the status down again
+	n := len(d.list())
+	m.set(func(m *mpc) { m.file = "Show.Name.S01E01.720p.mkv"; m.filepath = `C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv` })
+	eventually(t, "the status is cleared for the listed file", func() bool { return len(d.list()) > n && isClear(d) && e.Status().Hidden })
+}
+
+func TestDontShowListAddedWhileShowingClearsTheStatus(t *testing.T) {
+	e, _, d, _, _ := privacySetup(t, func(c *core.Config) { c.ShowArtwork = false })
+	e.Start()
+	eventually(t, "shown", func() bool { return len(d.list()) >= 1 && !isClear(d) })
+	cfg := e.Config()
+	cfg.HideFiles = []string{"Season 1"}
+	e.ApplySettings(cfg)
+	eventually(t, "cleared and hidden", func() bool { return isClear(d) && e.Status().Hidden })
+	// removing the entry shows it again
+	cfg.HideFiles = nil
+	e.ApplySettings(cfg)
+	eventually(t, "shown again", func() bool { return !isClear(d) && !e.Status().Hidden && e.Status().NowPlaying != nil })
+}

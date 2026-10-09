@@ -13,7 +13,8 @@ import (
 )
 
 // Field is one setting shown in the window. type: bool | int | text | secret | choice | map ("name = value" per line) |
-// sources (a switch per online service; the value is the list of services that are OFF)
+// sources (a switch per online service; the value is the list of services that are OFF) | lines (one entry per line,
+// stored as a list) | heading (a group title in the window; it has no key and no value)
 type Field struct {
 	Key     string            `json:"key"`
 	Type    string            `json:"type"`
@@ -53,8 +54,12 @@ var Sections = []Section{
 		{Key: "tmdbApiKey", Type: "secret", Label: "TMDB API key (optional)", Help: "Free at themoviedb.org/settings/api. Improves matches for some titles."},
 	}},
 	{ID: "privacy", Title: "Privacy", Fields: []Field{
-		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},
+		{Type: "heading", Label: "What other people see on Discord"},
+		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar: no title, cover, episode or buttons. Nothing is looked up online either."},
+		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up."},
 		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume. The status comes back when you play again or move around in the video.", Min: ip(0), Max: ip(1440)},
+		{Type: "heading", Label: "What online services see"},
+		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},
 		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name is sent to these services to find cover art and details. Switch off any you don't want to use. They are never contacted while off.", Sources: core.Sources},
 	}},
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
@@ -75,10 +80,10 @@ func AllFields() []Field {
 	return out
 }
 
-// ByKey finds a field.
+// ByKey finds a setting by its key (headings are labels, not settings, and are never found).
 func ByKey(key string) (Field, bool) {
 	for _, f := range AllFields() {
-		if f.Key == key {
+		if f.Key == key && f.Type != "heading" {
 			return f, true
 		}
 	}
@@ -152,6 +157,12 @@ func jsString(v any) string {
 	return fmt.Sprint(v)
 }
 
+// limits for list settings (one entry per line)
+const (
+	maxLines   = 100
+	maxLineLen = 300
+)
+
 var (
 	reClientID = jsre.MustCompile(`^\d{15,22}$`, "")
 	reNewline  = jsre.MustCompile(`\r?\n`, "")
@@ -203,6 +214,41 @@ func Clean(f Field, v any) (any, error) {
 			return nil, &ValidationError{"Discord application ID must be a long number"}
 		}
 		return s, nil
+	case "lines":
+		// one entry per line, from the window (a string or an array of strings): trimmed, without blanks or duplicates
+		var items []string
+		switch x := v.(type) {
+		case nil:
+		case string:
+			items = reNewline.Split(x)
+		case []any:
+			for _, e := range x {
+				s, ok := e.(string)
+				if !ok {
+					return nil, &ValidationError{f.Label + ": every entry must be text"}
+				}
+				items = append(items, s)
+			}
+		default:
+			return nil, &ValidationError{f.Label + ": expected a list of lines"}
+		}
+		out := []any{}
+		seen := map[string]bool{}
+		for _, s := range items {
+			s = jsTrim(s)
+			if s == "" || seen[s] {
+				continue
+			}
+			if len([]rune(s)) > maxLineLen {
+				return nil, &ValidationError{fmt.Sprintf("%s: an entry is longer than %d characters", f.Label, maxLineLen)}
+			}
+			seen[s] = true
+			out = append(out, s)
+		}
+		if len(out) > maxLines {
+			return nil, &ValidationError{fmt.Sprintf("%s: at most %d entries", f.Label, maxLines)}
+		}
+		return out, nil
 	case "sources":
 		// the list of services that are OFF, from the window (an array of ids); unknown ids are refused
 		out := []any{}

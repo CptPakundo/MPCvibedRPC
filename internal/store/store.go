@@ -165,6 +165,9 @@ func (s *Store) Values() map[string]any {
 	out := map[string]any{}
 	asMap := core.ConfigAsMap(&cfg)
 	for _, f := range AllFields() {
+		if f.Type == "heading" {
+			continue
+		}
 		if f.Type == "map" {
 			if o, ok := raw.M[f.Key].(*jsonx.Obj); ok {
 				out[f.Key] = MapToText(o)
