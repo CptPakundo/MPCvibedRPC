@@ -21,6 +21,9 @@ type Config struct {
 	ProgressWidth     int    `json:"progressWidth"`
 	ShowRemainingTime bool   `json:"showRemainingTime"`
 
+	// PauseClearMinutes clears the status after the video has been paused this long (0 = never). It comes back on resume.
+	PauseClearMinutes int `json:"pauseClearMinutes"`
+
 	// Filename cleanup
 	SmartFormat       bool `json:"smartFormat"`
 	IgnoreBrackets    bool `json:"ignoreBrackets"`
