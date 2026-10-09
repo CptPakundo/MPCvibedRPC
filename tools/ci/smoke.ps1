@@ -13,6 +13,8 @@ $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out
 $app = Join-Path $work 'MPCvibedRPC.exe'
 Copy-Item $Exe $app
 $env:MPCRPC_HOME = $home_
+# A copy with its own data folder gets its own run-at-login value (see winsys/autostart.go), so this test can never touch an installed program's.
+$runName = 'MPCvibedRPC-' + ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($home_.TrimEnd('\','/').ToLower()))).Replace('-','').Substring(0,8).ToLower())
 $port = 13591
 $env:MPCRPC_UPDATE_API = "http://127.0.0.1:$port"
 $stateFile = Join-Path $work 'state.txt'; Set-Content $stateFile '2'
@@ -94,13 +96,16 @@ try {
   Check (WaitFor { (Api 'Get' 'status').running } 10 'toggle on') 'tray menu "Start presence" works'
 
   # run at login
+  $plainBefore = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
   Api 'Post' 'save' @{ app = @{ autoStart = $true } } | Out-Null
-  $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
-  Check ($reg -match 'MPCvibedRPC\.exe" --background') 'autostart writes the Run entry'
+  $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
+  Check ($reg -match 'MPCvibedRPC\.exe" --background') 'autostart writes the Run entry (under the name for this data folder)'
   Check ((Api 'Get' 'state').autoStart -eq $true) 'state reports autostart on'
   Api 'Post' 'save' @{ app = @{ autoStart = $false } } | Out-Null
-  $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
+  $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
   Check ($reg -notmatch 'MPCvibedRPC\.exe') 'autostart removes the Run entry'
+  $plain = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
+  Check ($plain -eq $plainBefore) 'the plain (installed program) Run value was never touched'
 
   # MPC-HC web interface switch (MPC-HC itself is not installed on the runner: the registry part is what we can check)
   $mw = Api 'Post' 'mpc-web' @{ closeMpc = $false }
