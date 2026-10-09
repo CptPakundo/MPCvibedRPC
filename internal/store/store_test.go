@@ -167,3 +167,116 @@ func TestUpdateRepoSetting(t *testing.T) {
 		t.Fatalf("a refused value must not change the saved one: %q", got)
 	}
 }
+
+func TestSourcesFieldClean(t *testing.T) {
+	f, ok := ByKey("disabledSources")
+	if !ok || f.Type != "sources" || len(f.Sources) == 0 {
+		t.Fatalf("disabledSources should be a sources field with the service list: %+v", f)
+	}
+	// duplicates collapse and the catalog's order is kept
+	got, err := Clean(f, []any{"wikipedia", "imdb", "wikipedia", "tmdb"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []any{"tmdb", "imdb", "wikipedia"}) {
+		t.Errorf("got %#v", got)
+	}
+	// nothing switched off
+	if got, err := Clean(f, nil); err != nil || !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("nil should mean an empty list, got %#v %v", got, err)
+	}
+	if got, err := Clean(f, []any{}); err != nil || !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("empty list: %#v %v", got, err)
+	}
+	// unknown ids and wrong shapes are refused
+	if _, err := Clean(f, []any{"imdb", "no-such-service"}); err == nil {
+		t.Error("an unknown service must be refused")
+	}
+	if _, err := Clean(f, "imdb"); err == nil {
+		t.Error("a bare string is not a list")
+	}
+	if _, err := Clean(f, []any{42.0}); err == nil {
+		t.Error("a number is not a service")
+	}
+}
+
+func TestDisabledSourcesRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Values()["disabledSources"]; !reflect.DeepEqual(got, []any{}) {
+		t.Fatalf("default should be an empty list, got %#v", got)
+	}
+	patch, _ := jsonx.Parse(`{"settings":{"disabledSources":["tvmaze","anilist"],"pauseClearMinutes":45}}`)
+	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	cfg := s.Config()
+	if cfg.SourceOn("tvmaze") || cfg.SourceOn("anilist") || !cfg.SourceOn("imdb") {
+		t.Errorf("config does not reflect the switches: %v", cfg.DisabledSources)
+	}
+	if cfg.PauseClearMinutes != 45 {
+		t.Errorf("pauseClearMinutes = %d", cfg.PauseClearMinutes)
+	}
+	// a fresh store reading the same folder sees the same thing, and the window gets the list back
+	s2, _ := New(dir)
+	if got := s2.Values()["disabledSources"]; !reflect.DeepEqual(got, []any{"tvmaze", "anilist"}) {
+		t.Errorf("after reload: %#v", got)
+	}
+	if got := s2.Values()["pauseClearMinutes"]; got != float64(45) {
+		t.Errorf("after reload pauseClearMinutes = %#v", got)
+	}
+	// Restore defaults brings everything back
+	if err := s2.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if c := s2.Config(); !c.SourceOn("tvmaze") || c.PauseClearMinutes != 0 {
+		t.Errorf("reset should restore the defaults: %v %d", c.DisabledSources, c.PauseClearMinutes)
+	}
+}
+
+func TestPauseClearMinutesValidation(t *testing.T) {
+	f, ok := ByKey("pauseClearMinutes")
+	if !ok {
+		t.Fatal("pauseClearMinutes missing from the schema")
+	}
+	for in, want := range map[any]int{0.0: 0, 5.0: 5, "30": 30, 1440.0: 1440, 12.4: 12} {
+		got, err := Clean(f, in)
+		if err != nil || got != want {
+			t.Errorf("Clean(%v) = %v, %v; want %d", in, got, err, want)
+		}
+	}
+	for _, in := range []any{-1.0, 1441.0, "abc", "-5"} {
+		if _, err := Clean(f, in); err == nil {
+			t.Errorf("Clean(%v) should be refused", in)
+		}
+	}
+}
+
+func TestPrivacySectionLayout(t *testing.T) {
+	var ids []string
+	for _, s := range Sections {
+		ids = append(ids, s.ID)
+	}
+	want := []string{"look", "titles", "privacy", "advanced"}
+	if !reflect.DeepEqual(ids, want) {
+		t.Errorf("sections = %v, want %v", ids, want)
+	}
+	// showArtwork lives on the privacy tab only, once
+	n := 0
+	for _, s := range Sections {
+		for _, f := range s.Fields {
+			if f.Key == "showArtwork" {
+				n++
+				if s.ID != "privacy" {
+					t.Errorf("showArtwork should be in the privacy section, found in %s", s.ID)
+				}
+			}
+		}
+	}
+	if n != 1 {
+		t.Errorf("showArtwork appears %d times", n)
+	}
+}

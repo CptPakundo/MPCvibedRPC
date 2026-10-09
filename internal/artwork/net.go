@@ -75,6 +75,8 @@ type failState struct {
 type Net struct {
 	Client *http.Client
 	gaps   map[string]int
+	// blocked, when set, says that a host must not be contacted (a service switched off in the settings).
+	blocked func(host string) bool
 
 	mu       sync.Mutex
 	cache    map[string]cacheEntry
@@ -82,6 +84,14 @@ type Net struct {
 	inflight map[string]*flight
 	fails    map[string]failState
 	next     map[string]time.Time
+}
+
+// clearCache drops the cached responses (not the failure breaker or the request spacing).
+func (n *Net) clearCache() {
+	n.mu.Lock()
+	n.cache = map[string]cacheEntry{}
+	n.order = nil
+	n.mu.Unlock()
 }
 
 func newNet(client *http.Client, gaps map[string]int) *Net {
@@ -103,6 +113,9 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 	method := in.Method
 	if method == "" {
 		method = "GET"
+	}
+	if n.blocked != nil && n.blocked(hostOf(u)) {
+		return nil, &FetchError{Name: "Disabled", Msg: "turned off in the privacy settings"}
 	}
 	var body io.Reader
 	if in.Body != "" {

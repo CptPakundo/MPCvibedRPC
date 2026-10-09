@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -421,4 +422,35 @@ func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
 	if e.Status().PauseCleared {
 		t.Fatal("PauseCleared should be false after the setting is turned off")
 	}
+}
+
+func TestClearArtworkCache(t *testing.T) {
+	m, d := newMPC(t), newDisc(t)
+	cfg := core.DefaultConfig()
+	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
+	cache := filepath.Join(t.TempDir(), "c.json")
+	e := New(cfg, Options{DiscordPaths: []string{d.path}, CacheFile: cache})
+	t.Cleanup(e.Stop)
+
+	// stopped: the file on disk is removed
+	if err := os.WriteFile(cache, []byte(`{"a":null}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	e.ClearArtworkCache()
+	if _, err := os.Stat(cache); !os.IsNotExist(err) {
+		t.Fatalf("the cache file should be removed while stopped, got %v", err)
+	}
+
+	// running: it is removed too, and the current title is sent again
+	e.Start()
+	eventually(t, "first update", func() bool { return len(d.list()) >= 1 })
+	if err := os.WriteFile(cache, []byte(`{"a":null}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	n := len(d.list())
+	e.ClearArtworkCache()
+	if _, err := os.Stat(cache); !os.IsNotExist(err) {
+		t.Fatalf("the cache file should be removed while running, got %v", err)
+	}
+	eventually(t, "the title is refreshed after clearing", func() bool { return len(d.list()) > n })
 }

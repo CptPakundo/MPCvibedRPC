@@ -7,19 +7,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
 )
 
-// Field is one setting shown in the window. type: bool | int | text | secret | choice | map ("name = value" per line)
+// Field is one setting shown in the window. type: bool | int | text | secret | choice | map ("name = value" per line) |
+// sources (a switch per online service; the value is the list of services that are OFF)
 type Field struct {
-	Key     string      `json:"key"`
-	Type    string      `json:"type"`
-	Label   string      `json:"label"`
-	Help    string      `json:"help,omitempty"`
-	Options [][2]string `json:"options,omitempty"`
-	Min     *int        `json:"min,omitempty"`
-	Max     *int        `json:"max,omitempty"`
+	Key     string            `json:"key"`
+	Type    string            `json:"type"`
+	Label   string            `json:"label"`
+	Help    string            `json:"help,omitempty"`
+	Options [][2]string       `json:"options,omitempty"`
+	Min     *int              `json:"min,omitempty"`
+	Max     *int              `json:"max,omitempty"`
+	Sources []core.SourceInfo `json:"sources,omitempty"`
 }
 
 // Section groups fields in the window.
@@ -42,13 +45,17 @@ var Sections = []Section{
 		{Key: "episodeInDetails", Type: "bool", Label: "Repeat the season and episode number in the title line", Help: "Discord already shows a season and episode badge, so this is off by default."},
 	}},
 	{ID: "titles", Title: "Titles and artwork", Fields: []Field{
-		{Key: "showArtwork", Type: "bool", Label: "Look up cover art online", Help: "Turn off to stay completely offline."},
 		{Key: "episodeTitles", Type: "bool", Label: "Look up episode titles"},
 		{Key: "catalogTitle", Type: "bool", Label: "Use the catalog's spelling of titles", Help: "Restores punctuation that file names cannot contain, such as a colon in a title."},
 		{Key: "animeTitles", Type: "choice", Label: "Anime titles", Options: [][2]string{{"auto", "Closest AniList name (auto)"}, {"english", "Always English"}, {"romaji", "Always romaji"}, {"file", "Keep the file's spelling"}}},
 		{Key: "useFolderName", Type: "bool", Label: "Use the folder name when the file is just an episode number"},
 		{Key: "folderEpisodeNumbers", Type: "bool", Label: "Number code episodes by folder position", Help: "For files named with a running production code, show the episode as its position within the season folder."},
 		{Key: "tmdbApiKey", Type: "secret", Label: "TMDB API key (optional)", Help: "Free at themoviedb.org/settings/api. Improves matches for some titles."},
+	}},
+	{ID: "privacy", Title: "Privacy", Fields: []Field{
+		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},
+		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume. The status comes back when you play again or move around in the video.", Min: ip(0), Max: ip(1440)},
+		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name is sent to these services to find cover art and details. Switch off any you don't want to use. They are never contacted while off.", Sources: core.Sources},
 	}},
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
 		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Min: ip(1), Max: ip(65535)},
@@ -196,6 +203,27 @@ func Clean(f Field, v any) (any, error) {
 			return nil, &ValidationError{"Discord application ID must be a long number"}
 		}
 		return s, nil
+	case "sources":
+		// the list of services that are OFF, from the window (an array of ids); unknown ids are refused
+		out := []any{}
+		seen := map[string]bool{}
+		if arr, ok := v.([]any); ok {
+			for _, x := range arr {
+				id, _ := x.(string)
+				if !core.IsSourceID(id) {
+					return nil, &ValidationError{f.Label + ": unknown service " + jsString(x)}
+				}
+				seen[id] = true
+			}
+		} else if v != nil {
+			return nil, &ValidationError{f.Label + ": expected a list"}
+		}
+		for _, s := range core.Sources { // keep the catalog's order, without duplicates
+			if seen[s.ID] {
+				out = append(out, s.ID)
+			}
+		}
+		return out, nil
 	case "map":
 		out := jsonx.NewObj()
 		var lines []string
