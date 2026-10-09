@@ -21,7 +21,7 @@ live() {
   env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
-wait_socket() { for _ in $(seq 1 80); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
+wait_socket() { for _ in $(seq 1 240); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
 wait_bus() { for _ in $(seq 1 80); do dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames | grep -qE "\"$1" && return 0; sleep 0.25; done; echo "$1 is not on the bus"; return 1; }
 
 # mpv over its IPC socket (both systems)
@@ -89,8 +89,9 @@ else
   unset MPCRPC_HOME MPCRPC_BROWSER MPCRPC_FOREGROUND
 
   echo "-- opening IINA"
-  open -a IINA "$video"
-  wait_socket "$tmp/iina-mpvsocket" || { ls -la "$tmp"; exit 1; }
+  open -a IINA "$video" & # in the background: if macOS ever shows a prompt, the wait below fails instead of hanging
+  pid=$!
+  wait_socket "$tmp/iina-mpvsocket" || { pgrep -lf IINA || echo "IINA is not running"; ls -la "$tmp"; exit 1; }
   live IINA
   pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
