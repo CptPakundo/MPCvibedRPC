@@ -159,6 +159,7 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
     filename is sent to these services).
 - **Preview.** While a status is showing, the window has a **How it looks on Discord** card: the title lines, cover,
   progress bar and link button, built from what was actually sent (so it also shows the basic-mode fallback).
+- **Hiding things** (Privacy tab). **Hide what I'm watching** shows only "Watching a video" with the progress bar (no title, cover or buttons, and nothing looked up). **Never show these files** takes folders, names or wildcards (such as `Private` or `*.xyz`); a listed file shows no status at all and is never looked up. Hidden names are not written to the log either.
 - **Privacy controls** (Privacy tab). Every online service the program can ask about a title has its own switch, with what it
   is used for and where requests go; a switched-off service is never contacted. One switch turns all lookups off (fully
   offline). **Clear my status when paused for N minutes** takes the status down after a long pause (0 = never) and brings

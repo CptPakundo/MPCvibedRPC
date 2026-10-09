@@ -3,10 +3,12 @@ package store
 import (
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
@@ -279,4 +281,90 @@ func TestPrivacySectionLayout(t *testing.T) {
 	if n != 1 {
 		t.Errorf("showArtwork appears %d times", n)
 	}
+}
+
+func TestLinesFieldClean(t *testing.T) {
+	f, ok := ByKey("hideFiles")
+	if !ok || f.Type != "lines" {
+		t.Fatalf("hideFiles should be a lines field: %+v", f)
+	}
+	// text from the window: trimmed, blanks and duplicates dropped, order kept
+	got, err := Clean(f, "  Private \r\n\r\n*.xyz\nPrivate\n   \nD:\\Videos\\Secret")
+	if err != nil || !reflect.DeepEqual(got, []any{"Private", "*.xyz", `D:\Videos\Secret`}) {
+		t.Errorf("from text: %#v %v", got, err)
+	}
+	// an array works too, and nothing means an empty list
+	if got, err := Clean(f, []any{"a", " b ", "a"}); err != nil || !reflect.DeepEqual(got, []any{"a", "b"}) {
+		t.Errorf("from array: %#v %v", got, err)
+	}
+	if got, err := Clean(f, nil); err != nil || !reflect.DeepEqual(got, []any{}) {
+		t.Errorf("nil: %#v %v", got, err)
+	}
+	// limits and wrong shapes are refused
+	long := strings.Repeat("x", maxLineLen+1)
+	if _, err := Clean(f, long); err == nil {
+		t.Error("an over-long entry must be refused")
+	}
+	var many []string
+	for i := 0; i <= maxLines; i++ {
+		many = append(many, fmt.Sprintf("entry %d", i))
+	}
+	if _, err := Clean(f, strings.Join(many, "\n")); err == nil {
+		t.Error("too many entries must be refused")
+	}
+	if _, err := Clean(f, []any{"ok", 5.0}); err == nil {
+		t.Error("a number is not an entry")
+	}
+	if _, err := Clean(f, true); err == nil {
+		t.Error("a bool is not a list")
+	}
+}
+
+func TestPrivacySettingsRoundTripAndHeadings(t *testing.T) {
+	dir := t.TempDir()
+	s, _ := New(dir)
+	vals := s.Values()
+	if _, has := vals[""]; has {
+		t.Error("headings carry no value")
+	}
+	if vals["hideTitle"] != false || !reflect.DeepEqual(vals["hideFiles"], []any{}) {
+		t.Errorf("defaults: hideTitle=%v hideFiles=%#v", vals["hideTitle"], vals["hideFiles"])
+	}
+	patch, _ := jsonx.Parse(`{"settings":{"hideTitle":true,"hideFiles":["Private","*.xyz"]}}`)
+	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	c := New2(t, dir).Config()
+	if !c.HideTitle || !reflect.DeepEqual(c.HideFiles, []string{"Private", "*.xyz"}) {
+		t.Errorf("after reload: %+v %v", c.HideTitle, c.HideFiles)
+	}
+	if err := s.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if c := s.Config(); c.HideTitle || len(c.HideFiles) != 0 {
+		t.Errorf("reset: %v %v", c.HideTitle, c.HideFiles)
+	}
+	// every heading is a pure label: no key, never a field a client can set
+	for _, sec := range Sections {
+		for _, f := range sec.Fields {
+			if (f.Type == "heading") != (f.Key == "") {
+				t.Errorf("field %+v: headings (and only headings) have no key", f)
+			}
+		}
+	}
+	// the window cannot save a heading
+	bad, _ := jsonx.Parse(`{"settings":{"":"x"}}`)
+	if err := s.Update(bad.(*jsonx.Obj)); err != nil {
+		t.Errorf("an unknown key is ignored, got %v", err)
+	}
+}
+
+// New2 reopens the store in the same folder (a fresh instance reading the saved file).
+func New2(t *testing.T, dir string) *Store {
+	t.Helper()
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

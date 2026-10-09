@@ -75,6 +75,8 @@
   .pv-track { flex: 1; height: 4px; background: var(--line); border-radius: 2px; }
   .pv-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0; }
   .pv-button { margin-top: 6px; display: inline-block; font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
+  h3.grp { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 0; font-weight: 650; }
+  h3.grp:first-child { margin-top: 4px; }
   .sources .src { padding: 8px 0; border-top: 1px solid var(--line); }
   .sources .src .help { margin-top: 1px; }
   #log { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -222,6 +224,7 @@
     for (const sec of m.schema) {
       const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
       for (const f of sec.fields) {
+        if (f.type === 'heading') { d.append(el('h3', { className: 'grp', textContent: f.label })); continue; }
         const v = m.values[f.key];
         const wrap = el('div', { className: 'field' });
         const help = f.help ? el('div', { className: 'help', textContent: f.help }) : null;
@@ -238,6 +241,16 @@
           wrap.append(el('div', { textContent: f.label }), ...(help ? [help] : []), list);
           const run = saver('settings', f.key, () => boxes.filter((c) => !c.checked).map((c) => c.dataset.id), (ids) => { const o = new Set(ids || []); boxes.forEach((c) => { c.checked = !o.has(c.dataset.id); }); });
           boxes.forEach((c) => c.addEventListener('change', () => { queue = queue.then(run, run); }));
+          d.append(wrap);
+          continue;
+        }
+        if (f.type === 'lines') {
+          // one entry per line; the stored value is a list
+          const ta = el('textarea', { value: (v || []).join('\n'), spellcheck: false, placeholder: 'One per line, e.g. Private' });
+          ta.dataset.key = f.key; ta.dataset.type = 'lines';
+          wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, ta), ...(help ? [help] : []));
+          const run = saver('settings', f.key, () => ta.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean), (arr) => { ta.value = (arr || []).join('\n'); });
+          ta.addEventListener('change', () => { queue = queue.then(run, run); });
           d.append(wrap);
           continue;
         }
@@ -340,6 +353,7 @@
     p.textContent = s.mpc ? 'MPC-HC detected' : s.running ? 'MPC-HC not found' : 'MPC-HC idle';
     const now = $('now');
     if (!s.running) now.innerHTML = 'Presence is off<small>Press Start to show what you watch on Discord.</small>';
+    else if (s.hidden) now.innerHTML = 'Hidden<small>The file playing is on your Never show list, so nothing is shown on Discord.</small>';
     else if (s.nowPlaying) { now.textContent = ''; now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing' })); }
     else now.innerHTML = 'Nothing playing<small>Play something in MPC-HC.</small>';
     const t = $('toggle'); t.textContent = s.running ? 'Stop presence' : 'Start presence'; t.className = s.running ? '' : 'primary';

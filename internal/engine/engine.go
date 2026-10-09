@@ -38,6 +38,8 @@ type Status struct {
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
 	PauseCleared bool `json:"pauseCleared"`
+	// Hidden is true while the playing file is on the user's "don't show" list (nothing is shown or looked up).
+	Hidden bool `json:"hidden"`
 	// Preview is how the current status looks on Discord (nil when nothing is shown).
 	Preview *core.Preview `json:"preview"`
 	LastError  *string `json:"lastError"`
@@ -75,6 +77,7 @@ type Engine struct {
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
 	pauseCleared bool
+	hidden        bool // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
 
 	// stopMu serialises Start/Stop/ApplySettings.
@@ -242,8 +245,9 @@ func (e *Engine) tick(r *run) {
 		e.mu.Lock()
 	}
 	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2)
+	hidden := active && core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles)
 
-	if !active {
+	if !active || hidden {
 		var clear *discord.Client
 		if e.shown && e.ready {
 			clear = e.rpc
@@ -251,14 +255,20 @@ func (e *Engine) tick(r *run) {
 		e.mu.Unlock()
 		if clear != nil {
 			_ = clear.ClearActivity()
-			e.log("INFO", "Nothing playing - presence cleared.")
+			if hidden {
+				e.log("INFO", "This file is on your don't-show list - presence cleared.")
+			} else {
+				e.log("INFO", "Nothing playing - presence cleared.")
+			}
 		}
 		e.mu.Lock()
+		e.hidden = hidden
 		e.shown, e.prev, e.nowPlaying, e.preview = false, nil, nil, nil
 		e.pausedSince, e.pauseCleared = time.Time{}, false
 		e.mu.Unlock()
 		return
 	}
+	e.hidden = false
 	if !e.ready {
 		e.mu.Unlock()
 		e.connectDiscord(r)
@@ -306,29 +316,43 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 
-	media := core.ParseMedia(info.File, &cfg, info.Dir)
-	if info.Duration > 0 {
-		media.DurationMin = int(jsRound(float64(info.Duration) / 60000))
-	}
-	if cfg.FolderEpisodeNumbers && media.Code != "" && info.FullDir != "" {
-		if ents, err := os.ReadDir(info.FullDir); err == nil {
-			names := make([]string, len(ents))
-			for i, en := range ents {
-				names[i] = en.Name()
-			}
-			if n := core.FolderEpisode(media, names); n != 0 && n != core.NA {
-				media.BadgeEpisode = n
+	var (
+		activity *core.Activity
+		display  string
+		found    *core.Art
+	)
+	if cfg.HideTitle {
+		// nothing about the file is used: no parsing, no lookups, and no title in the status, the window or the log
+		activity = core.HiddenActivity(info, &cfg, time.Now().UnixMilli())
+		display = "A video (title hidden)"
+	} else {
+		media := core.ParseMedia(info.File, &cfg, info.Dir)
+		if info.Duration > 0 {
+			media.DurationMin = int(jsRound(float64(info.Duration) / 60000))
+		}
+		if cfg.FolderEpisodeNumbers && media.Code != "" && info.FullDir != "" {
+			if ents, err := os.ReadDir(info.FullDir); err == nil {
+				names := make([]string, len(ents))
+				for i, en := range ents {
+					names[i] = en.Name()
+				}
+				if n := core.FolderEpisode(media, names); n != 0 && n != core.NA {
+					media.BadgeEpisode = n
+				}
 			}
 		}
-	}
-	var found *core.Art
-	if art != nil {
-		found = art.Lookup(media)
+		if art != nil {
+			found = art.Lookup(media)
+		}
+		if !e.isCurrent(r) {
+			return
+		}
+		activity = core.BuildActivity(info, &cfg, time.Now().UnixMilli(), media, found)
+		display = media.Display
 	}
 	if !e.isCurrent(r) {
 		return
 	}
-	activity := core.BuildActivity(info, &cfg, time.Now().UnixMilli(), media, found)
 	if err := e.sendActivity(rpc, &cfg, activity); err != nil {
 		msg := err.Error()
 		e.mu.Lock()
@@ -340,7 +364,7 @@ func (e *Engine) tick(r *run) {
 	}
 	e.mu.Lock()
 	e.shown = true
-	d := media.Display
+	d := display
 	e.nowPlaying = &d
 	e.paused = info.State == 1
 	sent := activity
@@ -353,11 +377,15 @@ func (e *Engine) tick(r *run) {
 	if info.State == 2 {
 		word = "Playing"
 	}
+	if cfg.HideTitle {
+		e.log("INFO", fmt.Sprintf("%s: (title hidden)", word))
+		return
+	}
 	tag := ""
 	if found != nil {
 		tag = " [artwork]"
 	}
-	e.log("INFO", fmt.Sprintf("%s: %s%s", word, media.Display, tag))
+	e.log("INFO", fmt.Sprintf("%s: %s%s", word, display, tag))
 }
 
 func jsRound(x float64) float64 {
@@ -408,7 +436,7 @@ func (e *Engine) start() {
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
 	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc = false, nil, false, false, false
-	e.pausedSince, e.pauseCleared, e.preview = time.Time{}, false, nil
+	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -462,7 +490,7 @@ func (e *Engine) stop() {
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
-	e.pausedSince, e.pauseCleared = time.Time{}, false
+	e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }
@@ -512,6 +540,7 @@ func (e *Engine) Status() Status {
 		s.MPC = e.mpcUp
 		s.NowPlaying = e.nowPlaying
 		s.PauseCleared = e.pauseCleared
+		s.Hidden = e.hidden
 		s.Preview = e.preview
 	}
 	return s
