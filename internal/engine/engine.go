@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -50,7 +51,7 @@ func PlayerPipes(cfg core.Config) []PlayerPipe {
 // Status is what the settings window shows.
 type Status struct {
 	Running    bool    `json:"running"`
-	Discord    string  `json:"discord"` // off | waiting | connected
+	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
 	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT or mpv
 	NowPlaying *string `json:"nowPlaying"`
@@ -370,7 +371,7 @@ func (e *Engine) tick(r *run) {
 			}
 		}
 		e.mu.Lock()
-		e.hidden = hidden
+		e.hidden, e.paused = hidden, false
 		e.shown, e.prev, e.nowPlaying, e.preview = false, nil, nil, nil
 		e.pausedSince, e.pauseCleared = time.Time{}, false
 		e.mu.Unlock()
@@ -527,7 +528,7 @@ func (e *Engine) loop(r *run, interval time.Duration) {
 	}
 }
 
-// Start begins watching MPC-HC (no-op when already running).
+// Start begins watching for a player (no-op when already running).
 func (e *Engine) Start() {
 	e.stopMu.Lock()
 	defer e.stopMu.Unlock()
@@ -610,18 +611,23 @@ func (e *Engine) stop() {
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
-	e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
+	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }
 
-// ApplySettings restarts the engine with new settings if it was running.
+// ApplySettings restarts the engine with new settings if it was running. Settings that did not change (a save of
+// an app-only option such as "Start with Windows") leave it alone, so Discord is not cleared and reconnected for nothing.
 func (e *Engine) ApplySettings(cfg core.Config) {
 	e.stopMu.Lock()
 	defer e.stopMu.Unlock()
 	e.mu.Lock()
 	was := e.cur != nil
+	same := reflect.DeepEqual(e.cfg, cfg)
 	e.mu.Unlock()
+	if same {
+		return
+	}
 	if was {
 		e.stop()
 	}
@@ -633,7 +639,8 @@ func (e *Engine) ApplySettings(cfg core.Config) {
 	}
 }
 
-// ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is\n// running the current title is looked up again, so its card is refreshed.
+// ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is
+// running the current title is looked up again, so its card is refreshed.
 func (e *Engine) ClearArtworkCache() {
 	e.mu.Lock()
 	art := e.art
@@ -651,12 +658,18 @@ func (e *Engine) Status() Status {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	running := e.cur != nil
-	s := Status{Running: running, Discord: "off", Paused: e.paused, LastError: e.lastError, Since: e.since}
+	s := Status{Running: running, Discord: "off", LastError: e.lastError, Since: e.since}
 	if running {
-		s.Discord = "waiting"
-		if e.ready {
+		// Discord is only contacted once something plays; until then it is on standby, not missing
+		switch {
+		case e.ready:
 			s.Discord = "connected"
+		case e.connecting || e.warnedDisc:
+			s.Discord = "waiting"
+		default:
+			s.Discord = "standby"
 		}
+		s.Paused = e.paused
 		s.MPC = e.mpcUp
 		s.Player = e.player
 		s.NowPlaying = e.nowPlaying

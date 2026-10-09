@@ -156,13 +156,14 @@ func NewInfo(file, filePath, fileDir string, state, position, duration int, rate
 	}
 }
 
-// PlayerOf names the player that served a /variables.html page. MPC-BE says so in the title; MPC-QT imitates
-// MPC-HC's page but spells one variable "playbackRate" (MPC-HC and MPC-BE write "playbackrate").
+// PlayerOf names the player that served a /variables.html page. MPC-BE says so in the page title; MPC-QT imitates
+// MPC-HC's page (title and body class included) but spells one variable "playbackRate", where MPC-HC and MPC-BE write
+// "playbackrate". Only markup is looked at, never the file name or path the page also carries.
 func PlayerOf(html string) string {
 	switch {
-	case strings.Contains(html, "MPC-BE"):
+	case strings.Contains(html, "<title>MPC-BE"):
 		return "MPC-BE"
-	case strings.Contains(html, `id="playbackRate"`) || strings.Contains(html, `class="page-variables"`):
+	case strings.Contains(html, `<p id="playbackRate">`):
 		return "MPC-QT"
 	}
 	return "MPC-HC"

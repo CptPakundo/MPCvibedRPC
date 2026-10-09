@@ -50,3 +50,25 @@ func TestIniFileRoundTrip(t *testing.T) {
 		}
 	}
 }
+func TestGetIniValue(t *testing.T) {
+	text := "\ufeff[Settings]\r\nEnableWebServer=1\r\n[WebServer]\r\n EnableWebServer = 0 \r\nPort=13581\r\n"
+	for _, c := range []struct {
+		sec, key, want string
+		ok             bool
+	}{
+		{"Settings", "EnableWebServer", "1", true},
+		{"webserver", "enablewebserver", "0", true},
+		{"WebServer", "Port", "13581", true},
+		{"WebServer", "LocalhostOnly", "", false},
+		{"Missing", "Port", "", false},
+	} {
+		if v, ok := GetIniValue(text, c.sec, c.key); v != c.want || ok != c.ok {
+			t.Errorf("[%s] %s = %q %v, want %q %v", c.sec, c.key, v, ok, c.want, c.ok)
+		}
+	}
+	// what SetIniValue writes reads back
+	out := SetIniValue(SetIniValue("", "WebServer", "LocalhostOnly", "1"), "WebServer", "Port", "1")
+	if v, _ := GetIniValue(out, "WebServer", "LocalhostOnly"); v != "1" {
+		t.Errorf("round trip: %q", out)
+	}
+}

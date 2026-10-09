@@ -14,7 +14,7 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 ## Use it
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
-2. A small window opens. Press **Start presence**. If no player is answering, the window offers
+2. A small window opens and presence is already on: play something in your player. If no player is answering, the window offers
    **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC and MPC-BE get their web
    interface switched on, mpv gets one line in `mpv.conf`).
 3. Optional: switch on **Start with Windows**. It then starts quietly at login, with a tray icon
@@ -44,8 +44,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.6 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.6" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.7 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.7" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -56,7 +56,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.6 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.7 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
@@ -182,8 +182,8 @@ The program asks the players in this order and shows the first one that is playi
 
 | Player | How it is read | Setup |
 |---|---|---|
-| MPC-HC | its web interface (`http://127.0.0.1:13579/variables.html`) | Options > Player > Web Interface > Listen on port, or the **Set up the player connection** button (it closes and reopens MPC-HC) |
-| MPC-BE | the same web interface | the same; MPC-BE keeps the switch in `[WebServer]` of `mpc-be64.ini` or the registry, the button handles both |
+| MPC-HC | its web interface (`http://127.0.0.1:13579/variables.html`) | Options > Player > Web Interface > Listen on port, or the **Set up the player connection** button (it closes and reopens MPC-HC, and keeps a web interface it switches on to this PC only) |
+| MPC-BE | the same web interface | the same; MPC-BE keeps the switch in `[WebServer]` of `mpc-be64.ini` or the registry, the button handles both (also this PC only) |
 | MPC-QT | its own mpv-style connection (`cmdrkotori.mpc-qt.mpv`), always on | none (its web interface works too, if you turned it on) |
 | mpv | its JSON IPC (`input-ipc-server`) | `input-ipc-server=mpvsocket` in `mpv.conf`; the button adds it (`portable_config\mpv.conf` next to a portable mpv, else `%APPDATA%\mpv\mpv.conf`) and keeps a name you already set. mpv reads it when it starts. |
 
@@ -192,7 +192,7 @@ MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 2
 ## Troubleshooting
 - Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
   or (MPC-HC, MPC-BE) check http://127.0.0.1:13579/variables.html while a video plays. mpv only reads `mpv.conf` when it starts, so restart it after setting it up.
-- Discord pill stays on "Waiting": use the Discord desktop app (not the browser) and start it before or after, either works.
+- Discord pill: "on standby" until something plays (Discord is only contacted then). If it stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser); starting it before or after the program both work.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.
 - No window appears: run the program again, or right-click its tray icon > Open settings.

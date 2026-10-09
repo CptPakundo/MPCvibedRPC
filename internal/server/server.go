@@ -52,7 +52,8 @@ type Server struct {
 // Validation is implemented by errors that should be answered as a 400.
 type Validation interface{ IsValidation() bool }
 
-const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:"
+// Cover images for the preview card come straight from the catalogs' image hosts (https only, no referrer).
+const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data: https:"
 
 func New(o Options) *Server { return &Server{o: o} }
 

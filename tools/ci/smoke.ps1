@@ -1,10 +1,10 @@
 # Smoke test of the built Windows program: starts it for real (hidden, with its own data folder), talks to it through
 # its local API and the tray icon's window, and plays a fake MPC-HC into a fake Discord.
 param(
-  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.6)
+  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.7)
   [Parameter(Mandatory)][string]$NewExe,    # the same program built with the next patch version, offered as an update
-  [string]$Version = '0.9.6',
-  [string]$NextVersion = '0.9.7'
+  [string]$Version = '0.9.7',
+  [string]$NextVersion = '0.9.8'
 )
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -115,6 +115,9 @@ try {
   Check ($reg -match '0x1') 'mpc-web set EnableWebServer=1'
   $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v WebServerPort 2>&1) -join "`n"
   Check ($reg -match ('0x' + ('{0:x}' -f $port))) 'mpc-web set WebServerPort'
+  $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v WebServerLocalhostOnly 2>&1) -join "`n"
+  Check ($reg -match '0x1') 'mpc-web made the web interface answer this PC only'
+  Check ($mw.message -match 'this PC only') 'mpc-web says so'
 
   # a second launch hands over to the running copy and exits
   $second = Start-Process $app -PassThru

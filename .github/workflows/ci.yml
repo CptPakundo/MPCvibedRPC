@@ -27,11 +27,12 @@ jobs:
         shell: bash
       - name: Test (with the race detector)
         if: runner.os == 'Linux'
-        run: ./tools/ci/run-annotated.sh "go test -race" go test -race -count=1 ./...
+        run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh 'TestLivePlayer' go test -race -count=1 ./...
         shell: bash
       - name: Test
         if: runner.os != 'Linux'
-        run: ./tools/ci/run-annotated.sh "go test" go test -count=1 ./...
+        # the Unix-socket fakes and the end-to-end run are Linux-only; the smoke test covers them on Windows
+        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending' go test -count=1 ./...
         shell: bash
 
   windows:
@@ -45,15 +46,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version 0.9.6 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.6" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
           go run ./tools/mkrsrc -version 0.9.7 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.7" -o dist/next.exe ./cmd/mpcvibedrpc
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.7" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version 0.9.8 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.8" -o dist/next.exe ./cmd/mpcvibedrpc
           Get-ChildItem dist | Format-Table Name, Length
           Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
       - name: Smoke test
         shell: pwsh
-        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.6 -NextVersion 0.9.7
+        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.7 -NextVersion 0.9.8
       - uses: actions/upload-artifact@v7
         with:
           name: MPCvibedRPC-windows

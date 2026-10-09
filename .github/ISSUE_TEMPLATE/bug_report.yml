@@ -20,7 +20,7 @@ body:
     attributes:
       label: Program version
       description: Shown at the top right of the settings window, or run `MPCvibedRPC.exe --version`.
-      placeholder: e.g. 0.9.6
+      placeholder: e.g. 0.9.7
     validations:
       required: true
   - type: input
