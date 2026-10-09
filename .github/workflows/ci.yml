@@ -89,7 +89,9 @@ jobs:
           echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
       - name: Smoke test (Linux)
         if: runner.os == 'Linux'
-        run: ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.8
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.8
+          test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
         shell: bash
       - name: Build (macOS app)
         if: runner.os == 'macOS'
@@ -101,7 +103,8 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
           app="$RUNNER_TEMP/app/MPCvibedRPC.app"
-          ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.8 "$app"
+          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.8 "$app"
+          test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
       - uses: actions/upload-artifact@v7
         with:
           name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
@@ -133,11 +136,10 @@ jobs:
           brew install --quiet --cask iina
           mpv --version | head -n 1
           defaults read /Applications/IINA.app/Contents/Info.plist CFBundleShortVersionString
-      - name: Live tests (Linux)
-        if: runner.os == 'Linux'
-        run: ./tools/ci/run-annotated.sh "live players" dbus-run-session -- ./tools/ci/live-players.sh
-        shell: bash
-      - name: Live tests (macOS)
-        if: runner.os == 'macOS'
-        run: ./tools/ci/run-annotated.sh "live players" ./tools/ci/live-players.sh
+      - name: Live tests
+        # Linux: inside a session bus of its own, for MPRIS
+        run: |
+          bus=""; [ "$RUNNER_OS" = Linux ] && bus="dbus-run-session --"
+          PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players" $bus ./tools/ci/live-players.sh
+          test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players::the script stopped before the end"; exit 1; }
         shell: bash

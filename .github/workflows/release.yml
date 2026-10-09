@@ -34,12 +34,13 @@ jobs:
             for arch in amd64 arm64; do
               CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$v" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
             done
-            ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$v"
+            PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$v"
           else
             ./tools/ci/package-macos.sh "$v" dist
             mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
-            ./tools/ci/smoke-unix.sh "$RUNNER_TEMP/app/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" "$v" "$RUNNER_TEMP/app/MPCvibedRPC.app"
+            PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/smoke-unix.sh "$RUNNER_TEMP/app/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" "$v" "$RUNNER_TEMP/app/MPCvibedRPC.app"
           fi
+          test -f "$RUNNER_TEMP/smoke-ok" || { echo "the smoke test stopped before the end"; exit 1; }
       - uses: actions/upload-artifact@v7
         with:
           name: unix-${{ matrix.os }}
