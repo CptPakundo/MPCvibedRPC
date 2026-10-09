@@ -178,7 +178,7 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
 
 
 ## Players
-The program looks for a player in this order and uses the first that answers (the window shows which one):
+The program asks the players in this order and shows the first one that is playing something (if none is, the window still names the first that answers):
 
 | Player | How it is read | Setup |
 |---|---|---|
