@@ -614,7 +614,10 @@ func TestDontShowListHidesAndLooksNothingUp(t *testing.T) {
 
 	// going back to the listed file takes the status down again
 	n := len(d.list())
-	m.set(func(m *mpc) { m.file = "Show.Name.S01E01.720p.mkv"; m.filepath = `C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv` })
+	m.set(func(m *mpc) {
+		m.file = "Show.Name.S01E01.720p.mkv"
+		m.filepath = `C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv`
+	})
 	eventually(t, "the status is cleared for the listed file", func() bool { return len(d.list()) > n && isClear(d) && e.Status().Hidden })
 }
 

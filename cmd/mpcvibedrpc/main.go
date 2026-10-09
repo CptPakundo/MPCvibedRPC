@@ -251,7 +251,7 @@ func run() error {
 	quit := func() {
 		quitOnce.Do(func() {
 			go func() {
-				srv.Close() // ends the page's keep-alive connection, so an open window closes right away
+				srv.Close()                               // ends the page's keep-alive connection, so an open window closes right away
 				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
 				eng.Stop()
 				tray.Close()

@@ -41,9 +41,9 @@ type Status struct {
 	// Hidden is true while the playing file is on the user's "don't show" list (nothing is shown or looked up).
 	Hidden bool `json:"hidden"`
 	// Preview is how the current status looks on Discord (nil when nothing is shown).
-	Preview *core.Preview `json:"preview"`
-	LastError  *string `json:"lastError"`
-	Since      *int64  `json:"since"`
+	Preview   *core.Preview `json:"preview"`
+	LastError *string       `json:"lastError"`
+	Since     *int64        `json:"since"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -77,7 +77,7 @@ type Engine struct {
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
 	pauseCleared bool
-	hidden        bool // the playing file is on the user's "don't show" list
+	hidden       bool          // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
 
 	// stopMu serialises Start/Stop/ApplySettings.

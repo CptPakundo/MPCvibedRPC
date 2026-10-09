@@ -223,7 +223,8 @@ func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
 			}
 		}
 		inis := p.iniCandidates(dirs)
-		if !p.always && !p.installed(running, inis) {
+		present := p.installed(running, inis)
+		if !p.always && !present {
 			continue
 		}
 		a := run("reg", "add", p.regKey, "/v", p.enableKey, "/t", "REG_DWORD", "/d", "1", "/f")
@@ -240,7 +241,12 @@ func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
 				edited = append(edited, f)
 			}
 		}
-		done = append(done, p.name)
+		if present {
+			done = append(done, p.name)
+		}
+	}
+	if len(done) == 0 { // nothing found: the MPC-HC values were still written, as they always were
+		done = append(done, players[0].name)
 	}
 	for _, e := range exes {
 		c := proc.DetachVisible(exec.Command(e))
@@ -254,6 +260,7 @@ func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
 	}
 	return WebResult{OK: ok, Message: msg, Edited: edited}
 }
+
 // ---- the settings window ---------------------------------------------------------------
 
 // FindBrowser returns Edge/Chrome/Brave/Vivaldi if installed.

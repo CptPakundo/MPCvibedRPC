@@ -519,7 +519,7 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 	if media.IndexTitle != "" && query == media.Title {
 		numbered = []variant{{query: media.IndexTitle}}
 	}
-	// "Dr Strangelove 1964" (no technical tags, so the year was not split off): try it as title + year first.
+	// "Some Title 1964" (no technical tags, so the year was not split off): try it as title + year first.
 	var trailYear []variant
 	if media.Year0() == 0 && !media.IsEpisode {
 		if ty := reYearTail.Exec(query); ty != nil && reHasLetter.Test(ty.Str(1)) {
@@ -527,7 +527,7 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 			trailYear = []variant{{query: ty.Str(1), year: y}}
 		}
 	}
-	// "Marvel's Agents of S.H.I.E.L.D." is listed as "Agents of S.H.I.E.L.D.": the studio's possessive is a prefix.
+	// "Studio's Show Name" is listed as "Show Name": the studio's possessive is a prefix.
 	var stripped []variant
 	if pm := reStudio.Exec(query); pm != nil {
 		stripped = []variant{{query: pm.Str(1)}}
