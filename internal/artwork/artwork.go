@@ -542,6 +542,7 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 	seq = append(seq, rest...)
 	seq = append(seq, numbered...)
 	seq = append(seq, stripped...)
+	seq = append(seq, franchiseSubtitle(media, query)...)
 	_ = cfg
 	for _, v := range seq {
 		m := media
@@ -552,6 +553,11 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 		}
 		r := a.searchWith(m, v.query, v.contain)
 		if r.hit != nil {
+			if v.subtitle != "" && cfg.CatalogTitle {
+				h := *r.hit
+				h.Name = h.Name + ": " + v.subtitle // the catalog lists the title without it
+				return &h
+			}
 			return r.hit
 		}
 		seen = append(seen, r.seen...)
@@ -584,10 +590,28 @@ var (
 // ---- title variants -------------------------------------------------------------------
 
 type variant struct {
-	query   string
-	contain []string
-	first   bool
-	year    int
+	query    string
+	contain  []string
+	first    bool
+	year     int
+	subtitle string // added back to the catalog's title (franchiseSubtitle)
+}
+
+// reFranchiseTail: a film named "<Title>: A <Franchise> Mystery" loses its colon in a file name, and the catalogs list
+// it as "<Title>" alone.
+var reFranchiseTail = re(`^(.+?\S)\s+((?:a|an)\s+(?:\S+\s+){1,3}(?:mystery|story|movie|film|adventure|tale|saga|legend|odyssey))$`, "i")
+
+// franchiseSubtitle: the last-resort search for such a film: "<Title>" alone, only with the file's year (so the
+// catalog's year has to agree), and only when the title is long enough to be distinctive.
+func franchiseSubtitle(media *core.Media, query string) []variant {
+	if media.IsEpisode || media.Year0() == 0 {
+		return nil
+	}
+	m := reFranchiseTail.Exec(query)
+	if m == nil || len(words(m.Str(1))) < 2 || u16len(normTitle(m.Str(1))) < 6 {
+		return nil
+	}
+	return []variant{{query: m.Str(1), subtitle: m.Str(2)}}
 }
 
 var (

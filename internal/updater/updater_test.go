@@ -193,3 +193,47 @@ func TestCheckWithoutAsset(t *testing.T) {
 		t.Errorf("Download should point to the release page, got %v", err)
 	}
 }
+
+// GitHub's API limits unauthenticated checks per internet address; the website then tells the latest version.
+func TestCheckFallsBackToTheWebsite(t *testing.T) {
+	webOK := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/o/r/releases/latest": // the API, out of checks
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("X-RateLimit-Reset", "1791593604")
+			w.WriteHeader(403)
+			fmt.Fprint(w, `{"message":"API rate limit exceeded"}`)
+		case "/o/r/releases/latest": // the website
+			if !webOK {
+				w.WriteHeader(500)
+				return
+			}
+			http.Redirect(w, r, "/o/r/releases/tag/v3.1.0", http.StatusFound)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer srv.Close()
+	oldAPI, oldWeb := APIBase, WebBase
+	APIBase, WebBase = srv.URL, srv.URL
+	defer func() { APIBase, WebBase = oldAPI, oldWeb }()
+
+	info, err := Check(nil, "o/r", "3.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Newer || info.Latest != "3.1.0" || !info.CanInstall || info.Page != srv.URL+"/o/r/releases/tag/v3.1.0" ||
+		info.URL != srv.URL+"/o/r/releases/download/v3.1.0/MPCvibedRPC.exe" || info.ShaURL != info.URL+".sha256" {
+		t.Fatalf("got %+v", info)
+	}
+	if info, err := Check(nil, "o/r", "3.1.0"); err != nil || info.Newer {
+		t.Fatalf("up to date: %+v %v", info, err)
+	}
+
+	webOK = false
+	_, err = Check(nil, "o/r", "3.0.0")
+	if err == nil || !strings.Contains(err.Error(), "limits how often") || strings.Contains(err.Error(), "403") {
+		t.Fatalf("both refused: %v", err)
+	}
+}

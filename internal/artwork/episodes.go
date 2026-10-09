@@ -603,23 +603,40 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 	if hit != nil && hit.SeasonNo != core.NA {
 		ctx.seasonNo = hit.SeasonNo
 	}
-	for _, name := range srcs {
-		p := r.provs[name]
-		if p == nil || p.byCode {
-			continue
+	try := func(ctx epCtx) *core.ArtEpisode {
+		for _, name := range srcs {
+			p := r.provs[name]
+			if p == nil || p.byCode {
+				continue
+			}
+			if p.enable != nil && !p.enable(cfg) {
+				continue
+			}
+			list, err := p.list(r, media, ids, ctx)
+			if err != nil {
+				warn(p.label, p.label+" episode lookup failed ("+err.Error()+"); trying the next source.")
+				continue
+			}
+			pk := pickEpisode(list, media, pickOpts{split: ctx.split, seasonNo: ctx.seasonNo, codeBlock: ctx.codeBlock})
+			if pk != nil && usable(pk.e.Name) {
+				return &core.ArtEpisode{Season: intOrNA(pk.e.Season), Number: intOrNA(pk.e.Number), Title: core.Trim(pk.e.Name), Source: p.label, Absolute: pk.absolute, Via: ctx.query}
+			}
 		}
-		if p.enable != nil && !p.enable(cfg) {
-			continue
-		}
-		list, err := p.list(r, media, ids, ctx)
-		if err != nil {
-			warn(p.label, p.label+" episode lookup failed ("+err.Error()+"); trying the next source.")
-			continue
-		}
-		pk := pickEpisode(list, media, pickOpts{split: ctx.split, seasonNo: ctx.seasonNo, codeBlock: ctx.codeBlock})
-		if pk != nil && usable(pk.e.Name) {
-			return &core.ArtEpisode{Season: intOrNA(pk.e.Season), Number: intOrNA(pk.e.Number), Title: core.Trim(pk.e.Name), Source: p.label, Absolute: pk.absolute, Via: ctx.query}
-		}
+		return nil
+	}
+	if ep := try(ctx); ep != nil {
+		return ep
+	}
+	// A show matched on an anime catalog is often known to the TV catalogs by another name (romaji in the file name,
+	// English at TVmaze): try its English name. Only for a file without a season number, matched to a whole show that
+	// the TV catalogs are asked about by name (no IMDb or TVmaze id).
+	if hit == nil || hit.Alt == nil || ids.Imdb != "" || ids.Tvmaze != "" || ctx.split || media.Season != core.NA {
+		return nil
+	}
+	if en := hit.Alt.English; en != "" && core.Lower(plain(en)) != core.Lower(plain(ctx.query)) {
+		c := ctx
+		c.query = en
+		return try(c)
 	}
 	return nil
 }
