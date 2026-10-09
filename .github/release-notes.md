@@ -2,7 +2,7 @@
 
 **macOS and Linux.** MPCvibedRPC now runs on Macs and on Linux too, alongside Windows.
 
-- **macOS** (11 or later, Apple silicon and Intel): **IINA**, mpv, VLC and MPC-QT. **Set up the player connection** adds the mpv option IINA needs to its settings (reopen IINA afterwards). The app has no Dock or menu bar icon: it runs in the background, opening it again shows its window, and Quit is in the window.
+- **macOS** (11 or later, Apple silicon and Intel): **IINA**, mpv, VLC and MPC-QT. **Set up the player connection** adds the mpv option IINA needs to its settings (reopen IINA afterwards). It lives in the **menu bar** (status, Open settings, Start/Stop presence, Quit) and shows its settings in a window of its own, so no browser is needed.
 - **Linux** (64-bit x86 and ARM): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and other video players are found through MPRIS with nothing to set up; mpv through the mpv-mpris script or one line in `mpv.conf` (the button adds it). Music players and web browsers are never shown. No tray icon: run the program again to show its window.
 - **Start at login** works on both (a LaunchAgent on macOS, an autostart entry on Linux).
 - Updates: Linux updates itself like Windows; on macOS the Updates tab links to the release page.
@@ -18,7 +18,7 @@
 Presence starts by itself: play something. If no player is answering, the window offers to set up the connection for you. Every system needs the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
 
 ### Good to know
-- The macOS and Linux versions have been tested on GitHub's test machines with real players (mpv, IINA, VLC, Celluloid) and a stand-in for Discord, not yet on a real desktop with the real Discord. Reports are welcome.
+- The macOS and Linux versions are tested on GitHub's test machines with real players (mpv, IINA, VLC, Celluloid) and a stand-in for Discord. A tester has also used the Mac version with IINA and the real Discord. Linux has not been tried on a real desktop yet. Reports are welcome.
 - The programs are **unsigned** (no code-signing certificate), so Windows SmartScreen or your antivirus may warn, and macOS asks you to confirm the first start. Check a download with its `.sha256` file, or with `gh attestation verify <file> --repo CptPakundo/MPCvibedRPC` (a signed GitHub record that it was built from this repository).
 - Settings are kept in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux: `~/.local/share/MPCvibedRPC`).
 - The idea and approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
