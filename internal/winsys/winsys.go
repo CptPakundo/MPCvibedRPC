@@ -183,6 +183,31 @@ func runningPlayers() []string {
 	return out
 }
 
+// RunningPlayerNames lists the supported players that are running right now ("MPC-HC", "MPC-BE"), for diagnostics.
+func RunningPlayerNames() []string {
+	exes := runningPlayers()
+	var out []string
+	for _, p := range players {
+		for _, e := range exes {
+			if p.belongs(e) {
+				out = append(out, p.name)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// SystemInfo describes the operating system for diagnostics (no user or machine names).
+func SystemInfo() string {
+	if IsWindows {
+		if v := strings.TrimSpace(run("cmd.exe", "/c", "ver").stdout); v != "" {
+			return v
+		}
+	}
+	return runtime.GOOS + "/" + runtime.GOARCH
+}
+
 // EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed). A player
 // rewrites its settings when it exits, so it has to be closed while they are changed; without closeMpc the caller
 // is told (needsClose) and can ask the user.

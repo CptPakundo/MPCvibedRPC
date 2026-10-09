@@ -26,7 +26,7 @@ type Config struct {
 	// HideFiles lists files that are never shown (see MatchesHideList); they are not looked up either.
 	HideFiles []string `json:"hideFiles"`
 
-	// PauseClearMinutes clears the status after the video has been paused this long (0 = never). It comes back on resume.
+	// PauseClearMinutes clears the status after the video has been paused this long (0 = never; the default is 30). It comes back on resume.
 	PauseClearMinutes int `json:"pauseClearMinutes"`
 
 	// Filename cleanup
@@ -78,6 +78,8 @@ func DefaultConfig() Config {
 		ClientID:     "427863248734388224",
 		Port:         13579,
 		PollInterval: 5000,
+
+		PauseClearMinutes: 30,
 
 		ActivityType:      "watching",
 		TitleAsName:       true,

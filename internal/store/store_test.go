@@ -234,7 +234,7 @@ func TestDisabledSourcesRoundTrip(t *testing.T) {
 	if err := s2.Reset(); err != nil {
 		t.Fatal(err)
 	}
-	if c := s2.Config(); !c.SourceOn("tvmaze") || c.PauseClearMinutes != 0 {
+	if c := s2.Config(); !c.SourceOn("tvmaze") || c.PauseClearMinutes != 30 {
 		t.Errorf("reset should restore the defaults: %v %d", c.DisabledSources, c.PauseClearMinutes)
 	}
 }

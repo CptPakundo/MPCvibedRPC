@@ -99,7 +99,9 @@
   .bar button { padding: 5px 11px; font-size: 13px; }
   .bar .msg { color: var(--muted); font-size: 12.5px; flex: 1; min-width: 0; }
   .bar .msg.err { color: var(--bad); white-space: pre-line; }
-  #log { max-height: none; height: 100%; min-height: 260px; }
+  #p-log.active { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+  #log { max-height: none; flex: 1; height: auto; min-height: 200px; }
+  #diagText { min-height: 120px; }
 </style>
 </head>
 <body>
@@ -166,6 +168,8 @@
     </section>
 
     <section class="panel" id="p-log">
+      <div class="row"><button id="copyDiag">Copy diagnostics</button><span class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults and the recent log, without titles, file names or paths.</span></div>
+      <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
       <div id="log" tabindex="0"></div>
     </section>
   </div>
@@ -425,6 +429,16 @@
     } catch (e) { $('updText').textContent = 'Could not check: ' + e.message; }
   };
   $('installUpd').onclick = async () => { $('updText').textContent = 'Downloading… the program will restart.'; $('installUpd').disabled = true; try { await api('update-install', {}); } catch (e) { $('updText').textContent = e.message; $('installUpd').disabled = false; } };
+  $('copyDiag').onclick = async () => {
+    const msg = $('diagMsg'), box = $('diagText');
+    try {
+      const { text } = await api('diagnostics');
+      box.value = text; box.classList.remove('hidden');
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { box.focus(); box.select(); try { ok = document.execCommand('copy'); } catch (_) {} }
+      msg.textContent = ok ? 'Copied. Look it over before you post it; titles, file names and paths are left out.' : 'Select the text below and copy it (Ctrl+C).';
+    } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
+  };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
   $('quit').onclick = async () => { if (confirm('Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 

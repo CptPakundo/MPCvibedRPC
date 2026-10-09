@@ -57,7 +57,7 @@ var Sections = []Section{
 		{Type: "heading", Label: "What other people see on Discord"},
 		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar: no title, cover, episode or buttons. Nothing is looked up online either."},
 		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up."},
-		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume. The status comes back when you play again or move around in the video.", Min: ip(0), Max: ip(1440)},
+		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume (the default is 30). The status comes back when you play again or move around in the video.", Min: ip(0), Max: ip(1440)},
 		{Type: "heading", Label: "What online services see"},
 		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},
 		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name is sent to these services to find cover art and details. Switch off any you don't want to use. They are never contacted while off.", Sources: core.Sources},

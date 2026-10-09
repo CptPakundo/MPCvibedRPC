@@ -43,8 +43,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.4 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.4" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.5 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.5" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -55,7 +55,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.4 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.5 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
@@ -166,7 +166,7 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
 - **Hiding things** (Privacy tab). **Hide what I'm watching** shows only "Watching a video" with the progress bar (no title, cover or buttons, and nothing looked up). **Never show these files** takes folders, names or wildcards (such as `Private` or `*.xyz`); a listed file shows no status at all and is never looked up. Hidden names are not written to the log either.
 - **Privacy controls** (Privacy tab). Every online service the program can ask about a title has its own switch, with what it
   is used for and where requests go; a switched-off service is never contacted. One switch turns all lookups off (fully
-  offline). **Clear my status when paused for N minutes** takes the status down after a long pause (0 = never) and brings
+  offline). **Clear my status when paused for N minutes** takes the status down after a long pause (30 minutes by default; 0 = never) and brings
   it back when you play again or seek. **Clear cover cache** forgets everything that was looked up. There is no analytics or
   tracking, and file paths are never sent.
 - Clears itself when you stop or close MPC-HC; reconnects on its own if Discord restarts.
@@ -181,4 +181,5 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
 - MPC-BE: its web interface is the same as MPC-HC's (same address, same page), so it should work, and the **Turn on the web interface** button also knows MPC-BE's settings. This is based on MPC-BE's source code and has not been tried on a real MPC-BE install yet; please report how it goes.
 - Discord pill stays on "Waiting": use the Discord desktop app (not the browser) and start it before or after, either works.
 - No icon: image keys in the settings must match art assets in the Discord application.
+- Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.
 - No window appears: run the program again, or right-click its tray icon > Open settings.
