@@ -1,4 +1,4 @@
-// Package winsys is everything that touches Windows itself: run-at-login, MPC-HC's web-interface switch, the
+// Package winsys is everything that touches Windows itself: run-at-login, the players' web-interface switch, the
 // settings window and the tray icon. Each function does nothing
 // harmful elsewhere, so the rest of the app can be developed and tested on any OS.
 package winsys
@@ -62,7 +62,7 @@ func SetAutoStart(enabled bool, exe string) bool {
 	return true
 }
 
-// ---- MPC-HC's web interface ------------------------------------------------------
+// ---- the players' web interface ---------------------------------------------------
 
 // WebResult is the answer of EnableMpcWebInterface.
 type WebResult struct {
@@ -72,13 +72,49 @@ type WebResult struct {
 	Edited     []string `json:"edited,omitempty"`
 }
 
-func iniCandidates(extraDirs []string) []string {
+// player describes where one supported player keeps its web-interface switch.
+type player struct {
+	name        string
+	procs       []string // process names without .exe
+	regKey      string   // registry key that holds the two values
+	section     string   // the same two values inside the player's .ini file
+	enableKey   string
+	portKey     string
+	iniNames    []string
+	installDirs []string // under Program Files
+	userIniDir  string   // under %APPDATA%, where a player may keep its .ini
+	always      bool     // switch the registry values on even when no install is found
+}
+
+var players = []player{
+	{
+		name: "MPC-HC", procs: []string{"mpc-hc", "mpc-hc64"},
+		regKey: `HKCU\Software\MPC-HC\MPC-HC\Settings`, section: "Settings", enableKey: "EnableWebServer", portKey: "WebServerPort",
+		iniNames:    []string{"mpc-hc.ini", "mpc-hc64.ini"},
+		installDirs: []string{"MPC-HC", `K-Lite Codec Pack\MPC-HC64`, `K-Lite Codec Pack\MPC-HC`},
+		always:      true,
+	},
+	{
+		name: "MPC-BE", procs: []string{"mpc-be", "mpc-be64"},
+		regKey: `HKCU\Software\MPC-BE\WebServer`, section: "WebServer", enableKey: "EnableWebServer", portKey: "Port",
+		iniNames:    []string{"mpc-be.ini", "mpc-be64.ini"},
+		installDirs: []string{"MPC-BE", "MPC-BE x64"},
+		userIniDir:  "MPC-BE",
+	},
+}
+
+func (p player) iniCandidates(extraDirs []string) []string {
 	var dirs []string
 	dirs = append(dirs, extraDirs...)
-	for _, p := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)")} {
-		if p != "" {
-			dirs = append(dirs, filepath.Join(p, "MPC-HC"), filepath.Join(p, "K-Lite Codec Pack", "MPC-HC64"), filepath.Join(p, "K-Lite Codec Pack", "MPC-HC"))
+	for _, pf := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)")} {
+		if pf != "" {
+			for _, d := range p.installDirs {
+				dirs = append(dirs, filepath.Join(pf, d))
+			}
 		}
+	}
+	if ad := os.Getenv("APPDATA"); ad != "" && p.userIniDir != "" {
+		dirs = append(dirs, filepath.Join(ad, p.userIniDir))
 	}
 	seen := map[string]bool{}
 	var out []string
@@ -87,7 +123,7 @@ func iniCandidates(extraDirs []string) []string {
 			continue
 		}
 		seen[d] = true
-		for _, n := range []string{"mpc-hc.ini", "mpc-hc64.ini"} {
+		for _, n := range p.iniNames {
 			f := filepath.Join(d, n)
 			if _, err := os.Stat(f); err == nil {
 				out = append(out, f)
@@ -97,12 +133,46 @@ func iniCandidates(extraDirs []string) []string {
 	return out
 }
 
-func runningMpc() []string {
+// installed reports whether the player seems to be on this PC (it is running, has an install folder or settings).
+func (p player) installed(running []string, inis []string) bool {
+	if len(running) > 0 || len(inis) > 0 {
+		return true
+	}
+	for _, pf := range []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)")} {
+		for _, d := range p.installDirs {
+			if pf != "" {
+				if _, err := os.Stat(filepath.Join(pf, d)); err == nil {
+					return true
+				}
+			}
+		}
+	}
+	return run("reg", "query", strings.Join(strings.Split(p.regKey, `\`)[:3], `\`)).ok
+}
+
+// belongs reports whether an executable path is one of the player's programs.
+func (p player) belongs(exe string) bool {
+	base := strings.ToLower(strings.TrimSuffix(filepath.Base(exe), filepath.Ext(exe)))
+	for _, n := range p.procs {
+		if base == n {
+			return true
+		}
+	}
+	return false
+}
+
+func runningPlayers() []string {
 	if !IsWindows {
 		return nil
 	}
+	var names []string
+	for _, p := range players {
+		for _, n := range p.procs {
+			names = append(names, "'"+n+"'")
+		}
+	}
 	r := run("powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-		"Get-Process -Name 'mpc-hc','mpc-hc64' -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Path } catch {} }")
+		"Get-Process -Name "+strings.Join(names, ",")+" -ErrorAction SilentlyContinue | ForEach-Object { try { $_.Path } catch {} }")
 	var out []string
 	for _, l := range strings.Split(r.stdout, "\n") {
 		if l = strings.TrimSpace(l); l != "" {
@@ -112,59 +182,77 @@ func runningMpc() []string {
 	return out
 }
 
-// EnableMpcWebInterface switches MPC-HC's web interface on. MPC-HC rewrites its settings when it exits, so it has
-// to be closed while they are changed; without closeMpc the caller is told (needsClose) and can ask the user.
+// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed). A player
+// rewrites its settings when it exits, so it has to be closed while they are changed; without closeMpc the caller
+// is told (needsClose) and can ask the user.
 func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
 	if !IsWindows {
 		return WebResult{Message: "Only available on Windows."}
 	}
-	exes := runningMpc()
+	exes := runningPlayers()
 	if len(exes) > 0 && !closeMpc {
-		return WebResult{NeedsClose: true, Message: "MPC-HC is running. It has to be closed while its settings change."}
+		return WebResult{NeedsClose: true, Message: "MPC-HC or MPC-BE is running. It has to be closed while its settings change."}
 	}
 	if len(exes) > 0 {
-		run("taskkill", "/IM", "mpc-hc.exe")
-		run("taskkill", "/IM", "mpc-hc64.exe")
+		for _, p := range players {
+			for _, n := range p.procs {
+				run("taskkill", "/IM", n+".exe")
+			}
+		}
 		time.Sleep(3 * time.Second)
-		if len(runningMpc()) > 0 {
-			run("taskkill", "/F", "/IM", "mpc-hc.exe")
-			run("taskkill", "/F", "/IM", "mpc-hc64.exe")
+		if len(runningPlayers()) > 0 {
+			for _, p := range players {
+				for _, n := range p.procs {
+					run("taskkill", "/F", "/IM", n+".exe")
+				}
+			}
 			time.Sleep(time.Second)
 		}
 	}
-	key := `HKCU\Software\MPC-HC\MPC-HC\Settings`
-	p := strconv.Itoa(port)
-	a := run("reg", "add", key, "/v", "EnableWebServer", "/t", "REG_DWORD", "/d", "1", "/f")
-	b := run("reg", "add", key, "/v", "WebServerPort", "/t", "REG_DWORD", "/d", p, "/f")
+	prt := strconv.Itoa(port)
+	ok := true
 	edited := []string{}
-	var dirs []string
-	for _, e := range exes {
-		dirs = append(dirs, filepath.Dir(e))
-	}
-	for _, f := range iniCandidates(dirs) {
-		text, u16, err := ReadIni(f)
-		if err != nil {
+	var done []string
+	for _, p := range players {
+		var running, dirs []string
+		for _, e := range exes {
+			if p.belongs(e) {
+				running = append(running, e)
+				dirs = append(dirs, filepath.Dir(e))
+			}
+		}
+		inis := p.iniCandidates(dirs)
+		if !p.always && !p.installed(running, inis) {
 			continue
 		}
-		t := SetIniValue(text, "Settings", "EnableWebServer", "1")
-		t = SetIniValue(t, "Settings", "WebServerPort", p)
-		if WriteIni(f, t, u16) == nil { // read-only install folder: the registry value still applies when no ini exists
-			edited = append(edited, f)
+		a := run("reg", "add", p.regKey, "/v", p.enableKey, "/t", "REG_DWORD", "/d", "1", "/f")
+		b := run("reg", "add", p.regKey, "/v", p.portKey, "/t", "REG_DWORD", "/d", prt, "/f")
+		ok = ok && a.ok && b.ok
+		for _, f := range inis {
+			text, u16, err := ReadIni(f)
+			if err != nil {
+				continue
+			}
+			t := SetIniValue(text, p.section, p.enableKey, "1")
+			t = SetIniValue(t, p.section, p.portKey, prt)
+			if WriteIni(f, t, u16) == nil { // read-only install folder: the registry value still applies when no ini exists
+				edited = append(edited, f)
+			}
 		}
+		done = append(done, p.name)
 	}
-	if len(exes) > 0 {
-		c := proc.DetachVisible(exec.Command(exes[0]))
+	for _, e := range exes {
+		c := proc.DetachVisible(exec.Command(e))
 		if c.Start() == nil {
 			_ = c.Process.Release()
 		}
 	}
-	msg := fmt.Sprintf("MPC-HC web interface switched on (port %d).", port)
+	msg := fmt.Sprintf("%s web interface switched on (port %d).", strings.Join(done, " and "), port)
 	if len(exes) > 0 {
-		msg += " MPC-HC was reopened."
+		msg += " The player was reopened."
 	}
-	return WebResult{OK: a.ok && b.ok, Message: msg, Edited: edited}
+	return WebResult{OK: ok, Message: msg, Edited: edited}
 }
-
 // ---- the settings window ---------------------------------------------------------------
 
 // FindBrowser returns Edge/Chrome/Brave/Vivaldi if installed.

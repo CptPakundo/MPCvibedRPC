@@ -24,7 +24,7 @@ A new install greets you with a short welcome card (it reminds you about Discord
 
 Run the program again at any time to bring the window back. Closing the window leaves it running in the tray.
 
-Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), MPC-HC, the **Discord
+Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), MPC-HC (MPC-BE should work too, see below), the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
 Checking a download: each release has a `.sha256` file, and GitHub keeps a signed record that the exe was built from this
@@ -176,8 +176,9 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
 
 
 ## Troubleshooting
-- Nothing shows: the window's MPC-HC pill says whether it is reachable. If not, press **Turn on MPC-HC web interface**,
+- Nothing shows: the window's MPC pill says whether the player is reachable. If not, press **Turn on the web interface**,
   or check http://127.0.0.1:13579/variables.html while a video plays.
+- MPC-BE: its web interface is the same as MPC-HC's (same address, same page), so it should work, and the **Turn on the web interface** button also knows MPC-BE's settings. This is based on MPC-BE's source code and has not been tried on a real MPC-BE install yet; please report how it goes.
 - Discord pill stays on "Waiting": use the Discord desktop app (not the browser) and start it before or after, either works.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - No window appears: run the program again, or right-click its tray icon > Open settings.
