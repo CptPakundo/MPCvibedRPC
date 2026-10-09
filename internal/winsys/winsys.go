@@ -21,10 +21,7 @@ import (
 // IsWindows is true on Windows.
 const IsWindows = runtime.GOOS == "windows"
 
-const (
-	runKey  = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-	runName = "MPCvibedRPC"
-)
+const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 
 type result struct {
 	ok     bool
@@ -49,7 +46,7 @@ func GetAutoStart(exe string) bool {
 	if !IsWindows {
 		return false
 	}
-	r := run("reg", "query", runKey, "/v", runName)
+	r := run("reg", "query", runKey, "/v", runName())
 	return r.ok && strings.Contains(strings.ToLower(r.stdout), strings.ToLower(filepath.Base(exe)))
 }
 
@@ -59,9 +56,9 @@ func SetAutoStart(enabled bool, exe string) bool {
 		return false
 	}
 	if enabled {
-		return run("reg", "add", runKey, "/v", runName, "/t", "REG_SZ", "/d", `"`+exe+`" --background`, "/f").ok
+		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", `"`+exe+`" --background`, "/f").ok
 	}
-	run("reg", "delete", runKey, "/v", runName, "/f")
+	run("reg", "delete", runKey, "/v", runName(), "/f")
 	return true
 }
 
