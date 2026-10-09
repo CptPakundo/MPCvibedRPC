@@ -63,7 +63,8 @@ var Sections = []Section{
 		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name is sent to these services to find cover art and details. Switch off any you don't want to use. They are never contacted while off.", Sources: core.Sources},
 	}},
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
-		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Min: ip(1), Max: ip(65535)},
+		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Help: "MPC-BE and MPC-QT's web interfaces use it too. MPC-QT also works without one.", Min: ip(1), Max: ip(65535)},
+		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "The input-ipc-server name in mpv.conf (Set up the player connection adds it). Leave empty to not look for mpv."},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},

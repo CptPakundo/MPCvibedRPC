@@ -124,12 +124,16 @@ func Report(in Input) string {
 	} else {
 		w("Players running: none found")
 	}
-	w("Web interface port: %d", in.Config.Port)
+	w("Web interface port: %d, mpv connection: %s", in.Config.Port, orNone(in.Config.MpvPipe))
 	w("")
 	w("State")
 	w("  Presence on: %s", yn(in.Status.Running))
 	w("  Discord: %s", in.Status.Discord)
-	w("  Player reachable: %s", yn(in.Status.MPC))
+	if in.Status.MPC && in.Status.Player != "" {
+		w("  Player reachable: yes (%s)", in.Status.Player)
+	} else {
+		w("  Player reachable: %s", yn(in.Status.MPC))
+	}
 	w("  Something playing: %s (paused: %s, hidden: %s, cleared while paused: %s)", yn(in.Status.NowPlaying != nil), yn(in.Status.Paused), yn(in.Status.Hidden), yn(in.Status.PauseCleared))
 	if in.Status.LastError != nil && *in.Status.LastError != "" {
 		w("  Last error: %s", Redact(*in.Status.LastError))
@@ -158,4 +162,11 @@ func Report(in Input) string {
 		w("  %s", Redact(l))
 	}
 	return b.String()
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "(off)"
+	}
+	return s
 }

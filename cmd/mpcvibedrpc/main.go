@@ -1,4 +1,4 @@
-// MPCvibedRPC: shows what MPC-HC is playing as a Discord Rich Presence. Runs from the tray; the settings are a
+// MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT or mpv is playing as a Discord Rich Presence. Runs from the tray; the settings are a
 // small local web page opened in an app-style window.
 package main
 
@@ -26,7 +26,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.5"
+var version = "0.9.6"
 
 const preferredPort = 47654
 
@@ -354,7 +354,17 @@ func run() error {
 		}},
 		"mpc-web": {Fn: func(body *jsonx.Obj) (any, error) {
 			closeMpc, _ := body.M["closeMpc"].(bool)
-			return winsys.EnableMpcWebInterface(eng.Config().Port, closeMpc), nil
+			cfg := eng.Config()
+			r := winsys.EnableMpcWebInterface(cfg.Port, closeMpc, cfg.MpvPipe)
+			if r.MpvPipe != "" && r.MpvPipe != cfg.MpvPipe {
+				// mpv was already set up with a name of the user's own: look for that one
+				b, _ := json.Marshal(map[string]any{"settings": map[string]any{"mpvPipe": r.MpvPipe}})
+				if patch, err := jsonx.Parse(string(b)); err == nil && st.Update(patch.(*jsonx.Obj)) == nil {
+					eng.ApplySettings(st.Config())
+					log("INFO", "Looking for mpv under the name it is set up with: "+r.MpvPipe+".")
+				}
+			}
+			return r, nil
 		}},
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := checkUpdates(true)

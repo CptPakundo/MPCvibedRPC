@@ -15,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 )
 
 // Opcodes of the IPC protocol.
@@ -116,7 +118,7 @@ func (c *Client) Login(clientID string, timeout time.Duration) error {
 	}
 	var conn io.ReadWriteCloser
 	for _, p := range c.paths {
-		if cn, err := dial(p); err == nil {
+		if cn, err := pipe.Dial(p); err == nil {
 			conn = cn
 			break
 		}

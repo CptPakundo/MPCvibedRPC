@@ -2,9 +2,9 @@
 
 > **Entirely AI-generated ("vibe coded").** Every line of this program, its tests, its documentation and its build setup was written by an AI (Claude, by Anthropic) in conversation with the repository owner. The owner did not write it, takes **no credit** for it, and has not reviewed it line by line: their part was giving prompts and trying the result. Use it accordingly. There is no warranty (see `LICENSE`), no promise that it is correct, secure or maintained, and nobody here is an expert you can ask about the code. The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
-Discord Rich Presence for MPC-HC, based on the approach of
+Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT and mpv, based on the approach of
 [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC):
-it polls MPC-HC's built-in web interface and forwards what you're watching to Discord.
+it reads what's playing from the player (MPC-HC's built-in web interface, or mpv's IPC connection) and forwards what you're watching to Discord.
 MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 <p align="center">
@@ -14,8 +14,9 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 ## Use it
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
-2. A small window opens. Press **Start presence**. If MPC-HC isn't answering, the window offers
-   **Turn on the web interface** (it closes and reopens the player for you).
+2. A small window opens. Press **Start presence**. If no player is answering, the window offers
+   **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC and MPC-BE get their web
+   interface switched on, mpv gets one line in `mpv.conf`).
 3. Optional: switch on **Start with Windows**. It then starts quietly at login, with a tray icon
    (double-click: settings; right-click: start/stop presence, quit). Turn off **Show this window when I open the app**
    (General tab) if you want it to go straight to the tray when you open it yourself too.
@@ -24,7 +25,7 @@ A new install greets you with a short welcome card (it reminds you about Discord
 
 Run the program again at any time to bring the window back. Closing the window leaves it running in the tray.
 
-Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), MPC-HC (MPC-BE should work too, see below), the **Discord
+Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT or mpv), the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
 Checking a download: each release has a `.sha256` file, and GitHub keeps a signed record that the exe was built from this
@@ -43,8 +44,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.5 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.5" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.6 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.6" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -55,7 +56,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.5 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.6 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
@@ -65,19 +66,20 @@ Without a GitHub repository, just replace the exe by hand; settings are kept.
 | Path | Job |
 |---|---|
 | `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`) |
-| `internal/engine` | polls MPC-HC, looks up artwork, sends presence; start/stop/apply settings live |
+| `internal/engine` | polls the player, looks up artwork, sends presence; start/stop/apply settings live |
 | `internal/core` | settings defaults, filename parsing, the Discord activity itself |
 | `internal/artwork`, `internal/jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics, which the title-matching rules rely on |
-| `internal/discord` | Discord's local IPC protocol (Unix socket / Windows named pipe) |
+| `internal/discord` | Discord's local IPC protocol |
+| `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
-| `internal/winsys` | Windows-only bits: run at login, MPC-HC web interface, window, tray icon (Win32, no helper process) |
+| `internal/winsys` | Windows-only bits: run at login, setting up the player connection (web interface, `mpv.conf`), window, tray icon (Win32, no helper process) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
 | `tools/` | the resource (.syso) writer and the CI scripts |
 | `docs/` | the full settings reference (`docs/config.md`) |
 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
-(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC and a fake Discord, and the
+(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector and Windows additionally runs a smoke test of the real exe.
 
 ## Behaviour
@@ -169,16 +171,27 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
   offline). **Clear my status when paused for N minutes** takes the status down after a long pause (30 minutes by default; 0 = never) and brings
   it back when you play again or seek. **Clear cover cache** forgets everything that was looked up. There is no analytics or
   tracking, and file paths are never sent.
-- Clears itself when you stop or close MPC-HC; reconnects on its own if Discord restarts.
+- Clears itself when you stop or close the player; reconnects on its own if Discord restarts.
   If Discord ever rejects the Watching format, it falls back to a basic presence automatically.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](docs/config.md) (extra ones go in
   `config.json`). Set `activityType` to `playing` for the classic look. Log: `mpcvibedrpc.log` (also in the window).
 
 
+## Players
+The program looks for a player in this order and uses the first that answers (the window shows which one):
+
+| Player | How it is read | Setup |
+|---|---|---|
+| MPC-HC | its web interface (`http://127.0.0.1:13579/variables.html`) | Options > Player > Web Interface > Listen on port, or the **Set up the player connection** button (it closes and reopens MPC-HC) |
+| MPC-BE | the same web interface | the same; MPC-BE keeps the switch in `[WebServer]` of `mpc-be64.ini` or the registry, the button handles both |
+| MPC-QT | its own mpv-style connection (`cmdrkotori.mpc-qt.mpv`), always on | none (its web interface works too, if you turned it on) |
+| mpv | its JSON IPC (`input-ipc-server`) | `input-ipc-server=mpvsocket` in `mpv.conf`; the button adds it (`portable_config\mpv.conf` next to a portable mpv, else `%APPDATA%\mpv\mpv.conf`) and keeps a name you already set. mpv reads it when it starts. |
+
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07 and mpv 0.41.0 were tried on Windows 11, set up as above. Streams opened in mpv show their title (there is no file name or folder). With mpv, the image tooltip says "mpv" instead of "Media Player Classic".
+
 ## Troubleshooting
-- Nothing shows: the window's MPC pill says whether the player is reachable. If not, press **Turn on the web interface**,
-  or check http://127.0.0.1:13579/variables.html while a video plays.
-- MPC-BE: its web interface is the same as MPC-HC's (same address, same page), so it should work, and the **Turn on the web interface** button also knows MPC-BE's settings. This is based on MPC-BE's source code and has not been tried on a real MPC-BE install yet; please report how it goes.
+- Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
+  or (MPC-HC, MPC-BE) check http://127.0.0.1:13579/variables.html while a video plays. mpv only reads `mpv.conf` when it starts, so restart it after setting it up.
 - Discord pill stays on "Waiting": use the Discord desktop app (not the browser) and start it before or after, either works.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.

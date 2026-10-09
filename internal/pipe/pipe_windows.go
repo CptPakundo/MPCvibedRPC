@@ -1,6 +1,6 @@
 //go:build windows
 
-package discord
+package pipe
 
 import (
 	"errors"
@@ -17,14 +17,16 @@ var (
 )
 
 // pipeConn reads a named pipe without ever blocking inside ReadFile: a synchronous handle serialises reads and
-// writes, so a pending read would stop us from answering Discord. Instead we peek and only read what is there.
+// writes, so a pending read would stop us from answering the other side. Instead we peek and only read what is there.
+// Closing the connection also ends a Read that is waiting for data.
 type pipeConn struct {
 	h      syscall.Handle
 	mu     sync.Mutex
 	closed bool
 }
 
-func dial(path string) (io.ReadWriteCloser, error) {
+// Dial opens a named pipe (\\.\pipe\name).
+func Dial(path string) (io.ReadWriteCloser, error) {
 	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return nil, err
@@ -54,7 +56,7 @@ func (p *pipeConn) Read(b []byte) (int, error) {
 		var avail uint32
 		r, _, _ := procPeekNamedPipe.Call(uintptr(p.h), 0, 0, 0, uintptr(unsafe.Pointer(&avail)), 0)
 		if r == 0 {
-			return 0, io.EOF // broken pipe: Discord went away
+			return 0, io.EOF // broken pipe: the other side went away
 		}
 		if avail > 0 {
 			if uint32(len(b)) > avail {

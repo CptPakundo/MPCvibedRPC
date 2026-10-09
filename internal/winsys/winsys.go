@@ -70,6 +70,7 @@ type WebResult struct {
 	NeedsClose bool     `json:"needsClose,omitempty"`
 	Message    string   `json:"message"`
 	Edited     []string `json:"edited,omitempty"`
+	MpvPipe    string   `json:"mpvPipe,omitempty"` // the IPC name mpv is set up with (may be one the user chose earlier)
 }
 
 // player describes where one supported player keeps its web-interface switch.
@@ -147,7 +148,10 @@ func (p player) installed(running []string, inis []string) bool {
 			}
 		}
 	}
-	return run("reg", "query", strings.Join(strings.Split(p.regKey, `\`)[:3], `\`)).ok
+	if parts := strings.Split(p.regKey, `\`); len(parts) >= 3 {
+		return run("reg", "query", strings.Join(parts[:3], `\`)).ok
+	}
+	return false
 }
 
 // belongs reports whether an executable path is one of the player's programs.
@@ -162,12 +166,19 @@ func (p player) belongs(exe string) bool {
 	return false
 }
 
-func runningPlayers() []string {
+// otherPlayers are only looked for (diagnostics, mpv's setup): they are never closed, and need no web interface.
+var otherPlayers = []player{
+	{name: "MPC-QT", procs: []string{"mpc-qt"}, installDirs: []string{"MPC-QT"}, userIniDir: "mpc-qt"},
+	{name: "mpv", procs: []string{"mpv"}},
+}
+
+// runningExes lists the paths of the running programs of the given players.
+func runningExes(list []player) []string {
 	if !IsWindows {
 		return nil
 	}
 	var names []string
-	for _, p := range players {
+	for _, p := range list {
 		for _, n := range p.procs {
 			names = append(names, "'"+n+"'")
 		}
@@ -183,11 +194,15 @@ func runningPlayers() []string {
 	return out
 }
 
-// RunningPlayerNames lists the supported players that are running right now ("MPC-HC", "MPC-BE"), for diagnostics.
+// runningPlayers lists MPC-HC and MPC-BE executables that are running (the ones closed while settings change).
+func runningPlayers() []string { return runningExes(players) }
+
+// RunningPlayerNames lists the supported players that are running right now ("MPC-HC", "MPC-QT", ...), for diagnostics.
 func RunningPlayerNames() []string {
-	exes := runningPlayers()
+	all := append(append([]player{}, players...), otherPlayers...)
+	exes := runningExes(all)
 	var out []string
-	for _, p := range players {
+	for _, p := range all {
 		for _, e := range exes {
 			if p.belongs(e) {
 				out = append(out, p.name)
@@ -208,16 +223,17 @@ func SystemInfo() string {
 	return runtime.GOOS + "/" + runtime.GOARCH
 }
 
-// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed). A player
-// rewrites its settings when it exits, so it has to be closed while they are changed; without closeMpc the caller
-// is told (needsClose) and can ask the user.
-func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
+// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed), and sets mpv up
+// to accept our connection (mpvPipe; empty skips mpv). MPC-HC and MPC-BE rewrite their settings when they exit, so
+// they have to be closed while those change; without closeMpc the caller is told (needsClose) and can ask the user.
+// mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing.
+func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 	if !IsWindows {
 		return WebResult{Message: "Only available on Windows."}
 	}
 	exes := runningPlayers()
 	if len(exes) > 0 && !closeMpc {
-		return WebResult{NeedsClose: true, Message: "MPC-HC or MPC-BE is running. It has to be closed while its settings change."}
+		return WebResult{NeedsClose: true, Message: "MPC-HC or MPC-BE is running. It has to be closed while its web interface is switched on."}
 	}
 	if len(exes) > 0 {
 		for _, p := range players {
@@ -270,20 +286,56 @@ func EnableMpcWebInterface(port int, closeMpc bool) WebResult {
 			done = append(done, p.name)
 		}
 	}
-	if len(done) == 0 { // nothing found: the MPC-HC values were still written, as they always were
-		done = append(done, players[0].name)
-	}
 	for _, e := range exes {
 		c := proc.DetachVisible(exec.Command(e))
 		if c.Start() == nil {
 			_ = c.Process.Release()
 		}
 	}
-	msg := fmt.Sprintf("%s web interface switched on (port %d).", strings.Join(done, " and "), port)
-	if len(exes) > 0 {
-		msg += " The player was reopened."
+
+	// MPC-QT needs nothing (its own connection is always on); mpv needs input-ipc-server in mpv.conf
+	others := runningExes(otherPlayers)
+	var mpvDirs []string
+	qtFound := false
+	for _, e := range others {
+		if otherPlayers[1].belongs(e) {
+			mpvDirs = append(mpvDirs, filepath.Dir(e))
+		} else if otherPlayers[0].belongs(e) {
+			qtFound = true
+		}
 	}
-	return WebResult{OK: ok, Message: msg, Edited: edited}
+	if !qtFound {
+		qtFound = otherPlayers[0].installed(nil, nil) || dirExists(filepath.Join(os.Getenv("APPDATA"), "mpc-qt"))
+	}
+	mpv := enableMpvIPC(mpvPipe, mpvDirs)
+	if mpv.Edited != "" {
+		edited = append(edited, mpv.Edited)
+	}
+
+	var parts []string
+	if len(done) > 0 || (mpv.Message == "" && !qtFound) {
+		if len(done) == 0 { // nothing found: the MPC-HC values were still written, as they always were
+			done = append(done, players[0].name)
+		}
+		m := fmt.Sprintf("%s web interface switched on (port %d).", strings.Join(done, " and "), port)
+		if len(exes) > 0 {
+			m += " The player was reopened."
+		}
+		parts = append(parts, m)
+	}
+	if qtFound {
+		parts = append(parts, "MPC-QT needs no setup.")
+	}
+	if mpv.Message != "" {
+		parts = append(parts, mpv.Message)
+		ok = ok && mpv.OK
+	}
+	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using}
+}
+
+func dirExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
 }
 
 // ---- the settings window ---------------------------------------------------------------

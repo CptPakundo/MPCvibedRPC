@@ -1,10 +1,10 @@
 # Smoke test of the built Windows program: starts it for real (hidden, with its own data folder), talks to it through
 # its local API and the tray icon's window, and plays a fake MPC-HC into a fake Discord.
 param(
-  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.5)
+  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.6)
   [Parameter(Mandatory)][string]$NewExe,    # the same program built with the next patch version, offered as an update
-  [string]$Version = '0.9.5',
-  [string]$NextVersion = '0.9.6'
+  [string]$Version = '0.9.6',
+  [string]$NextVersion = '0.9.7'
 )
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
