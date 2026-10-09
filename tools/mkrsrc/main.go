@@ -1,4 +1,4 @@
-// mkrsrc writes a Windows resource object (.syso) holding the program's icon and version information, so the
+// mkrsrc writes a Windows resource object (.syso) holding the program's icon, version information and application manifest (per-monitor DPI awareness), so the
 // finished MPCvibedRPC.exe has an icon in Explorer and proper details in Task Manager. The Go linker picks the
 // .syso up automatically when it sits next to the main package. Standard library only.
 //
@@ -43,6 +43,7 @@ const (
 	rtIcon      = 3
 	rtGroupIcon = 14
 	rtVersion   = 16
+	rtManifest  = 24
 )
 
 type leaf struct {
@@ -80,8 +81,21 @@ func Build(ico []byte, version string) ([]byte, error) {
 		return nil, err
 	}
 	leaves = append(leaves, leaf{rtVersion, 1, 0x0409, vi})
+	leaves = append(leaves, leaf{rtManifest, 1, 0x0409, []byte(manifest)})
 	return coff(leaves), nil
 }
+
+// manifest makes the process DPI-aware: without it Windows scales the tray icon and menu as bitmaps on high-DPI screens.
+const manifest = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2,PerMonitor</dpiAwareness>
+    </windowsSettings>
+  </application>
+</assembly>
+`
 
 func pad4(b *bytes.Buffer) {
 	for b.Len()%4 != 0 {

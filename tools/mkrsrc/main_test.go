@@ -23,8 +23,8 @@ func TestBuildProducesValidObject(t *testing.T) {
 	if f.Machine != pe.IMAGE_FILE_MACHINE_AMD64 || len(f.Sections) != 1 || f.Sections[0].Name != ".rsrc" {
 		t.Fatalf("unexpected object: machine %x, %d sections", f.Machine, len(f.Sections))
 	}
-	// 3 icon images + the icon group + the version block, each with one relocation
-	if f.Sections[0].NumberOfRelocations != 5 {
+	// 6 icon images + the icon group + the version block + the manifest, each with one relocation
+	if f.Sections[0].NumberOfRelocations != 9 {
 		t.Fatalf("relocations: %d", f.Sections[0].NumberOfRelocations)
 	}
 	if _, err := Build(ico, "x"); err == nil {
