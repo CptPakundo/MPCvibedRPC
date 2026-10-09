@@ -22,3 +22,6 @@ func StartTray(TrayOptions) *Tray { return nil }
 
 // Close removes the icon.
 func (t *Tray) Close() {}
+
+// Balloon shows a notification (Windows only).
+func (t *Tray) Balloon(title, text string) bool { return false }

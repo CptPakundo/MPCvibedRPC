@@ -61,6 +61,9 @@ const (
 	nifMessage   = 0x1
 	nifIcon      = 0x2
 	nifTip       = 0x4
+	nifInfo      = 0x10
+	niifInfo     = 0x1
+	ninBalloonUserClick = 0x405
 	mfString     = 0x0
 	mfSeparator  = 0x800
 	tpmRightBtn  = 0x2
@@ -250,6 +253,33 @@ func (t *Tray) notify(action uintptr) bool {
 	return r != 0
 }
 
+// Balloon shows a notification next to the tray icon (a toast on current Windows); clicking it opens the window.
+// It returns false when Windows did not accept it.
+func (t *Tray) Balloon(title, text string) bool {
+	if t == nil {
+		return false
+	}
+	var nid notifyIconData
+	nid.cbSize = uint32(unsafe.Sizeof(nid))
+	nid.hWnd = t.hwnd
+	nid.uID = 1
+	nid.uFlags = nifInfo
+	fillUTF16(nid.szInfoTitle[:], title)
+	fillUTF16(nid.szInfo[:], text)
+	nid.dwInfoFlags = niifInfo
+	r, _, _ := pShellNotifyIcon.Call(nimModify, uintptr(unsafe.Pointer(&nid)))
+	return r != 0
+}
+
+// fillUTF16 copies s into a fixed buffer, cutting it short if needed and always ending with a zero.
+func fillUTF16(dst []uint16, s string) {
+	u := syscall.StringToUTF16(s)
+	if len(u) > len(dst) {
+		u = append(u[:len(dst)-1], 0)
+	}
+	copy(dst, u)
+}
+
 func (t *Tray) showMenu() {
 	menu, _, _ := pCreatePopupMenu.Call()
 	if menu == 0 {
@@ -293,7 +323,7 @@ func wndProc(hwnd, m, wParam, lParam uintptr) uintptr {
 		switch uint32(m) {
 		case wmTrayCB:
 			switch uint32(lParam) & 0xffff {
-			case wmLButtonDbl:
+			case wmLButtonDbl, ninBalloonUserClick:
 				t.command(cmdOpen)
 			case wmRButtonUp:
 				t.showMenu()

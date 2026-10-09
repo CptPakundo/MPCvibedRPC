@@ -43,13 +43,14 @@ type App struct {
 	StartPresence bool   `json:"startPresence"` // begin sending presence as soon as the app opens
 	CheckUpdates  bool   `json:"checkUpdates"`  // look for a newer release now and then
 	UpdateRepo    string `json:"updateRepo"`    // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
+	WelcomeSeen   bool   `json:"welcomeSeen"`   // the first-run welcome card was dismissed (existing installs count as having seen it)
 	OpenWindow    bool   `json:"openWindow"`    // show the window when the program is started by hand (it always starts in the tray at login)
 }
 
 // DefaultUpdateRepo is where releases of this program are published.
 const DefaultUpdateRepo = "CptPakundo/MPCvibedRPC"
 
-var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "updateRepo", "openWindow"}
+var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "updateRepo", "openWindow", "welcomeSeen"}
 
 func appDefaults() *jsonx.Obj {
 	o := jsonx.NewObj()
@@ -58,6 +59,7 @@ func appDefaults() *jsonx.Obj {
 	o.Set("checkUpdates", true)
 	o.Set("updateRepo", DefaultUpdateRepo)
 	o.Set("openWindow", true)
+	o.Set("welcomeSeen", false)
 	return o
 }
 
@@ -150,6 +152,9 @@ func (s *Store) App() App {
 		}
 		if b, ok := cur.M["openWindow"].(bool); ok {
 			a.OpenWindow = b
+		}
+		if b, ok := cur.M["welcomeSeen"].(bool); ok {
+			a.WelcomeSeen = b
 		}
 		if v, ok := cur.M["updateRepo"].(string); ok {
 			a.UpdateRepo = v
