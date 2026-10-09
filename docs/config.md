@@ -1,7 +1,8 @@
 # Settings reference
 
 Every setting with its default and what it does. The settings window covers the main ones and saves them as you
-change them. For the rest, add them to `config.json` (in `%LOCALAPPDATA%\MPCvibedRPC`) using the same names, for
+change them. For the rest, add them to `config.json` (in `%LOCALAPPDATA%\MPCvibedRPC`; macOS:
+`~/Library/Application Support/MPCvibedRPC`; Linux: `~/.local/share/MPCvibedRPC`) using the same names, for
 example `{"artworkSources": ["imdb", "tvmaze"]}`. Anything missing from `config.json` falls back to the default
 shown here.
 
@@ -11,7 +12,9 @@ shown here.
 |---|---|---|
 | `clientId` | `427863248734388224` | Discord application ID (the one used by the original MPC-DiscordRPC project). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
 | `port` | `13579` | Web interface port of MPC-HC, MPC-BE and MPC-QT (MPC-QT also works without its web interface). |
-| `mpvPipe` | `'mpvsocket'` | The `input-ipc-server` name mpv listens on (set in `mpv.conf`; a name such as `mpvsocket` is the pipe `\\.\pipe\mpvsocket`). Empty: don't look for mpv. See [Players](../README.md#players). |
+| `mpvPipe` | `'mpvsocket'` | The `input-ipc-server` name mpv listens on (set in `mpv.conf`; a name such as `mpvsocket` is the pipe `\\.\pipe\mpvsocket`, on macOS and Linux a socket of that name in the temporary folder; a full path or `~/...` is used as it is). Empty: don't look for mpv. See [Players](../README.md#players). |
+| `iinaPipe` | `'iina-mpvsocket'` | macOS only: the `input-ipc-server` socket in IINA's mpv options (IINA Settings > Advanced), named like `mpvPipe`. **Set up the player connection** adds it to IINA. Empty: don't look for IINA. |
+| `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after every other player. |
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. |
@@ -104,8 +107,8 @@ These belong to the program itself and live under `app` in `config.json`. They a
 
 | Setting | Default | What it does |
 |---|---|---|
-| `autoStart` | `false` | Start when you log in, straight to the tray. |
+| `autoStart` | `false` | Start when you log in, straight to the tray (macOS and Linux: in the background). The real switch is the login item itself: the registry's Run key on Windows, a LaunchAgent on macOS, an autostart entry in `~/.config/autostart` on Linux. |
 | `startPresence` | `true` | Begin sending presence as soon as the app opens. |
-| `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray, like at login. |
+| `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
 | `checkUpdates` | `true` | Look for a newer release now and then. |
 | `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. |

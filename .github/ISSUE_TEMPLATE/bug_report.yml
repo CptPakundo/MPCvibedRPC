@@ -19,15 +19,15 @@ body:
     id: version
     attributes:
       label: Program version
-      description: Shown at the top right of the settings window, or run `MPCvibedRPC.exe --version`.
+      description: Shown at the top right of the settings window, or run the program with `--version`.
       placeholder: e.g. 0.9.8
     validations:
       required: true
   - type: input
     id: environment
     attributes:
-      label: Windows and player versions
-      placeholder: e.g. Windows 11 24H2, MPC-HC 2.8.3 (or MPC-BE, MPC-QT, mpv, VLC)
+      label: System and player versions
+      placeholder: e.g. Windows 11 24H2 with MPC-HC 2.8.3, macOS 15 with IINA 1.4, Ubuntu 24.04 with VLC 3.0
   - type: textarea
     id: log
     attributes:
