@@ -80,7 +80,7 @@ Without a GitHub repository, just replace the exe by hand; settings are kept.
 | `docs/` | the full settings reference (`docs/config.md`) |
 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
-(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv and a fake Discord, and the
+(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector and Windows additionally runs a smoke test of the real exe.
 
 ## Behaviour
@@ -114,7 +114,7 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
     TVmaze (or TMDB with a key), together with that season's own poster. The season's name is shown
     on the second line (`<Season name> · S14 · <code>`).
     If a season can't be placed you get the show's poster and no season name, never a guess.
-  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it with rtworkAliases or rtworkOverrides (see the Advanced settings line below):
+  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it with `artworkAliases` or `artworkOverrides` on the Advanced tab (see the end of this list).
   - **Episode titles.** When the filename has an episode number but no name
     (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key) and shown as
     `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
