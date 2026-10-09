@@ -164,6 +164,8 @@ static void macShowWindow(const char *url) {
 			window.title = @"MPCvibedRPC";
 			window.delegate = controller;
 			window.minSize = NSMakeSize(420, 400);
+			// minimized, the window shows in the Dock as the app's logo (a web view's snapshot comes out blank)
+			window.miniwindowImage = NSApp.applicationIconImage;
 			[window center];
 			[window setFrameAutosaveName:@"Settings"];
 			web = [[WKWebView alloc] initWithFrame:window.contentView.bounds configuration:[WKWebViewConfiguration new]];

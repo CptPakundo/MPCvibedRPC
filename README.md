@@ -91,7 +91,9 @@ The program can update itself from GitHub Releases. When the daily check finds a
 (or in `config.json` under `app.updateRepo`). It then checks daily, and **Check now / Install** downloads the new
 `MPCvibedRPC.exe` (Linux: `MPCvibedRPC-linux-amd64` or `-arm64`), verifies it (and its `.sha256` if the release has one), swaps itself in and restarts.
 On macOS the Updates tab offers the release page instead: download the new zip and replace the app (settings are kept).
-On macOS and Linux the update shows up in the window only (no notification). To publish
+On macOS and Linux the update shows up in the window only (no notification). GitHub's API answers only 60 checks an
+hour per internet address without an account; when it refuses, the program asks GitHub's website for the latest
+version instead (the release notes are then missing). To publish
 a version:
 
 1. `git tag v0.9.8 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
@@ -159,7 +161,9 @@ program gets a smoke test, and the engine is run against real players on Linux (
   - **Episode titles.** When the filename has an episode number but no name
     (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key) and shown as
     `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
-    you keep the plain `E03`. Turn off with `episodeTitles: false`.
+    you keep the plain `E03`. Turn off with `episodeTitles: false`. An anime matched on AniList under its
+    Japanese name is also looked up under its English name, which is how TVmaze lists it; a running episode
+    number (`Show - 67`) is placed in the right season there, and the file's own number stays on the card.
   - **Info lines.** With a catalog match, a movie shows its year and genres (`1999 · Action, Adventure`) and
     its rating and director (`★ 7.1 · Dir. <name>`); an episode shows its title line and
     the genres and rating (`Action, Adventure · ★ 8.3`). The data comes from Cinemeta (keyed by the IMDb id, cached) and is
@@ -200,7 +204,10 @@ program gets a smoke test, and the engine is run against real players on Linux (
     Disable with `useFolderName: false`.
   - **Movies named with a franchise prefix.** A file such as `Franchise Movie 15 - Subtitle`
     is retried by its subtitle, and a result is only accepted if it contains both the subtitle and
-    the franchise name, so unrelated titles aren't matched.
+    the franchise name, so unrelated titles aren't matched. The other way round, `Title A Franchise Mystery 2025`
+    (from `Title: A Franchise Mystery`, a name catalogs often list as just `Title`) is retried as `Title` when
+    nothing else matches, only with the file's year, and shown as `Title: A Franchise Mystery` (also for
+    `A ... Story`, `Movie`, `Film`, `Adventure`, `Tale`, `Saga`, `Legend`, `Odyssey`).
     Advanced settings in the window (or `config.json`): `artworkAliases: { 'my show': 'Official Name' }` searches under another name,
     `artworkOverrides: { 'my show': 'https://.../poster.jpg' }` uses your own image.
   - Set `showArtwork: false` (the first switch on the Privacy tab) to stay fully offline (this also disables episode-title lookups) (otherwise the title parsed from your

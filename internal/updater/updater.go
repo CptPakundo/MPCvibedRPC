@@ -39,8 +39,45 @@ func AssetFor(goos, goarch string) string {
 	return ""
 }
 
-// APIBase is GitHub's API root (tests point it elsewhere).
-var APIBase = "https://api.github.com"
+// APIBase is GitHub's API root, and WebBase its website (tests point both elsewhere).
+var (
+	APIBase = "https://api.github.com"
+	WebBase = "https://github.com"
+)
+
+var reTagPath = regexp.MustCompile(`/releases/tag/([^/?#]+)$`)
+
+// checkWeb finds the latest release through the website instead of the API: its "latest release" address redirects
+// to the release's tag, and the files of a release have fixed addresses. There are no release notes this way.
+func checkWeb(client *http.Client, repo, current string) (*Info, error) {
+	noRedirect := *client
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := newReq(ctx, WebBase+"/"+repo+"/releases/latest", "")
+	if err != nil {
+		return nil, err
+	}
+	res, err := noRedirect.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	res.Body.Close()
+	m := reTagPath.FindStringSubmatch(res.Header.Get("Location"))
+	if res.StatusCode < 300 || res.StatusCode > 399 || m == nil || parseVersion(m[1]) == nil {
+		return nil, fmt.Errorf("no release found on the website (HTTP %d)", res.StatusCode)
+	}
+	tag := m[1]
+	latest := strings.TrimLeft(tag, "vV")
+	info := &Info{Configured: true, Current: current, Latest: latest, Newer: Compare(current, latest) < 0,
+		Page: WebBase + "/" + repo + "/releases/tag/" + tag}
+	if Asset != "" {
+		info.URL = WebBase + "/" + repo + "/releases/download/" + tag + "/" + Asset
+		info.ShaURL = info.URL + ".sha256"
+		info.CanInstall = true
+	}
+	return info, nil
+}
 
 // MinSize is the smallest believable program (guards against saving an error page as the program).
 var MinSize int64 = 1024 * 1024
@@ -148,6 +185,18 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	defer res.Body.Close()
 	if res.StatusCode == 404 {
 		return &Info{Configured: true, Error: "No releases published there yet."}, nil
+	}
+	if res.StatusCode == 403 || res.StatusCode == 429 {
+		// GitHub's API allows 60 checks an hour per internet address without an account, shared by every program
+		// and person behind it; the website has no such limit.
+		if info, err := checkWeb(client, repo, current); err == nil {
+			return info, nil
+		}
+		msg := "GitHub refused the check for now (it limits how often one internet address may ask)"
+		if reset, err := strconv.ParseInt(res.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil && reset > 0 {
+			msg += "; try again after " + time.Unix(reset, 0).Format("15:04")
+		}
+		return nil, errors.New(msg + ".")
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return nil, fmt.Errorf("GitHub answered HTTP %d", res.StatusCode)

@@ -6,7 +6,12 @@
 - **Linux** (64-bit x86 and ARM): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and other video players are found through MPRIS with nothing to set up; mpv through the mpv-mpris script or one line in `mpv.conf` (the button adds it). Music players and web browsers are never shown. No tray icon: run the program again to show its window.
 - **Start at login** works on both (a LaunchAgent on macOS, an autostart entry on Linux).
 - Updates: Linux updates itself like Windows; on macOS the Updates tab links to the release page.
-- **Windows is unchanged.**
+- **Windows is unchanged** apart from the fixes below.
+
+**Fixes for everyone**
+- Anime matched on AniList now get episode titles: the TV catalogs are also asked under the show's English name. A running episode number such as "Show - 67" is placed in the right season.
+- Films whose file name lost a colon, such as "Title A Franchise Mystery 2025", are now found (as "Title: A Franchise Mystery").
+- **Check for updates** no longer fails with "HTTP 403" when GitHub's hourly limit for your internet connection is used up: it asks GitHub's website instead.
 
 > **Entirely AI-generated ("vibe coded").** This whole program was written by an AI (Claude, by Anthropic) in conversation with the repository owner, who wrote none of it, takes no credit for it and has not reviewed it line by line. No warranty, no promise that it is correct, secure or maintained. See the README.
 

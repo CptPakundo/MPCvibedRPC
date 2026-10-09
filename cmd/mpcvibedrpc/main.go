@@ -58,6 +58,7 @@ func main() {
 	}
 	if v := os.Getenv("MPCRPC_UPDATE_API"); v != "" { // tests and self-hosted mirrors
 		updater.APIBase = strings.TrimRight(v, "/")
+		updater.WebBase = updater.APIBase
 	}
 	// on macOS the program runs beside the app's event loop, which needs the main thread (menu bar icon, window)
 	winsys.RunMain(func() {
