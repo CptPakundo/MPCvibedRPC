@@ -171,6 +171,19 @@ func readIINA(export []byte) iinaSettings {
 	return s
 }
 
+// iinaPresent reports whether IINA is on this Mac: in Applications, running, or with settings of its own.
+func iinaPresent(home string, hasOwnSettings bool) bool {
+	return hasOwnSettings || dirExists("/Applications/IINA.app") || dirExists(filepath.Join(home, "Applications", "IINA.app")) ||
+		len(runningExes(unixPlayers[:1])) > 0
+}
+
+// hasSettings reports whether an exported property list holds any setting.
+func hasSettings(export []byte) bool {
+	v, err := parsePlist(bytes.NewReader(export))
+	m, _ := v.(map[string]any)
+	return err == nil && len(m) > 0
+}
+
 // planIINA decides what to change: the options to write (nil = leave them) and the connection IINA will offer. A
 // connection the user set up already is kept.
 func planIINA(s iinaSettings, name string) (options [][]string, using string) {
@@ -186,9 +199,9 @@ func planIINA(s iinaSettings, name string) (options [][]string, using string) {
 // and switches its advanced settings on, which IINA needs to use the option. IINA reads them when a player window
 // opens, so it is not closed: the user is told to reopen it.
 func enableIINA(home, name string) iinaResult {
-	present := dirExists("/Applications/IINA.app") || dirExists(filepath.Join(home, "Applications", "IINA.app"))
 	export := run("defaults", "export", iinaDomain, "-")
-	if !present && !export.ok {
+	// "defaults export" also succeeds, with an empty list, for an app that was never there
+	if !iinaPresent(home, export.ok && hasSettings([]byte(export.stdout))) {
 		return iinaResult{}
 	}
 	if name == "" {

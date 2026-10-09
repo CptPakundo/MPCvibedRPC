@@ -242,3 +242,19 @@ func TestTranslocatedAppGetsNoLoginItem(t *testing.T) {
 		t.Error("an app in Applications is not translocated")
 	}
 }
+
+// "defaults export" of a domain that does not exist gives an empty list: that is not an IINA.
+func TestHasSettings(t *testing.T) {
+	empty := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>
+`
+	if hasSettings([]byte(empty)) || hasSettings(nil) || hasSettings([]byte("garbage")) {
+		t.Error("an empty or broken export holds no settings")
+	}
+	if !hasSettings(iinaWith(false)) {
+		t.Error("IINA's export holds settings")
+	}
+}

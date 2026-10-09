@@ -64,6 +64,10 @@ echo "login item ok"
 echo "== player setup"
 r="$(post mpc-web '{"closeMpc":false}')"
 echo "$r"
+if [ "$want_os" = darwin ] && [ ! -d /Applications/IINA.app ]; then
+  ! grep -q IINA <<< "$r" || fail "IINA is not installed here, yet the setup touched it: $r"
+  ! defaults read com.colliderli.iina userOptions > /dev/null 2>&1 || fail "settings were written for an IINA that is not installed"
+fi
 grep -qE "^input-ipc-server=/.+/mpvsocket$" "$XDG_CONFIG_HOME/mpv/mpv.conf" || fail "mpv.conf has no absolute input-ipc-server: $(cat "$XDG_CONFIG_HOME/mpv/mpv.conf")"
 r="$(post mpc-web '{"closeMpc":false}')"
 jq -e '.message | contains("already set up")' <<< "$r" > /dev/null || fail "a second setup should find mpv set up: $r"
