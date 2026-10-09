@@ -59,16 +59,19 @@ func main() {
 	if v := os.Getenv("MPCRPC_UPDATE_API"); v != "" { // tests and self-hosted mirrors
 		updater.APIBase = strings.TrimRight(v, "/")
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			crash(fmt.Sprint(p))
+	// on macOS the program runs beside the app's event loop, which needs the main thread (menu bar icon, window)
+	winsys.RunMain(func() {
+		defer func() {
+			if p := recover(); p != nil {
+				crash(fmt.Sprint(p))
+				os.Exit(1)
+			}
+		}()
+		if err := run(); err != nil {
+			crash(err.Error())
 			os.Exit(1)
 		}
-	}()
-	if err := run(); err != nil {
-		crash(err.Error())
-		os.Exit(1)
-	}
+	})
 }
 
 func crash(msg string) {
@@ -246,6 +249,7 @@ func run() error {
 	)
 	getUpdate := func() *updater.Info { mu.Lock(); defer mu.Unlock(); return lastUpdate }
 	setUpdate := func(u *updater.Info) { mu.Lock(); lastUpdate = u; mu.Unlock() }
+	hasTray := func() bool { mu.Lock(); defer mu.Unlock(); return tray != nil }
 
 	fullState := func() map[string]any {
 		var upd any
@@ -255,6 +259,7 @@ func run() error {
 		return map[string]any{
 			"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": st.Values(), "app": st.App(), "status": eng.Status(),
 			"autoStart": canAutoStart && winsys.GetAutoStart(exe), "canAutoStart": canAutoStart, "dataDir": st.Dir, "update": upd,
+			"tray": hasTray(), // macOS: whether the menu bar icon is there (a build without it runs in the background)
 		}
 	}
 
@@ -290,7 +295,7 @@ func run() error {
 				notified = r.Latest
 				t := tray
 				mu.Unlock()
-				if first && t != nil {
+				if first && t != nil && winsys.IsWindows { // the macOS menu bar icon has no notifications
 					if t.Balloon("MPCvibedRPC "+r.Latest+" is available", "You have "+version+". Click here, then open the Updates tab to install it.") {
 						log("INFO", "Showed an update notice next to the tray icon.")
 					} else {

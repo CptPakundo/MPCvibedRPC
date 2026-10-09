@@ -14,6 +14,7 @@ import (
 // regular browser, and returns how many it ended. When the window was opened in the default browser instead, there
 // is nothing to end.
 func CloseWindowBrowser(profileDir string) int {
+	closeNativeWindow() // the macOS app's own window, if it has one
 	if profileDir == "" {
 		return 0
 	}

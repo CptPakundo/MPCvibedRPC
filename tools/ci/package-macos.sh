@@ -8,8 +8,13 @@ app="$work/MPCvibedRPC.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out"
 out="$(cd "$out" && pwd)" # the zip is written from inside $work
 
+# cgo: the menu bar icon and the settings window are Cocoa code (internal/winsys/macapp_darwin.go)
 for arch in arm64 amd64; do
-  CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/MPCvibedRPC-$arch" ./cmd/mpcvibedrpc
+  carch="$arch"; [ "$arch" = amd64 ] && carch=x86_64
+  CGO_ENABLED=1 GOOS=darwin GOARCH="$arch" CC="clang -arch $carch" MACOSX_DEPLOYMENT_TARGET=11.0 \
+    go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$work/MPCvibedRPC-$arch" ./cmd/mpcvibedrpc
+  # the Cocoa part must be in both: a build without it would quietly fall back to the browser and no menu bar icon
+  otool -L "$work/MPCvibedRPC-$arch" | grep -q WebKit.framework || { echo "the $arch build lacks the macOS app code"; exit 1; }
 done
 lipo -create -output "$app/Contents/MacOS/MPCvibedRPC" "$work/MPCvibedRPC-arm64" "$work/MPCvibedRPC-amd64"
 go run ./tools/mkico -icns "$app/Contents/Resources/MPCvibedRPC.icns"

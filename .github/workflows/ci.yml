@@ -106,8 +106,15 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
           app="$RUNNER_TEMP/app/MPCvibedRPC.app"
-          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.8 "$app"
+          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.8 "$app"
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
+      - name: Screenshot of the settings window and menu bar (macOS)
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-screenshot
+          path: ${{ runner.temp }}/macos-window.png
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}

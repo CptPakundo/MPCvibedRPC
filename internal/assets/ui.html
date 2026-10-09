@@ -224,8 +224,13 @@
     document.querySelectorAll('.players').forEach((e) => { e.textContent = t.players; });
     $('mpcHelpText').innerHTML = t.help;
     $('autoStartLabel').textContent = t.autoStart;
-    $('autoStartHelp').textContent = 'Starts in the background when you log in (no window).';
-    $('openWindowHelp').textContent ='When you start it yourself. Turn off to start in the background, like at login. Open the app again to show this window.';
+    if (model.tray) { // the macOS app has a menu bar icon
+      $('autoStartHelp').textContent = 'Starts when you log in, straight to the menu bar (no window).';
+      $('openWindowHelp').textContent = 'When you start it yourself. Turn off to go straight to the menu bar, like at login. You can always reopen this window from the menu bar icon.';
+    } else {
+      $('autoStartHelp').textContent = 'Starts in the background when you log in (no window).';
+      $('openWindowHelp').textContent = 'When you start it yourself. Turn off to start in the background, like at login. Open the app again to show this window.';
+    }
   }
 
   // Every control saves on its own, one at a time and only its own setting: a toggle or a choice as soon as it changes,
@@ -478,7 +483,7 @@
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
-  $('quit').onclick = async () => { if (confirm(osText() ? 'Quit MPCvibedRPC? Presence stops and the program closes.' : 'Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+  $('quit').onclick = async () => { if (confirm(osText() ? (model.tray ? 'Quit MPCvibedRPC? Presence stops and the menu bar icon goes away.' : 'Quit MPCvibedRPC? Presence stops and the program closes.') : 'Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
   api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
     .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
