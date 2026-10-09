@@ -96,6 +96,9 @@ if [ -n "$app" ]; then
   unset MPCRPC_FOREGROUND MPCRPC_BROWSER # the app's own window this time
   swift tools/ci/windows.swift > /dev/null # compiled once, so the checks below are quick
   windows() { swift tools/ci/windows.swift | awk -F'\t' -v p="$1" -v l="$2" '$1 == p && $2 == l' | wc -l | tr -d ' '; }
+  icons() { swift tools/ci/windows.swift | awk -F'	' '$2 == 25' | wc -l | tr -d ' '; } # menu bar icons, whoever draws them (macOS 26: Control Center)
+  shot="${SCREENSHOT:-$work/screen.png}"
+  icons_before="$(icons)"
   open --env "MPCRPC_HOME=$MPCRPC_HOME" "$app"
   wait_for "the app to answer" have_ipc
   read_ipc
@@ -104,7 +107,10 @@ if [ -n "$app" ]; then
   kill -0 "$server" || fail "the program did not keep running after the launcher left"
   ps -o args= -p "$server" | grep -q -- "--serve" || fail "the running copy should be the --serve one"
   [ "$(get state | jq -r .tray)" = true ] || fail "the program says it has no menu bar icon"
-  [ "$(windows "$server" 25)" -ge 1 ] || { swift tools/ci/windows.swift; fail "no menu bar icon on screen"; }
+  screencapture -x "${shot%.png}-menubar.png" 2> /dev/null || true
+  icons_after="$(icons)"
+  echo "menu bar icons: $icons_before before, $icons_after after"
+  [ "$(windows "$server" 25)" -ge 1 ] || [ "$icons_after" -gt "$icons_before" ] || { swift tools/ci/windows.swift; fail "no menu bar icon on screen"; }
   echo "menu bar icon ok"
   [ "$(windows "$server" 0)" = 0 ] || fail "a window is open although openWindow is off"
 
@@ -119,7 +125,6 @@ if [ -n "$app" ]; then
   post open > /dev/null # once more: the same window comes forward, no second one
   sleep 2
   [ "$(windows "$server" 0)" = 1 ] || fail "a second window was opened"
-  shot="${SCREENSHOT:-$work/screen.png}"
   if screencapture -x "$shot" 2> /dev/null; then echo "screenshot: $shot"; fi
   echo "window ok"
   grep -c "starting" "$MPCRPC_HOME/mpcvibedrpc.log" || true
