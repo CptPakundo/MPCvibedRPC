@@ -476,6 +476,19 @@ func (e *Engine) ApplySettings(cfg core.Config) {
 	}
 }
 
+// ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is\n// running the current title is looked up again, so its card is refreshed.
+func (e *Engine) ClearArtworkCache() {
+	e.mu.Lock()
+	art := e.art
+	e.prev = nil
+	e.mu.Unlock()
+	if art != nil {
+		art.ClearCache()
+	} else if e.opts.CacheFile != "" {
+		_ = os.Remove(e.opts.CacheFile)
+	}
+}
+
 // Status is a snapshot for the settings window.
 func (e *Engine) Status() Status {
 	e.mu.Lock()

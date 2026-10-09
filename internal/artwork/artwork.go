@@ -71,6 +71,7 @@ func New(cfg *core.Config, opts Options) *Artwork {
 	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(),
 		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
 		warned: map[string]bool{}, runtimes: map[string]int{}, aliases: mapByTitle(cfg.ArtworkAliases), overrides: mapByTitle(cfg.ArtworkOverrides)}
+	a.net.blocked = blockedHostFilter(cfg)
 	a.res = newResolver(a)
 	a.load()
 	return a
@@ -154,13 +155,27 @@ func (a *Artwork) save() {
 	}
 }
 
+// ClearCache forgets everything that was looked up: the saved answers (and the file they live in), the remembered
+// misses and the short-lived network cache. The next lookups ask the services again.
+func (a *Artwork) ClearCache() {
+	a.mu.Lock()
+	a.disk = map[string]*diskEntry{}
+	a.misses = map[string]time.Time{}
+	a.runtimes = map[string]int{}
+	a.mu.Unlock()
+	a.net.clearCache()
+	if a.opts.CacheFile != "" {
+		_ = os.Remove(a.opts.CacheFile)
+	}
+}
+
 // ---- helpers --------------------------------------------------------------------------
 
 func (a *Artwork) providerOrder(media *core.Media) []*Provider {
 	cfg := a.cfg
 	var order []string
 	for _, n := range cfg.ArtworkSources {
-		if a.provs[n] != nil {
+		if a.provs[n] != nil && cfg.SourceOn(n) {
 			order = append(order, n)
 		}
 	}
@@ -1128,7 +1143,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 	if base != nil && overrideArt == nil && needInfoL(base) && base.Source == "AniList" && hasInfoData(base.AniInfo) {
 		base.Info = base.AniInfo // AniList answered with genres and a score already: no second catalog needed
 		a.log("INFO", `Info for "`+media.Title+`" from AniList: `+infoSummary(base.Info)+`.`)
-	} else if base != nil && overrideArt == nil && needInfoL(base) {
+	} else if base != nil && overrideArt == nil && needInfoL(base) && a.cfg.SourceOn("cinemeta") {
 		why := "no data"
 		var found *imdbFound
 		if infoIDOf(base) == "" {
@@ -1182,7 +1197,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 			a.log("WARN", `No genres/rating for "`+media.Title+`" (`+why+`); will retry in 5 minutes. Set richInfo: false to hide this line.`)
 		}
 	}
-	if base != nil && overrideArt == nil && needAltL(base) {
+	if base != nil && overrideArt == nil && needAltL(base) && a.cfg.SourceOn("anilist") {
 		alt, err := a.findAniList(base)
 		if err != nil {
 			locked(func() { a.misses[aniKey] = time.Now().Add(5 * time.Minute) })

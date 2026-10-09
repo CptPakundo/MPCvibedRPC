@@ -508,7 +508,16 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 	return P
 }
 
-func (r *Resolver) sources() []string { return r.cfg.EpisodeSources }
+// sources is the episode-title services in the order to try them, without those switched off in the settings.
+func (r *Resolver) sources() []string {
+	var out []string
+	for _, n := range r.cfg.EpisodeSources {
+		if r.cfg.SourceOn(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
 
 // Find returns the episode the media names, or nil. hit is the artwork match for the show (may be nil).
 func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn func(key, msg string)) *core.ArtEpisode {

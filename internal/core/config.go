@@ -34,6 +34,8 @@ type Config struct {
 	// Artwork
 	ShowArtwork      bool              `json:"showArtwork"`
 	ArtworkSources   []string          `json:"artworkSources"`
+	// DisabledSources lists services (see Sources) that must never be contacted, whatever the lists below say.
+	DisabledSources []string `json:"disabledSources"`
 	TmdbAPIKey       string            `json:"tmdbApiKey"`
 	ArtworkAliases   map[string]string `json:"artworkAliases"`
 	ArtworkOverrides map[string]string `json:"artworkOverrides"`
@@ -86,6 +88,7 @@ func DefaultConfig() Config {
 
 		ShowArtwork:      true,
 		ArtworkSources:   []string{"tmdb", "imdb", "cinemeta", "tvmaze", "anilist", "kitsu", "jikan", "wikipedia"},
+		DisabledSources:  []string{},
 		ArtworkAliases:   map[string]string{},
 		ArtworkOverrides: map[string]string{},
 		ArtworkWaitMs:    1500,

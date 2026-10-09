@@ -289,6 +289,11 @@ func run() error {
 		"open":        {Fn: func(*jsonx.Obj) (any, error) { openWindow(); return nil, nil }},
 		"quit":        {Fn: func(*jsonx.Obj) (any, error) { time.AfterFunc(100*time.Millisecond, quit); return nil, nil }},
 		"open-folder": {Fn: func(*jsonx.Obj) (any, error) { winsys.OpenFolder(st.Dir); return nil, nil }},
+		"clear-cache": {Fn: func(*jsonx.Obj) (any, error) {
+			eng.ClearArtworkCache()
+			log("INFO", "Cover cache cleared.")
+			return nil, nil
+		}},
 		"save": {Fn: func(body *jsonx.Obj) (any, error) {
 			before := st.App()
 			if err := st.Update(body); err != nil {
