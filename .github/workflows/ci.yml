@@ -35,15 +35,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version 0.9.0 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.0" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
           go run ./tools/mkrsrc -version 0.9.1 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.1" -o dist/next.exe ./cmd/mpcvibedrpc
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.1" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version 0.9.2 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.2" -o dist/next.exe ./cmd/mpcvibedrpc
           Get-ChildItem dist | Format-Table Name, Length
           Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
       - name: Smoke test
         shell: pwsh
-        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.0 -NextVersion 0.9.1
+        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.1 -NextVersion 0.9.2
       - uses: actions/upload-artifact@v4
         with:
           name: MPCvibedRPC-windows
