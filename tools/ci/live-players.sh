@@ -10,23 +10,23 @@ video="$work/Sample Show S01E02.mkv"
 ffmpeg -loglevel error -f lavfi -i "testsrc=duration=600:size=320x240:rate=5" -f lavfi -i "sine=duration=600" \
   -c:v libx264 -preset ultrafast -c:a aac -shortest "$video"
 tmp="${TMPDIR:-/tmp}"; tmp="${tmp%/}"
-pids=()
-cleanup() { for p in "${pids[@]}"; do kill "$p" 2> /dev/null || true; done; }
+pid="" # the player started last (one at a time; macOS has bash 3.2, so no arrays)
+cleanup() { [ -z "$pid" ] || kill "$pid" 2> /dev/null || true; }
 trap cleanup EXIT
 
 # live NAME [VAR=value...]: the engine must find the player under NAME and show the sample title
 live() {
   local name="$1"; shift
   echo "== $name"
-  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" "$@" go test -count=1 -run TestLivePlayer -v ./internal/engine
+  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -run TestLivePlayer -v ./internal/engine
 }
-stop_last() { kill "${pids[-1]}" 2> /dev/null || true; wait "${pids[-1]}" 2> /dev/null || true; unset 'pids[-1]'; sleep 1; }
+stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
 wait_socket() { for _ in $(seq 1 80); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
 wait_bus() { for _ in $(seq 1 80); do dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames | grep -qE "\"$1" && return 0; sleep 0.25; done; echo "$1 is not on the bus"; return 1; }
 
 # mpv over its IPC socket (both systems)
 mpv --no-config --vo=null --ao=null --loop-file=inf --input-ipc-server="$tmp/mpvsocket" "$video" > /dev/null 2>&1 &
-pids+=($!)
+pid=$!
 wait_socket "$tmp/mpvsocket"
 live mpv
 stop_last
@@ -35,19 +35,19 @@ if [ "$os" = Linux ]; then
   none="MPCRPC_LIVE_MPV_PIPE=/nonexistent/none" # so that mpv can only be found through MPRIS below
 
   cvlc --intf dummy --extraintf dbus --no-video --aout dummy --loop "$video" > /dev/null 2>&1 &
-  pids+=($!)
+  pid=$!
   wait_bus org.mpris.MediaPlayer2.vlc
   live VLC "$none"
   stop_last
 
   mpv --vo=null --ao=null --loop-file=inf "$video" > /dev/null 2>&1 & # the mpv-mpris script is loaded from /etc/mpv/scripts
-  pids+=($!)
+  pid=$!
   wait_bus org.mpris.MediaPlayer2.mpv
   live mpv "$none"
   stop_last
 
   xvfb-run -a celluloid --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
-  pids+=($!)
+  pid=$!
   wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid"
   live Celluloid "$none"
   stop_last
@@ -84,3 +84,4 @@ else
   osascript -e 'tell application "IINA" to quit' || true
 fi
 echo "live player tests passed"
+[ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE" # proof for CI that the script got to the end

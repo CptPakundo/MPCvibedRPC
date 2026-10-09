@@ -107,3 +107,4 @@ if [ -n "$app" ]; then
   wait_for "the app to quit" gone "$server"
 fi
 echo "smoke test passed"
+[ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE" # proof for CI that the script got to the end
