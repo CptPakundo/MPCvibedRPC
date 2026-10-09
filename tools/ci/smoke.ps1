@@ -1,10 +1,10 @@
 # Smoke test of the built Windows program: starts it for real (hidden, with its own data folder), talks to it through
 # its local API and the tray icon's window, and plays a fake MPC-HC into a fake Discord.
 param(
-  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.7)
+  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.8)
   [Parameter(Mandatory)][string]$NewExe,    # the same program built with the next patch version, offered as an update
-  [string]$Version = '0.9.7',
-  [string]$NextVersion = '0.9.8'
+  [string]$Version = '0.9.8',
+  [string]$NextVersion = '0.9.9'
 )
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -108,8 +108,23 @@ try {
   # compared without regard to whitespace: PowerShell orders the lines of a failed lookup differently from run to run
   Check (($plain -replace '\s+',' ').Trim() -eq ($plainBefore -replace '\s+',' ').Trim()) ("the plain (installed program) Run value was never touched (before=[$($plainBefore -replace '\s+',' ')] after=[$($plain -replace '\s+',' ')])")
 
-  # MPC-HC web interface switch (MPC-HC itself is not installed on the runner: the registry part is what we can check)
+  # MPC-HC web interface switch (MPC-HC itself is not installed on the runner: the registry part is what we can check).
+  # VLC is not installed either: an empty VLC settings folder stands in for it (only when there is none; removed after).
+  $vlcDir = Join-Path $env:APPDATA 'vlc'; $vlcMade = $false
+  if (-not (Test-Path $vlcDir)) { New-Item -ItemType Directory -Path $vlcDir | Out-Null; $vlcMade = $true }
   $mw = Api 'Post' 'mpc-web' @{ closeMpc = $false }
+  if ($vlcMade) {
+    $rc = Get-Content (Join-Path $vlcDir 'vlcrc') -Raw -ErrorAction SilentlyContinue
+    Check ($rc -match '(?m)^extraintf=http\r?$') 'mpc-web switched VLC''s web interface on (vlcrc)'
+    Check ($rc -match '(?m)^http-host=127\.0\.0\.1\r?$') 'mpc-web made VLC''s web interface answer this PC only'
+    $vlcPw = [regex]::Match([string]$rc, '(?m)^http-password=([0-9a-f]+)\r?$').Groups[1].Value
+    Check ($vlcPw.Length -eq 24) 'mpc-web gave VLC a password'
+    $vals = (Api 'Get' 'state').values
+    Check ($vals.vlcPassword -eq $vlcPw -and $vals.vlcPort -eq 8080) 'the settings took VLC''s password and port over'
+    Check ($mw.settingsChanged -eq $true -and $mw.message -match 'VLC web interface switched on') 'mpc-web says so'
+    Check (-not ($mw.PSObject.Properties.Name -contains 'vlcPassword')) 'the password is not in the answer'
+    Remove-Item -Recurse -Force $vlcDir
+  }
   Check ($mw.ok -eq $true) 'mpc-web reports success'
   $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v EnableWebServer 2>&1) -join "`n"
   Check ($reg -match '0x1') 'mpc-web set EnableWebServer=1'

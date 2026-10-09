@@ -1,0 +1,27 @@
+{
+  "ro":"rw",
+  "type":"node",
+  "name":"",
+  "id":"0",
+  "children":[{
+      "ro":"ro",
+      "type":"node",
+      "name":"Playlist",
+      "id":"1",
+      "children":[{
+          "ro":"rw",
+          "type":"leaf",
+          "name":"Sample Show S01E02",
+          "id":"3",
+          "duration":1499,
+          "uri":"file:///D:/Videos/Sample%20Show/Season%201/Sample%20Show%20S01E02.mkv",
+          "current":"current"
+        }]
+    },{
+      "ro":"ro",
+      "type":"node",
+      "name":"Media Library",
+      "id":"2",
+      "children":[]
+    }]
+}

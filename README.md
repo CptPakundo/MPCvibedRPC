@@ -2,9 +2,9 @@
 
 > **Entirely AI-generated ("vibe coded").** Every line of this program, its tests, its documentation and its build setup was written by an AI (Claude, by Anthropic) in conversation with the repository owner. The owner did not write it, takes **no credit** for it, and has not reviewed it line by line: their part was giving prompts and trying the result. Use it accordingly. There is no warranty (see `LICENSE`), no promise that it is correct, secure or maintained, and nobody here is an expert you can ask about the code. The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
-Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT and mpv, based on the approach of
+Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv and VLC, based on the approach of
 [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC):
-it reads what's playing from the player (MPC-HC's built-in web interface, or mpv's IPC connection) and forwards what you're watching to Discord.
+it reads what's playing from the player (MPC-HC's or VLC's built-in web interface, or mpv's IPC connection) and forwards what you're watching to Discord.
 MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 <p align="center">
@@ -15,7 +15,7 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 ## Use it
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
 2. A small window opens and presence is already on: play something in your player. If no player is answering, the window offers
-   **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC and MPC-BE get their web
+   **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC, MPC-BE and VLC get their web
    interface switched on, mpv gets one line in `mpv.conf`).
 3. Optional: switch on **Start with Windows**. It then starts quietly at login, with a tray icon
    (double-click: settings; right-click: start/stop presence, quit). Turn off **Show this window when I open the app**
@@ -25,7 +25,7 @@ A new install greets you with a short welcome card (it reminds you about Discord
 
 Run the program again at any time to bring the window back. Closing the window leaves it running in the tray.
 
-Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT or mpv), the **Discord
+Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC), the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
 Checking a download: each release has a `.sha256` file, and GitHub keeps a signed record that the exe was built from this
@@ -44,8 +44,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.7 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.7" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.8 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.8" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -56,7 +56,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.7 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.8 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
@@ -71,9 +71,10 @@ Without a GitHub repository, just replace the exe by hand; settings are kept.
 | `internal/artwork`, `internal/jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics, which the title-matching rules rely on |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
+| `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
-| `internal/winsys` | Windows-only bits: run at login, setting up the player connection (web interface, `mpv.conf`), window, tray icon (Win32, no helper process) |
+| `internal/winsys` | Windows-only bits: run at login, setting up the player connection (web interface, `mpv.conf`, `vlcrc`), window, tray icon (Win32, no helper process) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
 | `tools/` | the resource (.syso) writer and the CI scripts |
 | `docs/` | the full settings reference (`docs/config.md`) |
@@ -186,12 +187,15 @@ The program asks the players in this order and shows the first one that is playi
 | MPC-BE | the same web interface | the same; MPC-BE keeps the switch in `[WebServer]` of `mpc-be64.ini` or the registry, the button handles both (also this PC only) |
 | MPC-QT | its own mpv-style connection (`cmdrkotori.mpc-qt.mpv`), always on | none (its web interface works too, if you turned it on) |
 | mpv | its JSON IPC (`input-ipc-server`) | `input-ipc-server=mpvsocket` in `mpv.conf`; the button adds it (`portable_config\mpv.conf` next to a portable mpv, else `%APPDATA%\mpv\mpv.conf`) and keeps a name you already set. mpv reads it when it starts. |
+| VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07 and mpv 0.41.0 were tried on Windows 11, set up as above. Streams opened in mpv show their title (there is no file name or folder). With mpv, the image tooltip says "mpv" instead of "Media Player Classic".
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). Streams opened in mpv or VLC show their title (there is no file name or folder). With mpv and VLC, the image tooltip says "mpv" or "VLC media player" instead of "Media Player Classic". VLC is asked last, and only once its password is set.
 
 ## Troubleshooting
 - Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
   or (MPC-HC, MPC-BE) check http://127.0.0.1:13579/variables.html while a video plays. mpv only reads `mpv.conf` when it starts, so restart it after setting it up.
+  VLC: the window says when VLC refuses the password or the port belongs to another program (8080 is a common
+  default; change it in VLC and in **Advanced > VLC web interface port**).
 - Discord pill: "on standby" until something plays (Discord is only contacted then). If it stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser); starting it before or after the program both work.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.

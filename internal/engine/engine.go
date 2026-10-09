@@ -1,16 +1,18 @@
-// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT or mpv), looks up artwork and
+// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC), looks up artwork and
 // keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
 )
 
 // Options are the engine's collaborators; all of them are optional.
@@ -26,7 +29,7 @@ type Options struct {
 	Log          func(level, msg string)
 	CacheFile    string
 	DiscordPaths []string     // nil = the usual IPC locations
-	HTTPClient   *http.Client // used for MPC-HC and artwork lookups
+	HTTPClient   *http.Client // used for MPC-HC, VLC and artwork lookups
 	// PauseUnit is how long one "minute" of Config.PauseClearMinutes lasts (zero = a real minute; tests shorten it).
 	PauseUnit time.Duration
 	// DiscordAttempt, when set, replaces the Discord login (tests).
@@ -53,7 +56,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT or mpv
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv or VLC
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
@@ -61,9 +64,11 @@ type Status struct {
 	// Hidden is true while the playing file is on the user's "don't show" list (nothing is shown or looked up).
 	Hidden bool `json:"hidden"`
 	// Preview is how the current status looks on Discord (nil when nothing is shown).
-	Preview   *core.Preview `json:"preview"`
-	LastError *string       `json:"lastError"`
-	Since     *int64        `json:"since"`
+	Preview *core.Preview `json:"preview"`
+	// Hint explains why a player that seems to be there does not answer (VLC refusing the password, for example).
+	Hint      string  `json:"hint,omitempty"`
+	LastError *string `json:"lastError"`
+	Since     *int64  `json:"since"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -89,6 +94,8 @@ type Engine struct {
 	art        *artwork.Artwork
 	mpcUp      bool
 	player     string // the player that answered last
+	vlc        *vlchttp.Reader
+	vlcProblem string // why VLC's web interface did not answer (logged once; the window shows it)
 	nowPlaying *string
 	preview    *core.Preview
 	paused     bool
@@ -115,7 +122,7 @@ func New(cfg core.Config, opts Options) *Engine {
 	if unit <= 0 {
 		unit = time.Minute
 	}
-	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit}
+	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient}}
 }
 
 // Config returns the settings the engine is using.
@@ -158,7 +165,36 @@ func (e *Engine) fetchMPC(ctx context.Context, port int) *core.Info {
 	return info
 }
 
-// fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then the mpv-style connections.
+// fetchVLC asks VLC's web interface. Problems that need the user (a wrong password, a port taken by another program)
+// are logged once and kept for the window.
+func (e *Engine) fetchVLC(ctx context.Context, cfg core.Config) *core.Info {
+	ctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+	defer cancel()
+	in, err := e.vlc.Query(ctx, cfg.VlcPort, cfg.VlcPassword)
+	problem := ""
+	switch {
+	case errors.Is(err, vlchttp.ErrPassword):
+		problem = "VLC refused the password. It has to match the one in VLC (Preferences > All > Interface > Main interfaces > Lua); Set up the player connection fills it in."
+	case errors.Is(err, vlchttp.ErrNoPassword):
+		problem = "VLC's web interface has no password, so VLC keeps it closed. Press Set up the player connection, then restart VLC."
+	case errors.Is(err, vlchttp.ErrNotVLC):
+		problem = fmt.Sprintf("Port %d answers, but not as VLC. Another program may be using it (Advanced > VLC web interface port).", cfg.VlcPort)
+	}
+	e.mu.Lock()
+	changed := problem != e.vlcProblem
+	e.vlcProblem = problem
+	e.mu.Unlock()
+	if changed && problem != "" {
+		e.log("WARN", problem)
+	}
+	if err != nil {
+		return nil
+	}
+	in.Player = "VLC"
+	return in
+}
+
+// fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then the mpv-style connections, then VLC.
 func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 	pipes := PlayerPipes
 	if e.opts.Pipes != nil {
@@ -218,6 +254,14 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 			if in := ask(p); playing(in) {
 				info = in
 				break
+			}
+		}
+		if info == nil && cfg.VlcPassword != "" {
+			if ctx.Err() != nil {
+				return nil
+			}
+			if in := e.fetchVLC(ctx, cfg); playing(in) {
+				info = in
 			}
 		}
 		if info == nil {
@@ -336,6 +380,9 @@ func (e *Engine) tick(r *run) {
 	}
 	if info != nil && info.Player == "mpv" && cfg.AppName == core.DefaultConfig().AppName {
 		cfg.AppName = "mpv" // the default name describes Media Player Classic; mpv is called what it is
+	}
+	if info != nil && info.Player == "VLC" && cfg.AppName == core.DefaultConfig().AppName {
+		cfg.AppName = "VLC media player"
 	}
 
 	e.mu.Lock()
@@ -546,6 +593,7 @@ func (e *Engine) start() {
 	e.cur = r
 	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, nil, false, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
+	e.vlcProblem = ""
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -558,10 +606,14 @@ func (e *Engine) start() {
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
 	})
 	e.mu.Unlock()
-	looking := fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT), MPC-QT's own connection", cfg.Port)
+	places := []string{fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT)", cfg.Port), "MPC-QT's own connection"}
 	if cfg.MpvPipe != "" {
-		looking += fmt.Sprintf(" and mpv's (%s)", cfg.MpvPipe)
+		places = append(places, fmt.Sprintf("mpv's (%s)", cfg.MpvPipe))
 	}
+	if cfg.VlcPassword != "" {
+		places = append(places, fmt.Sprintf("VLC's web interface on port %d", cfg.VlcPort))
+	}
+	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
 	interval := time.Duration(cfg.PollInterval) * time.Millisecond
 	if interval < 250*time.Millisecond {
@@ -676,6 +728,7 @@ func (e *Engine) Status() Status {
 		s.PauseCleared = e.pauseCleared
 		s.Hidden = e.hidden
 		s.Preview = e.preview
+		s.Hint = e.vlcProblem
 	}
 	return s
 }

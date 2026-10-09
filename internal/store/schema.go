@@ -65,6 +65,8 @@ var Sections = []Section{
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
 		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Help: "MPC-BE and MPC-QT's web interfaces use it too. MPC-QT also works without one.", Min: ip(1), Max: ip(65535)},
 		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "The input-ipc-server name in mpv.conf (Set up the player connection adds it). Leave empty to not look for mpv."},
+		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "The password of VLC's web interface (Preferences > All > Interface > Main interfaces > Lua). Set up the player connection switches the interface on and fills this in. Leave empty to not look for VLC."},
+		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},

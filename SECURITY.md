@@ -1,7 +1,7 @@
 # Security
 
 This program is entirely AI-generated and has not been audited, so please treat it accordingly. It runs on your own
-computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT or mpv) locally, and only contacts the online services listed in its **Privacy** tab.
+computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC) locally, and only contacts the online services listed in its **Privacy** tab.
 
 If you find a security problem, please report it **privately** through
 [GitHub's private vulnerability reporting](https://github.com/CptPakundo/MPCvibedRPC/security/advisories/new)

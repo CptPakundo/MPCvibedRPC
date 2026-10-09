@@ -114,7 +114,7 @@
     </header>
 
     <section class="card notice info hidden" id="welcome">
-      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in MPC-HC, MPC-BE, MPC-QT or mpv.</p>
+      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in MPC-HC, MPC-BE, MPC-QT, mpv or VLC.</p>
       <p>You decide what is shown: the <b>Privacy</b> tab can hide titles or particular files, and switch off the online services that look up covers.</p>
       <div class="row"><button id="welcomeOk" class="primary">Got it</button><button id="welcomeGo">Open the Privacy tab</button></div>
     </section>
@@ -144,7 +144,8 @@
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
-      <p><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT or mpv and play something. MPC-QT works as it is; MPC-HC and MPC-BE need their web interface on, and mpv a line in mpv.conf. The button sets that up.</p>
+      <p><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT, mpv or VLC and play something. MPC-QT works as it is; MPC-HC, MPC-BE and VLC need their web interface on, and mpv a line in mpv.conf. The button sets that up.</p>
+      <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
     </section>
 
@@ -300,7 +301,7 @@
     const box = el('div', {});
     box.append(
       el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves this PC' }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. The player (MPC-HC, MPC-BE, MPC-QT or mpv) and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
+      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves this PC' }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. The player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC) and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
     );
     return box;
   }
@@ -367,9 +368,10 @@
     if (!s.running) now.innerHTML = 'Presence is off<small>Press Start to show what you watch on Discord.</small>';
     else if (s.hidden) now.innerHTML = 'Hidden<small>The file playing is on your Never show list, so nothing is shown on Discord.</small>';
     else if (s.nowPlaying) { now.textContent = ''; now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing' })); }
-    else now.innerHTML = 'Nothing playing<small>Play something in MPC-HC, MPC-BE, MPC-QT or mpv.</small>';
+    else now.innerHTML = 'Nothing playing<small>Play something in MPC-HC, MPC-BE, MPC-QT, mpv or VLC.</small>';
     const t = $('toggle'); t.textContent = s.running ? 'Stop presence' : 'Start presence'; t.className = s.running ? '' : 'primary';
     $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
+    const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
   }
 
   function closeWindow() { document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>'; try { window.close(); } catch (_) {} }
@@ -414,9 +416,9 @@
     $('webMsg').textContent = 'Working…';
     try {
       let r = await api('mpc-web', { closeMpc: false });
-      if (r.needsClose) { if (!confirm('MPC-HC or MPC-BE is open and has to be closed for a moment (it will reopen). Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
+      if (r.needsClose) { if (!confirm((r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
       $('webMsg').textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
-      if (r.mpvPipe) { try { fill(await api('state')); } catch (_) {} } // the mpv name may have been taken over from mpv.conf
+      if (r.settingsChanged) { try { fill(await api('state')); } catch (_) {} } // the mpv name or VLC's password may have been taken over
     } catch (e) { $('webMsg').textContent = e.message; }
   };
   $('checkUpd').onclick = async () => {

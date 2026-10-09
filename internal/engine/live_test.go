@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
-// TestLivePlayer runs against a real player on this computer (MPC-QT or mpv, set up as their docs say) and the
+// TestLivePlayer runs against a real player on this computer (MPC-QT, mpv or VLC, set up as their docs say) and the
 // test's own fake Discord. It only runs on request:
 //
 //	MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -run TestLivePlayer ./internal/engine
 //
-// MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none).
+// MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
+// MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080).
 func TestLivePlayer(t *testing.T) {
 	want := os.Getenv("MPCRPC_LIVE_PLAYER")
 	if want == "" {
@@ -24,6 +25,12 @@ func TestLivePlayer(t *testing.T) {
 	}
 	e, d, l := pipeEngine(t, port, nil)
 	e.opts.Pipes = nil // the real endpoints: MPC-QT's and mpv's default name
+	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
+		e.cfg.VlcPassword = pw
+		if p := os.Getenv("MPCRPC_LIVE_VLC_PORT"); p != "" {
+			e.cfg.VlcPort = atoiOr(p, e.cfg.VlcPort)
+		}
+	}
 	e.Start()
 	eventually(t, want+" detected", func() bool { return e.Status().Player == want })
 	eventually(t, "activity sent", func() bool { return len(d.list()) > 0 && !isClear(d) })

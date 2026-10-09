@@ -84,7 +84,7 @@ func asMap(v any) map[string]any {
 
 func summarise(key string, v any) string {
 	switch key {
-	case "tmdbApiKey":
+	case "tmdbApiKey", "vlcPassword":
 		return "(set)"
 	case "clientId":
 		return "(custom)"
@@ -124,7 +124,14 @@ func Report(in Input) string {
 	} else {
 		w("Players running: none found")
 	}
-	w("Web interface port: %d, mpv connection: %s", in.Config.Port, orNone(in.Config.MpvPipe))
+	vlc := "off (no password)"
+	if in.Config.VlcPassword != "" {
+		vlc = fmt.Sprintf("port %d", in.Config.VlcPort)
+	}
+	w("Web interface port: %d, mpv connection: %s, VLC web interface: %s", in.Config.Port, orNone(in.Config.MpvPipe), vlc)
+	if in.Status.Hint != "" {
+		w("Player hint: %s", in.Status.Hint)
+	}
 	w("")
 	w("State")
 	w("  Presence on: %s", yn(in.Status.Running))

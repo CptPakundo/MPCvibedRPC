@@ -71,6 +71,12 @@ type WebResult struct {
 	Message    string   `json:"message"`
 	Edited     []string `json:"edited,omitempty"`
 	MpvPipe    string   `json:"mpvPipe,omitempty"` // the IPC name mpv is set up with (may be one the user chose earlier)
+	// VLC's web interface as set up (or as the user had it): the caller keeps them in the settings. The password is
+	// never sent to the window.
+	VlcPort     int    `json:"vlcPort,omitempty"`
+	VlcPassword string `json:"-"`
+	// SettingsChanged tells the window that settings were taken over (it reloads them).
+	SettingsChanged bool `json:"settingsChanged,omitempty"`
 }
 
 // player describes where one supported player keeps its web-interface switch.
@@ -167,11 +173,15 @@ func (p player) belongs(exe string) bool {
 	return false
 }
 
-// otherPlayers are only looked for (diagnostics, mpv's setup): they are never closed, and need no web interface.
+// otherPlayers are only looked for (diagnostics, the setup of mpv and VLC): they have no web interface switch of MPC's
+// kind. Only VLC is ever closed, and only when its settings have to change.
 var otherPlayers = []player{
 	{name: "MPC-QT", procs: []string{"mpc-qt"}, installDirs: []string{"MPC-QT"}, userIniDir: "mpc-qt"},
 	{name: "mpv", procs: []string{"mpv"}},
+	vlcPlayer,
 }
+
+var vlcPlayer = player{name: "VLC", procs: []string{"vlc"}, installDirs: []string{"VideoLAN\\VLC"}, userIniDir: "vlc"}
 
 // runningExes lists the paths of the running programs of the given players.
 func runningExes(list []player) []string {
@@ -224,32 +234,71 @@ func SystemInfo() string {
 	return runtime.GOOS + "/" + runtime.GOARCH
 }
 
-// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed), and sets mpv up
-// to accept our connection (mpvPipe; empty skips mpv). MPC-HC and MPC-BE rewrite their settings when they exit, so
-// they have to be closed while those change; without closeMpc the caller is told (needsClose) and can ask the user.
-// mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing.
-func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
+// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed), sets mpv up to
+// accept our connection (mpvPipe; empty skips mpv) and switches VLC's web interface on (vlcPort, vlcPassword: used
+// unless VLC already has its own). MPC-HC, MPC-BE and VLC rewrite their settings when they exit, so they have to be
+// closed while those change (VLC only when something changes); without closeMpc the caller is told (needsClose) and
+// can ask the user. mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing.
+func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string) WebResult {
 	if !IsWindows {
 		return WebResult{Message: "Only available on Windows."}
 	}
 	exes := runningPlayers()
-	if len(exes) > 0 && !closeMpc {
-		return WebResult{NeedsClose: true, Message: "MPC-HC or MPC-BE is running. It has to be closed while its web interface is switched on."}
+	others := runningExes(otherPlayers)
+	var vlcExes, vlcDirs []string
+	for _, e := range others {
+		if vlcPlayer.belongs(e) {
+			vlcExes = append(vlcExes, e)
+			vlcDirs = append(vlcDirs, filepath.Dir(e))
+		}
 	}
-	if len(exes) > 0 {
-		for _, p := range players {
-			for _, n := range p.procs {
-				run("taskkill", "/IM", n+".exe")
+	vlcPaths, vlcPresent := vlcConfPaths(vlcDirs)
+	vlcFile, vlcText := "", ""
+	readVlc := func() {
+		if b, err := os.ReadFile(vlcFile); err == nil {
+			vlcText = string(b)
+		}
+	}
+	if vlcPresent && len(vlcPaths) > 0 {
+		vlcFile = vlcPaths[0]
+		readVlc()
+	}
+	closeVlc := vlcFile != "" && !vlcReady(vlcText) && len(vlcExes) > 0
+	if (len(exes) > 0 || closeVlc) && !closeMpc {
+		var open []string
+		if len(exes) > 0 {
+			open = append(open, "MPC-HC or MPC-BE")
+		}
+		if closeVlc {
+			open = append(open, "VLC")
+		}
+		return WebResult{NeedsClose: true, Message: strings.Join(open, " and ") + " is open and has to be closed for a moment (it will reopen)."}
+	}
+	if !closeVlc {
+		vlcExes = nil // left alone
+	}
+	if len(exes) > 0 || len(vlcExes) > 0 {
+		var procs []string
+		if len(exes) > 0 {
+			for _, p := range players {
+				procs = append(procs, p.procs...)
 			}
 		}
+		if len(vlcExes) > 0 {
+			procs = append(procs, vlcPlayer.procs...)
+		}
+		for _, n := range procs {
+			run("taskkill", "/IM", n+".exe")
+		}
 		time.Sleep(3 * time.Second)
-		if len(runningPlayers()) > 0 {
-			for _, p := range players {
-				for _, n := range p.procs {
-					run("taskkill", "/F", "/IM", n+".exe")
-				}
+		if len(runningPlayers()) > 0 || (len(vlcExes) > 0 && len(runningExes([]player{vlcPlayer})) > 0) {
+			for _, n := range procs {
+				run("taskkill", "/F", "/IM", n+".exe")
 			}
 			time.Sleep(time.Second)
+		}
+		if len(vlcExes) > 0 {
+			readVlc() // VLC may have saved its settings on the way out
 		}
 	}
 	prt := strconv.Itoa(port)
@@ -313,7 +362,6 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 	}
 
 	// MPC-QT needs nothing (its own connection is always on); mpv needs input-ipc-server in mpv.conf
-	others := runningExes(otherPlayers)
 	var mpvDirs []string
 	qtFound := false
 	for _, e := range others {
@@ -331,8 +379,28 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 		edited = append(edited, mpv.Edited)
 	}
 
+	// VLC needs its web interface on (extraintf=http) with a password, in the vlcrc it reads
+	var vlc vlcResult
+	if vlcFile != "" {
+		vlc = enableVlcHTTP(vlcFile, vlcText, vlcPort, vlcPassword)
+		if vlc.Edited != "" {
+			edited = append(edited, vlc.Edited)
+			if len(vlcExes) > 0 {
+				vlc.Message += " VLC was reopened."
+			} else {
+				vlc.Message += " It takes effect the next time VLC starts."
+			}
+		}
+		for _, e := range vlcExes {
+			c := proc.DetachVisible(exec.Command(e))
+			if c.Start() == nil {
+				_ = c.Process.Release()
+			}
+		}
+	}
+
 	var parts []string
-	if len(done) > 0 || (mpv.Message == "" && !qtFound) {
+	if len(done) > 0 || (mpv.Message == "" && vlc.Message == "" && !qtFound) {
 		if len(done) == 0 { // nothing found: the MPC-HC values were still written, as they always were
 			done = append(done, players[0].name)
 		}
@@ -352,7 +420,11 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string) WebResult {
 		parts = append(parts, mpv.Message)
 		ok = ok && mpv.OK
 	}
-	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using}
+	if vlc.Message != "" {
+		parts = append(parts, vlc.Message)
+		ok = ok && vlc.OK
+	}
+	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using, VlcPort: vlc.Port, VlcPassword: vlc.Password}
 }
 
 // regDword reads a REG_DWORD value (-1 when it is not there).
