@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
@@ -13,6 +14,8 @@ import (
 // DataDir is where everything lives:
 //
 //	Windows: %LOCALAPPDATA%\MPCvibedRPC      (override with MPCRPC_HOME)
+//	macOS:   ~/Library/Application Support/MPCvibedRPC
+//	Linux:   $XDG_DATA_HOME/MPCvibedRPC, else ~/.local/share/MPCvibedRPC
 //	config.json  settings    mpcvibedrpc.log  log    artwork-cache.json  cover cache
 func DataDir() string {
 	if v := os.Getenv("MPCRPC_HOME"); v != "" {
@@ -29,6 +32,9 @@ func dataDirNamed(name string) string {
 			base = filepath.Join(home, "AppData", "Local")
 		}
 		return filepath.Join(base, name)
+	}
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(home, "Library", "Application Support", name)
 	}
 	base := os.Getenv("XDG_DATA_HOME")
 	if base == "" {

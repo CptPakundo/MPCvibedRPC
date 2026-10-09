@@ -79,7 +79,7 @@ func TestMPRISAskedLast(t *testing.T) {
 		if !mprisPlaying.Load() {
 			state = -1
 		}
-		in := core.NewInfo("Sample Show S01E02.mkv", "/home/someone/Videos/Sample Show S01E02.mkv", "/home/someone/Videos", state, 1000, 60000, 1)
+		in := core.NewInfo("Sample Movie (2020).mkv", "/home/someone/Videos/Sample Movie (2020).mkv", "/home/someone/Videos", state, 1000, 60000, 1)
 		in.Player = "Celluloid"
 		return []*core.Info{idle, in}
 	}
