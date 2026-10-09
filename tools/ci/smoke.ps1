@@ -105,7 +105,8 @@ try {
   $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
   Check ($reg -notmatch 'MPCvibedRPC\.exe') 'autostart removes the Run entry'
   $plain = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
-  Check ($plain -eq $plainBefore) ("the plain (installed program) Run value was never touched (before=[$($plainBefore -replace '\s+',' ')] after=[$($plain -replace '\s+',' ')])")
+  # compared without regard to whitespace: PowerShell orders the lines of a failed lookup differently from run to run
+  Check (($plain -replace '\s+',' ').Trim() -eq ($plainBefore -replace '\s+',' ').Trim()) ("the plain (installed program) Run value was never touched (before=[$($plainBefore -replace '\s+',' ')] after=[$($plain -replace '\s+',' ')])")
 
   # MPC-HC web interface switch (MPC-HC itself is not installed on the runner: the registry part is what we can check)
   $mw = Api 'Post' 'mpc-web' @{ closeMpc = $false }
