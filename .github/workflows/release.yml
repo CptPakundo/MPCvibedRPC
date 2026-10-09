@@ -1,5 +1,6 @@
 # Publishes a release when a version tag is pushed:   git tag v0.9.8 && git push --tags
-# The program's own updater looks for MPCvibedRPC.exe (and the .sha256) on the latest release.
+# The program's own updater looks for its file (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to
+# it on the latest release; on macOS it links to the release page.
 name: release
 on:
   push:
@@ -10,7 +11,42 @@ permissions:
   attestations: write
   artifact-metadata: write
 jobs:
+  # The Linux programs and the macOS app, tested, built and smoke-tested on their own systems.
+  unix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - run: go test -count=1 ./...
+      - name: Build and smoke-test
+        shell: bash
+        run: |
+          v='${{ github.ref_name }}'; v="${v#v}"
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "Tag $v is not a version like v0.9.8"; exit 1; }
+          mkdir -p dist
+          if [ "$RUNNER_OS" = Linux ]; then
+            for arch in amd64 arm64; do
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$v" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+            done
+            ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$v"
+          else
+            ./tools/ci/package-macos.sh "$v" dist
+            mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
+            ./tools/ci/smoke-unix.sh "$RUNNER_TEMP/app/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" "$v" "$RUNNER_TEMP/app/MPCvibedRPC.app"
+          fi
+      - uses: actions/upload-artifact@v7
+        with:
+          name: unix-${{ matrix.os }}
+          path: dist/*
+
   release:
+    needs: unix
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,20 +66,42 @@ jobs:
           go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$next" -o dist/next.exe ./cmd/mpcvibedrpc
           ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $v -NextVersion $next
           Remove-Item dist/next.exe
-          $h = (Get-FileHash dist/MPCvibedRPC.exe -Algorithm SHA256).Hash.ToLower()
-          Set-Content -LiteralPath dist/MPCvibedRPC.exe.sha256 -Value "$h  MPCvibedRPC.exe`n" -NoNewline
           Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
-      # A signed statement that this exe was built from this repository by this workflow (no certificate needed).
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: unix-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        shell: pwsh
+        run: |
+          foreach ($f in 'MPCvibedRPC.exe', 'MPCvibedRPC-linux-amd64', 'MPCvibedRPC-linux-arm64', 'MPCvibedRPC-macos.zip') {
+            $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
+            Set-Content -LiteralPath "dist/$f.sha256" -Value "$h  $f`n" -NoNewline
+          }
+          Get-ChildItem dist | Format-Table Name, Length
+      # A signed statement that these files were built from this repository by this workflow (no certificate needed).
       # Check a download with:   gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC
       - name: Attest build provenance
         uses: actions/attest@v4
         with:
-          subject-path: dist/MPCvibedRPC.exe
+          subject-path: |
+            dist/MPCvibedRPC.exe
+            dist/MPCvibedRPC-linux-amd64
+            dist/MPCvibedRPC-linux-arm64
+            dist/MPCvibedRPC-macos.zip
       - uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/MPCvibedRPC.exe
             dist/MPCvibedRPC.exe.sha256
+            dist/MPCvibedRPC-linux-amd64
+            dist/MPCvibedRPC-linux-amd64.sha256
+            dist/MPCvibedRPC-linux-arm64
+            dist/MPCvibedRPC-linux-arm64.sha256
+            dist/MPCvibedRPC-macos.zip
+            dist/MPCvibedRPC-macos.zip.sha256
             dist/LICENSE
             dist/THIRD-PARTY-NOTICES.md
           body_path: .github/release-notes.md
+          fail_on_unmatched_files: true

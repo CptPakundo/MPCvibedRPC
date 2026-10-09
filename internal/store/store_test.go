@@ -395,3 +395,35 @@ func TestWelcomeSeenSetting(t *testing.T) {
 		t.Fatal("Restore defaults brings the welcome back")
 	}
 }
+
+func TestSectionsForEachSystem(t *testing.T) {
+	keys := func(goos string) map[string]bool {
+		m := map[string]bool{}
+		for _, s := range SectionsFor(goos) {
+			for _, f := range s.Fields {
+				m[f.Key] = true
+			}
+		}
+		return m
+	}
+	win, mac, linux, bsd := keys("windows"), keys("darwin"), keys("linux"), keys("freebsd")
+	if win["iinaPipe"] || win["mpris"] {
+		t.Error("Windows shows no IINA or MPRIS setting")
+	}
+	if !mac["iinaPipe"] || mac["mpris"] {
+		t.Error("macOS shows the IINA setting only")
+	}
+	if !linux["mpris"] || linux["iinaPipe"] || !bsd["mpris"] {
+		t.Error("Linux and the other D-Bus systems show the MPRIS setting only")
+	}
+	// everything else is shown everywhere
+	for _, f := range AllFields() {
+		if len(f.OS) == 0 && f.Key != "" && !(win[f.Key] && mac[f.Key] && linux[f.Key]) {
+			t.Errorf("%s should be shown everywhere", f.Key)
+		}
+	}
+	// the hidden settings still validate (a config.json copied between systems keeps them)
+	if _, ok := ByKey("iinaPipe"); !ok {
+		t.Error("iinaPipe must stay a known setting")
+	}
+}

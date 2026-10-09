@@ -1,6 +1,7 @@
-// Package winsys is everything that touches Windows itself: run-at-login, the players' web-interface switch, the
-// settings window and the tray icon. Each function does nothing
-// harmful elsewhere, so the rest of the app can be developed and tested on any OS.
+// Package winsys is everything that touches the operating system: run-at-login, the players' web-interface switch
+// and connections, the settings window and the tray icon. Windows is the main system; macOS and Linux have their own
+// versions of each part where there is one (a LaunchAgent or an autostart entry, mpv.conf, IINA's settings, the
+// default browser) and do without the rest (no tray icon or registry).
 package winsys
 
 import (
@@ -41,19 +42,20 @@ func run(file string, args ...string) result {
 
 // ---- run at login ---------------------------------------------------------------
 
-// GetAutoStart reports whether the registry's Run entry points at this program.
+// GetAutoStart reports whether the registry's Run entry (macOS: the LaunchAgent; Linux: the autostart entry) points at
+// this program.
 func GetAutoStart(exe string) bool {
 	if !IsWindows {
-		return false
+		return getLoginItem(exe)
 	}
 	r := run("reg", "query", runKey, "/v", runName())
 	return r.ok && strings.Contains(strings.ToLower(r.stdout), strings.ToLower(filepath.Base(exe)))
 }
 
-// SetAutoStart adds or removes the registry entry.
+// SetAutoStart adds or removes the registry entry (or the login item).
 func SetAutoStart(enabled bool, exe string) bool {
 	if !IsWindows {
-		return false
+		return setLoginItem(enabled, exe)
 	}
 	if enabled {
 		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", `"`+exe+`" --background`, "/f").ok
@@ -75,6 +77,8 @@ type WebResult struct {
 	// never sent to the window.
 	VlcPort     int    `json:"vlcPort,omitempty"`
 	VlcPassword string `json:"-"`
+	// IinaPipe is the connection IINA is set up with (macOS; may be one the user chose earlier).
+	IinaPipe string `json:"iinaPipe,omitempty"`
 	// SettingsChanged tells the window that settings were taken over (it reloads them).
 	SettingsChanged bool `json:"settingsChanged,omitempty"`
 }
@@ -186,7 +190,7 @@ var vlcPlayer = player{name: "VLC", procs: []string{"vlc"}, installDirs: []strin
 // runningExes lists the paths of the running programs of the given players.
 func runningExes(list []player) []string {
 	if !IsWindows {
-		return nil
+		return unixRunningExes(list)
 	}
 	var names []string
 	for _, p := range list {
@@ -211,6 +215,9 @@ func runningPlayers() []string { return runningExes(players) }
 // RunningPlayerNames lists the supported players that are running right now ("MPC-HC", "MPC-QT", ...), for diagnostics.
 func RunningPlayerNames() []string {
 	all := append(append([]player{}, players...), otherPlayers...)
+	if !IsWindows {
+		all = append(all, unixPlayers...)
+	}
 	exes := runningExes(all)
 	var out []string
 	for _, p := range all {
@@ -226,10 +233,11 @@ func RunningPlayerNames() []string {
 
 // SystemInfo describes the operating system for diagnostics (no user or machine names).
 func SystemInfo() string {
-	if IsWindows {
-		if v := strings.TrimSpace(run("cmd.exe", "/c", "ver").stdout); v != "" {
-			return v
-		}
+	if !IsWindows {
+		return unixSystemInfo()
+	}
+	if v := strings.TrimSpace(run("cmd.exe", "/c", "ver").stdout); v != "" {
+		return v
 	}
 	return runtime.GOOS + "/" + runtime.GOARCH
 }
@@ -238,10 +246,11 @@ func SystemInfo() string {
 // accept our connection (mpvPipe; empty skips mpv) and switches VLC's web interface on (vlcPort, vlcPassword: used
 // unless VLC already has its own). MPC-HC, MPC-BE and VLC rewrite their settings when they exit, so they have to be
 // closed while those change (VLC only when something changes); without closeMpc the caller is told (needsClose) and
-// can ask the user. mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing.
-func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string) WebResult {
+// can ask the user. mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing. On macOS and
+// Linux, enableUnix does the same for the players there (iinaPipe: IINA's connection on macOS).
+func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) WebResult {
 	if !IsWindows {
-		return WebResult{Message: "Only available on Windows."}
+		return enableUnix(port, closeMpc, mpvPipe, vlcPort, vlcPassword, iinaPipe)
 	}
 	exes := runningPlayers()
 	others := runningExes(otherPlayers)
@@ -458,6 +467,9 @@ func dirExists(p string) bool {
 
 // FindBrowser returns Edge/Chrome/Brave/Vivaldi if installed.
 func FindBrowser() string {
+	if !IsWindows {
+		return findBrowserUnix()
+	}
 	var bases []string
 	for _, v := range []string{"ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"} {
 		if p := os.Getenv(v); p != "" {
@@ -493,19 +505,27 @@ func start(c *exec.Cmd) bool {
 // OpenWindow shows the page in an app-style window (no tabs or address bar) when Edge/Chrome is there, else in the
 // default browser. It returns "app", "browser" or "" (nothing could be started). With a profileDir the window
 // gets a browser profile of its own, so the user's regular profile is left alone and no background browser outlives
-// the window; CloseWindowBrowser(profileDir) ends it.
+// the window; CloseWindowBrowser(profileDir) ends it. MPCRPC_BROWSER names the browser to use instead, or "none".
 func OpenWindow(url, profileDir string) string {
-	if IsWindows {
-		if b := FindBrowser(); b != "" {
-			args := []string{"--app=" + url, "--window-size=620,700"}
-			if profileDir != "" {
-				prepareProfile(profileDir)
-				args = append(args, "--user-data-dir="+profileDir, "--no-first-run", "--no-default-browser-check", "--disable-background-mode", "--disable-features=msStartupBoost")
-			}
-			if start(proc.DetachVisible(exec.Command(b, args...))) {
-				return "app"
-			}
+	b := FindBrowser()
+	switch v := os.Getenv("MPCRPC_BROWSER"); v {
+	case "":
+	case "none":
+		return "" // no window (a computer without a screen, a test)
+	default:
+		b = v // a browser of the user's choice; it has to understand --app
+	}
+	if b != "" {
+		args := []string{"--app=" + url, "--window-size=620,700"}
+		if profileDir != "" {
+			prepareProfile(profileDir)
+			args = append(args, "--user-data-dir="+profileDir, "--no-first-run", "--no-default-browser-check", "--disable-background-mode", "--disable-features=msStartupBoost")
 		}
+		if start(proc.DetachVisible(exec.Command(b, args...))) {
+			return "app"
+		}
+	}
+	if IsWindows {
 		if start(proc.Hide(exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url))) {
 			return "browser"
 		}
@@ -521,9 +541,14 @@ func OpenWindow(url, profileDir string) string {
 	return ""
 }
 
-// OpenFolder shows a folder in Explorer.
+// OpenFolder shows a folder in Explorer (macOS: the Finder; Linux: the file manager).
 func OpenFolder(dir string) {
-	if IsWindows {
+	switch {
+	case IsWindows:
 		start(proc.DetachVisible(exec.Command("explorer.exe", dir)))
+	case runtime.GOOS == "darwin":
+		start(proc.Detach(exec.Command("open", dir)))
+	default:
+		start(proc.Detach(exec.Command("xdg-open", dir)))
 	}
 }

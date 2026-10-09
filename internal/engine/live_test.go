@@ -7,13 +7,15 @@ import (
 	"time"
 )
 
-// TestLivePlayer runs against a real player on this computer (MPC-QT, mpv or VLC, set up as their docs say) and the
-// test's own fake Discord. It only runs on request:
+// TestLivePlayer runs against a real player on this computer (MPC-QT, mpv, VLC, IINA or a Linux player that offers
+// MPRIS, set up as their docs say) and the test's own fake Discord. It only runs on request:
 //
 //	MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -run TestLivePlayer ./internal/engine
 //
 // MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
-// MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080).
+// MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080). MPCRPC_LIVE_MPV_PIPE and
+// MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. MPCRPC_LIVE_PLAYER is the name the
+// player is shown under: MPC-QT, mpv, VLC, IINA, Celluloid, ...
 func TestLivePlayer(t *testing.T) {
 	want := os.Getenv("MPCRPC_LIVE_PLAYER")
 	if want == "" {
@@ -24,7 +26,13 @@ func TestLivePlayer(t *testing.T) {
 		port = atoiOr(p, port)
 	}
 	e, d, l := pipeEngine(t, port, nil)
-	e.opts.Pipes = nil // the real endpoints: MPC-QT's and mpv's default name
+	e.opts.Pipes, e.opts.MPRIS = nil, nil // the real endpoints: MPC-QT's, mpv's, IINA's (macOS) and MPRIS (Linux)
+	if p := os.Getenv("MPCRPC_LIVE_MPV_PIPE"); p != "" {
+		e.cfg.MpvPipe = p
+	}
+	if p := os.Getenv("MPCRPC_LIVE_IINA_PIPE"); p != "" {
+		e.cfg.IinaPipe = p
+	}
 	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
 		e.cfg.VlcPassword = pw
 		if p := os.Getenv("MPCRPC_LIVE_VLC_PORT"); p != "" {

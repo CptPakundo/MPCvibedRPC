@@ -9,8 +9,9 @@ import (
 
 var held uintptr // kept for the life of the process
 
-// AcquireSingleInstance takes a process-wide named mutex. It returns false when another copy already holds it.
-func AcquireSingleInstance() bool {
+// AcquireSingleInstance takes a process-wide named mutex. It returns false when another copy already holds it. (The
+// data folder dir is used by the other systems, which lock a file in it.)
+func AcquireSingleInstance(dir string) bool {
 	name, _ := syscall.UTF16PtrFromString(`Local\MPCvibedRPC-single-instance`)
 	h, _, err := kernel32.NewProc("CreateMutexW").Call(0, 0, uintptr(unsafe.Pointer(name)))
 	if h == 0 {

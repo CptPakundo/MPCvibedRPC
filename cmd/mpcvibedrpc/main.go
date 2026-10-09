@@ -1,5 +1,6 @@
-// MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC is playing as a Discord Rich Presence. Runs from the tray; the settings are a
-// small local web page opened in an app-style window.
+// MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC (on macOS also IINA; on Linux any video player that
+// offers MPRIS) is playing as a Discord Rich Presence. Runs from the tray on Windows and in the background on macOS
+// and Linux; the settings are a small local web page opened in an app-style window.
 package main
 
 import (
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -33,6 +35,7 @@ const preferredPort = 47654
 var (
 	background  bool
 	afterUpdate bool
+	serve       bool // macOS: this is the copy that does the work (see detach in launch_darwin.go)
 )
 
 func main() {
@@ -42,10 +45,16 @@ func main() {
 			background = true
 		case "--after-update":
 			afterUpdate = true
+		case "--serve":
+			serve = true
 		case "--version":
 			fmt.Println(version)
 			return
 		}
+	}
+	prepareSystem()
+	if detach() {
+		return
 	}
 	if v := os.Getenv("MPCRPC_UPDATE_API"); v != "" { // tests and self-hosted mirrors
 		updater.APIBase = strings.TrimRight(v, "/")
@@ -167,7 +176,7 @@ func run() error {
 	if afterUpdate {
 		deadline = time.Now().Add(10 * time.Second)
 	}
-	for !winsys.AcquireSingleInstance() {
+	for !winsys.AcquireSingleInstance(st.Dir) {
 		if other := pingExisting(ipcFile); other != nil {
 			if !background {
 				req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/open", other.Port), strings.NewReader("{}"))
@@ -207,7 +216,7 @@ func run() error {
 	if r, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = r
 	}
-	canAutoStart := winsys.IsWindows
+	canAutoStart := true // Windows: the registry; macOS: a LaunchAgent; Linux: an autostart entry
 
 	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
 	if background {
@@ -244,7 +253,7 @@ func run() error {
 			upd = u
 		}
 		return map[string]any{
-			"version": version, "schema": store.Sections, "values": st.Values(), "app": st.App(), "status": eng.Status(),
+			"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": st.Values(), "app": st.App(), "status": eng.Status(),
 			"autoStart": canAutoStart && winsys.GetAutoStart(exe), "canAutoStart": canAutoStart, "dataDir": st.Dir, "update": upd,
 		}
 	}
@@ -355,11 +364,14 @@ func run() error {
 		"mpc-web": {Fn: func(body *jsonx.Obj) (any, error) {
 			closeMpc, _ := body.M["closeMpc"].(bool)
 			cfg := eng.Config()
-			r := winsys.EnableMpcWebInterface(cfg.Port, closeMpc, cfg.MpvPipe, cfg.VlcPort, cfg.VlcPassword)
+			r := winsys.EnableMpcWebInterface(cfg.Port, closeMpc, cfg.MpvPipe, cfg.VlcPort, cfg.VlcPassword, cfg.IinaPipe)
 			take := map[string]any{}
 			if r.MpvPipe != "" && r.MpvPipe != cfg.MpvPipe {
 				// mpv was already set up with a name of the user's own: look for that one
 				take["mpvPipe"] = r.MpvPipe
+			}
+			if r.IinaPipe != "" && r.IinaPipe != cfg.IinaPipe {
+				take["iinaPipe"] = r.IinaPipe // IINA was already set up with a connection of the user's own
 			}
 			if r.VlcPassword != "" && (r.VlcPassword != cfg.VlcPassword || r.VlcPort != cfg.VlcPort) {
 				// VLC's web interface as it is set up now (a password and port the user had are kept)
@@ -372,6 +384,9 @@ func run() error {
 					r.SettingsChanged = true
 					if _, ok := take["mpvPipe"]; ok {
 						log("INFO", "Looking for mpv under the name it is set up with: "+r.MpvPipe+".")
+					}
+					if _, ok := take["iinaPipe"]; ok {
+						log("INFO", "Looking for IINA under the name it is set up with: "+r.IinaPipe+".")
 					}
 					if _, ok := take["vlcPassword"]; ok {
 						log("INFO", fmt.Sprintf("Looking for VLC's web interface on port %d with its password.", r.VlcPort))

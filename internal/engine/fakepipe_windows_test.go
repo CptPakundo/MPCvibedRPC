@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync"
 	"syscall"
+	"testing"
 	"time"
 	"unsafe"
 )
@@ -176,3 +177,6 @@ func (p *serverPipe) Close() error {
 	pDisconnectNamedPipe.Call(uintptr(p.h))
 	return syscall.CloseHandle(p.h)
 }
+
+// sockDir is unused on Windows: the fakes are named pipes, not files.
+func sockDir(*testing.T) string { return "" }

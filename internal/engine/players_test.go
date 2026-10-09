@@ -25,7 +25,7 @@ type fakeMpv struct {
 }
 
 func newFakeMpv(t *testing.T, values map[string]any) *fakeMpv {
-	f := &fakeMpv{path: fakePath(t.TempDir()), values: values}
+	f := &fakeMpv{path: fakePath(sockDir(t)), values: values}
 	ln, err := listenFake(f.path)
 	if err != nil {
 		t.Skip("cannot listen for the fake mpv: " + err.Error())
@@ -104,7 +104,7 @@ func pipeEngine(t *testing.T, port int, pipes []PlayerPipe) (*Engine, *disc, *lo
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: func(core.Config) []PlayerPipe { return pipes }, Log: l.add, DiscordPaths: []string{d.path},
+	e := New(cfg, Options{Pipes: func(core.Config) []PlayerPipe { return pipes }, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path},
 		CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
 	t.Cleanup(e.Stop)
 	return e, d, l
@@ -178,7 +178,7 @@ func TestPlayingPlayerWinsOverIdleOnes(t *testing.T) {
 }
 
 func TestMissingPipesMeanNoPlayer(t *testing.T) {
-	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(t.TempDir()) + "-none"}})
+	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(sockDir(t)) + "-none"}})
 	e.Start()
 	time.Sleep(700 * time.Millisecond)
 	if s := e.Status(); s.MPC || s.Player != "" || s.NowPlaying != nil {

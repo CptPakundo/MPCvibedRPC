@@ -31,6 +31,13 @@ func newFake(t *testing.T) *fakeDiscord {
 		t.Skip("the fake Discord uses a Unix socket; the Windows named pipe is covered by the smoke test in CI")
 	}
 	dir := t.TempDir()
+	if runtime.GOOS == "darwin" { // a socket path may only be 104 bytes long there, and the temporary folder is long
+		var err error
+		if dir, err = os.MkdirTemp("/tmp", "dc"); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.RemoveAll(dir) })
+	}
 	f := &fakeDiscord{path: filepath.Join(dir, "discord-ipc-0")}
 	ln, err := net.Listen("unix", f.path)
 	if err != nil {

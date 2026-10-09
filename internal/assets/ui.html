@@ -114,7 +114,7 @@
     </header>
 
     <section class="card notice info hidden" id="welcome">
-      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in MPC-HC, MPC-BE, MPC-QT, mpv or VLC.</p>
+      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in <span class="players">MPC-HC, MPC-BE, MPC-QT, mpv or VLC</span>.</p>
       <p>You decide what is shown: the <b>Privacy</b> tab can hide titles or particular files, and switch off the online services that look up covers.</p>
       <div class="row"><button id="welcomeOk" class="primary">Got it</button><button id="welcomeGo">Open the Privacy tab</button></div>
     </section>
@@ -144,7 +144,7 @@
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
-      <p><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT, mpv or VLC and play something. MPC-QT works as it is; MPC-HC, MPC-BE and VLC need their web interface on, and mpv a line in mpv.conf. The button sets that up.</p>
+      <p id="mpcHelpText"><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT, mpv or VLC and play something. MPC-QT works as it is; MPC-HC, MPC-BE and VLC need their web interface on, and mpv a line in mpv.conf. The button sets that up.</p>
       <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
     </section>
@@ -154,14 +154,14 @@
 
   <div class="panels" id="panels">
     <section class="panel" id="p-general">
-      <div class="field"><label class="line"><span>Start with Windows<div class="help">Starts when you log in, straight to the tray (no window).</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
-      <div class="field"><label class="line"><span>Show this window when I open the app<div class="help">When you start it yourself. Turn off to go straight to the tray, like at login. You can always reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
+      <div class="field"><label class="line"><span><span id="autoStartLabel">Start with Windows</span><div class="help" id="autoStartHelp">Starts when you log in, straight to the tray (no window).</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
+      <div class="field"><label class="line"><span>Show this window when I open the app<div class="help" id="openWindowHelp">When you start it yourself. Turn off to go straight to the tray, like at login. You can always reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
       <div class="field"><label class="line"><span>Start presence when the app opens<div class="help">Otherwise it waits until you press Start.</div></span><span class="sw"><input type="checkbox" id="startPresence"><span></span></span></label></div>
     </section>
 
     <section class="panel" id="p-updates">
       <div class="field">
-        <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button></div>
+        <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button><button id="pageUpd" class="primary hidden">Open the download page</button></div>
         <div class="help" id="updNotes"></div>
       </div>
       <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
@@ -202,6 +202,31 @@
   const readValue = (i) => (i.type === 'checkbox' ? i.checked : i.value);
   const showValue = (i, v) => { if (i.type === 'checkbox') i.checked = !!v; else i.value = v == null ? '' : v; };
   const appValue = (key) => (key === 'autoStart' ? !!model.autoStart : model.app[key]);
+
+  // Texts that differ on macOS and Linux (the page is written for Windows; the program says which system it runs on).
+  const OS_TEXT = {
+    darwin: {
+      players: 'IINA, mpv, VLC or MPC-QT', here: 'this Mac', autoStart: 'Start at login', copyKey: 'Cmd+C',
+      help: '<b>No player is answering.</b> Open IINA, mpv, VLC or MPC-QT and play something. MPC-QT works as it is; IINA and mpv need an mpv option, and VLC its web interface on. The button sets that up.',
+    },
+    linux: {
+      players: 'VLC, mpv, Celluloid, Haruna, SMPlayer, MPC-QT or another video player', here: 'this computer', autoStart: 'Start at login', copyKey: 'Ctrl+C',
+      help: '<b>No player is answering.</b> Open VLC, Celluloid, Haruna, SMPlayer or another video player and play something: they are found through MPRIS, with nothing to set up. mpv needs a line in mpv.conf (or the mpv-mpris script), and the button adds it.',
+    },
+  };
+  const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
+  const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
+  const players = () => (osText() ? osText().players : PLAYERS);
+  const autoStartName = () => (osText() ? osText().autoStart : 'Start with Windows');
+  function applyOsText() {
+    const t = osText();
+    if (!t) return;
+    document.querySelectorAll('.players').forEach((e) => { e.textContent = t.players; });
+    $('mpcHelpText').innerHTML = t.help;
+    $('autoStartLabel').textContent = t.autoStart;
+    $('autoStartHelp').textContent = 'Starts in the background when you log in (no window).';
+    $('openWindowHelp').textContent ='When you start it yourself. Turn off to start in the background, like at login. Open the app again to show this window.';
+  }
 
   // Every control saves on its own, one at a time and only its own setting: a toggle or a choice as soon as it changes,
   // a text box when it loses focus (or on Enter). A value that is refused goes back to what was saved.
@@ -301,7 +326,7 @@
     const box = el('div', {});
     box.append(
       el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves this PC' }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. The player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC) and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
+      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. The player (' + players() + ') and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
     );
     return box;
   }
@@ -332,6 +357,7 @@
     $('ver').textContent = 'v' + m.version;
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
     $('checkUpdates').checked = !!m.app.checkUpdates; $('updateRepo').value = m.app.updateRepo || '';
+    applyOsText();
     if (!m.canAutoStart) { $('autoStart').disabled = true; $('autoStart').closest('.field').querySelector('.help').textContent = 'Available on Windows only.'; }
     renderFields(m);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
@@ -368,7 +394,7 @@
     if (!s.running) now.innerHTML = 'Presence is off<small>Press Start to show what you watch on Discord.</small>';
     else if (s.hidden) now.innerHTML = 'Hidden<small>The file playing is on your Never show list, so nothing is shown on Discord.</small>';
     else if (s.nowPlaying) { now.textContent = ''; now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing' })); }
-    else now.innerHTML = 'Nothing playing<small>Play something in MPC-HC, MPC-BE, MPC-QT, mpv or VLC.</small>';
+    else { now.textContent = ''; now.append(document.createTextNode('Nothing playing'), el('small', { textContent: 'Play something in ' + players() + '.' })); }
     const t = $('toggle'); t.textContent = s.running ? 'Stop presence' : 'Start presence'; t.className = s.running ? '' : 'primary';
     $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
     const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
@@ -407,7 +433,7 @@
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
   $('reset').onclick = () => {
-    if (!confirm('Restore every setting to its default?\n\nThis also turns off Start with Windows and clears the TMDB key, name aliases, pinned covers and your Never show list.')) return;
+    if (!confirm('Restore every setting to its default?\n\nThis also turns off ' + autoStartName() + ' and clears the TMDB key, name aliases, pinned covers and your Never show list.')) return;
     queue = queue.then(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
@@ -422,16 +448,24 @@
     } catch (e) { $('webMsg').textContent = e.message; }
   };
   $('checkUpd').onclick = async () => {
-    $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('updNotes').textContent = '';
+    $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('pageUpd').classList.add('hidden'); $('updNotes').textContent = '';
     try {
       await queue; // a just-edited update source is saved first
       const u = await api('update-check', {});
       if (!u.configured) $('updText').textContent = 'Enter an update source below first.';
       else if (u.error) $('updText').textContent = u.error;
-      else if (u.newer) { $('updText').textContent = 'Version ' + u.latest + ' is available (you have ' + u.current + ').'; $('updNotes').textContent = u.notes || ''; if (u.url) $('installUpd').classList.remove('hidden'); else $('updNotes').textContent = 'That release has no program file attached.'; }
+      else if (u.newer) { $('updText').textContent = 'Version ' + u.latest + ' is available (you have ' + u.current + ').'; $('updNotes').textContent = u.notes || ''; offerUpdate(u, true); }
       else $('updText').textContent = 'You are up to date (' + u.current + ').';
     } catch (e) { $('updText').textContent = 'Could not check: ' + e.message; }
   };
+  // Install where the program can update itself; on a Mac (an app bundle) the release page is offered instead.
+  let updPage = '';
+  function offerUpdate(u, explain) {
+    if (u.canInstall || (!osText() && u.url)) $('installUpd').classList.remove('hidden');
+    else if (osText() && u.page) { updPage = u.page; $('pageUpd').classList.remove('hidden'); }
+    else if (explain) $('updNotes').textContent = 'That release has no program file attached.';
+  }
+  $('pageUpd').onclick = () => { if (updPage) window.open(updPage, '_blank', 'noopener'); };
   $('installUpd').onclick = async () => { $('updText').textContent = 'Downloading… the program will restart.'; $('installUpd').disabled = true; try { await api('update-install', {}); } catch (e) { $('updText').textContent = e.message; $('installUpd').disabled = false; } };
   $('copyDiag').onclick = async () => {
     const msg = $('diagMsg'), box = $('diagText');
@@ -440,13 +474,13 @@
       box.value = text; box.classList.remove('hidden');
       let ok = false;
       try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { box.focus(); box.select(); try { ok = document.execCommand('copy'); } catch (_) {} }
-      msg.textContent = ok ? 'Copied. Look it over before you post it; titles, file names and paths are left out.' : 'Select the text below and copy it (Ctrl+C).';
+      msg.textContent = ok ? 'Copied. Look it over before you post it; titles, file names and paths are left out.' : 'Select the text below and copy it (' + (osText() ? osText().copyKey : 'Ctrl+C') + ').';
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
-  $('quit').onclick = async () => { if (confirm('Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+  $('quit').onclick = async () => { if (confirm(osText() ? 'Quit MPCvibedRPC? Presence stops and the program closes.' : 'Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
-  api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; $('installUpd').classList.remove('hidden'); flagUpdate(); } })
+  api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
     .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
   setInterval(poll, 1000); setInterval(pollLog, 3000);
 })();

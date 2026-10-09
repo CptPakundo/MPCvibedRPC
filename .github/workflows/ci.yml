@@ -1,4 +1,5 @@
-# Tests on Linux (with the race detector) and Windows, then builds the Windows program and smoke-tests it for real.
+# Tests on Linux (with the race detector), Windows and macOS, then builds the program for each system and smoke-tests
+# it for real, and runs the engine against real players on Linux and macOS.
 name: ci
 on:
   push:
@@ -13,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -30,7 +31,11 @@ jobs:
         run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh 'TestLivePlayer' go test -race -count=1 ./...
         shell: bash
       - name: Test
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
+        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer' go test -count=1 ./...
+        shell: bash
+      - name: Test
+        if: runner.os == 'Windows'
         # the Unix-socket fakes and the end-to-end run are Linux-only; the smoke test covers them on Windows
         run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending' go test -count=1 ./...
         shell: bash
@@ -59,3 +64,80 @@ jobs:
         with:
           name: MPCvibedRPC-windows
           path: dist/MPCvibedRPC.exe
+
+  # The Linux programs and the macOS app, built as a release builds them, then started for real in throwaway folders.
+  unix:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=0.9.8" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+          done
+          ls -l dist
+          echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.8
+        shell: bash
+      - name: Build (macOS app)
+        if: runner.os == 'macOS'
+        run: ./tools/ci/package-macos.sh 0.9.8 dist
+        shell: bash
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
+          app="$RUNNER_TEMP/app/MPCvibedRPC.app"
+          ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.8 "$app"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
+          path: dist/*
+
+  # The engine against real players (the test's own fake Discord): mpv, VLC, mpv-mpris and Celluloid on Linux; mpv
+  # and IINA (set up by the real program) on macOS.
+  players:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - name: Install players (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg mpv mpv-mpris vlc vlc-plugin-base celluloid xvfb dbus dbus-x11 > /dev/null
+          mpv --version | head -n 1; cvlc --version 2> /dev/null | head -n 1; celluloid --version || true
+      - name: Install players (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install --quiet mpv ffmpeg
+          brew install --quiet --cask iina
+          mpv --version | head -n 1
+          defaults read /Applications/IINA.app/Contents/Info.plist CFBundleShortVersionString
+      - name: Live tests (Linux)
+        if: runner.os == 'Linux'
+        run: ./tools/ci/run-annotated.sh "live players" dbus-run-session -- ./tools/ci/live-players.sh
+        shell: bash
+      - name: Live tests (macOS)
+        if: runner.os == 'macOS'
+        run: ./tools/ci/run-annotated.sh "live players" ./tools/ci/live-players.sh
+        shell: bash
