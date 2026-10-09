@@ -10,7 +10,7 @@ shown here.
 | Setting | Default | What it does |
 |---|---|---|
 | `clientId` | `427863248734388224` | Discord application ID (the one used by the original MPC-DiscordRPC project). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
-| `port` | `13579` | MPC-HC web interface port. |
+| `port` | `13579` | MPC-HC / MPC-BE web interface port. |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. |
 
 ## How it looks
