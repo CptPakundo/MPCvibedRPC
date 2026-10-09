@@ -20,6 +20,8 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
    (double-click: settings; right-click: start/stop presence, quit). Turn off **Show this window when I open the app**
    (General tab) if you want it to go straight to the tray when you open it yourself too.
 
+A new install greets you with a short welcome card (it reminds you about Discord's "Share my activity" setting and points to the Privacy tab); dismissing it is remembered, and existing installs never see it.
+
 Run the program again at any time to bring the window back. Closing the window leaves it running in the tray.
 
 Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), MPC-HC, the **Discord
@@ -32,6 +34,8 @@ repository by its release workflow. With the [GitHub CLI](https://cli.github.com
 
 The program itself is not code-signed, so Windows SmartScreen may warn about it. See [SECURITY.md](SECURITY.md).
 
+A copy started with its own data folder (the `MPCRPC_HOME` environment variable: a portable setup, a test) keeps its own run-at-login entry and never touches the installed program's.
+
 Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings), `mpcvibedrpc.log`,
 `artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" first).
 
@@ -39,19 +43,19 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.2 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.2" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.3 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.3" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
 
 ## Updating
-The program can update itself from GitHub Releases. Put your repository (`owner/repo`) in **Updates** in the window
+The program can update itself from GitHub Releases. When the daily check finds a newer version it shows a notification next to the tray icon (once per version; clicking it opens the window). Put your repository (`owner/repo`) in **Updates** in the window
 (or in `config.json` under `app.updateRepo`). It then checks daily, and **Check now / Install** downloads the new
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.2 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.3 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 

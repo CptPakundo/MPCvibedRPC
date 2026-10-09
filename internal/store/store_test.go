@@ -25,8 +25,8 @@ type goldenStep struct {
 // The recorded reference output carries a different default update source; that setting is checked on its own.
 var reUpdateRepo = regexp.MustCompile(`"updateRepo": "[^"]*"`)
 
-// openWindow is not part of the recorded output.
-var reOpenWindow = regexp.MustCompile(`,\r?\n\s+"openWindow": (true|false)`)
+// openWindow and welcomeSeen are not part of the recorded output.
+var reOpenWindow = regexp.MustCompile(`,\r?\n\s+"(openWindow|welcomeSeen)": (true|false)`)
 
 func TestStoreAgainstJS(t *testing.T) {
 	f, err := os.Open("testdata/store.json.gz")
@@ -367,4 +367,31 @@ func New2(t *testing.T, dir string) *Store {
 		t.Fatal(err)
 	}
 	return s
+}
+
+func TestWelcomeSeenSetting(t *testing.T) {
+	s, err := New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.App().WelcomeSeen {
+		t.Fatal("a new install has not seen the welcome yet")
+	}
+	patch, _ := jsonx.Parse(`{"app":{"welcomeSeen":true}}`)
+	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	if !s.App().WelcomeSeen {
+		t.Fatal("welcomeSeen was not saved")
+	}
+	// the other program settings are untouched by it
+	if a := s.App(); !a.StartPresence || !a.OpenWindow || !a.CheckUpdates || a.AutoStart {
+		t.Errorf("other app settings changed: %+v", a)
+	}
+	if err := s.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if s.App().WelcomeSeen {
+		t.Fatal("Restore defaults brings the welcome back")
+	}
 }

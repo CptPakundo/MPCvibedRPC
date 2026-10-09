@@ -25,7 +25,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.2"
+var version = "0.9.3"
 
 const preferredPort = 47654
 
@@ -214,6 +214,12 @@ func run() error {
 	}
 	log("INFO", msg+".")
 	updater.CleanupOld(exe)
+	if !firstRun && !st.App().WelcomeSeen {
+		// an install that existed before the welcome card was added has no need of it
+		if p, err := jsonx.Parse(`{"app":{"welcomeSeen":true}}`); err == nil {
+			_ = st.Update(p.(*jsonx.Obj))
+		}
+	}
 	winsys.CloseWindowBrowser(browserProfile) // a window browser left behind by a crash
 
 	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath()})
@@ -226,6 +232,7 @@ func run() error {
 		srv        *server.Server
 		quitOnce   sync.Once
 		quitDone   = make(chan struct{})
+		notified   string // the newest version the user was told about (once per version per run)
 	)
 	getUpdate := func() *updater.Info { mu.Lock(); defer mu.Unlock(); return lastUpdate }
 	setUpdate := func(u *updater.Info) { mu.Lock(); lastUpdate = u; mu.Unlock() }
@@ -267,6 +274,20 @@ func run() error {
 		if r.Newer {
 			setUpdate(r)
 			log("INFO", fmt.Sprintf("Update available: %s (you have %s).", r.Latest, version))
+			if !manual {
+				mu.Lock()
+				first := notified != r.Latest
+				notified = r.Latest
+				t := tray
+				mu.Unlock()
+				if first && t != nil {
+					if t.Balloon("MPCvibedRPC "+r.Latest+" is available", "You have "+version+". Click here, then open the Updates tab to install it.") {
+						log("INFO", "Showed an update notice next to the tray icon.")
+					} else {
+						log("WARN", "Windows did not show the update notice.")
+					}
+				}
+			}
 		} else {
 			setUpdate(nil)
 		}
@@ -385,7 +406,7 @@ func run() error {
 	writeIPC(port)
 	log("INFO", fmt.Sprintf("Settings available at http://127.0.0.1:%d/", port))
 
-	tray = winsys.StartTray(winsys.TrayOptions{
+	t := winsys.StartTray(winsys.TrayOptions{
 		Icon: assets.Icon, Dir: st.Dir, Log: log,
 		Tooltip: func() string {
 			s := eng.Status()
@@ -416,6 +437,9 @@ func run() error {
 		},
 		OnQuit: quit,
 	})
+	mu.Lock()
+	tray = t
+	mu.Unlock()
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
 	if canAutoStart && st.App().AutoStart {

@@ -111,6 +111,12 @@
       <span class="ver" id="ver"></span>
     </header>
 
+    <section class="card notice info hidden" id="welcome">
+      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Then press <b>Start presence</b> and play something in MPC-HC.</p>
+      <p>You decide what is shown: the <b>Privacy</b> tab can hide titles or particular files, and switch off the online services that look up covers.</p>
+      <div class="row"><button id="welcomeOk" class="primary">Got it</button><button id="welcomeGo">Open the Privacy tab</button></div>
+    </section>
+
     <section class="card status" aria-live="polite">
       <div class="row">
         <span class="pill" id="pDiscord">Discord</span>
@@ -323,6 +329,7 @@
     $('checkUpdates').checked = !!m.app.checkUpdates; $('updateRepo').value = m.app.updateRepo || '';
     if (!m.canAutoStart) { $('autoStart').disabled = true; $('autoStart').closest('.field').querySelector('.help').textContent = 'Available on Windows only.'; }
     renderFields(m);
+    $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
   }
   ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'updateRepo'].forEach((id) => autosave($(id), 'app', id));
 
@@ -382,6 +389,14 @@
       if (stick) box.scrollTop = box.scrollHeight;
     } catch (_) {}
   }
+
+  // the welcome card: dismissing it is remembered, so it only ever greets a new install
+  function dismissWelcome() {
+    $('welcome').classList.add('hidden');
+    queue = queue.then(async () => { try { model = await api('save', { app: { welcomeSeen: true } }); } catch (e) { note(e.message, true); } });
+  }
+  $('welcomeOk').onclick = dismissWelcome;
+  $('welcomeGo').onclick = () => { dismissWelcome(); showTab('privacy'); };
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
   $('reset').onclick = () => {
