@@ -515,6 +515,9 @@ func OpenWindow(url, profileDir string) string {
 	default:
 		b = v // a browser of the user's choice; it has to understand --app
 	}
+	if macApp && os.Getenv("MPCRPC_BROWSER") == "" && openNativeWindow(url) {
+		return "app" // the macOS app shows the page in a window of its own
+	}
 	if b != "" {
 		args := []string{"--app=" + url, "--window-size=620,700"}
 		if profileDir != "" {

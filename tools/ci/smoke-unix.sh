@@ -93,19 +93,35 @@ wait_for "the program to quit" gone "$pid"
 
 if [ -n "$app" ]; then
   echo "== macOS: open the app like the Finder does"
-  unset MPCRPC_FOREGROUND
-  open --env "MPCRPC_HOME=$MPCRPC_HOME" --env MPCRPC_BROWSER=none "$app"
+  unset MPCRPC_FOREGROUND MPCRPC_BROWSER # the app's own window this time
+  swift tools/ci/windows.swift > /dev/null # compiled once, so the checks below are quick
+  windows() { swift tools/ci/windows.swift | awk -F'\t' -v p="$1" -v l="$2" '$1 == p && $2 == l' | wc -l | tr -d ' '; }
+  open --env "MPCRPC_HOME=$MPCRPC_HOME" "$app"
   wait_for "the app to answer" have_ipc
   read_ipc
   server="$(jq -r .pid "$MPCRPC_HOME/ipc.json")"
   sleep 5
   kill -0 "$server" || fail "the program did not keep running after the launcher left"
   ps -o args= -p "$server" | grep -q -- "--serve" || fail "the running copy should be the --serve one"
-  open --env "MPCRPC_HOME=$MPCRPC_HOME" --env MPCRPC_BROWSER=none "$app"
-  sleep 4
+  [ "$(get state | jq -r .tray)" = true ] || fail "the program says it has no menu bar icon"
+  [ "$(windows "$server" 25)" -ge 1 ] || { swift tools/ci/windows.swift; fail "no menu bar icon on screen"; }
+  echo "menu bar icon ok"
+  [ "$(windows "$server" 0)" = 0 ] || fail "a window is open although openWindow is off"
+
+  echo "== macOS: the settings window"
+  open --env "MPCRPC_HOME=$MPCRPC_HOME" "$app" # opening the app again shows the window
+  sleep 5
   [ "$(jq -r .pid "$MPCRPC_HOME/ipc.json")" = "$server" ] || fail "opening the app again started another copy"
   n="$(pgrep -f "MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" | wc -l | tr -d ' ')"
   [ "$n" = 1 ] || fail "$n copies are running"
+  [ "$(windows "$server" 0)" = 1 ] || { swift tools/ci/windows.swift; fail "the app should show exactly one window of its own"; }
+  ! pgrep -f -- "--user-data-dir=$MPCRPC_HOME/window" > /dev/null || fail "a browser was started for the window"
+  post open > /dev/null # once more: the same window comes forward, no second one
+  sleep 2
+  [ "$(windows "$server" 0)" = 1 ] || fail "a second window was opened"
+  shot="${SCREENSHOT:-$work/screen.png}"
+  if screencapture -x "$shot" 2> /dev/null; then echo "screenshot: $shot"; fi
+  echo "window ok"
   grep -c "starting" "$MPCRPC_HOME/mpcvibedrpc.log" || true
   post quit > /dev/null
   wait_for "the app to quit" gone "$server"
