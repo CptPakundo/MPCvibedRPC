@@ -12,7 +12,7 @@ import (
 
 // ---- seasons that are really separate titles -----------------------------------------
 // Anime (and plenty of live-action) catalogs list each season as its own title:
-//   "Initial D: Fourth Stage", "Attack on Titan Season 2", "Mob Psycho 100 II".
+//   "Show: Fourth Stage", "Show Season 2", "Show II".
 
 var seasonNouns = map[string]bool{"season": true, "stage": true, "series": true, "part": true, "cour": true, "chapter": true, "act": true, "round": true}
 var roman = map[string]int{"ii": 2, "iii": 3, "iv": 4, "vi": 6, "vii": 7, "viii": 8, "ix": 9}

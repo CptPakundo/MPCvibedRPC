@@ -36,7 +36,7 @@ var ordinals = map[string]int{"first": 1, "second": 2, "third": 3, "fourth": 4, 
 func stripMarks(s string) string { return reMarks.ReplaceStr(jsre.NFD(s), "") }
 
 // normTitle: lowercase, accent-insensitive, punctuation-free, keeps any script. Ordinals are unified so
-// "Initial D Fourth Stage" == "Initial D 4th Stage".
+// "Show Fourth Stage" == "Show 4th Stage".
 func normTitle(s string) string {
 	t := jsre.ToLower(stripMarks(s))
 	t = reAmpPlus.ReplaceStr(t, " and ")
@@ -117,7 +117,7 @@ func yearClose(c *Cand, year int) bool {
 	return c.Year != 0 && math.Abs(float64(c.Year-year)) <= 1
 }
 
-// oneEdit: one inserted, dropped or changed letter in a longish word ("Toitsu" / "Touitsu").
+// oneEdit: one inserted, dropped or changed letter in a longish word ("Colour" / "Color").
 func oneEdit(xs, ys string) bool {
 	x, y := units(xs), units(ys)
 	if len(x) < 6 || len(y) < 6 || abs(len(x)-len(y)) > 1 {

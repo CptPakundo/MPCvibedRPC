@@ -47,35 +47,35 @@ var (
 )
 
 const (
-	wmDestroy    = 0x0002
-	wmClose      = 0x0010
-	wmCommand    = 0x0111
-	wmTimer      = 0x0113
-	wmLButtonDbl = 0x0203
-	wmRButtonUp  = 0x0205
-	wmApp        = 0x8000
-	wmTrayCB     = wmApp + 1
-	nimAdd       = 0
-	nimModify    = 1
-	nimDelete    = 2
-	nifMessage   = 0x1
-	nifIcon      = 0x2
-	nifTip       = 0x4
-	nifInfo      = 0x10
-	niifInfo     = 0x1
+	wmDestroy           = 0x0002
+	wmClose             = 0x0010
+	wmCommand           = 0x0111
+	wmTimer             = 0x0113
+	wmLButtonDbl        = 0x0203
+	wmRButtonUp         = 0x0205
+	wmApp               = 0x8000
+	wmTrayCB            = wmApp + 1
+	nimAdd              = 0
+	nimModify           = 1
+	nimDelete           = 2
+	nifMessage          = 0x1
+	nifIcon             = 0x2
+	nifTip              = 0x4
+	nifInfo             = 0x10
+	niifInfo            = 0x1
 	ninBalloonUserClick = 0x405
-	mfString     = 0x0
-	mfSeparator  = 0x800
-	tpmRightBtn  = 0x2
-	imageIcon    = 1
-	lrLoadFile   = 0x10
-	lrDefault    = 0x40
-	smCxSmIcon   = 49
-	cmdOpen      = 1
-	cmdToggle    = 2
-	cmdQuit      = 3
-	timerID      = 1
-	ClassName    = "MPCDiscordRPC.Tray"
+	mfString            = 0x0
+	mfSeparator         = 0x800
+	tpmRightBtn         = 0x2
+	imageIcon           = 1
+	lrLoadFile          = 0x10
+	lrDefault           = 0x40
+	smCxSmIcon          = 49
+	cmdOpen             = 1
+	cmdToggle           = 2
+	cmdQuit             = 3
+	timerID             = 1
+	ClassName           = "MPCDiscordRPC.Tray"
 )
 
 type wndClassEx struct {

@@ -22,11 +22,11 @@ type Info struct {
 var (
 	reEntDecRun = re(`(?:&#\d+;)+`, "g")
 	reEntHexRun = re(`(?:&#x[0-9a-f]+;)+`, "gi")
-	reSepAny   = re(`[\\/]`, "")
-	reLastSeg  = re(`[\\/][^\\/]*$`, "")
-	reSepRun   = re(`[\\/]+`, "")
-	reDriveTop = re(`^[A-Za-z]:$`, "")
-	reVarP     = re(`<p\s+id="([A-Za-z]+)"\s*>([\s\S]*?)<\/p>`, "g")
+	reSepAny    = re(`[\\/]`, "")
+	reLastSeg   = re(`[\\/][^\\/]*$`, "")
+	reSepRun    = re(`[\\/]+`, "")
+	reDriveTop  = re(`^[A-Za-z]:$`, "")
+	reVarP      = re(`<p\s+id="([A-Za-z]+)"\s*>([\s\S]*?)<\/p>`, "g")
 )
 
 // decodeNumeric replaces runs of numeric entities. A run is decoded as a unit so that UTF-16 surrogate halves
@@ -260,8 +260,8 @@ var (
 func tidy(s string) string {
 	s = tdSOH.ReplaceStr(s, ".")
 	s = tdWS.ReplaceStr(s, " ")
-	s = tdHyphen.ReplaceStr(s, ": ") // "Star Trek- Section 31": a ":" the file system wouldn't allow
-	s = tdSpaceQ.ReplaceStr(s, "$1") // "What If ?"
+	s = tdHyphen.ReplaceStr(s, ": ") // "Show- Subtitle": a ":" the file system wouldn't allow
+	s = tdSpaceQ.ReplaceStr(s, "$1") // "Title ?"
 	return tdEdges.ReplaceStr(s, "")
 }
 
@@ -351,7 +351,7 @@ func findEpisode(tokens []string, cut int) *epMatch {
 			return &epMatch{idx: i, length: 1, season: NA, episode: atoi(m.Str(1)), parts: []string{"E" + pad2s(m.Str(1))}, anime: true}
 		}
 		if b == "-" {
-			if m := feDashEp.Exec(next); m != nil { // anime: "Title - 05", "One Piece - 1087"
+			if m := feDashEp.Exec(next); m != nil { // anime: "Title - 05", "Show - 1087"
 				return &epMatch{idx: i, length: 2, season: NA, episode: atoi(m.Str(1)), parts: []string{"E" + pad2s(m.Str(1))}, anime: true}
 			}
 			if codeRe.Test(next) { // "Title - AB001"
@@ -483,8 +483,8 @@ var (
 	psTailWord    = re(`^\p{L}{2,}$`, "u")
 )
 
-// tailDigit: "Storm.Front.2": a lone 1-9 after the title words may be a part number or part of the name ("Deep
-// Space 9"); the file's own title keeps it, and a catalog title that continues the name replaces it.
+// tailDigit: "Show.Name.2": a lone 1-9 after the title words may be a part number or part of the name ("Show
+// Name 9"); the file's own title keeps it, and a catalog title that continues the name replaces it.
 func tailDigit(after []string) string {
 	last := ""
 	if len(after) > 0 {
@@ -746,7 +746,7 @@ func withFolder(base string, dirs []string) (string, bool) {
 	if m.Has(9) && rest == base {
 		dash = " -"
 	}
-	return name + dash + " " + rest + year, true // "Lost - 03" reads as an episode
+	return name + dash + " " + rest + year, true // "Show - 03" reads as an episode
 }
 
 var (

@@ -268,7 +268,7 @@ func buildProviders() map[string]*Provider {
 			}
 			return out, nil
 		},
-		// Lists every season of the show with its own name and poster (e.g. Pokémon season 14 = "Black & White").
+		// Lists every season of the show with its own name and poster (e.g. a show whose season 14 is named "Black & White").
 		Season: func(a *Artwork, cand *Cand, media *core.Media) (*SeasonInfo, error) {
 			j, err := a.net.getJSON(a.cfg.TvmazeBase+"/shows/"+cand.Ref+"/seasons", reqInit{})
 			if err != nil {

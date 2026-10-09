@@ -20,10 +20,10 @@ func TestUsesProfile(t *testing.T) {
 		{`msedge.exe --user-data-dir=` + p, true},
 		{`msedge.exe --user-data-dir=` + p + `\`, true},
 		{`msedge.exe --USER-data-DIR=` + `c:\users\someone\appdata\local\mpcvibedrpc\WINDOW`, true},
-		{`msedge.exe --user-data-dir=` + p + `2 --lang=en`, false},      // a different folder with the same prefix
-		{`msedge.exe --user-data-dir=` + p + `-old`, false},             // likewise
-		{`msedge.exe --user-data-dir=C:\Users\Someone\Other`, false},    // another profile
-		{`msedge.exe --app=http://127.0.0.1:1/`, false},                 // the user's own Edge
+		{`msedge.exe --user-data-dir=` + p + `2 --lang=en`, false},   // a different folder with the same prefix
+		{`msedge.exe --user-data-dir=` + p + `-old`, false},          // likewise
+		{`msedge.exe --user-data-dir=C:\Users\Someone\Other`, false}, // another profile
+		{`msedge.exe --app=http://127.0.0.1:1/`, false},              // the user's own Edge
 		{``, false},
 	}
 	for _, c := range cases {

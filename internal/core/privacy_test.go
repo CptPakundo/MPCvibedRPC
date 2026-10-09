@@ -10,16 +10,16 @@ func TestMatchesHideList(t *testing.T) {
 	const file = "Some.Show.S01E02.720p.mkv"
 	const dir = `D:\Videos\Private\Season 1`
 	yes := []string{
-		"private",                      // a folder name, any case
-		`D:\Videos\Private`,            // a folder path, with backslashes
-		"d:/videos/private/",           // the same with slashes and a trailing slash
-		"some.show",                    // part of the file name
-		"SEASON 1",                     // case does not matter
-		"*.mkv",                        // wildcard on the file name
-		"some.show.s??e02.*",           // ? and * together
-		"d:/videos/*/season 1/*",       // wildcard on the whole path
-		"*private*",                    // wildcard on the path
-		"  private  ",                  // spaces around an entry are ignored
+		"private",                // a folder name, any case
+		`D:\Videos\Private`,      // a folder path, with backslashes
+		"d:/videos/private/",     // the same with slashes and a trailing slash
+		"some.show",              // part of the file name
+		"SEASON 1",               // case does not matter
+		"*.mkv",                  // wildcard on the file name
+		"some.show.s??e02.*",     // ? and * together
+		"d:/videos/*/season 1/*", // wildcard on the whole path
+		"*private*",              // wildcard on the path
+		"  private  ",            // spaces around an entry are ignored
 	}
 	for _, e := range yes {
 		if !MatchesHideList(file, dir, []string{"unrelated", e}) {

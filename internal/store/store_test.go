@@ -80,7 +80,7 @@ func TestStoreAgainstJS(t *testing.T) {
 				t.Errorf("case %d step %d %s: file differs\n got  %s\n want %s", ci, si, s.Patch, b, want)
 			}
 			wantApp := s.App
-			wantApp.OpenWindow = true // not part of the recorded output
+			wantApp.OpenWindow = true                // not part of the recorded output
 			wantApp.UpdateRepo = st.App().UpdateRepo // see reUpdateRepo
 			if a := st.App(); !reflect.DeepEqual(a, wantApp) {
 				t.Errorf("case %d step %d: app %+v want %+v", ci, si, a, wantApp)

@@ -15,7 +15,7 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 ## Use it
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
 2. A small window opens. Press **Start presence**. If MPC-HC isn't answering, the window offers
-   **Turn on MPC-HC web interface** (it closes and reopens MPC-HC for you).
+   **Turn on the web interface** (it closes and reopens the player for you).
 3. Optional: switch on **Start with Windows**. It then starts quietly at login, with a tray icon
    (double-click: settings; right-click: start/stop presence, quit). Turn off **Show this window when I open the app**
    (General tab) if you want it to go straight to the tray when you open it yourself too.
@@ -111,7 +111,7 @@ whole program is built and driven end to end. On GitHub, Linux runs the tests wi
     TVmaze (or TMDB with a key), together with that season's own poster. The season's name is shown
     on the second line (`<Season name> · S14 · <code>`).
     If a season can't be placed you get the show's poster and no season name, never a guess.
-  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it (see the end of this section):
+  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it with rtworkAliases or rtworkOverrides (see the Advanced settings line below):
   - **Episode titles.** When the filename has an episode number but no name
     (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key) and shown as
     `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
