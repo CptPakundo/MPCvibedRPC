@@ -26,6 +26,16 @@ shown here.
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
 | `linkButton` | `true` | Adds a "View on IMDb / AniList / ..." button (visible to others). |
 
+## Privacy
+
+These are all on the **Privacy** tab of the settings window.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `showArtwork` | `true` | Look up cover art and titles online. `false` stays completely offline (it also turns off episode-title lookups). |
+| `disabledSources` | `[]` | Online services that must never be contacted, whatever the source lists below say. Ids: `tmdb`, `imdb`, `cinemeta`, `tvmaze`, `anilist`, `kitsu`, `jikan` (MyAnimeList), `wikipedia`, `bulbapedia`. The window shows a switch for each; the stored list holds the ones that are off. |
+| `pauseClearMinutes` | `0` | Take the status down after the video has been paused this many minutes (0 = never). It comes back when you play again, seek, or turn this off. |
+
 ## Filename cleanup
 
 Smart mode understands release names: it strips BluRay, 1080p, x265, HDR, audio tags and release groups, and finds
@@ -46,7 +56,6 @@ The title parsed from the filename is looked up online (IMDb-based Cinemeta by d
 
 | Setting | Default | What it does |
 |---|---|---|
-| `showArtwork` | `true` | Look up cover art online. `false` also disables episode-title lookups. |
 | `artworkSources` | `['tmdb', 'imdb', 'cinemeta', 'tvmaze', 'anilist', 'kitsu', 'jikan', 'wikipedia']` | Sources are asked at the same time; the first in this list with an exact title match wins. See the source list below. |
 | `animeSources` | `['anilist', 'kitsu', 'jikan']` | Anime-style filenames ask these first, in this order. |
 | `tmdbApiKey` | `''` | TMDB API key. Free at <https://www.themoviedb.org/settings/api>. TMDB is skipped unless this is set. |
