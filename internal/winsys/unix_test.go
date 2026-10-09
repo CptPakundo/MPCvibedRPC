@@ -233,3 +233,12 @@ func TestMpvConfPathsUnix(t *testing.T) {
 		t.Errorf("home: %v", paths)
 	}
 }
+
+func TestTranslocatedAppGetsNoLoginItem(t *testing.T) {
+	if !translocated("/private/var/folders/ab/xyz/T/AppTranslocation/0A1B/d/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC") {
+		t.Error("a translocated app must be recognised")
+	}
+	if translocated("/Applications/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC") {
+		t.Error("an app in Applications is not translocated")
+	}
+}

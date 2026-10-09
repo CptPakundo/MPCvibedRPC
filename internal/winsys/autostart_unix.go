@@ -57,7 +57,7 @@ func loginItem(goos, exe, mpcHome string) string {
 		cmd = "env " + execQuote("MPCRPC_HOME="+mpcHome) + " " + cmd
 	}
 	return "[Desktop Entry]\nType=Application\nName=MPCvibedRPC\nComment=Shows what your video player is playing on Discord\n" +
-		"Exec=" + cmd + "\nTerminal=false\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n"
+		"Exec=" + cmd + "\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
 }
 
 // execQuote quotes one argument for the Exec line of a .desktop file: the quoting rules of the specification, then
@@ -106,6 +106,10 @@ func loginItemExe(exe string) string {
 	return execQuote(exe)
 }
 
+// translocated reports whether macOS runs the app from a temporary copy: an app opened from the folder it was
+// downloaded to, before it was moved (to Applications), runs from a random read-only path that does not last.
+func translocated(exe string) bool { return strings.Contains(exe, "/AppTranslocation/") }
+
 // setLoginItem writes or removes the login item.
 func setLoginItem(enabled bool, exe string) bool {
 	p := userLoginItem()
@@ -115,6 +119,9 @@ func setLoginItem(enabled bool, exe string) bool {
 	if !enabled {
 		err := os.Remove(p)
 		return err == nil || os.IsNotExist(err)
+	}
+	if translocated(exe) {
+		return false
 	}
 	if os.MkdirAll(filepath.Dir(p), 0o755) != nil {
 		return false
