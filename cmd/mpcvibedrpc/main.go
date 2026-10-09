@@ -25,7 +25,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.0"
+var version = "0.9.1"
 
 const preferredPort = 47654
 
@@ -156,6 +156,7 @@ func run() error {
 		return err
 	}
 	ipcFile := st.IPCPath()
+	browserProfile := filepath.Join(st.Dir, "window") // profile of the browser that shows the settings window
 	firstRun := st.FirstRun()
 
 	// Already running? Ask it to show its window and leave (a background start at login just leaves quietly).
@@ -213,6 +214,7 @@ func run() error {
 	}
 	log("INFO", msg+".")
 	updater.CleanupOld(exe)
+	winsys.CloseWindowBrowser(browserProfile) // a window browser left behind by a crash
 
 	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath()})
 	token := server.NewToken()
@@ -243,6 +245,7 @@ func run() error {
 		quitOnce.Do(func() {
 			go func() {
 				srv.Close() // ends the page's keep-alive connection, so an open window closes right away
+				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
 				eng.Stop()
 				tray.Close()
 				_ = os.Remove(ipcFile)
@@ -275,7 +278,7 @@ func run() error {
 		_ = os.WriteFile(ipcFile, b, 0o644)
 	}
 
-	openWindow := func() { winsys.OpenWindow(windowURL(srv.Port(), token)) }
+	openWindow := func() { winsys.OpenWindow(windowURL(srv.Port(), token), browserProfile) }
 
 	handlers := map[string]server.Handler{
 		"state":       {Get: true, Fn: func(*jsonx.Obj) (any, error) { return fullState(), nil }},
@@ -351,6 +354,7 @@ func run() error {
 			// settings window still gets its answer
 			err = updater.SwapAndRestart(exe, next, nil, func() {
 				time.AfterFunc(400*time.Millisecond, func() {
+					winsys.CloseWindowBrowser(browserProfile)
 					tray.Close()
 					lg.close()
 					os.Exit(0)

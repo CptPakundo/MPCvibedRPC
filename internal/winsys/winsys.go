@@ -205,11 +205,18 @@ func start(c *exec.Cmd) bool {
 }
 
 // OpenWindow shows the page in an app-style window (no tabs or address bar) when Edge/Chrome is there, else in the
-// default browser. It returns "app", "browser" or "" (nothing could be started).
-func OpenWindow(url string) string {
+// default browser. It returns "app", "browser" or "" (nothing could be started). With a profileDir the window
+// gets a browser profile of its own, so the user's regular profile is left alone and no background browser outlives
+// the window; CloseWindowBrowser(profileDir) ends it.
+func OpenWindow(url, profileDir string) string {
 	if IsWindows {
 		if b := FindBrowser(); b != "" {
-			if start(proc.DetachVisible(exec.Command(b, "--app="+url, "--window-size=620,700"))) {
+			args := []string{"--app=" + url, "--window-size=620,700"}
+			if profileDir != "" {
+				prepareProfile(profileDir)
+				args = append(args, "--user-data-dir="+profileDir, "--no-first-run", "--no-default-browser-check", "--disable-background-mode", "--disable-features=msStartupBoost")
+			}
+			if start(proc.DetachVisible(exec.Command(b, args...))) {
 				return "app"
 			}
 		}

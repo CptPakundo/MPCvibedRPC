@@ -21,14 +21,14 @@ Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Wind
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
 Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings), `mpcvibedrpc.log`,
-`artwork-cache.json`. Delete that folder and the program to remove all traces (turn off "Start with Windows" first).
+`artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" first).
 
 ## Building the .exe (maintainers)
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.0 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.0" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.1 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.1" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -39,7 +39,7 @@ The program can update itself from GitHub Releases. Put your repository (`owner/
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.0 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.1 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
