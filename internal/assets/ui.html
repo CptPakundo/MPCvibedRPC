@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MPCvibedRPC</title>
+<link rel="icon" href="/icon.ico">
+<style>
+  :root {
+    --bg: #f4f5f8; --panel: #ffffff; --line: #e1e4ec; --text: #1d2130; --muted: #646b80;
+    --accent: #5865f2; --accent-text: #ffffff; --good: #1f9d55; --warn: #b7791f; --bad: #d03b3b;
+    --field: #f8f9fc; --shadow: 0 1px 2px rgba(20, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15171f; --panel: #1e2130; --line: #2c3045; --text: #e8eaf3; --muted: #9aa1b8;
+      --good: #43c07a; --warn: #e0b04f; --bad: #f06b6b; --field: #171a27; --shadow: none; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; }
+  header { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+  header img { width: 28px; height: 28px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  header .ver { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .status { display: grid; gap: 10px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row > .grow { flex: 1; min-width: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--field); border: 1px solid var(--line); color: var(--muted); }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .pill.good { color: var(--good); } .pill.good::before { background: var(--good); }
+  .pill.warn { color: var(--warn); } .pill.warn::before { background: var(--warn); }
+  .pill.bad { color: var(--bad); } .pill.bad::before { background: var(--bad); }
+  .now { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  .now small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--text); padding: 7px 14px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.big { padding: 10px 18px; width: 100%; font-size: 15px; }
+  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  button:disabled { opacity: .55; cursor: default; }
+  .notice { border-left: 3px solid var(--warn); background: var(--field); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
+  .notice p { margin: 0 0 8px; }
+  .notice.info { border-color: var(--accent); }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 650; }
+  .field { padding: 9px 0; border-top: 1px solid var(--line); }
+  .field:first-of-type { border-top: 0; }
+  .field label.line { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .help { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%; max-width: 100%;
+  }
+  .field .ctl { margin-top: 6px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { min-height: 64px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  /* switch */
+  .sw { position: relative; width: 38px; height: 22px; flex: none; }
+  .sw input { opacity: 0; position: absolute; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .sw span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
+  .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .sw input:checked + span { background: var(--accent); }
+  .sw input:checked + span::after { transform: translateX(16px); }
+  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #log { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .L-WARN { color: var(--warn); } .L-ERROR { color: var(--bad); }
+  .hidden { display: none !important; }
+  html, body { height: 100%; }
+  main { max-width: 640px; height: 100%; display: flex; flex-direction: column; padding: 10px 16px 10px; }
+  .top { flex: none; }
+  header { margin: 0 0 8px; }
+  .card.status { padding: 10px 14px; margin-bottom: 8px; gap: 6px; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .tab:hover { color: var(--text); border-color: transparent; }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tab.has::after { content: "\25CF"; color: var(--accent); font-size: 9px; margin-left: 5px; vertical-align: 2px; }
+  .panels { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 2px 8px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .bar { flex: none; display: flex; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
+  .bar button { padding: 5px 11px; font-size: 13px; }
+  .bar .msg { color: var(--muted); font-size: 12.5px; flex: 1; min-width: 0; }
+  .bar .msg.err { color: var(--bad); white-space: pre-line; }
+  #log { max-height: none; height: 100%; min-height: 260px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <header>
+      <img src="/icon.ico" alt="">
+      <h1>MPCvibedRPC</h1>
+      <span class="ver" id="ver"></span>
+    </header>
+
+    <section class="card status" aria-live="polite">
+      <div class="row">
+        <span class="pill" id="pDiscord">Discord</span>
+        <span class="pill" id="pMpc">MPC-HC</span>
+        <span class="grow"></span>
+        <button id="toggle">Start presence</button>
+      </div>
+      <div class="now" id="now"></div>
+    </section>
+
+    <section class="card notice hidden" id="mpcHelp">
+      <p><b>MPC-HC isn't answering.</b> Open it and play something, or switch on its web interface (the app reads what's playing from it).</p>
+      <div class="row"><button id="enableWeb">Turn on MPC-HC web interface</button><span class="help" id="webMsg"></span></div>
+    </section>
+
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </div>
+
+  <div class="panels" id="panels">
+    <section class="panel" id="p-general">
+      <div class="field"><label class="line"><span>Start with Windows<div class="help">Starts when you log in, straight to the tray (no window).</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
+      <div class="field"><label class="line"><span>Show this window when I open the app<div class="help">When you start it yourself. Turn off to go straight to the tray, like at login. You can always reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
+      <div class="field"><label class="line"><span>Start presence when the app opens<div class="help">Otherwise it waits until you press Start.</div></span><span class="sw"><input type="checkbox" id="startPresence"><span></span></span></label></div>
+    </section>
+
+    <section class="panel" id="p-updates">
+      <div class="field">
+        <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button></div>
+        <div class="help" id="updNotes"></div>
+      </div>
+      <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
+      <div class="field"><div>Update source (GitHub)</div><div class="ctl"><input type="text" id="updateRepo" placeholder="owner/repo" spellcheck="false"></div><div class="help">The GitHub project that publishes releases of this program.</div></div>
+    </section>
+
+    <section class="panel" id="p-log">
+      <div id="log" tabindex="0"></div>
+    </section>
+  </div>
+
+  <div class="bar">
+    <div class="msg" id="msg">Changes are saved as you make them.</div>
+    <button id="openFolder">Data folder</button>
+    <button id="reset" class="danger">Restore defaults</button>
+    <button id="quit" class="danger">Quit</button>
+  </div>
+</main>
+<script>
+(() => {
+  const TOKEN = '__TOKEN__';
+  const $ = (id) => document.getElementById(id);
+  let model = null, queue = Promise.resolve(), clearTimer = null;
+
+  async function api(name, body, method) {
+    const res = await fetch('/api/' + name, { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+    let j = {}; try { j = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
+    return j;
+  }
+  const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); kids.forEach((k) => e.append(k)); return e; };
+  const note = (text, err) => {
+    clearTimeout(clearTimer); $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').textContent = text;
+    if (!err) clearTimer = setTimeout(() => { $('msg').textContent = 'Changes are saved as you make them.'; }, 2500);
+  };
+  const readValue = (i) => (i.type === 'checkbox' ? i.checked : i.value);
+  const showValue = (i, v) => { if (i.type === 'checkbox') i.checked = !!v; else i.value = v == null ? '' : v; };
+  const appValue = (key) => (key === 'autoStart' ? !!model.autoStart : model.app[key]);
+
+  // Every control saves on its own, one at a time and only its own setting: a toggle or a choice as soon as it changes,
+  // a text box when it loses focus (or on Enter). A value that is refused goes back to what was saved.
+  function autosave(input, scope, key) {
+    const run = async () => {
+      const value = readValue(input);
+      const saved = scope === 'app' ? appValue(key) : model.values[key];
+      if (String(value) === String(saved == null ? '' : saved)) return;
+      note('Saving…');
+      try {
+        const m = await api('save', scope === 'app' ? { app: { [key]: value } } : { settings: { [key]: value } });
+        model = m;
+        showValue(input, scope === 'app' ? appValue(key) : m.values[key]);
+        note('Saved.');
+      } catch (e) {
+        showValue(input, saved);
+        note(e.message, true);
+      }
+    };
+    input.addEventListener('change', () => { queue = queue.then(run, run); });
+    if (input.tagName === 'INPUT' && input.type !== 'checkbox') input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  }
+
+  function renderFields(m) {
+    document.querySelectorAll('.panel.dyn').forEach((p) => p.remove());
+    for (const sec of m.schema) {
+      const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
+      for (const f of sec.fields) {
+        const v = m.values[f.key];
+        const wrap = el('div', { className: 'field' });
+        const help = f.help ? el('div', { className: 'help', textContent: f.help }) : null;
+        let input;
+        if (f.type === 'bool') {
+          input = el('input', { type: 'checkbox', checked: !!v });
+          const lab = el('label', { className: 'line' }, el('span', {}, document.createTextNode(f.label), ...(help ? [help] : [])), el('span', { className: 'sw' }, input, el('span')));
+          wrap.append(lab);
+        } else {
+          if (f.type === 'choice') { input = el('select'); f.options.forEach(([val, text]) => input.append(new Option(text, val, false, val === v))); }
+          else if (f.type === 'map') input = el('textarea', { value: v || '', spellcheck: false });
+          else if (f.type === 'int') input = el('input', { type: 'number', value: v, min: f.min, max: f.max });
+          else input = el('input', { type: f.type === 'secret' ? 'password' : 'text', value: v || '', spellcheck: false, autocomplete: 'off' });
+          wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, input), ...(help ? [help] : []));
+        }
+        input.dataset.key = f.key; input.dataset.type = f.type;
+        autosave(input, 'settings', f.key);
+        d.append(wrap);
+      }
+      $('p-updates').before(d);
+    }
+    buildTabs();
+  }
+
+  const TAB_NAMES = { look: 'Look', titles: 'Titles & art', advanced: 'Advanced' };
+  let tab = 'general';
+  try { tab = localStorage.getItem('tab') || 'general'; } catch (_) {}
+  function buildTabs() {
+    const list = [['general', 'General']];
+    model.schema.forEach((s) => list.push([s.id, TAB_NAMES[s.id] || s.title]));
+    list.push(['updates', 'Updates'], ['log', 'Log']);
+    if (!list.some((x) => x[0] === tab)) tab = 'general';
+    const bar = $('tabs'); bar.textContent = '';
+    list.forEach(([id, label]) => { const b = el('button', { className: 'tab', textContent: label }); b.setAttribute('role', 'tab'); b.dataset.tab = id; b.onclick = () => showTab(id); bar.append(b); });
+    showTab(tab);
+  }
+  function showTab(id) {
+    tab = id;
+    try { localStorage.setItem('tab', id); } catch (_) {}
+    document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+    document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'p-' + id));
+    if (id === 'log') pollLog();
+  }
+  function flagUpdate() { const b = document.querySelector('.tab[data-tab="updates"]'); if (b) b.classList.add('has'); }
+
+  function fill(m) {
+    model = m;
+    $('ver').textContent = 'v' + m.version;
+    $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
+    $('checkUpdates').checked = !!m.app.checkUpdates; $('updateRepo').value = m.app.updateRepo || '';
+    if (!m.canAutoStart) { $('autoStart').disabled = true; $('autoStart').closest('.field').querySelector('.help').textContent = 'Available on Windows only.'; }
+    renderFields(m);
+  }
+  ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'updateRepo'].forEach((id) => autosave($(id), 'app', id));
+
+  function paint(s) {
+    const d = $('pDiscord'), p = $('pMpc');
+    d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '');
+    d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : 'Discord idle';
+    p.className = 'pill ' + (s.mpc ? 'good' : s.running ? 'warn' : '');
+    p.textContent = s.mpc ? 'MPC-HC detected' : s.running ? 'MPC-HC not found' : 'MPC-HC idle';
+    const now = $('now');
+    if (!s.running) now.innerHTML = 'Presence is off<small>Press Start to show what you watch on Discord.</small>';
+    else if (s.nowPlaying) { now.textContent = ''; now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: s.paused ? 'Paused' : 'Now playing' })); }
+    else now.innerHTML = 'Nothing playing<small>Play something in MPC-HC.</small>';
+    const t = $('toggle'); t.textContent = s.running ? 'Stop presence' : 'Start presence'; t.className = s.running ? '' : 'primary';
+    $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
+  }
+
+  function closeWindow() { document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>'; try { window.close(); } catch (_) {} }
+  async function poll() { try { paint(await api('status')); } catch (_) {} }
+  // A connection the program holds open while it runs: when it ends the program has quit, so the window closes at once.
+  async function watchAlive() {
+    try {
+      const res = await fetch('/api/alive', { headers: { 'X-Token': TOKEN } });
+      if (!res.ok) return;
+      const reader = res.body.getReader();
+      while (!(await reader.read()).done) {}
+    } catch (_) {}
+    closeWindow();
+  }
+  watchAlive();
+  async function pollLog() {
+    if (tab !== 'log') return;
+    try {
+      const { lines } = await api('log'); const box = $('log'); const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+      box.textContent = '';
+      lines.forEach((l) => { const m = / (INFO|WARN|ERROR) /.exec(l); box.append(el('div', { className: m ? 'L-' + m[1] : '', textContent: l })); });
+      if (stick) box.scrollTop = box.scrollHeight;
+    } catch (_) {}
+  }
+
+  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
+  $('reset').onclick = () => {
+    if (!confirm('Restore every setting to its default?\n\nThis also turns off Start with Windows and clears the TMDB key, name aliases and pinned covers.')) return;
+    queue = queue.then(async () => {
+      try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
+    });
+  };
+  $('enableWeb').onclick = async () => {
+    $('webMsg').textContent = 'Working…';
+    try {
+      let r = await api('mpc-web', { closeMpc: false });
+      if (r.needsClose) { if (!confirm('MPC-HC is open and has to be closed for a moment (it will reopen). Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
+      $('webMsg').textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
+    } catch (e) { $('webMsg').textContent = e.message; }
+  };
+  $('checkUpd').onclick = async () => {
+    $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('updNotes').textContent = '';
+    try {
+      await queue; // a just-edited update source is saved first
+      const u = await api('update-check', {});
+      if (!u.configured) $('updText').textContent = 'Enter an update source below first.';
+      else if (u.error) $('updText').textContent = u.error;
+      else if (u.newer) { $('updText').textContent = 'Version ' + u.latest + ' is available (you have ' + u.current + ').'; $('updNotes').textContent = u.notes || ''; if (u.url) $('installUpd').classList.remove('hidden'); else $('updNotes').textContent = 'That release has no program file attached.'; }
+      else $('updText').textContent = 'You are up to date (' + u.current + ').';
+    } catch (e) { $('updText').textContent = 'Could not check: ' + e.message; }
+  };
+  $('installUpd').onclick = async () => { $('updText').textContent = 'Downloading… the program will restart.'; $('installUpd').disabled = true; try { await api('update-install', {}); } catch (e) { $('updText').textContent = e.message; $('installUpd').disabled = false; } };
+  $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
+  $('quit').onclick = async () => { if (confirm('Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+
+  api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; $('installUpd').classList.remove('hidden'); flagUpdate(); } })
+    .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
+  setInterval(poll, 1000); setInterval(pollLog, 3000);
+})();
+</script>
+</body>
+</html>

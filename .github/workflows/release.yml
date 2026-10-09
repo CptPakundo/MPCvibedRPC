@@ -1,0 +1,40 @@
+# Publishes a release when a version tag is pushed:   git tag v0.9.0 && git push --tags
+# The program's own updater looks for MPCvibedRPC.exe (and the .sha256) on the latest release.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24', cache: false }
+      - run: go test -count=1 ./...
+      - name: Build
+        shell: pwsh
+        run: |
+          $v = '${{ github.ref_name }}'.TrimStart('v')
+          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.0" }
+          $next = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+          New-Item -ItemType Directory dist | Out-Null
+          go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version $next -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$next" -o dist/next.exe ./cmd/mpcvibedrpc
+          ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $v -NextVersion $next
+          Remove-Item dist/next.exe
+          $h = (Get-FileHash dist/MPCvibedRPC.exe -Algorithm SHA256).Hash.ToLower()
+          Set-Content -LiteralPath dist/MPCvibedRPC.exe.sha256 -Value "$h  MPCvibedRPC.exe`n" -NoNewline
+          Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/MPCvibedRPC.exe
+            dist/MPCvibedRPC.exe.sha256
+            dist/LICENSE
+            dist/THIRD-PARTY-NOTICES.md
+          body_path: .github/release-notes.md

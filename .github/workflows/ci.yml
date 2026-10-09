@@ -1,0 +1,50 @@
+# Tests on Linux and Windows, then builds the Windows program and smoke-tests it for real.
+name: ci
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24', cache: false }
+      - run: ./tools/ci/run-annotated.sh "go vet" go vet ./...
+        shell: bash
+      - run: ./tools/ci/run-annotated.sh "go test" go test -count=1 ./...
+        shell: bash
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.24', cache: false }
+      - name: Build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          go run ./tools/mkrsrc -version 0.9.0 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.0" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version 0.9.1 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.1" -o dist/next.exe ./cmd/mpcvibedrpc
+          Get-ChildItem dist | Format-Table Name, Length
+          Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
+      - name: Smoke test
+        shell: pwsh
+        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.0 -NextVersion 0.9.1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MPCvibedRPC-windows
+          path: dist/MPCvibedRPC.exe
