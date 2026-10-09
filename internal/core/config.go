@@ -9,10 +9,11 @@ import (
 // Config is every setting, with the defaults the program ships with. A user's config.json only needs the keys it
 // wants to change; anything missing keeps its default (see LoadConfig).
 type Config struct {
-	// Discord / MPC-HC
+	// Discord / the player
 	ClientID     string `json:"clientId"`
-	Port         int    `json:"port"`
+	Port         int    `json:"port"` // web interface of MPC-HC, MPC-BE and MPC-QT
 	PollInterval int    `json:"pollInterval"`
+	MpvPipe      string `json:"mpvPipe"` // mpv's input-ipc-server name; empty = don't look for mpv
 
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
@@ -78,6 +79,7 @@ func DefaultConfig() Config {
 		ClientID:     "427863248734388224",
 		Port:         13579,
 		PollInterval: 5000,
+		MpvPipe:      "mpvsocket",
 
 		PauseClearMinutes: 30,
 

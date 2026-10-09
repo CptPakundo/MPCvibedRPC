@@ -147,6 +147,9 @@ func eventually(t *testing.T, what string, f func() bool) {
 	t.Fatalf("timed out waiting for: %s", what)
 }
 
+// noPipes keeps a player that happens to run on this computer (MPC-QT, mpv) out of the tests.
+func noPipes(core.Config) []PlayerPipe { return nil }
+
 func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
 	m, d := newMPC(t), newDisc(t)
 	cfg := core.DefaultConfig()
@@ -154,7 +157,7 @@ func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
+	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
 	t.Cleanup(e.Stop)
 	return e, m, d, l
 }
@@ -272,7 +275,7 @@ func TestDiscordLateAndReconnect(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	l := &logs{}
-	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{path}})
+	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{path}})
 	defer e.Stop()
 	e.Start()
 	eventually(t, "waiting warning", func() bool { return l.has("Could not reach Discord") })
@@ -429,7 +432,7 @@ func TestClearArtworkCache(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	cache := filepath.Join(t.TempDir(), "c.json")
-	e := New(cfg, Options{DiscordPaths: []string{d.path}, CacheFile: cache})
+	e := New(cfg, Options{Pipes: noPipes, DiscordPaths: []string{d.path}, CacheFile: cache})
 	t.Cleanup(e.Stop)
 
 	// stopped: the file on disk is removed
@@ -541,7 +544,7 @@ func privacySetup(t *testing.T, edit func(*core.Config)) (*Engine, *mpc, *disc, 
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, true
 	edit(&cfg)
 	l, lc := &logs{}, &lookupCounter{}
-	e := New(cfg, Options{Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	e := New(cfg, Options{Pipes: noPipes, Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
 	t.Cleanup(e.Stop)
 	return e, m, d, l, lc
 }

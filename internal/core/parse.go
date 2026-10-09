@@ -8,7 +8,7 @@ import (
 
 // ---- MPC-HC variables.html ---------------------------------------------------------
 
-// Info is what MPC-HC's web interface reports about the current file.
+// Info is what the player reports about the current file (MPC-HC's web interface, or mpv's IPC).
 type Info struct {
 	File     string
 	Dir      []string // folder names, nearest first
@@ -17,6 +17,7 @@ type Info struct {
 	Position int // ms
 	Duration int // ms
 	Rate     float64
+	Player   string // which player answered (set by the engine)
 }
 
 var (
@@ -138,15 +139,33 @@ func ParseVariables(html string) *Info {
 	}
 	pos, _ := parseIntJS(raw["position"])
 	dur, _ := parseIntJS(raw["duration"])
+	return NewInfo(raw["file"], raw["filepath"], raw["filedir"], st, pos, dur, rate)
+}
+
+// NewInfo builds an Info from a file name, its full path and folder (either may be empty), the playback state
+// (-1 none, 0 stopped, 1 paused, 2 playing), position and duration in milliseconds and the playback speed.
+func NewInfo(file, filePath, fileDir string, state, position, duration int, rate float64) *Info {
 	return &Info{
-		File:     raw["file"],
-		Dir:      dirOf(raw["filepath"], raw["filedir"]),
-		FullDir:  fullDirOf(raw["filepath"], raw["filedir"]),
-		State:    st,
-		Position: pos,
-		Duration: dur,
+		File:     file,
+		Dir:      dirOf(filePath, fileDir),
+		FullDir:  fullDirOf(filePath, fileDir),
+		State:    state,
+		Position: position,
+		Duration: duration,
 		Rate:     rate,
 	}
+}
+
+// PlayerOf names the player that served a /variables.html page. MPC-BE says so in the title; MPC-QT imitates
+// MPC-HC's page but spells one variable "playbackRate" (MPC-HC and MPC-BE write "playbackrate").
+func PlayerOf(html string) string {
+	switch {
+	case strings.Contains(html, "MPC-BE"):
+		return "MPC-BE"
+	case strings.Contains(html, `id="playbackRate"`) || strings.Contains(html, `class="page-variables"`):
+		return "MPC-QT"
+	}
+	return "MPC-HC"
 }
 
 // ---- release-name parsing ------------------------------------------------------------

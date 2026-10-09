@@ -2,7 +2,7 @@
 // finished MPCvibedRPC.exe has an icon in Explorer and proper details in Task Manager. The Go linker picks the
 // .syso up automatically when it sits next to the main package. Standard library only.
 //
-//	go run ./tools/mkrsrc -icon internal/assets/icon.ico -version 0.9.5 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+//	go run ./tools/mkrsrc -icon internal/assets/icon.ico -version 0.9.6 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
 package main
 
 import (
@@ -20,7 +20,7 @@ var le = binary.LittleEndian
 
 func main() {
 	icon := flag.String("icon", "internal/assets/icon.ico", "icon file")
-	version := flag.String("version", "0.0.0", "version, e.g. 0.9.5")
+	version := flag.String("version", "0.0.0", "version, e.g. 0.9.6")
 	out := flag.String("out", "rsrc_windows_amd64.syso", "output object file")
 	flag.Parse()
 	ico, err := os.ReadFile(*icon)
@@ -300,7 +300,7 @@ func versionInfo(version string) ([]byte, error) {
 	for _, kv := range [][2]string{
 		{"CompanyName", ""},
 		{"Comments", "Entirely AI-generated (vibe coded); no human authorship is claimed. No warranty."},
-		{"FileDescription", "MPCvibedRPC - Discord Rich Presence for MPC-HC"},
+		{"FileDescription", "MPCvibedRPC - Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT and mpv"},
 		{"FileVersion", version},
 		{"InternalName", "MPCvibedRPC"},
 		{"LegalCopyright", "MIT License"},

@@ -1,4 +1,5 @@
-// Package engine is the presence engine: it polls MPC-HC, looks up artwork and keeps Discord up to date.
+// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT or mpv), looks up artwork and
+// keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
@@ -15,6 +16,8 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
+	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 )
 
 // Options are the engine's collaborators; all of them are optional.
@@ -27,13 +30,29 @@ type Options struct {
 	PauseUnit time.Duration
 	// DiscordAttempt, when set, replaces the Discord login (tests).
 	NewDiscord func() *discord.Client
+	// Pipes, when not nil, replaces the IPC endpoints asked after the web interface (tests); see PlayerPipes.
+	Pipes func(cfg core.Config) []PlayerPipe
+}
+
+// PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.
+type PlayerPipe struct{ Name, Path string }
+
+// PlayerPipes are the endpoints asked when no web interface answers: MPC-QT's, which is always there, and mpv's,
+// which the user turns on with input-ipc-server (empty mpvPipe = don't look for mpv).
+func PlayerPipes(cfg core.Config) []PlayerPipe {
+	out := []PlayerPipe{{"MPC-QT", pipe.Path("cmdrkotori.mpc-qt.mpv")}}
+	if cfg.MpvPipe != "" {
+		out = append(out, PlayerPipe{"mpv", pipe.Path(cfg.MpvPipe)})
+	}
+	return out
 }
 
 // Status is what the settings window shows.
 type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | waiting | connected
-	MPC        bool    `json:"mpc"`
+	MPC        bool    `json:"mpc"`     // a player answers
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT or mpv
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
@@ -68,6 +87,7 @@ type Engine struct {
 	basicMode  bool
 	art        *artwork.Artwork
 	mpcUp      bool
+	player     string // the player that answered last
 	nowPlaying *string
 	preview    *core.Preview
 	paused     bool
@@ -130,7 +150,67 @@ func (e *Engine) fetchMPC(ctx context.Context, port int) *core.Info {
 	if err != nil {
 		return nil
 	}
-	return core.ParseVariables(string(body))
+	info := core.ParseVariables(string(body))
+	if info != nil {
+		info.Player = core.PlayerOf(string(body))
+	}
+	return info
+}
+
+// fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then the mpv-style connections.
+func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
+	pipes := PlayerPipes
+	if e.opts.Pipes != nil {
+		pipes = e.opts.Pipes
+	}
+	ask := func(p PlayerPipe) *core.Info {
+		conn, err := pipe.Dial(p.Path)
+		if err != nil {
+			return nil // not running, or not set up
+		}
+		in, err := mpvipc.Query(conn, 1500*time.Millisecond)
+		if err != nil {
+			return nil
+		}
+		in.Player = p.Name
+		return in
+	}
+	info := e.fetchMPC(ctx, cfg.Port)
+	if info != nil && info.Player == "MPC-QT" {
+		// MPC-QT's page reports a meaningless speed; its own connection knows the real one
+		web := info
+		for _, p := range pipes(cfg) {
+			if p.Name == "MPC-QT" {
+				if in := ask(p); in != nil {
+					info = in
+					break
+				}
+			}
+		}
+		if info == web {
+			info.Rate = 1
+		}
+	}
+	if info == nil {
+		for _, p := range pipes(cfg) {
+			if ctx.Err() != nil {
+				return nil
+			}
+			if info = ask(p); info != nil {
+				break
+			}
+		}
+	}
+	if info == nil {
+		return nil
+	}
+	if info.State == 3 {
+		info.State = 2 // MPC-QT reports a seek in progress as its own state; it is still playing
+	}
+	if !(info.Rate >= 0.05 && info.Rate <= 100) {
+		info.Rate = 1 // MPC-QT's web interface can report a meaningless speed
+	}
+	return info
 }
 
 // isCurrent reports whether r is still the active run.
@@ -227,20 +307,26 @@ func (e *Engine) tick(r *run) {
 	cfg := e.cfg
 	e.mu.Unlock()
 
-	info := e.fetchMPC(r.ctx, cfg.Port)
+	info := e.fetchPlayer(r.ctx, cfg)
 	if !e.isCurrent(r) {
 		return
 	}
+	if info != nil && info.Player == "mpv" && cfg.AppName == core.DefaultConfig().AppName {
+		cfg.AppName = "mpv" // the default name describes Media Player Classic; mpv is called what it is
+	}
 
 	e.mu.Lock()
-	if (info != nil) != e.mpcUp {
-		e.mpcUp = info != nil
-		up := e.mpcUp
+	player := ""
+	if info != nil {
+		player = info.Player
+	}
+	if (info != nil) != e.mpcUp || player != e.player {
+		e.mpcUp, e.player = info != nil, player
 		e.mu.Unlock()
-		if up {
-			e.log("INFO", "MPC-HC detected.")
+		if player != "" {
+			e.log("INFO", player+" detected.")
 		} else {
-			e.log("INFO", "MPC-HC not reachable (closed or web interface off).")
+			e.log("INFO", "No player reachable (closed, or its web interface or IPC is off).")
 		}
 		e.mu.Lock()
 	}
@@ -435,7 +521,7 @@ func (e *Engine) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
-	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc = false, nil, false, false, false
+	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, nil, false, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	now := time.Now().UnixMilli()
 	e.since = &now
@@ -449,7 +535,11 @@ func (e *Engine) start() {
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
 	})
 	e.mu.Unlock()
-	e.log("INFO", fmt.Sprintf("Presence started. Watching MPC-HC on port %d.", cfg.Port))
+	looking := fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT), MPC-QT's own connection", cfg.Port)
+	if cfg.MpvPipe != "" {
+		looking += fmt.Sprintf(" and mpv's (%s)", cfg.MpvPipe)
+	}
+	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
 	interval := time.Duration(cfg.PollInterval) * time.Millisecond
 	if interval < 250*time.Millisecond {
 		interval = 250 * time.Millisecond
@@ -538,6 +628,7 @@ func (e *Engine) Status() Status {
 			s.Discord = "connected"
 		}
 		s.MPC = e.mpcUp
+		s.Player = e.player
 		s.NowPlaying = e.nowPlaying
 		s.PauseCleared = e.pauseCleared
 		s.Hidden = e.hidden
