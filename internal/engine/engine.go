@@ -597,7 +597,15 @@ func (e *Engine) stop() {
 		}
 	}
 	if c != nil {
-		c.Close()
+		// Closing a pipe that is stuck in a write (Discord stopped reading) can block in Windows until the write
+		// ends; stopping, and quitting, must not wait for that.
+		closed := make(chan struct{})
+		go func() { c.Close(); close(closed) }()
+		select {
+		case <-closed:
+		case <-time.After(1500 * time.Millisecond):
+			e.log("WARN", "Discord did not let go of the connection; leaving it behind.")
+		}
 	}
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
