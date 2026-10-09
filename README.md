@@ -7,6 +7,11 @@ Discord Rich Presence for MPC-HC, based on the approach of
 it polls MPC-HC's built-in web interface and forwards what you're watching to Discord.
 MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
+<p align="center">
+  <img src="docs/images/window-main.jpg" alt="The main window: status, a preview of the Discord card, and the settings tabs" width="380">
+  <img src="docs/images/window-privacy.jpg" alt="The Privacy tab: switches for each online service that may see your titles" width="380">
+</p>
+
 ## Use it
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
 2. A small window opens. Press **Start presence**. If MPC-HC isn't answering, the window offers
@@ -20,6 +25,13 @@ Run the program again at any time to bring the window back. Closing the window l
 Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), MPC-HC, the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
+Checking a download: each release has a `.sha256` file, and GitHub keeps a signed record that the exe was built from this
+repository by its release workflow. With the [GitHub CLI](https://cli.github.com/):
+
+    gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC
+
+The program itself is not code-signed, so Windows SmartScreen may warn about it. See [SECURITY.md](SECURITY.md).
+
 Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings), `mpcvibedrpc.log`,
 `artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" first).
 
@@ -27,8 +39,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.1 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.1" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.2 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.2" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -39,7 +51,7 @@ The program can update itself from GitHub Releases. Put your repository (`owner/
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.1 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.2 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 
@@ -62,7 +74,7 @@ Without a GitHub repository, just replace the exe by hand; settings are kept.
 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
 (tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC and a fake Discord, and the
-whole program is built and driven end to end. On GitHub, Windows additionally runs a smoke test of the real exe.
+whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector and Windows additionally runs a smoke test of the real exe.
 
 ## Behaviour
 - **Watching, not Playing.** The activity is sent as type "Watching" with a real Discord
@@ -143,8 +155,15 @@ whole program is built and driven end to end. On GitHub, Windows additionally ru
     the franchise name, so unrelated titles aren't matched.
     Advanced settings in the window (or `config.json`): `artworkAliases: { 'my show': 'Official Name' }` searches under another name,
     `artworkOverrides: { 'my show': 'https://.../poster.jpg' }` uses your own image.
-  - Set `showArtwork: false` to stay fully offline (this also disables episode-title lookups) (otherwise the title parsed from your
+  - Set `showArtwork: false` (the first switch on the Privacy tab) to stay fully offline (this also disables episode-title lookups) (otherwise the title parsed from your
     filename is sent to these services).
+- **Preview.** While a status is showing, the window has a **How it looks on Discord** card: the title lines, cover,
+  progress bar and link button, built from what was actually sent (so it also shows the basic-mode fallback).
+- **Privacy controls** (Privacy tab). Every online service the program can ask about a title has its own switch, with what it
+  is used for and where requests go; a switched-off service is never contacted. One switch turns all lookups off (fully
+  offline). **Clear my status when paused for N minutes** takes the status down after a long pause (0 = never) and brings
+  it back when you play again or seek. **Clear cover cache** forgets everything that was looked up. There is no analytics or
+  tracking, and file paths are never sent.
 - Clears itself when you stop or close MPC-HC; reconnects on its own if Discord restarts.
   If Discord ever rejects the Watching format, it falls back to a basic presence automatically.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](docs/config.md) (extra ones go in
