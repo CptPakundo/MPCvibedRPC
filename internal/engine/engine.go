@@ -175,12 +175,26 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		in.Player = p.Name
 		return in
 	}
+	// The first player that is playing something wins; failing that, the first one that answers (an idle player
+	// that is open must not hide another that plays).
+	var first *core.Info
+	playing := func(in *core.Info) bool {
+		if in == nil {
+			return false
+		}
+		if first == nil {
+			first = in
+		}
+		return in.File != "" && in.State >= 1 && in.State <= 3
+	}
 	info := e.fetchMPC(ctx, cfg.Port)
+	askedQt := false
 	if info != nil && info.Player == "MPC-QT" {
 		// MPC-QT's page reports a meaningless speed; its own connection knows the real one
 		web := info
 		for _, p := range pipes(cfg) {
 			if p.Name == "MPC-QT" {
+				askedQt = true
 				if in := ask(p); in != nil {
 					info = in
 					break
@@ -191,14 +205,22 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 			info.Rate = 1
 		}
 	}
-	if info == nil {
+	if !playing(info) {
+		info = nil
 		for _, p := range pipes(cfg) {
 			if ctx.Err() != nil {
 				return nil
 			}
-			if info = ask(p); info != nil {
+			if askedQt && p.Name == "MPC-QT" {
+				continue
+			}
+			if in := ask(p); playing(in) {
+				info = in
 				break
 			}
+		}
+		if info == nil {
+			info = first
 		}
 	}
 	if info == nil {
