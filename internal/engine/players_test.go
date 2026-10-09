@@ -160,6 +160,23 @@ func TestWebInterfaceWinsOverPipes(t *testing.T) {
 	eventually(t, "switched to mpv", func() bool { return e.Status().Player == "mpv" })
 }
 
+// An idle player that is open must not hide another one that plays.
+func TestPlayingPlayerWinsOverIdleOnes(t *testing.T) {
+	web := newMPC(t)
+	web.set(func(m *mpc) { m.state = -1 }) // MPC-HC open, nothing playing
+	qt := newFakeMpv(t, map[string]any{"idle-active": true})
+	m := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
+	e, _, _ := pipeEngine(t, web.port, []PlayerPipe{{"MPC-QT", qt.path}, {"mpv", m.path}})
+	e.Start()
+	eventually(t, "mpv shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "mpv" })
+
+	m.set("idle-active", true) // mpv stops too: the first player that answers is reported, nothing shown
+	eventually(t, "back to the idle MPC-HC", func() bool { s := e.Status(); return s.Player == "MPC-HC" && s.NowPlaying == nil })
+
+	web.set(func(m *mpc) { m.state = 2 }) // MPC-HC plays again: it is asked first
+	eventually(t, "MPC-HC shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "MPC-HC" })
+}
+
 func TestMissingPipesMeanNoPlayer(t *testing.T) {
 	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(t.TempDir()) + "-none"}})
 	e.Start()
