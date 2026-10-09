@@ -38,6 +38,8 @@ type Status struct {
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
 	PauseCleared bool `json:"pauseCleared"`
+	// Preview is how the current status looks on Discord (nil when nothing is shown).
+	Preview *core.Preview `json:"preview"`
 	LastError  *string `json:"lastError"`
 	Since      *int64  `json:"since"`
 }
@@ -65,6 +67,7 @@ type Engine struct {
 	art        *artwork.Artwork
 	mpcUp      bool
 	nowPlaying *string
+	preview    *core.Preview
 	paused     bool
 	lastError  *string
 	since      *int64
@@ -192,7 +195,7 @@ func (e *Engine) connectDiscord(r *run) {
 				e.mu.Unlock()
 				return
 			}
-			e.ready, e.rpc, e.shown, e.prev = false, nil, false, nil
+			e.ready, e.rpc, e.shown, e.prev, e.preview = false, nil, false, nil, nil
 			e.mu.Unlock()
 			e.log("WARN", "Lost connection to Discord. Will reconnect when needed.")
 		}()
@@ -251,7 +254,7 @@ func (e *Engine) tick(r *run) {
 			e.log("INFO", "Nothing playing - presence cleared.")
 		}
 		e.mu.Lock()
-		e.shown, e.prev, e.nowPlaying = false, nil, nil
+		e.shown, e.prev, e.nowPlaying, e.preview = false, nil, nil, nil
 		e.pausedSince, e.pauseCleared = time.Time{}, false
 		e.mu.Unlock()
 		return
@@ -288,6 +291,7 @@ func (e *Engine) tick(r *run) {
 				clear = rpc
 			}
 			e.shown = false
+			e.preview = nil
 		}
 		e.mu.Unlock()
 		if clear != nil {
@@ -339,6 +343,11 @@ func (e *Engine) tick(r *run) {
 	d := media.Display
 	e.nowPlaying = &d
 	e.paused = info.State == 1
+	sent := activity
+	if e.basicMode { // the fallback carries less: show what Discord actually got
+		sent = core.LegacyActivity(activity, &cfg)
+	}
+	e.preview = core.PreviewOf(sent, &cfg)
 	e.mu.Unlock()
 	word := "Paused"
 	if info.State == 2 {
@@ -399,7 +408,7 @@ func (e *Engine) start() {
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
 	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc = false, nil, false, false, false
-	e.pausedSince, e.pauseCleared = time.Time{}, false
+	e.pausedSince, e.pauseCleared, e.preview = time.Time{}, false, nil
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -452,7 +461,7 @@ func (e *Engine) stop() {
 	}
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
-	e.nowPlaying, e.since = nil, nil
+	e.nowPlaying, e.since, e.preview = nil, nil, nil
 	e.pausedSince, e.pauseCleared = time.Time{}, false
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
@@ -503,6 +512,7 @@ func (e *Engine) Status() Status {
 		s.MPC = e.mpcUp
 		s.NowPlaying = e.nowPlaying
 		s.PauseCleared = e.pauseCleared
+		s.Preview = e.preview
 	}
 	return s
 }

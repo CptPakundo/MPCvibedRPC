@@ -454,3 +454,62 @@ func TestClearArtworkCache(t *testing.T) {
 	}
 	eventually(t, "the title is refreshed after clearing", func() bool { return len(d.list()) > n })
 }
+
+func TestPreviewTracksWhatIsSent(t *testing.T) {
+	e, m, d, _ := setup(t)
+	if e.Status().Preview != nil {
+		t.Fatal("no preview before anything is shown")
+	}
+	cfg := e.Config()
+	cfg.PauseClearMinutes = 1
+	e.ApplySettings(cfg)
+	e.Start()
+	eventually(t, "preview while playing", func() bool { return e.Status().Preview != nil })
+	p := e.Status().Preview
+	if !p.Watching || !strings.Contains(p.Name+p.Details, "Show Name") || p.End == 0 || p.Start == 0 {
+		t.Fatalf("playing preview: %+v", p)
+	}
+
+	// pausing updates it (no timestamps, a text bar in the state line)
+	n := len(d.list())
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "paused update", func() bool { return len(d.list()) > n })
+	eventually(t, "paused preview", func() bool { q := e.Status().Preview; return q != nil && q.End == 0 })
+
+	// once the status is taken down because of the long pause, the preview goes too
+	eventually(t, "preview hidden with the status", func() bool { return e.Status().PauseCleared && e.Status().Preview == nil })
+
+	// playing again brings it back; closing the file removes it
+	m.set(func(m *mpc) { m.state = 2 })
+	eventually(t, "preview back", func() bool { return e.Status().Preview != nil })
+	m.set(func(m *mpc) { m.state = 0 })
+	eventually(t, "preview gone with the file", func() bool { return e.Status().Preview == nil })
+}
+
+func TestPreviewShowsTheBasicModeFallback(t *testing.T) {
+	e, _, d, _ := setup(t)
+	d.reject = true // Discord refuses the Watching format, so the engine falls back
+	e.Start()
+	eventually(t, "preview in basic mode", func() bool { return e.Status().Preview != nil })
+	p := e.Status().Preview
+	if p.Watching {
+		t.Fatalf("basic mode must not claim to be Watching: %+v", p)
+	}
+	if !strings.Contains(p.Details, "Show Name") {
+		t.Fatalf("the fallback folds the title into the details line: %+v", p)
+	}
+}
+
+func TestPreviewClearsWhenDiscordGoesAway(t *testing.T) {
+	e, _, d, l := setup(t)
+	e.Start()
+	eventually(t, "preview", func() bool { return e.Status().Preview != nil })
+	d.mu.Lock()
+	for _, c := range d.conns {
+		c.Close()
+	}
+	d.mu.Unlock()
+	eventually(t, "lost", func() bool { return l.has("Lost connection to Discord") })
+	// after the reconnect the engine sends again and the preview returns; in between it must not be stale
+	eventually(t, "preview back after reconnect", func() bool { return e.Status().Preview != nil })
+}
