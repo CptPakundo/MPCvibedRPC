@@ -2,9 +2,10 @@
 
 > **Entirely AI-generated ("vibe coded").** Every line of this program, its tests, its documentation and its build setup was written by an AI (Claude, by Anthropic) in conversation with the repository owner. The owner did not write it, takes **no credit** for it, and has not reviewed it line by line: their part was giving prompts and trying the result. Use it accordingly. There is no warranty (see `LICENSE`), no promise that it is correct, secure or maintained, and nobody here is an expert you can ask about the code. The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
-Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv and VLC, based on the approach of
+Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows, IINA, mpv, VLC and MPC-QT on macOS, and VLC,
+mpv, Celluloid, Haruna, SMPlayer and most other video players on Linux, based on the approach of
 [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC):
-it reads what's playing from the player (MPC-HC's or VLC's built-in web interface, or mpv's IPC connection) and forwards what you're watching to Discord.
+it reads what's playing from the player (MPC-HC's or VLC's built-in web interface, mpv's IPC connection, or MPRIS on Linux) and forwards what you're watching to Discord.
 MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 <p align="center">
@@ -13,6 +14,7 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 </p>
 
 ## Use it
+### Windows
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
 2. A small window opens and presence is already on: play something in your player. If no player is answering, the window offers
    **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC, MPC-BE and VLC get their web
@@ -28,17 +30,47 @@ Run the program again at any time to bring the window back. Closing the window l
 Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC), the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
-Checking a download: each release has a `.sha256` file, and GitHub keeps a signed record that the exe was built from this
-repository by its release workflow. With the [GitHub CLI](https://cli.github.com/):
+### macOS
+1. Download **MPCvibedRPC-macos.zip**, open it and move **MPCvibedRPC** to Applications. It runs on Apple silicon and
+   Intel Macs with macOS 11 or later.
+2. The app is not notarized by Apple (that needs a paid developer account), so the first time macOS refuses to open it.
+   Open it once, then go to System Settings > Privacy & Security and choose **Open Anyway** (on macOS 14 and earlier,
+   right-click the app > Open works too). Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MPCvibedRPC.app`.
+3. The settings window opens (in Chrome, Edge, Brave or Vivaldi as an app window if you have one, else in your default
+   browser) and presence is already on. For **IINA**, press **Set up the player connection** once and reopen IINA; mpv
+   and VLC are set up the same way, MPC-QT needs nothing.
+4. The program has no Dock or menu bar icon: it keeps running in the background. Open the app again to show its window;
+   **Quit** is at the bottom of the window. **Start at login** (General tab) starts it in the background when you log in.
+
+### Linux
+1. Download **MPCvibedRPC-linux-amd64** (or `-arm64`), make it executable (`chmod +x MPCvibedRPC-linux-amd64`) and run it.
+2. The settings window opens (in Chrome, Chromium, Edge, Brave or Vivaldi as an app window, else in your default browser)
+   and presence is already on. **VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper** and other video players that
+   offer MPRIS are found with nothing to set up. mpv needs either the
+   [mpv-mpris](https://github.com/hoyon/mpv-mpris) script (packaged by most distributions) or one line in `mpv.conf`,
+   which **Set up the player connection** adds.
+3. There is no tray icon: the program runs in the background. Run it again to show its window; **Quit** is at the
+   bottom of the window. **Start at login** (General tab) adds it to your desktop's autostart.
+
+Requirements on macOS and Linux: the **Discord desktop app** (on Linux also the Flatpak or Snap version) with
+"Share my activity" on, and a supported player. Music players and web browsers are never shown, even though they offer
+MPRIS too.
+
+### All systems
+Checking a download: each release file has a `.sha256` file next to it, and GitHub keeps a signed record that it was
+built from this repository by its release workflow. With the [GitHub CLI](https://cli.github.com/):
 
     gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC
 
-The program itself is not code-signed, so Windows SmartScreen may warn about it. See [SECURITY.md](SECURITY.md).
+(or the name of the macOS or Linux file). The program itself is not code-signed, so Windows SmartScreen may warn about
+it, and macOS asks you to confirm the first start. See [SECURITY.md](SECURITY.md).
 
 A copy started with its own data folder (the `MPCRPC_HOME` environment variable: a portable setup, a test) keeps its own run-at-login entry and never touches the installed program's.
+`MPCRPC_BROWSER` names the browser to show the window in (one that understands `--app`), or `none` for no window at all.
 
-Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings), `mpcvibedrpc.log`,
-`artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" first).
+Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux:
+`~/.local/share/MPCvibedRPC`, or `$XDG_DATA_HOME/MPCvibedRPC`): `config.json` (settings), `mpcvibedrpc.log`,
+`artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" / "Start at login" first).
 
 ## Building the .exe (maintainers)
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
@@ -50,38 +82,47 @@ running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.d
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
 
+The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w"
+-o MPCvibedRPC-linux-amd64 ./cmd/mpcvibedrpc`). The macOS app is put together on a Mac by
+`tools/ci/package-macos.sh VERSION OUTDIR` (both processor types in one program, the app icon, an ad-hoc signature, a zip).
+
 ## Updating
 The program can update itself from GitHub Releases. When the daily check finds a newer version it shows a notification next to the tray icon (once per version; clicking it opens the window). Put your repository (`owner/repo`) in **Updates** in the window
 (or in `config.json` under `app.updateRepo`). It then checks daily, and **Check now / Install** downloads the new
-`MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
+`MPCvibedRPC.exe` (Linux: `MPCvibedRPC-linux-amd64` or `-arm64`), verifies it (and its `.sha256` if the release has one), swaps itself in and restarts.
+On macOS the Updates tab offers the release page instead: download the new zip and replace the app (settings are kept).
+On macOS and Linux the update shows up in the window only (there is no tray icon to show a notification next to). To publish
 a version:
 
-1. `git tag v0.9.8 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
-   on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
-   and its `.sha256` to a release. The tag is the version.
+1. `git tag v0.9.8 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
+   programs on Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, autostart,
+   self-update; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app like
+   the Finder does) and attaches them with their `.sha256` files to a release. The tag is the version.
 
-Without a GitHub repository, just replace the exe by hand; settings are kept.
+Without a GitHub repository, just replace the program by hand; settings are kept.
 
 ## Where things are (for contributors)
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`) |
+| `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`; on macOS `--serve`, the copy that keeps running after the app is opened) |
 | `internal/engine` | polls the player, looks up artwork, sends presence; start/stop/apply settings live |
 | `internal/core` | settings defaults, filename parsing, the Discord activity itself |
 | `internal/artwork`, `internal/jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics, which the title-matching rules rely on |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
 | `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
+| `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
-| `internal/winsys` | Windows-only bits: run at login, setting up the player connection (web interface, `mpv.conf`, `vlcrc`), window, tray icon (Win32, no helper process) |
+| `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
-| `tools/` | the resource (.syso) writer and the CI scripts |
+| `tools/` | the resource (.syso) and icon writers and the CI scripts (smoke tests, live player tests, the macOS app) |
 | `docs/` | the full settings reference (`docs/config.md`) |
 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
 (tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC and a fake Discord, and the
-whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector and Windows additionally runs a smoke test of the real exe.
+whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
+program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid) and macOS (mpv, and IINA after the program has set it up).
 
 ## Behaviour
 - **Watching, not Playing.** The activity is sent as type "Watching" with a real Discord
@@ -186,10 +227,12 @@ The program asks the players in this order and shows the first one that is playi
 | MPC-HC | its web interface (`http://127.0.0.1:13579/variables.html`) | Options > Player > Web Interface > Listen on port, or the **Set up the player connection** button (it closes and reopens MPC-HC, and keeps a web interface it switches on to this PC only) |
 | MPC-BE | the same web interface | the same; MPC-BE keeps the switch in `[WebServer]` of `mpc-be64.ini` or the registry, the button handles both (also this PC only) |
 | MPC-QT | its own mpv-style connection (`cmdrkotori.mpc-qt.mpv`), always on | none (its web interface works too, if you turned it on) |
-| mpv | its JSON IPC (`input-ipc-server`) | `input-ipc-server=mpvsocket` in `mpv.conf`; the button adds it (`portable_config\mpv.conf` next to a portable mpv, else `%APPDATA%\mpv\mpv.conf`) and keeps a name you already set. mpv reads it when it starts. |
-| VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. |
+| mpv | its JSON IPC (`input-ipc-server`) | `input-ipc-server=mpvsocket` in `mpv.conf`; the button adds it (`portable_config\mpv.conf` next to a portable mpv, else `%APPDATA%\mpv\mpv.conf`; on macOS and Linux `~/.config/mpv/mpv.conf` with the full path of the socket, such as `/tmp/mpvsocket`) and keeps a name you already set. mpv reads it when it starts. |
+| IINA (macOS) | its mpv core's JSON IPC | IINA Settings > Advanced: enable advanced settings and add the mpv option `input-ipc-server` with a socket path. The button does both (it keeps a socket you already set) and IINA uses it once it is reopened. |
+| VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. On macOS the same, in `~/Library/Preferences/org.videolan.vlc/vlcrc`. On Linux VLC needs none of this: it is found through MPRIS. |
+| Linux video players | MPRIS over D-Bus: VLC, Celluloid, Haruna, SMPlayer, GNOME Videos (Totem), Showtime, Clapper, Dragon Player, Kodi, Parole, QMPlay2, MPC-QT, and mpv with the mpv-mpris script | none; **Advanced > Find video players through MPRIS** switches it off. Music players and web browsers are left out. |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). Streams opened in mpv or VLC show their title (there is no file name or folder). With mpv and VLC, the image tooltip says "mpv" or "VLC media player" instead of "Media Player Classic". VLC is asked last, and only once its password is set.
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord; they have not been tried on a real desktop with the real Discord yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; MPRIS players come last.
 
 ## Troubleshooting
 - Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
@@ -199,4 +242,8 @@ MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 2
 - Discord pill: "on standby" until something plays (Discord is only contacted then). If it stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser); starting it before or after the program both work.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.
-- No window appears: run the program again, or right-click its tray icon > Open settings.
+- No window appears: run the program again, or right-click its tray icon > Open settings. On macOS and Linux, open the app (or run the program) again.
+- macOS says the app "cannot be opened" or "is damaged": it is not notarized; see [macOS](#macos) step 2.
+- IINA is not found: after **Set up the player connection**, quit IINA completely (IINA > Quit IINA) and open it again.
+- Linux: a player that is not found probably has no MPRIS support or is not on the list above (it is a list, so that
+  music players and browsers never show up as "Watching"); please report it. mpv needs the mpv-mpris script or the line in `mpv.conf`.
