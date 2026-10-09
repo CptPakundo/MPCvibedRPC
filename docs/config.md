@@ -12,6 +12,8 @@ shown here.
 | `clientId` | `427863248734388224` | Discord application ID (the one used by the original MPC-DiscordRPC project). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
 | `port` | `13579` | Web interface port of MPC-HC, MPC-BE and MPC-QT (MPC-QT also works without its web interface). |
 | `mpvPipe` | `'mpvsocket'` | The `input-ipc-server` name mpv listens on (set in `mpv.conf`; a name such as `mpvsocket` is the pipe `\\.\pipe\mpvsocket`). Empty: don't look for mpv. See [Players](../README.md#players). |
+| `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
+| `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. |
 
 ## How it looks

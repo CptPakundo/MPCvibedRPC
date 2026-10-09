@@ -1,0 +1,78 @@
+{
+  "fullscreen":false,
+  "stats":{
+    "inputbitrate":0.020267084240913,
+    "sentbytes":0,
+    "lostabuffers":0,
+    "averagedemuxbitrate":0,
+    "readpackets":24,
+    "demuxreadpackets":0,
+    "lostpictures":0,
+    "displayedpictures":130,
+    "sentpackets":0,
+    "demuxreadbytes":144690,
+    "demuxbitrate":0.013918367214501,
+    "playedabuffers":0,
+    "demuxdiscontinuity":0,
+    "decodedaudio":0,
+    "sendbitrate":0,
+    "readbytes":194569,
+    "averageinputbitrate":0,
+    "demuxcorrupted":0,
+    "decodedvideo":102
+  },
+  "aspectratio":"default",
+  "seek_sec":10,
+  "apiversion":3,
+  "currentplid":3,
+  "time":8,
+  "volume":256,
+  "length":1499,
+  "random":false,
+  "audiofilters":{
+    "filter_0":""
+  },
+  "information":{
+    "chapter":0,
+    "chapters":[],
+    "title":0,
+    "category":{
+      "meta":{
+        "DURATION":"00:24:59.800000000",
+        "filename":"Sample Show S01E02.mkv",
+        "title":"Sample Show S01E02",
+        "episodeNumber":"02",
+        "showName":"Sample Show",
+        "ENCODER":"Lavf63.8.100",
+        "seasonNumber":"01"
+      },
+      "Stream 0":{
+        "Frame_rate":"24000",
+        "Decoded_format":"Planar 4:2:0 YUV (I420)",
+        "Buffer_dimensions":"320x256",
+        "Type":"Video",
+        "Chroma_location":"Left",
+        "Orientation":"Top left",
+        "Video_resolution":"320x240",
+        "Codec":"MPEG-4 Video (mp4v)"
+      }
+    },
+    "titles":[]
+  },
+  "rate":1,
+  "videoeffects":{
+    "hue":0,
+    "saturation":1,
+    "contrast":1,
+    "brightness":1,
+    "gamma":1
+  },
+  "state":"playing",
+  "loop":false,
+  "version":"3.0.24 Vetinari",
+  "position":0.0056680897250772,
+  "audiodelay":0,
+  "repeat":false,
+  "subtitledelay":0,
+  "equalizer":[]
+}

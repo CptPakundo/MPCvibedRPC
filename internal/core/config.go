@@ -13,7 +13,9 @@ type Config struct {
 	ClientID     string `json:"clientId"`
 	Port         int    `json:"port"` // web interface of MPC-HC, MPC-BE and MPC-QT
 	PollInterval int    `json:"pollInterval"`
-	MpvPipe      string `json:"mpvPipe"` // mpv's input-ipc-server name; empty = don't look for mpv
+	MpvPipe      string `json:"mpvPipe"`     // mpv's input-ipc-server name; empty = don't look for mpv
+	VlcPort      int    `json:"vlcPort"`     // VLC's web interface (http-port)
+	VlcPassword  string `json:"vlcPassword"` // its password (http-password); empty = don't look for VLC
 
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
@@ -80,6 +82,7 @@ func DefaultConfig() Config {
 		Port:         13579,
 		PollInterval: 5000,
 		MpvPipe:      "mpvsocket",
+		VlcPort:      8080,
 
 		PauseClearMinutes: 30,
 
