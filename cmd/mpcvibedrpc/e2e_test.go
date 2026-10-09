@@ -242,6 +242,11 @@ func TestEndToEnd(t *testing.T) {
 	if _, lg := a.call(t, "GET", "log", ""); len(lg["lines"].([]any)) < 3 {
 		t.Fatal("log lines missing")
 	}
+	if code, dg := a.call(t, "GET", "diagnostics", ""); code != 200 {
+		t.Fatalf("diagnostics: %d", code)
+	} else if text, _ := dg["text"].(string); !strings.Contains(text, "MPCvibedRPC diagnostics") || !strings.Contains(text, "pollInterval = 2000") || strings.Contains(text, "Sample.Movie") || strings.Contains(text, home) {
+		t.Fatalf("diagnostics text is wrong or leaks: %s", text)
+	}
 
 	// a second launch hands over to the first and exits quietly
 	second := exec.Command(exe)

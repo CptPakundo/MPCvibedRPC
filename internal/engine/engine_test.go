@@ -399,7 +399,7 @@ func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
 	eventually(t, "cleared again", func() bool { return isClear(d) && e.Status().PauseCleared })
 }
 
-func TestPauseClearOffByDefault(t *testing.T) {
+func TestPauseClearZeroMeansNever(t *testing.T) {
 	e, m, d := pauseSetup(t, 0)
 	n := len(d.list())
 	m.set(func(m *mpc) { m.state = 1 })

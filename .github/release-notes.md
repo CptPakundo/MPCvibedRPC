@@ -1,9 +1,10 @@
-## MPCvibedRPC 0.9.4
+## MPCvibedRPC 0.9.5
 
 New in this version:
 
-- **Sharp on high-DPI screens.** The program now declares itself DPI-aware, so the tray icon and its menu are no longer blurry at 150% or 200% scaling. The icon has extra sizes (24, 40 and 64 pixels) for the in-between scale factors.
-- **MPC-BE (untested).** MPC-BE has the same web interface as MPC-HC, so it should work. The **Turn on the web interface** button now also knows where MPC-BE keeps that setting. This is based on MPC-BE's source code and has not been tried on a real MPC-BE install yet; please report how it goes.
+- **Your status now clears after a 30-minute pause (changed default).** Before, a paused video kept its status until you resumed. The setting is **Clear my status when paused for (minutes)** on the Privacy tab; set it to `0` to keep the old behaviour. It applies to existing installs that never changed it, too. The status comes back when you resume or seek.
+- **Copy diagnostics** (Log tab). One click copies the version, Windows version, the settings that differ from the defaults and the recent log, for pasting into a bug report. Titles, file names, paths, URL queries and keys are left out, and the text is shown so you can check it first.
+- **Refreshed screenshots** in the README, and a few small wording fixes.
 
 > **Entirely AI-generated ("vibe coded").** This whole program was written by an AI (Claude, by Anthropic) in conversation with the repository owner, who wrote none of it, takes no credit for it and has not reviewed it line by line. No warranty, no promise that it is correct, secure or maintained. See the README.
 

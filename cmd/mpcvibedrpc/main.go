@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
+	"github.com/CptPakundo/MPCvibedRPC/internal/diag"
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
 	"github.com/CptPakundo/MPCvibedRPC/internal/server"
@@ -25,7 +26,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.4"
+var version = "0.9.5"
 
 const preferredPort = 47654
 
@@ -302,9 +303,15 @@ func run() error {
 	openWindow := func() { winsys.OpenWindow(windowURL(srv.Port(), token), browserProfile) }
 
 	handlers := map[string]server.Handler{
-		"state":       {Get: true, Fn: func(*jsonx.Obj) (any, error) { return fullState(), nil }},
-		"status":      {Get: true, Fn: func(*jsonx.Obj) (any, error) { return eng.Status(), nil }},
-		"log":         {Get: true, Fn: func(*jsonx.Obj) (any, error) { return map[string]any{"lines": lg.last(200)}, nil }},
+		"state":  {Get: true, Fn: func(*jsonx.Obj) (any, error) { return fullState(), nil }},
+		"status": {Get: true, Fn: func(*jsonx.Obj) (any, error) { return eng.Status(), nil }},
+		"log":    {Get: true, Fn: func(*jsonx.Obj) (any, error) { return map[string]any{"lines": lg.last(200)}, nil }},
+		"diagnostics": {Get: true, Fn: func(*jsonx.Obj) (any, error) {
+			return map[string]any{"text": diag.Report(diag.Input{
+				Version: version, System: winsys.SystemInfo(), Players: winsys.RunningPlayerNames(),
+				Config: eng.Config(), App: st.App(), Status: eng.Status(), Log: lg.last(100),
+			})}, nil
+		}},
 		"start":       {Fn: func(*jsonx.Obj) (any, error) { eng.Start(); return eng.Status(), nil }},
 		"stop":        {Fn: func(*jsonx.Obj) (any, error) { eng.Stop(); return eng.Status(), nil }},
 		"open":        {Fn: func(*jsonx.Obj) (any, error) { openWindow(); return nil, nil }},

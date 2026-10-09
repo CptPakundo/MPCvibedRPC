@@ -1,4 +1,4 @@
-# Publishes a release when a version tag is pushed:   git tag v0.9.4 && git push --tags
+# Publishes a release when a version tag is pushed:   git tag v0.9.5 && git push --tags
 # The program's own updater looks for MPCvibedRPC.exe (and the .sha256) on the latest release.
 name: release
 on:
@@ -21,7 +21,7 @@ jobs:
         shell: pwsh
         run: |
           $v = '${{ github.ref_name }}'.TrimStart('v')
-          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.4" }
+          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.5" }
           $next = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
           New-Item -ItemType Directory dist | Out-Null
           go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
