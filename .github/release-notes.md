@@ -1,12 +1,9 @@
-## MPCvibedRPC 0.9.3
+## MPCvibedRPC 0.9.4
 
 New in this version:
 
-- **Hide what I'm watching** (Privacy tab). One switch makes your status say only "Watching a video" with the progress bar: no title, cover, episode or buttons, and nothing is looked up online. The title is kept out of the window and the log too.
-- **Never show these files** (Privacy tab). A list of folders, names or wildcards (such as `Private` or `*.xyz`). A listed file shows no status at all, is never looked up and is not named in the log.
-- **Update notice.** When the daily check finds a newer version, a notification appears next to the tray icon (once per version). Click it to open the window.
-- **Welcome card** for new installs, reminding you about Discord's "Share my activity" setting and pointing to the Privacy tab. Existing installs never see it.
-- **A copy running from its own data folder** (a portable setup, a test) no longer touches the installed program's "Start with Windows" entry.
+- **Sharp on high-DPI screens.** The program now declares itself DPI-aware, so the tray icon and its menu are no longer blurry at 150% or 200% scaling. The icon has extra sizes (24, 40 and 64 pixels) for the in-between scale factors.
+- **MPC-BE (untested).** MPC-BE has the same web interface as MPC-HC, so it should work. The **Turn on the web interface** button now also knows where MPC-BE keeps that setting. This is based on MPC-BE's source code and has not been tried on a real MPC-BE install yet; please report how it goes.
 
 > **Entirely AI-generated ("vibe coded").** This whole program was written by an AI (Claude, by Anthropic) in conversation with the repository owner, who wrote none of it, takes no credit for it and has not reviewed it line by line. No warranty, no promise that it is correct, secure or maintained. See the README.
 
@@ -15,7 +12,7 @@ New in this version:
 2. Press **Start presence**. If MPC-HC isn't answering, the window offers to turn its web interface on for you.
 3. Optional: switch on **Start with Windows** to start quietly in the tray at login.
 
-Needs Windows 10/11, MPC-HC and the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
+Needs Windows 10/11, MPC-HC (or MPC-BE) and the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
 
 ### Good to know
 - The exe is **unsigned** (no code-signing certificate), so Windows SmartScreen or your antivirus may warn about it. Check it with the `.sha256` file, or with `gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC` (a signed GitHub record that it was built from this repository).

@@ -43,8 +43,8 @@ Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC`: `config.json` (settings
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.3 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.3" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.4 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.4" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -55,7 +55,7 @@ The program can update itself from GitHub Releases. When the daily check finds a
 `MPCvibedRPC.exe`, verifies it (and its `.sha256` if the release has one), swaps itself in and restarts. To publish
 a version:
 
-1. `git tag v0.9.3 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
+1. `git tag v0.9.4 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the exe
    on a Windows runner, smoke-tests it (tray, Discord pipe, autostart, self-update) and attaches `MPCvibedRPC.exe`
    and its `.sha256` to a release. The tag is the version.
 

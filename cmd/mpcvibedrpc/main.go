@@ -25,7 +25,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.3"
+var version = "0.9.4"
 
 const preferredPort = 47654
 
