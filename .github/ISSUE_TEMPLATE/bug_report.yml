@@ -20,7 +20,7 @@ body:
     attributes:
       label: Program version
       description: Shown at the top right of the settings window, or run the program with `--version`.
-      placeholder: e.g. 0.9.8
+      placeholder: e.g. 0.9.9
     validations:
       required: true
   - type: input
