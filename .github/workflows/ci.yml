@@ -33,16 +33,16 @@ jobs:
         shell: bash
       - name: Test (with the race detector)
         if: runner.os == 'Linux'
-        run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh 'TestLivePlayer' go test -race -count=1 ./...
+        run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestLiveJellyfin' go test -race -count=1 ./...
         shell: bash
       - name: Test
         if: runner.os == 'macOS'
-        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer' go test -count=1 ./...
+        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestLiveJellyfin' go test -count=1 ./...
         shell: bash
       - name: Test
         if: runner.os == 'Windows'
         # the Unix-socket fakes and the end-to-end run are Linux-only; the smoke test covers them on Windows
-        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending' go test -count=1 ./...
+        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestLiveJellyfin|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending' go test -count=1 ./...
         shell: bash
 
   windows:
@@ -183,4 +183,27 @@ jobs:
         run: |
           PASSED_FILE="$RUNNER_TEMP/plex-ok" ./tools/ci/run-annotated.sh "live Plex" ./tools/ci/live-plex.sh
           test -f "$RUNNER_TEMP/plex-ok" || { echo "::error title=live Plex::the script stopped before the end"; exit 1; }
+        shell: bash
+  jellyfin:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        server: [jellyfin, emby]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - name: Install ffmpeg
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+      - name: Live test (${{ matrix.server }})
+        # the official server image, set up with a made-up user; a stand-in player reports playback to it
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/jf-ok" ./tools/ci/run-annotated.sh "live ${{ matrix.server }}" ./tools/ci/live-jellyfin.sh ${{ matrix.server }}
+          test -f "$RUNNER_TEMP/jf-ok" || { echo "::error title=live ${{ matrix.server }}::the script stopped before the end"; exit 1; }
         shell: bash

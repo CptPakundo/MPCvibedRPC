@@ -66,6 +66,7 @@ const (
 	ninBalloonUserClick = 0x405
 	mfString            = 0x0
 	mfSeparator         = 0x800
+	mfChecked           = 0x8
 	tpmRightBtn         = 0x2
 	imageIcon           = 1
 	lrLoadFile          = 0x10
@@ -74,6 +75,7 @@ const (
 	cmdOpen             = 1
 	cmdToggle           = 2
 	cmdQuit             = 3
+	cmdHide             = 4
 	timerID             = 1
 	ClassName           = "MPCDiscordRPC.Tray"
 )
@@ -131,6 +133,8 @@ type TrayOptions struct {
 	Running  func() bool   // decides "Stop presence" / "Start presence"
 	OnOpen   func()
 	OnToggle func()
+	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
+	OnHide   func()      // switches "Hide what I'm watching" over
 	OnQuit   func()
 	Log      func(level, msg string)
 }
@@ -292,6 +296,13 @@ func (t *Tray) showMenu() {
 	}
 	pAppendMenu.Call(menu, mfString, cmdOpen, uintptr(unsafe.Pointer(utf16Ptr("Open settings"))))
 	pAppendMenu.Call(menu, mfString, cmdToggle, uintptr(unsafe.Pointer(utf16Ptr(toggle))))
+	if t.o.OnHide != nil {
+		flags := uintptr(mfString)
+		if t.o.Hidden != nil && t.o.Hidden() {
+			flags |= mfChecked
+		}
+		pAppendMenu.Call(menu, flags, cmdHide, uintptr(unsafe.Pointer(utf16Ptr("Hide what I'm watching"))))
+	}
 	pAppendMenu.Call(menu, mfSeparator, 0, 0)
 	pAppendMenu.Call(menu, mfString, cmdQuit, uintptr(unsafe.Pointer(utf16Ptr("Quit"))))
 	pSetMenuDefaultItem.Call(menu, cmdOpen, 0)
@@ -311,6 +322,8 @@ func (t *Tray) command(id uintptr) {
 		f = t.o.OnToggle
 	case cmdQuit:
 		f = t.o.OnQuit
+	case cmdHide:
+		f = t.o.OnHide
 	}
 	if f != nil {
 		go f() // never block the message loop on the app's work

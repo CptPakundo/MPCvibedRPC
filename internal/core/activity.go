@@ -20,6 +20,7 @@ type Timestamps struct {
 type Assets struct {
 	LargeImage string `json:"large_image,omitempty"`
 	LargeText  string `json:"large_text,omitempty"`
+	LargeURL   string `json:"large_url,omitempty"` // opened when the large image is clicked
 	SmallImage string `json:"small_image,omitempty"`
 	SmallText  string `json:"small_text,omitempty"`
 }
@@ -36,6 +37,7 @@ type Activity struct {
 	Name              string      `json:"name,omitempty"`
 	StatusDisplayType *int        `json:"status_display_type,omitempty"`
 	Details           string      `json:"details,omitempty"`
+	DetailsURL        string      `json:"details_url,omitempty"` // opened when the details line is clicked
 	State             string      `json:"state,omitempty"`
 	Timestamps        *Timestamps `json:"timestamps,omitempty"`
 	Assets            *Assets     `json:"assets,omitempty"`
@@ -479,6 +481,46 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		a.Buttons = []Button{{Label: lbl, URL: art.URL}}
 	}
 	return a
+}
+
+// AddLinks makes the details line and the cover open the title's catalog page, the page the "View on ..." button
+// opens, under the same switch as that button. It is kept apart from BuildActivity, whose output the recorded golden
+// data pins.
+func AddLinks(a *Activity, cfg *Config, art *Art) {
+	if a == nil || !cfg.LinkButton || art == nil || !linkable(art.URL) {
+		return
+	}
+	if a.Details != "" {
+		a.DetailsURL = art.URL
+	}
+	if a.Assets != nil && art.Poster != "" && a.Assets.LargeImage == art.Poster {
+		a.Assets.LargeURL = art.URL
+	}
+}
+
+// linkable is an http(s) address short enough for Discord's link fields.
+func linkable(u string) bool {
+	return len(u) <= 256 && (strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://"))
+}
+
+// HasLinks reports whether the details line or the cover is a link.
+func HasLinks(a *Activity) bool {
+	return a != nil && (a.DetailsURL != "" || (a.Assets != nil && a.Assets.LargeURL != ""))
+}
+
+// WithoutLinks is a copy of a whose details line and cover are not links (for a Discord that refuses them).
+func WithoutLinks(a *Activity) *Activity {
+	if a == nil {
+		return nil
+	}
+	c := *a
+	c.DetailsURL = ""
+	if a.Assets != nil {
+		as := *a.Assets
+		as.LargeURL = ""
+		c.Assets = &as
+	}
+	return &c
 }
 
 func abs(n int) int {

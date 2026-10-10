@@ -15,6 +15,7 @@ type Preview struct {
 	Start      int64  `json:"start,omitempty"` // epoch milliseconds
 	End        int64  `json:"end,omitempty"`
 	Button     string `json:"button,omitempty"` // label of the link button
+	Linked     bool   `json:"linked,omitempty"` // the details line and the cover open the catalog page
 }
 
 // PreviewOf describes an activity for the window. The name falls back to the configured application name, which is
@@ -39,5 +40,6 @@ func PreviewOf(a *Activity, cfg *Config) *Preview {
 	if len(a.Buttons) > 0 {
 		p.Button = a.Buttons[0].Label
 	}
+	p.Linked = HasLinks(a)
 	return p
 }

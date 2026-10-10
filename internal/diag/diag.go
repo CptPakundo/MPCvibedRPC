@@ -84,7 +84,8 @@ func asMap(v any) map[string]any {
 
 func summarise(key string, v any) string {
 	switch key {
-	case "tmdbApiKey", "vlcPassword", "plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient", "plexAddress", "stremioKey":
+	case "tmdbApiKey", "vlcPassword", "plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient", "plexAddress", "stremioKey",
+		"jellyfinAddress", "jellyfinToken", "jellyfinUser", "jellyfinUserName", "jellyfinServerName", "jellyfinDevice":
 		return "(set)"
 	case "clientId":
 		return "(custom)"
@@ -145,6 +146,14 @@ func Report(in Input) string {
 		stremio = "signed in"
 	}
 	w("Stremio: %s", stremio)
+	jellyfin := "off (not signed in)"
+	if in.Config.JellyfinToken != "" {
+		jellyfin = "signed in"
+		if in.Config.JellyfinProduct != "" {
+			jellyfin += " to a " + in.Config.JellyfinProduct + " server"
+		}
+	}
+	w("Jellyfin / Emby: %s", jellyfin)
 	if in.Status.Hint != "" {
 		w("Player hint: %s", in.Status.Hint)
 	}

@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
 )
 
 // TestLivePlayer runs against a real player on this computer (MPC-QT, mpv, VLC, IINA or a Linux player that offers
@@ -15,7 +18,8 @@ import (
 // MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
 // MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080). MPCRPC_LIVE_MPV_PIPE and
 // MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. For Plex, MPCRPC_LIVE_PLEX_ADDRESS is the
-// server (followed without plex.tv; MPCRPC_LIVE_PLEX_TOKEN is its token, if it needs one). MPCRPC_LIVE_PLAYER is the
+// server (followed without plex.tv; MPCRPC_LIVE_PLEX_TOKEN is its token, if it needs one). For Jellyfin or
+// Emby, MPCRPC_LIVE_JELLYFIN_ADDRESS, MPCRPC_LIVE_JELLYFIN_USER and MPCRPC_LIVE_JELLYFIN_PASSWORD sign in to the server. MPCRPC_LIVE_PLAYER is the
 // name the player is shown under: MPC-QT, mpv, VLC, IINA, Celluloid, Plex, ...
 func TestLivePlayer(t *testing.T) {
 	want := os.Getenv("MPCRPC_LIVE_PLAYER")
@@ -39,6 +43,18 @@ func TestLivePlayer(t *testing.T) {
 		if e.cfg.PlexToken == "" {
 			e.cfg.PlexToken = "none" // a server that lets this computer in without signing in ignores it
 		}
+	}
+	if a := os.Getenv("MPCRPC_LIVE_JELLYFIN_ADDRESS"); a != "" {
+		c := &jellyfin.Client{Base: a, DeviceID: "ci-engine", Version: "0.0.0"}
+		srv, err := c.Find(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		auth, err := c.SignIn(context.Background(), os.Getenv("MPCRPC_LIVE_JELLYFIN_USER"), os.Getenv("MPCRPC_LIVE_JELLYFIN_PASSWORD"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.cfg.JellyfinAddress, e.cfg.JellyfinToken, e.cfg.JellyfinUser, e.cfg.JellyfinProduct, e.cfg.JellyfinDevice = c.Base, auth.Token, auth.UserID, srv.Product, c.DeviceID
 	}
 	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
 		e.cfg.VlcPassword = pw

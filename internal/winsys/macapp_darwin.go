@@ -14,10 +14,10 @@ package winsys
 #include <stdlib.h>
 
 static NSStatusItem *item;
-static NSMenuItem *statusLine, *toggleItem;
+static NSMenuItem *statusLine, *toggleItem, *hideItem;
 static NSWindow *window;
 static WKWebView *web;
-static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit
+static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit, 4 hide what is watched
 
 @interface MRController : NSObject <NSApplicationDelegate, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate>
 @end
@@ -125,19 +125,21 @@ static void macTrayCreate(const void *png, int len, const char *tip) {
 		[m addItem:[NSMenuItem separatorItem]];
 		menuItem(m, @"Open settings", @",", 1);
 		toggleItem = menuItem(m, @"Stop presence", @"", 2);
+		hideItem = menuItem(m, @"Hide what I'm watching", @"", 4);
 		[m addItem:[NSMenuItem separatorItem]];
 		menuItem(m, @"Quit MPCvibedRPC", @"q", 3);
 		item.menu = m;
 	});
 }
 
-static void macTraySetState(const char *tip, int running) {
+static void macTraySetState(const char *tip, int running, int hidden) {
 	NSString *text = [NSString stringWithUTF8String:tip];
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (!item) return;
 		item.button.toolTip = text;
 		statusLine.title = text;
 		toggleItem.title = running ? @"Stop presence" : @"Start presence";
+		hideItem.state = hidden ? NSControlStateValueOn : NSControlStateValueOff;
 	});
 }
 
@@ -235,6 +237,8 @@ type TrayOptions struct {
 	Running  func() bool
 	OnOpen   func()
 	OnToggle func()
+	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
+	OnHide   func()      // switches "Hide what I'm watching" over
 	OnQuit   func()
 	Log      func(level, msg string)
 }
@@ -246,47 +250,55 @@ type Tray struct {
 	once sync.Once
 }
 
-// StartTray puts the icon in the menu bar. Its menu shows the status, Open settings, Start/Stop presence and Quit.
+// StartTray puts the icon in the menu bar. Its menu shows the status, Open settings, Start/Stop presence,
+// Hide what I'm watching and Quit.
 func StartTray(o TrayOptions) *Tray {
 	t := &Tray{o: o, stop: make(chan struct{})}
 	icon := menuBarIcon(36)
 	p := C.CBytes(icon)
 	defer C.free(p)
-	tip, running := t.state()
+	tip, running, hidden := t.state()
 	c := C.CString(tip)
 	defer C.free(unsafe.Pointer(c))
 	C.macTrayCreate(p, C.int(len(icon)), c)
-	t.push(tip, running)
+	t.push(tip, running, hidden)
 	go t.loop()
 	return t
 }
 
-func (t *Tray) state() (string, bool) {
-	tip, running := "MPCvibedRPC", false
+func (t *Tray) state() (string, bool, bool) {
+	tip, running, hidden := "MPCvibedRPC", false, false
 	if t.o.Tooltip != nil {
 		tip = t.o.Tooltip()
 	}
 	if t.o.Running != nil {
 		running = t.o.Running()
 	}
-	return tip, running
+	if t.o.Hidden != nil {
+		hidden = t.o.Hidden()
+	}
+	return tip, running, hidden
 }
 
-func (t *Tray) push(tip string, running bool) {
+func (t *Tray) push(tip string, running, hidden bool) {
 	c := C.CString(tip)
 	defer C.free(unsafe.Pointer(c))
 	r := C.int(0)
 	if running {
 		r = 1
 	}
-	C.macTraySetState(c, r)
+	h := C.int(0)
+	if hidden {
+		h = 1
+	}
+	C.macTraySetState(c, r, h)
 }
 
 // loop hands menu commands to the program and keeps the status line current.
 func (t *Tray) loop() {
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
-	lastTip, lastRunning, n := "", false, 0
+	lastTip, lastRunning, lastHidden, n := "", false, false, 0
 	for {
 		select {
 		case <-t.stop:
@@ -301,6 +313,8 @@ func (t *Tray) loop() {
 			f = t.o.OnToggle
 		case 3:
 			f = t.o.OnQuit
+		case 4:
+			f = t.o.OnHide
 		}
 		if f != nil {
 			go f()
@@ -308,9 +322,9 @@ func (t *Tray) loop() {
 		}
 		if n++; n >= 10 {
 			n = 0
-			if tip, running := t.state(); tip != lastTip || running != lastRunning {
-				lastTip, lastRunning = tip, running
-				t.push(tip, running)
+			if tip, running, hidden := t.state(); tip != lastTip || running != lastRunning || hidden != lastHidden {
+				lastTip, lastRunning, lastHidden = tip, running, hidden
+				t.push(tip, running, hidden)
 			}
 		}
 	}

@@ -10,6 +10,8 @@ type TrayOptions struct {
 	Running  func() bool
 	OnOpen   func()
 	OnToggle func()
+	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
+	OnHide   func()      // switches "Hide what I'm watching" over
 	OnQuit   func()
 	Log      func(level, msg string)
 }
