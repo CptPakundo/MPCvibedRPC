@@ -3,6 +3,7 @@
 //
 //	go run ./tools/mkico -out internal/assets/icon.ico
 //	go run ./tools/mkico -icns MPCvibedRPC.icns     (the macOS app icon, made when the app is packaged)
+//	go run ./tools/mkico -png docs/images/icon.png    (a 256-pixel logo for the README and the download page)
 package main
 
 import (
@@ -19,10 +20,14 @@ var sizes = []int{16, 24, 32, 40, 48, 64}
 func main() {
 	out := flag.String("out", "internal/assets/icon.ico", "output .ico file")
 	icns := flag.String("icns", "", "write a macOS .icns file here instead")
+	pngFile := flag.String("png", "", "write a 256-pixel PNG here instead")
 	flag.Parse()
 	path, data := *out, func() []byte { return Build(sizes) }
 	if *icns != "" {
 		path, data = *icns, BuildICNS
+	}
+	if *pngFile != "" {
+		path, data = *pngFile, func() []byte { return pngOf(256) }
 	}
 	if err := os.WriteFile(path, data(), 0o644); err != nil {
 		fmt.Fprintln(os.Stderr, "mkico:", err)

@@ -166,22 +166,26 @@ existing players; engine tests including player order; setup support in `winsys`
 a live run in `tools/ci/live-players.sh` if it exists on Linux or macOS (a Linux MPRIS player only needs its bus-name
 part in `mpris.videoPlayers`, its process name in `winsys.unixPlayers`, and the lists below);
 then every place that lists players: `ui.html` (welcome card, "No player is answering" card, "Nothing playing" hint,
-Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (intro, Use it, Requirements, Players table, Troubleshooting, layout table),
+Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (tagline, What you get, Getting started, the Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/development.md` (Where things are),
 `docs/config.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
 the header comment in `main.go`, the engine's "Looking for a player on ..." log line, `diag` and the repo description/topics.
 
-**UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. Keep README
-behaviour bullets, `docs/config.md`, schema help text and release notes in sync with any behaviour change.
+**UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. Keep the README,
+`docs/how-it-works.md`, `docs/config.md`, schema help text and release notes in sync with any behaviour change. The
+README is for people: short, scannable, one emoji per section heading; details go in `docs/`.
 
 ## Releases
 1. Branch, change, `go vet ./...` (also with `GOOS=linux` and `GOOS=darwin`), gofmt, `go test -count=1 ./...`, push,
    open a PR (`gh pr create`), wait for CI and read the logs to confirm the expected steps ran, merge with
    `gh pr merge <n> --rebase --delete-branch`.
 2. Version bump: replace the next version with the one after it, then the current with the next, in
-   `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `README.md`, `cmd/mpcvibedrpc/main.go`,
+   `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `docs/development.md`, `cmd/mpcvibedrpc/main.go`,
    `tools/ci/fake-http.ps1`, `tools/ci/smoke.ps1`, `tools/mkrsrc/main.go` and the placeholder in `bug_report.yml`.
    Rewrite the top of `.github/release-notes.md` (it is the release body) and add the version's entry at the top of
-   `internal/assets/changelog.json` (`TestChangelog` fails until its newest entry matches `main.go`).
+   `internal/assets/changelog.json` (`TestChangelog` fails until its newest entry matches `main.go`). Retake the
+   README screenshots (`docs/images/window-*.jpg`) from the new build, as `docs/development.md` > Screenshots describes
+   (`tools/screenshots/demo.js` shows a made-up title; never a real library or account). The README's download
+   buttons point at `releases/latest/download/<file>`, so they need no change.
 3. `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"` with the Claude identity, `git push origin vX.Y.Z`. The release workflow
    builds and smoke-tests the Linux binaries and the macOS app on their own runners, then on Windows tests, builds and
    smoke-tests the exe, writes a `.sha256` for each program, attests them all and publishes.
