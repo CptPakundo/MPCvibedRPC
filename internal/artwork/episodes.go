@@ -208,6 +208,16 @@ type epCtx struct {
 	split     bool
 	seasonNo  int // NA
 	codeBlock bool
+	year      int  // the matched show's first year, for a file that names none (0 = unknown)
+	anime     bool // the file or the match is anime
+}
+
+// yearFor is the year that tells same-named shows apart: the file's own, else the matched show's.
+func (c epCtx) yearFor(media *core.Media) int {
+	if y := media.Year0(); y != 0 {
+		return y
+	}
+	return c.year
 }
 
 type epProvider struct {
@@ -230,10 +240,11 @@ type Resolver struct {
 
 	mu    sync.Mutex
 	bulba map[string]*bulbaPage
+	mal   map[string]string // MyAnimeList ids by search ("" = not found)
 }
 
 func newResolver(a *Artwork) *Resolver {
-	r := &Resolver{a: a, cfg: a.cfg, bulba: map[string]*bulbaPage{}}
+	r := &Resolver{a: a, cfg: a.cfg, bulba: map[string]*bulbaPage{}, mal: map[string]string{}}
 	r.provs = r.buildProviders()
 	return r
 }
@@ -277,7 +288,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				for _, x := range asArr(get(j, "results")) {
 					cands = append(cands, &Cand{Titles: nonEmptyTitles(get(x, "name"), get(x, "original_name")), Year: yearOf(get(x, "first_air_date")), ID: str(get(x, "id"))})
 				}
-				if c := pickMatch(cands, ctx.query, media.Year0(), false, PickOpts{ExactOnly: true}); c != nil && c.ID != "" {
+				if c := pickMatch(cands, ctx.query, ctx.yearFor(media), false, PickOpts{ExactOnly: true}); c != nil && c.ID != "" {
 					id = c.ID
 				}
 			}
@@ -322,7 +333,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 						cands = append(cands, &Cand{Titles: nonEmptyTitles(get(s, "name")), Year: yearOf(get(s, "premiered")), ID: str(get(s, "id"))})
 					}
 				}
-				if c := pickMatch(cands, ctx.query, media.Year0(), false, PickOpts{ExactOnly: true}); c != nil {
+				if c := pickMatch(cands, ctx.query, ctx.yearFor(media), false, PickOpts{ExactOnly: true}); c != nil {
 					id = c.ID
 				}
 			}
@@ -467,6 +478,68 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			return out, nil
 		}}
 
+	// Anime: MyAnimeList's episode list for the show (through Jikan). It numbers an entry's episodes 1, 2, 3... the way
+	// anime files do, so a long-running show's episode 1100 is simply number 1100, without seasons to count through.
+	// Only asked for anime; a later season ("S02") is an entry of its own there, so it is left to the other sources.
+	P["jikan"] = &epProvider{label: "MyAnimeList",
+		list: func(r *Resolver, media *core.Media, ids core.ArtIDs, ctx epCtx) ([]EpItem, error) {
+			if !ctx.anime || media.Episode == core.NA || media.Episode < 1 {
+				return nil, nil
+			}
+			if !ctx.split && media.Season != core.NA && media.Season > 1 {
+				return nil, nil
+			}
+			year := ctx.yearFor(media)
+			key := core.Lower(plain(ctx.query)) + "|" + core.Itoa(year)
+			r.mu.Lock()
+			id, known := r.mal[key]
+			r.mu.Unlock()
+			if !known {
+				j, err := a.net.getJSON(cfg.JikanBase+"/anime?q="+r.enc(ctx.query)+"&limit=15", reqInit{NoRetryOnTimeout: true})
+				if err != nil {
+					return nil, err
+				}
+				var cands []*Cand
+				for _, m := range asArr(get(j, "data")) {
+					if get(m, "type") == "Movie" {
+						continue
+					}
+					titles := nonEmptyTitles(get(m, "title"), get(m, "title_english"))
+					for _, x := range asArr(get(m, "titles")) {
+						titles = append(titles, nonEmptyTitles(get(x, "title"))...)
+					}
+					y := yearNum(get(m, "year"))
+					if y == 0 {
+						y = yearNum(get(m, "aired", "prop", "from", "year"))
+					}
+					cands = append(cands, &Cand{Titles: titles, Year: y, ID: str(get(m, "mal_id"))})
+				}
+				if c := pickMatch(cands, ctx.query, year, false, PickOpts{ExactOnly: true}); c != nil {
+					id = c.ID
+				}
+				r.mu.Lock()
+				r.mal[key] = id
+				r.mu.Unlock()
+			}
+			if id == "" {
+				return nil, nil
+			}
+			page := (media.Episode-1)/100 + 1 // a hundred episodes a page
+			j, err := a.net.getJSON(cfg.JikanBase+"/anime/"+id+"/episodes?page="+core.Itoa(page), reqInit{NoRetryOnTimeout: true})
+			if err != nil {
+				return nil, err
+			}
+			season := 1
+			if !ctx.split && media.Season != core.NA {
+				season = media.Season
+			}
+			var out []EpItem
+			for _, e := range asArr(get(j, "data")) {
+				out = append(out, EpItem{Season: float64(season), Number: epNumF(get(e, "mal_id")), Name: str(orV(get(e, "title"), "")), Entry: true})
+			}
+			return out, nil
+		}}
+
 	// Stremio's IMDb-keyed catalog: full episode list per IMDb id.
 	P["cinemeta"] = &epProvider{label: "Cinemeta",
 		list: func(r *Resolver, media *core.Media, ids core.ArtIDs, ctx epCtx) ([]EpItem, error) {
@@ -480,7 +553,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				for _, m := range asArr(get(j, "metas")) {
 					cands = append(cands, &Cand{Titles: nonEmptyTitles(get(m, "name")), Year: yearOf(get(m, "releaseInfo")), ID: str(firstTruthy(get(m, "imdb_id"), get(m, "id")))})
 				}
-				if c := pickMatch(cands, ctx.query, media.Year0(), false, PickOpts{ExactOnly: true}); c != nil && reTT.Test(c.ID) {
+				if c := pickMatch(cands, ctx.query, ctx.yearFor(media), false, PickOpts{ExactOnly: true}); c != nil && reTT.Test(c.ID) {
 					imdb = c.ID
 				}
 			}
@@ -508,15 +581,32 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 	return P
 }
 
-// sources is the episode-title services in the order to try them, without those switched off in the settings.
-func (r *Resolver) sources() []string {
+// sources is the episode-title services in the order to try them, without those switched off in the settings. For
+// anime, MyAnimeList comes first: it numbers episodes the way anime files do (the others keep their order).
+func (r *Resolver) sources(anime bool) []string {
 	var out []string
 	for _, n := range r.cfg.EpisodeSources {
 		if r.cfg.SourceOn(n) {
 			out = append(out, n)
 		}
 	}
+	if anime {
+		for i, n := range out {
+			if n == "jikan" && i > 0 {
+				out = append([]string{"jikan"}, append(out[:i:i], out[i+1:]...)...)
+				break
+			}
+		}
+	}
 	return out
+}
+
+// isAnime tells whether the file or the show it was matched to is anime.
+func isAnime(media *core.Media, hit *core.Art) bool {
+	if media.Anime || media.AnimeHint {
+		return true
+	}
+	return hit != nil && (hit.Alt != nil || hit.Source == "AniList" || hit.Source == "Kitsu" || hit.Source == "MyAnimeList")
 }
 
 // Find returns the episode the media names, or nil. hit is the artwork match for the show (may be nil).
@@ -535,7 +625,8 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 	if hit != nil && ids.Imdb == "" {
 		ids.Imdb = imdbIDFrom(hit.URL)
 	}
-	srcs := r.sources()
+	anime := isAnime(media, hit)
+	srcs := r.sources(anime)
 	isPokemon := func() bool { return rePokemon.Test(reNonAZ.ReplaceStr(plain(media.Title), "")) }
 	if media.Code != "" && core.Contains(srcs, "bulbapedia") {
 		list, err := r.provs["bulbapedia"].list(r, media, ids, epCtx{split: hit != nil && hit.Split, seasonNo: core.NA})
@@ -566,7 +657,7 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 		fctx := epCtx{query: q, split: false, seasonNo: core.NA, codeBlock: true}
 		for _, name := range srcs {
 			p := r.provs[name]
-			if p == nil || name == "kitsu" || p.byCode {
+			if p == nil || name == "kitsu" || name == "jikan" || p.byCode {
 				continue
 			}
 			if p.enable != nil && !p.enable(cfg) {
@@ -592,7 +683,7 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 			}
 		}
 	}
-	ctx := epCtx{query: query, seasonNo: core.NA}
+	ctx := epCtx{query: query, seasonNo: core.NA, anime: anime}
 	if ctx.query == "" {
 		ctx.query = media.Title
 	}
@@ -602,6 +693,11 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 	ctx.split = hit != nil && hit.Split
 	if hit != nil && hit.SeasonNo != core.NA {
 		ctx.seasonNo = hit.SeasonNo
+	}
+	// the matched show's first year tells it apart from others of the same name (a remake, a live-action series) when
+	// the file names none; a season listed under its own name has a later year than the show, so not for that
+	if hit != nil && !hit.Split && hit.SeasonNo == core.NA && hit.Year != core.NA {
+		ctx.year = hit.Year
 	}
 	try := func(ctx epCtx) *core.ArtEpisode {
 		for _, name := range srcs {
@@ -618,6 +714,11 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 				continue
 			}
 			pk := pickEpisode(list, media, pickOpts{split: ctx.split, seasonNo: ctx.seasonNo, codeBlock: ctx.codeBlock})
+			if pk != nil && pk.absolute && ctx.anime && name == "cinemeta" {
+				// Cinemeta (IMDb's data) files some specials of long-running anime among the episodes, so counting
+				// through its seasons can land on a neighbour's title: no title is better than a wrong one
+				continue
+			}
 			if pk != nil && usable(pk.e.Name) {
 				return &core.ArtEpisode{Season: intOrNA(pk.e.Season), Number: intOrNA(pk.e.Number), Title: core.Trim(pk.e.Name), Source: p.label, Absolute: pk.absolute, Via: ctx.query}
 			}

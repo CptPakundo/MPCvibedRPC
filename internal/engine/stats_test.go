@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,5 +75,44 @@ func TestStatsFileThatIsBrokenStartsOver(t *testing.T) {
 	os.WriteFile(file, []byte("{not json"), 0o644)
 	if s := New(core.DefaultConfig(), Options{StatsFile: file}).Stats(); s.Videos != 0 || s.Since == "" || s.Players == nil {
 		t.Errorf("%+v", s)
+	}
+}
+
+// failingCatalogs answers no catalog request (the fake player on this computer is reached as usual).
+type failingCatalogs struct {
+	mu sync.Mutex
+	n  int
+}
+
+func (f *failingCatalogs) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Hostname() == "127.0.0.1" {
+		return http.DefaultTransport.RoundTrip(req)
+	}
+	f.mu.Lock()
+	f.n++
+	f.mu.Unlock()
+	return nil, errors.New("no network in this test")
+}
+
+// An episode shown without its title (the catalogs did not answer) is sent again a few times while it plays, so a
+// title that comes later reaches Discord; then it stops. Without catalog lookups nothing is repeated.
+func TestEpisodeWithoutTitleIsAskedAgainWhilePlaying(t *testing.T) {
+	saved := recheckAfter
+	recheckAfter = []float64{1, 1, 1}
+	t.Cleanup(func() { recheckAfter = saved })
+	e, m, d, _ := setup(t)
+	cfg := e.Config()
+	cfg.ShowArtwork, cfg.ArtworkWaitMs = true, 50
+	e.cfg = cfg
+	e.opts.HTTPClient = &http.Client{Transport: &failingCatalogs{}}
+	m.set(func(m *mpc) { m.file = "Sample.Show.S01E02.mkv"; m.filepath = `C:\Videos\Sample.Show.S01E02.mkv` })
+	e.Start()
+	eventually(t, "shown", func() bool { return len(d.list()) > 0 && !isClear(d) })
+	sent := func() int { return len(d.list()) }
+	first := sent()
+	eventually(t, "asked again three times", func() bool { return sent() >= first+3 })
+	time.Sleep(time.Second)
+	if n := sent(); n != first+3 {
+		t.Errorf("sent %d times after the first, want 3", n-first)
 	}
 }

@@ -151,6 +151,7 @@ func TestPlexSignInCancelled(t *testing.T) {
 	if s := p.state(); s["waiting"] != false || s["url"] != "" {
 		t.Errorf("cancelled: %v", s)
 	}
+	time.Sleep(50 * time.Millisecond) // a check that was already on its way may still arrive
 	tv.mu.Lock()
 	n := tv.checks
 	tv.approve = true

@@ -74,7 +74,7 @@ The title parsed from the filename is looked up online (IMDb-based Cinemeta by d
 | `artworkWaitMs` | `1500` | How long to hold the presence back waiting for a cover. It refreshes when the cover arrives. |
 | `useFolderName` | `true` | If the file is just an episode number, use the folder's name as the show (skipping `Season 1` style folders). |
 | `episodeTitles` | `true` | Look up the real episode name when the file doesn't have one (`Ep03` becomes `S01E03 · Episode title`). |
-| `episodeSources` | `['bulbapedia', 'tmdb', 'tvmaze', 'cinemeta', 'kitsu']` | Order tried. `tmdb` needs `tmdbApiKey`; the others need no key. |
+| `episodeSources` | `['bulbapedia', 'tmdb', 'tvmaze', 'cinemeta', 'kitsu', 'jikan']` | Order tried. For anime, `jikan` (MyAnimeList) goes first, since it numbers episodes the way anime files do. `tmdb` needs `tmdbApiKey`; the others need no key. |
 | `folderEpisodeNumbers` | `false` | `true` numbers files with a running production code by their place in the season folder instead of the catalog's count. |
 | `animeTitles` | `'auto'` | For anime matched on AniList: `'auto'` uses whichever AniList name (English or romaji) the filename resembles most; `'english'` or `'romaji'` always use that one; `'file'` keeps the filename's spelling. |
 | `catalogTitle` | `true` | Show a recognised title as the catalog spells it, including punctuation a file name can't hold. `false` keeps it as parsed from the filename. |

@@ -1,16 +1,11 @@
-## MPCvibedRPC 0.9.10
+## MPCvibedRPC 0.9.11
 
-**Plex.** MPCvibedRPC can now show what you watch on Plex, on Windows, macOS and Linux.
+**Better episode titles for anime.**
 
-- Press **Sign in to Plex** on the Advanced tab and approve the sign-in on plex.tv in your browser. MPCvibedRPC never sees your password.
-- What you play with your Plex account shows on Discord, on any device: the Plex app on your computer, Plex Web, a TV or a phone. The episode or movie comes from your Plex server, and cover art is found the same way as for your files.
-- On a server you own, only your own playback is shown, not that of people you share with. Music and photos are never shown as "Watching". Choose another of your servers under the button, and **Sign out** at any time (Restore defaults signs you out too).
-- Nothing changes until you sign in: plex.tv and your server are only contacted while you are signed in, and the players you already use are asked first, as before.
-
-**Also new**
-- **What's new:** after an update (or on a new install) the window shows the new version's changes once. The **Changelog** button at the top shows every version's.
-- **Your stats** (General tab): how many videos were shown on Discord, how many were found in a catalog, how long they played and with which player. Numbers only, never titles, and they stay on your computer; nothing is sent anywhere.
-- Quit, Restore defaults and the other questions are now shown inside the window, with a clear title and buttons, instead of a browser box headed with the window's local address.
+- Anime episode titles now come from **MyAnimeList** first. It numbers episodes the way anime files do, so episode 1,100 of a long-running show is simply episode 1,100.
+- Long-running anime no longer show the title of a neighbouring episode (one catalog files specials among the episodes, which shifted the count), or no title at all (another picked a live-action series of the same name).
+- When a catalog does not answer in time, the episode title is looked up again while the episode plays, and appears on Discord as soon as it is found.
+- Titles saved by earlier versions that may be off are looked up again once.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it; there is nothing to install. An earlier version can install this one from its Updates tab; your settings are kept. Needs Windows 10/11.

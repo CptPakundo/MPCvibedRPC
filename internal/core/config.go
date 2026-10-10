@@ -137,7 +137,7 @@ func DefaultConfig() Config {
 		LinkButton:           true,
 		UseFolderName:        true,
 		EpisodeTitles:        true,
-		EpisodeSources:       []string{"bulbapedia", "tmdb", "tvmaze", "cinemeta", "kitsu"},
+		EpisodeSources:       []string{"bulbapedia", "tmdb", "tvmaze", "cinemeta", "kitsu", "jikan"}, // jikan goes first for anime
 
 		LargeImageKey: "mpc-hc",
 		SmallImageKey: "mpc-hc",
