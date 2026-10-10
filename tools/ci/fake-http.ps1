@@ -1,6 +1,6 @@
 # One local web server playing two parts: MPC-HC's /variables.html (state read from $StateFile: 0 stopped, 1 paused,
 # 2 playing) and GitHub's "latest release" API plus the download of the new program.
-param([Parameter(Mandatory)][int]$Port, [Parameter(Mandatory)][string]$StateFile, [Parameter(Mandatory)][string]$NewExe, [string]$Tag = '0.9.10')
+param([Parameter(Mandatory)][int]$Port, [Parameter(Mandatory)][string]$StateFile, [Parameter(Mandatory)][string]$NewExe, [string]$Tag = '0.9.11')
 $ErrorActionPreference = 'Stop'
 $l = New-Object System.Net.HttpListener
 $l.Prefixes.Add("http://127.0.0.1:$Port/")

@@ -102,7 +102,7 @@ the other MPRIS players need nothing.
 ```bash
 go vet ./...
 go test -count=1 ./...
-go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.9" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.10" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
 ```
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
   the tests. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS

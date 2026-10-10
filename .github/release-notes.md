@@ -1,17 +1,13 @@
-## MPCvibedRPC 0.9.9
+## MPCvibedRPC 0.9.10
 
-**macOS and Linux.** MPCvibedRPC now runs on Macs and on Linux too, alongside Windows.
+**Plex.** MPCvibedRPC can now show what you watch on Plex, on Windows, macOS and Linux.
 
-- **macOS** (11 or later, Apple silicon and Intel): **IINA**, mpv, VLC and MPC-QT. **Set up the player connection** adds the mpv option IINA needs to its settings (reopen IINA afterwards). It lives in the **menu bar** (status, Open settings, Start/Stop presence, Quit) and shows its settings in a window of its own, so no browser is needed.
-- **Linux** (64-bit x86 and ARM): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and other video players are found through MPRIS with nothing to set up; mpv through the mpv-mpris script or one line in `mpv.conf` (the button adds it). Music players and web browsers are never shown. No tray icon: run the program again to show its window.
-- **Start at login** works on both (a LaunchAgent on macOS, an autostart entry on Linux).
-- Updates: Linux updates itself like Windows; on macOS the Updates tab links to the release page.
-- **Windows is unchanged** apart from the fixes below.
+- Press **Sign in to Plex** on the Advanced tab and approve the sign-in on plex.tv in your browser. MPCvibedRPC never sees your password.
+- What you play with your Plex account shows on Discord, on any device: the Plex app on your computer, Plex Web, a TV or a phone. The episode or movie comes from your Plex server, and cover art is found the same way as for your files.
+- On a server you own, only your own playback is shown, not that of people you share with. Music and photos are never shown as "Watching". Choose another of your servers under the button, and **Sign out** at any time (Restore defaults signs you out too).
+- Nothing changes until you sign in: plex.tv and your server are only contacted while you are signed in, and the players you already use are asked first, as before.
 
-**Fixes for everyone**
-- Anime matched on AniList now get episode titles: the TV catalogs are also asked under the show's English name. A running episode number such as "Show - 67" is placed in the right season.
-- Films whose file name lost a colon, such as "Title A Franchise Mystery 2025", are now found (as "Title: A Franchise Mystery").
-- **Check for updates** no longer fails with "HTTP 403" when GitHub's hourly limit for your internet connection is used up: it asks GitHub's website instead.
+**Also new:** the Quit, Restore defaults and "close the player for a moment" questions are now shown inside the window, with a clear title and buttons, instead of a browser box headed with the window's local address.
 
 > **Entirely AI-generated ("vibe coded").** This whole program was written by an AI (Claude, by Anthropic) in conversation with the repository owner, who wrote none of it, takes no credit for it and has not reviewed it line by line. No warranty, no promise that it is correct, secure or maintained. See the README.
 
@@ -23,6 +19,7 @@
 Presence starts by itself: play something. If no player is answering, the window offers to set up the connection for you. Every system needs the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
 
 ### Good to know
+- Plex is tested on GitHub's test machines with every change: the official Plex Media Server, a stand-in player and a stand-in for Discord. Signing in with a real Plex account and real Plex apps have not been tried yet; reports are welcome.
 - The macOS and Linux versions are tested on GitHub's test machines with real players (mpv, IINA, VLC, Celluloid) and a stand-in for Discord. A tester has also used the Mac version with IINA and the real Discord. Linux has not been tried on a real desktop yet. Reports are welcome.
 - The programs are **unsigned** (no code-signing certificate), so Windows SmartScreen or your antivirus may warn, and macOS asks you to confirm the first start. Check a download with its `.sha256` file, or with `gh attestation verify <file> --repo CptPakundo/MPCvibedRPC` (a signed GitHub record that it was built from this repository).
 - Settings are kept in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux: `~/.local/share/MPCvibedRPC`).
