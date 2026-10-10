@@ -88,3 +88,20 @@ func TestReportLeaksNothingAboutPlex(t *testing.T) {
 		t.Errorf("report without Plex:\n%s", got)
 	}
 }
+
+func TestReportLeaksNothingAboutStremio(t *testing.T) {
+	cfg := core.DefaultConfig()
+	cfg.StremioKey = "SECRETSTREMIOKEY"
+	got := Report(Input{Version: "1", System: "x", Config: cfg})
+	if strings.Contains(got, "SECRETSTREMIOKEY") {
+		t.Errorf("the key leaks:\n%s", got)
+	}
+	for _, want := range []string{"Stremio: signed in", "stremioKey = (set)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in\n%s", want, got)
+		}
+	}
+	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Stremio: off (not signed in)") {
+		t.Errorf("report without Stremio:\n%s", got)
+	}
+}

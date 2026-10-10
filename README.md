@@ -5,7 +5,7 @@
 # MPCvibedRPC
 
 **Show what you're watching on Discord.**<br>
-A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA and Plex, with clean titles, cover art and a real progress bar.
+A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex and Stremio, with clean titles, cover art and a real progress bar.
 
 <p>
 <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
@@ -36,9 +36,9 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA and Plex, with clean title
 - 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking and pausing.
 - 🧹 **Clean titles** from messy file names: `Show.Name.S01E02.1080p.WEB-DL.x265-GRP.mkv` becomes *Show Name · S01E02*.
 - 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more).
-- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; and **Plex** on any device.
+- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; and **Plex** and **Stremio** on any device.
 - 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
-- 🪶 **Tiny and tidy**: one ~8 MB file, nothing to install, updates itself.
+- 🪶 **Tiny and tidy**: one ~8 MB file, nothing to install, updates itself. While Discord is closed it rests and asks no player at all.
 
 ## 🚀 Getting started
 
@@ -65,6 +65,9 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
 **Plex** (any system): press **Sign in to Plex** on the Advanced tab and approve it on plex.tv. Whatever you play with
 your Plex account then shows up, on any device.
 
+**Stremio** (any system): press **Sign in to Stremio** on the Advanced tab and approve it on stremio.com. What you watch
+with your Stremio account then shows up, on any device.
+
 ## 📺 Players
 
 | Player | Windows | macOS | Linux | Setup |
@@ -77,6 +80,7 @@ your Plex account then shows up, on any device.
 | IINA | | ✓ | | one click, then reopen IINA |
 | Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and more | | | ✓ | none |
 | Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Advanced tab |
+| Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Advanced tab |
 
 "One click" is the **Set up the player connection** button in the window. Exactly what each player needs, and how it is
 read, is in [How it works](docs/how-it-works.md#players-in-detail).
@@ -90,7 +94,8 @@ read, is in [How it works](docs/how-it-works.md#players-in-detail).
 - Your status clears itself after a long pause (30 minutes, adjustable).
 - **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
   analytics, no tracking. The download count above is GitHub's public count of release downloads.
-- With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads.
+- With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads. The same
+  goes for Stremio and Stremio's servers.
 
 ## ❓ Help
 
@@ -120,6 +125,18 @@ read, is in [How it works](docs/how-it-works.md#players-in-detail).
   been tried yet; reports are welcome.
 
 <img src="docs/images/window-plex.jpg" width="380" alt="Signing in to Plex on the Advanced tab">
+</details>
+
+<details>
+<summary><b>Stremio</b></summary>
+
+- Stremio's player saves where you are in your library when you start, pause or stop, and every 90 seconds while it
+  plays. The program reads that, so a video shows up within about 20 seconds, and pausing takes the status down (the
+  library doesn't tell a pause from a stop). If Stremio is closed without a word, the status goes after about two
+  minutes.
+- Only videos with a catalog entry are in the library; local files and add-ons without one aren't shown.
+- Newer Stremio apps can show a Discord status of their own. Turn that off in Stremio's settings, or you may see two.
+- Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are welcome.
 </details>
 
 <details>

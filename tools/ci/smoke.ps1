@@ -1,10 +1,10 @@
 # Smoke test of the built Windows program: starts it for real (hidden, with its own data folder), talks to it through
 # its local API and the tray icon's window, and plays a fake MPC-HC into a fake Discord.
 param(
-  [Parameter(Mandatory)][string]$Exe,       # the build under test (version 0.9.12)
-  [Parameter(Mandatory)][string]$NewExe,    # the same program built with the next patch version, offered as an update
-  [string]$Version = '0.9.12',
-  [string]$NextVersion = '0.9.13'
+  [Parameter(Mandatory)][string]$Exe,         # the build under test
+  [Parameter(Mandatory)][string]$NewExe,      # the same program built with the next patch version, offered as an update
+  [Parameter(Mandatory)][string]$Version,     # the version of $Exe
+  [Parameter(Mandatory)][string]$NextVersion  # the version of $NewExe
 )
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
@@ -42,11 +42,15 @@ function Dump { Write-Host '--- app log ---'; Get-Content (Join-Path $home_ 'mpc
 Add-Type -Namespace W -Name U -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string c, string t);
 [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool PostMessage(System.IntPtr h, uint m, System.UIntPtr w, System.IntPtr l);
+[System.Runtime.InteropServices.DllImport("shcore.dll")] public static extern int GetProcessDpiAwareness(System.IntPtr p, out int a);
 '@
+function StartFakeDiscord { Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-discord.ps1'), '-Log', $discordLog }
+function AppLog { Get-Content (Join-Path $home_ 'mpcvibedrpc.log') -Raw -ErrorAction SilentlyContinue }
 
 try {
   # fakes
-  [void]$procs.Add((Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-discord.ps1'), '-Log', $discordLog))
+  $fakeDiscord = StartFakeDiscord
+  [void]$procs.Add($fakeDiscord)
   [void]$procs.Add((Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-http.ps1'), '-Port', $port, '-StateFile', $stateFile, '-NewExe', $NewExe, '-Tag', $NextVersion))
   Check (WaitFor { (Test-Path $discordLog) -and ((Get-Content $discordLog -Raw) -match 'LISTENING') } 20 'fake discord up') 'fake Discord pipe is listening'
   Check (WaitFor { (Invoke-WebRequest "http://127.0.0.1:$port/variables.html" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } 20 'fake http up') 'fake MPC-HC web interface is up'
@@ -70,6 +74,8 @@ try {
   $i = Ipc
   $ping = Invoke-RestMethod "http://127.0.0.1:$($i.port)/api/ping"
   Check ($ping.app -eq 'MPCvibedRPC' -and $ping.version -eq $Version) 'ping answers with the version'
+  $aware = -1; [void][W.U]::GetProcessDpiAwareness($p.Handle, [ref]$aware)
+  Check ($aware -eq 2) "the program is per-monitor DPI-aware (awareness $aware)"
   $state = Api 'Get' 'state'
   Write-Host "state: canAutoStart=$($state.canAutoStart) sections=$(@($state.schema).Count) dataDir=$($state.dataDir) expected=$home_"
   Check ($state.canAutoStart -eq $true -and @($state.schema).Count -ge 3 -and (Resolve-Path $state.dataDir).Path -eq (Resolve-Path $home_).Path) 'state carries schema, canAutoStart and data folder'
@@ -80,6 +86,17 @@ try {
   $s = Api 'Get' 'status'
   Check ($s.running -and $s.discord -eq 'connected' -and $s.mpc) 'status: connected, MPC-HC seen'
   Check ((Get-Content $discordLog -Raw) -match '"type":3') 'activity uses the Watching type'
+  Check ((AppLog) -notmatch 'resting') 'presence does not rest while Discord runs'
+
+  # Discord closes: presence rests (no window is open); Discord starts again: presence comes back by itself
+  $fakeDiscord.Kill(); [void]$fakeDiscord.WaitForExit(10000)
+  Check (WaitFor { (AppLog) -match 'Discord is not running: resting' } 20 'rest') 'presence rests once Discord is gone'
+  Check (-not (Api 'Get' 'status').mpc) 'a resting program asks no player'
+  $shownBefore = ([regex]::Matches((Get-Content $discordLog -Raw), 'Sample Movie')).Count
+  $fakeDiscord = StartFakeDiscord
+  [void]$procs.Add($fakeDiscord)
+  Check (WaitFor { (AppLog) -match 'Resting ended' } 20 'wake') 'presence stops resting when Discord starts'
+  Check (WaitFor { ([regex]::Matches((Get-Content $discordLog -Raw), 'Sample Movie')).Count -gt $shownBefore } 30 'shown again') 'presence reaches the restarted Discord'
 
   # closing the file clears the presence
   $before = (Get-Content $discordLog).Count

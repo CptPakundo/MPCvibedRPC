@@ -6,8 +6,9 @@ whenever a change makes something here wrong (a new player, setting, CI step, re
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB exe, nothing to install) that shows what
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
-ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex** on every system (any device the user plays on,
-read from their Plex server after "Sign in to Plex"). It talks to the Discord desktop app over its
+ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex** and **Stremio** on every system (any device the
+user plays on, read from their Plex server after "Sign in to Plex", or from their Stremio library after "Sign in to
+Stremio"). It talks to the Discord desktop app over its
 local IPC pipe; the settings window is a local web page shown in an Edge/Chrome `--app=` window.
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
@@ -30,7 +31,7 @@ friend of the owner on a real Mac.
 ## Ground rules
 - **Privacy first.** No personal data in commits, code, docs, tests, screenshots or release files: no email addresses,
   local paths or user names, machine details, tokens. Commit as `git -c user.name="Claude" -c user.email="noreply@anthropic.com"`
-  and never with anyone's personal email. Release checks scan the exe for personal strings (see Releases).
+  and never with anyone's personal email. The diff is scanned for personal data before the first push (see Releases).
 - **Generic names.** UI text, docs, code comments and new tests use made-up titles ("Sample Show S01E02", "Sample Movie
   (2020)"), never real shows, films or episode numbers. Exempt: the recorded golden data in `internal/*/testdata/*.gz`,
   and real behaviour that is about a specific source (the Bulbapedia episode lists).
@@ -53,6 +54,7 @@ friend of the owner on a real Mac.
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
 | `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
+| `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store` | `config.json`, the settings window layout (`schema.go`), validation |
@@ -62,15 +64,15 @@ friend of the owner on a real Mac.
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe), `smoke-unix.sh` (macOS/Linux), `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
 `engine.fetchPlayer` asks, in this order: the MPC web interface (`/variables.html` on `port`, named by `core.PlayerOf`:
 MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv's pipe (`mpvPipe`), on macOS IINA's
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
-set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), and last Plex, only while signed in
-(`plexToken`; see below). **The first player that is
+set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex and last Stremio, each only
+while signed in (`plexToken`, `stremioKey`; see below). **The first player that is
 playing wins; otherwise the first that answers is reported.** MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
@@ -84,6 +86,20 @@ Server-Sent Events from `/:/eventsource/notifications?filters=playing` (a `PlayS
 report, every few seconds). Titles come from `/library/metadata/<ratingKey>` and are written like a file name
 ("Sample Show - S01E02 - Title", "Sample Movie (2020)") so the usual parsing and lookups apply. On a server the user owns
 only their own sessions count (`/status/sessions`: user 1 or the account id); music and photos are skipped.
+
+Stremio (`internal/stremio`): "Sign in to Stremio" gets the account's key through a link code (`link.stremio.com/api/v2/
+create` and `read`, the TV apps' sign-in; only an https stremio.com page is ever opened); sign-out and Restore defaults
+call `api.strem.io/api/logout`. Stremio has no "now playing" API: the watcher polls `datastoreMeta` (every library
+entry's mtime) every 20 s and fetches changed entries with `datastoreGet`. Stremio's player (stremio-core) pushes the
+entry on load, pause, resume and stop, and every 90 s while it plays (`PUSH_TO_LIBRARY_EVERY`); an early push with the
+time moved on is a pause or stop (status taken down), one with the time unchanged is a start or resume, and no push
+for ~2.5 min means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
+
+**Resting** (`engine.rest`): while Discord's IPC endpoint is absent (`pipe.Exists`: a directory query on Windows,
+a stat elsewhere; never a connection) and no settings window holds `/api/alive` (`server.Options.OnWindow` ->
+`engine.Options.MayRest`), a tick asks no player, the Plex and Stremio watchers are stopped, and `OnRest`
+(`winsys.TrimMemory`) hands memory back. A window opening calls `engine.Wake`. Tests get no resting unless they set
+`MayRest`.
 
 Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
 state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
@@ -104,8 +120,10 @@ the other MPRIS players need nothing.
 ```bash
 go vet ./...
 go test -count=1 ./...
-go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
 ```
+- The workflows carry no version: `tools/ci/version.sh` reads it from `cmd/mpcvibedrpc/main.go` (VERSION, and NEXT for
+  the smoke test's update) and, on a tag, fails when the tag does not match.
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
   `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
@@ -153,7 +171,11 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o dist
 - Plex: never sign in to a real Plex account, and never call plex.tv's sign-in, from tests or manual checks without the
   owner's OK. The sign-in, the server list and the notifications are tested against fakes (`internal/plex`,
   `cmd/mpcvibedrpc/plex_test.go`, `internal/engine/plex_test.go`); the window's Plex states can be shown by overriding
-  `window.fetch` for `/api/plex*`.
+  `window.fetch` for `/api/plex*`. The same for Stremio: no real account or call to link.stremio.com / api.strem.io
+  without the owner's OK; fakes in `internal/stremio`, `cmd/mpcvibedrpc/stremio_test.go`, `internal/engine/rest_test.go`,
+  and `/api/stremio*` for the window.
+- Resting: a throwaway copy rests whenever Discord is closed and its window is closed (no player is asked then). To
+  test players with a closed Discord, keep its window open.
 - Leave nothing running: quit test copies, and only stop processes you started.
 
 ## Recipes
@@ -176,27 +198,21 @@ the header comment in `main.go`, the engine's "Looking for a player on ..." log 
 README is for people: short, scannable, one emoji per section heading; details go in `docs/`.
 
 ## Releases
-1. Branch, change, `go vet ./...` (also with `GOOS=linux` and `GOOS=darwin`), gofmt, `go test -count=1 ./...`, push,
-   open a PR (`gh pr create`), wait for CI and read the logs to confirm the expected steps ran, merge with
-   `gh pr merge <n> --rebase --delete-branch`.
-2. Version bump: replace the next version with the one after it, then the current with the next, in
-   `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `docs/development.md`, `cmd/mpcvibedrpc/main.go`,
-   `tools/ci/fake-http.ps1`, `tools/ci/smoke.ps1`, `tools/mkrsrc/main.go` and the placeholder in `bug_report.yml`. The
-   `vX.Y.Z` examples in `release.yml` and `docs/development.md` count too (a plain number search skips the `v`).
-   Rewrite the top of `.github/release-notes.md` (it is the release body) and add the version's entry at the top of
-   `internal/assets/changelog.json` (`TestChangelog` fails until its newest entry matches `main.go`). Retake the
-   README screenshots (`docs/images/window-*.jpg`) from the new build, as `docs/development.md` > Screenshots describes
-   (`tools/screenshots/demo.js` shows a made-up title; never a real library or account). The README's download
-   buttons point at `releases/latest/download/<file>`, so they need no change.
-3. `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"` with the Claude identity, `git push origin vX.Y.Z`. The release workflow
-   builds and smoke-tests the Linux binaries and the macOS app on their own runners, then on Windows tests, builds and
-   smoke-tests the exe, writes a `.sha256` for each program, attests them all and publishes.
-4. Verify: ten assets (`MPCvibedRPC.exe`, `MPCvibedRPC-linux-amd64`, `MPCvibedRPC-linux-arm64`,
-   `MPCvibedRPC-macos.zip`, a `.sha256` for each, `LICENSE`, `THIRD-PARTY-NOTICES.md`); checksums; file version;
-   `gh attestation verify <file> --repo CptPakundo/MPCvibedRPC` passes for each program and fails for a one-byte-altered
-   copy; a string scan of each program finds no personal data (only the public module path and the bundle identifier);
-   the running exe is per-monitor DPI-aware (2); a real self-update from the previous published release in a throwaway
-   `MPCRPC_HOME` ends on the new version with a hash equal to the release. (The first release with Linux files cannot
-   self-update on Linux from an older one: older releases have no Linux program.)
+One branch and one PR per release: the change, the version bump and the release text together.
+1. Branch; change; in the same branch bump `var version` in `cmd/mpcvibedrpc/main.go` (nothing else carries the
+   version: the workflows and smoke tests read it; docs use `X.Y.Z`), add the version's entry at the top of
+   `internal/assets/changelog.json` (`TestChangelog` fails until it matches `main.go`) and rewrite
+   `.github/release-notes.md` (the release body). Screenshots (`docs/images/window-*.jpg`) are retaken only when the
+   part of the window they show changed, as `docs/development.md` > Screenshots describes (made-up titles only).
+2. Locally: `go vet ./...` (also `GOOS=linux`, `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...`, and a
+   scan of the diff and new files for personal data (the owner's name, email, local paths) before the first push.
+   Then push, `gh pr create`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps ran.
+3. With the owner's go-ahead: `gh pr merge <n> --rebase --delete-branch`, then `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`
+   with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
+   against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
+   awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
+   publishes, and then runs `verify` (`tools/ci/verify-release.ps1`): the ten assets, every checksum and build record,
+   the exe's version, that it is the latest release, and a real self-update from the previous release.
+4. Read the `verify` job's log (`gh run view --log`) and report. Nothing needs re-running locally after a release.
 
 Merging, tagging and publishing are outward-facing: do them only with the owner's go-ahead.

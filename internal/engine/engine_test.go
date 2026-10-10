@@ -26,6 +26,7 @@ type mpc struct {
 	down            bool
 	srv             *httptest.Server
 	port            int
+	asked           int // requests of any kind
 }
 
 func newMPC(t *testing.T) *mpc {
@@ -33,6 +34,7 @@ func newMPC(t *testing.T) *mpc {
 	m.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
+		m.asked++
 		if m.down || r.URL.Path != "/variables.html" {
 			http.NotFound(w, r)
 			return
@@ -63,8 +65,11 @@ type disc struct {
 	conns  []io.ReadWriteCloser
 }
 
-func newDisc(t *testing.T) *disc {
-	d := &disc{path: fakePath(sockDir(t))}
+func newDisc(t *testing.T) *disc { return newDiscAt(t, fakePath(sockDir(t))) }
+
+// newDiscAt starts the fake Discord at a given path (a test that starts it later picks the path first).
+func newDiscAt(t *testing.T, path string) *disc {
+	d := &disc{path: path}
 	ln, err := listenFake(d.path)
 	if err != nil {
 		t.Skip("cannot listen for the fake Discord: " + err.Error())

@@ -84,7 +84,7 @@ func asMap(v any) map[string]any {
 
 func summarise(key string, v any) string {
 	switch key {
-	case "tmdbApiKey", "vlcPassword", "plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient", "plexAddress":
+	case "tmdbApiKey", "vlcPassword", "plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient", "plexAddress", "stremioKey":
 		return "(set)"
 	case "clientId":
 		return "(custom)"
@@ -140,6 +140,11 @@ func Report(in Input) string {
 		}
 	}
 	w("Plex: %s", plex)
+	stremio := "off (not signed in)"
+	if in.Config.StremioKey != "" {
+		stremio = "signed in"
+	}
+	w("Stremio: %s", stremio)
 	if in.Status.Hint != "" {
 		w("Player hint: %s", in.Status.Hint)
 	}
