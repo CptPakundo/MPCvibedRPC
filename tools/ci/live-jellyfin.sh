@@ -62,8 +62,9 @@ call POST "/Library/VirtualFolders?name=Shows&collectionType=tvshows&paths=%2Fme
 echo "libraries: $(call GET /Library/VirtualFolders "" "$token" | jq -c '[.[] | {Name, Locations}]' || true)"
 item=""
 for i in $(seq 1 90); do
-  items="$(call GET "/Users/$uid/Items?Recursive=true&IncludeItemTypes=Episode" "" "$token" || true)"
-  item="$(echo "$items" | jq -r '.Items[0].Id // empty' 2> /dev/null || true)"
+  # the video itself (not the show or season folders); Emby does not answer IncludeItemTypes=Episode here
+  items="$(call GET "/Users/$uid/Items?Recursive=true&Fields=MediaType" "" "$token" || true)"
+  item="$(echo "$items" | jq -r '[.Items[] | select(.IsFolder != true)][0].Id // empty' 2> /dev/null || true)"
   [ -n "$item" ] && break
   if [ "$i" = 45 ]; then call POST /Library/Refresh "" "$token" > /dev/null || true; fi
   if [ "$i" = 90 ]; then
