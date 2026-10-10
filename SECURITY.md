@@ -5,7 +5,9 @@ computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC or I
 D-Bus) locally, and only contacts the online services listed in its **Privacy** tab. Once you sign in to Plex, it also
 contacts plex.tv (to sign in and to find your servers) and your Plex server, which it only reads from. Once you sign in
 to Stremio, it contacts Stremio's servers (link.stremio.com to sign in, api.strem.io to read your library and to sign
-out).
+out). Once you enter a Jellyfin or Emby server's address and sign in, it contacts only that server (to sign in, to read
+its session list and to sign out). The server's access token is kept in `config.json` as plain text; a password you type
+goes to your own server once and is never stored.
 
 If you find a security problem, please report it **privately** through
 [GitHub's private vulnerability reporting](https://github.com/CptPakundo/MPCvibedRPC/security/advisories/new)

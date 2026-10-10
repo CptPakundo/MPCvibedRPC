@@ -5,7 +5,7 @@
 # MPCvibedRPC
 
 **Show what you're watching on Discord.**<br>
-A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex and Stremio, with clean titles, cover art and a real progress bar.
+A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
 
 <p>
 <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
@@ -36,7 +36,8 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex and Stremio, with cl
 - 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking and pausing.
 - 🧹 **Clean titles** from messy file names: `Show.Name.S01E02.1080p.WEB-DL.x265-GRP.mkv` becomes *Show Name · S01E02*.
 - 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more).
-- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; and **Plex** and **Stremio** on any device.
+- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; and **Plex**, **Stremio**, **Jellyfin** and **Emby** on any device.
+- 🔗 **Clickable**: the second line and the cover open the title's page (IMDb, AniList, ...), next to the "View on IMDb" button. **Hide what I'm watching** is also in the tray / menu bar menu.
 - 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
 - 🪶 **Tiny and tidy**: one ~8 MB file, nothing to install, updates itself. While Discord is closed it rests and asks no player at all.
 
@@ -68,6 +69,10 @@ your Plex account then shows up, on any device.
 **Stremio** (any system): press **Sign in to Stremio** on the Advanced tab and approve it on stremio.com. What you watch
 with your Stremio account then shows up, on any device.
 
+**Jellyfin and Emby** (any system): type your server's address under **Jellyfin / Emby** on the Advanced tab, for example
+`http://192.168.1.20:8096`, and sign in. Jellyfin uses Quick Connect (a code you enter in a Jellyfin app); Emby asks for
+your user name and password. What you play on that server then shows up, on any device.
+
 ## 📺 Players
 
 | Player | Windows | macOS | Linux | Setup |
@@ -81,6 +86,7 @@ with your Stremio account then shows up, on any device.
 | Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and more | | | ✓ | none |
 | Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Advanced tab |
 | Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Advanced tab |
+| Jellyfin, Emby (any app, web or TV) | ✓ | ✓ | ✓ | server address and sign in on the Advanced tab |
 
 "One click" is the **Set up the player connection** button in the window. Exactly what each player needs, and how it is
 read, is in [How it works](docs/how-it-works.md#players-in-detail).
@@ -95,7 +101,7 @@ read, is in [How it works](docs/how-it-works.md#players-in-detail).
 - **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
   analytics, no tracking. The download count above is GitHub's public count of release downloads.
 - With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads. The same
-  goes for Stremio and Stremio's servers.
+  goes for Stremio and Stremio's servers, and for Jellyfin / Emby and your own server (asked every 5 seconds).
 
 ## ❓ Help
 
@@ -137,6 +143,20 @@ read, is in [How it works](docs/how-it-works.md#players-in-detail).
 - Only videos with a catalog entry are in the library; local files and add-ons without one aren't shown.
 - Newer Stremio apps can show a Discord status of their own. Turn that off in Stremio's settings, or you may see two.
 - Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are welcome.
+</details>
+
+<details>
+<summary><b>Jellyfin and Emby</b></summary>
+
+- Type the address the way you open the server in a browser; `http://` is added if missing, and a path (for a reverse
+  proxy) is kept. The window says when the server can't be reached or refused the sign-in.
+- Jellyfin: press **Sign in**, then enter the 6-digit code in a Jellyfin app or web page where you are
+  already signed in (profile > Quick Connect). **Use a password instead** is there if Quick Connect is off. Emby has no
+  Quick Connect: use your user name and password. The password goes to your own server once and is never stored.
+- Only your own playback is shown, even if you are an administrator; music, audiobooks and photos never are. The server
+  is asked every 5 seconds, so the status can lag that much behind.
+- Tried with the official Jellyfin and Emby server images on GitHub's test machines. A real server and the real apps
+  haven't been tried yet; reports are welcome.
 </details>
 
 <details>

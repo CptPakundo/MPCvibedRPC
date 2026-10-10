@@ -6,10 +6,12 @@ whenever a change makes something here wrong (a new player, setting, CI step, re
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB exe, nothing to install) that shows what
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
-ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex** and **Stremio** on every system (any device the
-user plays on, read from their Plex server after "Sign in to Plex", or from their Stremio library after "Sign in to
-Stremio"). It talks to the Discord desktop app over its
-local IPC pipe; the settings window is a local web page shown in an Edge/Chrome `--app=` window.
+ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex**, **Stremio**, **Jellyfin** and
+**Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
+their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server after signing in on the
+Advanced tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
+shown in an Edge/Chrome `--app=` window. The tray (Windows) and menu bar (macOS) menus offer Open settings, Start/Stop
+presence, Hide what I'm watching (`hideTitle`) and Quit.
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
@@ -47,7 +49,7 @@ friend of the owner on a real Mac.
 ## Layout
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `plex*`, `quit`, ...), update checks, tray, quit order |
+| `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `plex*`, `stremio*`, `jellyfin*`, `quit`, ...), update checks, tray, quit order |
 | `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles) |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
@@ -55,6 +57,7 @@ friend of the owner on a real Mac.
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
 | `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
+| `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store` | `config.json`, the settings window layout (`schema.go`), validation |
@@ -64,16 +67,16 @@ friend of the owner on a real Mac.
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
 `engine.fetchPlayer` asks, in this order: the MPC web interface (`/variables.html` on `port`, named by `core.PlayerOf`:
 MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv's pipe (`mpvPipe`), on macOS IINA's
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
-set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex and last Stremio, each only
-while signed in (`plexToken`, `stremioKey`; see below). **The first player that is
-playing wins; otherwise the first that answers is reported.** MPC-HC must keep behaving exactly as before whenever
+set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex, Stremio and last
+Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). **The first player
+that is playing wins; otherwise the first that answers is reported.** MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. MPRIS only reads players on the allowlist in
@@ -95,9 +98,18 @@ entry on load, pause, resume and stop, and every 90 s while it plays (`PUSH_TO_L
 time moved on is a pause or stop (status taken down), one with the time unchanged is a start or resume, and no push
 for ~2.5 min means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
 
+Jellyfin and Emby (`internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin.go`): the user types the server's address on the
+Advanced tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick
+Connect (`/QuickConnect/Initiate`, `Connect`, `/Users/AuthenticateWithQuickConnect`; the user enters the code in a
+Jellyfin app); Emby, or Quick Connect off, with `/Users/AuthenticateByName` (the password is passed on once, never kept).
+Every request carries `Authorization: MediaBrowser ...` (Jellyfin 12 ignores the legacy headers by default) and
+`X-Emby-Authorization` / `X-Emby-Token` (Emby). The watcher polls `GET /Sessions` every 5 s; only the signed-in user's
+sessions count (`UserId`), the position is moved on by the server's `Date` minus `LastPlaybackCheckIn`. Sign-out and
+Restore defaults call `/Sessions/Logout`. Error messages never carry the server's address (`jellyfin.Reason`).
+
 **Resting** (`engine.rest`): while Discord's IPC endpoint is absent (`pipe.Exists`: a directory query on Windows,
 a stat elsewhere; never a connection) and no settings window holds `/api/alive` (`server.Options.OnWindow` ->
-`engine.Options.MayRest`), a tick asks no player, the Plex and Stremio watchers are stopped, and `OnRest`
+`engine.Options.MayRest`), a tick asks no player, the Plex, Stremio and Jellyfin watchers are stopped, and `OnRest`
 (`winsys.TrimMemory`) hands memory back. A window opening calls `engine.Wake`. Tests get no resting unless they set
 `MayRest`.
 
@@ -131,7 +143,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
   mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
   `tools/ci/live-plex.sh`: the live engine test against the official Plex Media Server image (unclaimed, no account)
-  with a stand-in player that reports playback through `/:/timeline`. **This is the only
+  with a stand-in player that reports playback through `/:/timeline`. `jellyfin` runs `tools/ci/live-jellyfin.sh` for
+  the official Jellyfin and Emby images (a matrix): the first-run wizard with a made-up user, a stand-in player (`/Sessions/Playing`),
+  the real sign-in (password and Quick Connect) and the live engine test. **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
@@ -164,7 +178,7 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 - Live engine test against a real player, with the test's own fake Discord (opt-in):
   `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count=1 -run TestLivePlayer -v ./internal/engine`
   (also `MPCRPC_LIVE_PORT`, `MPCRPC_LIVE_VLC_PASSWORD`, `MPCRPC_LIVE_VLC_PORT`, `MPCRPC_LIVE_MPV_PIPE`,
-  `MPCRPC_LIVE_IINA_PIPE`, `MPCRPC_LIVE_PLEX_ADDRESS`, `MPCRPC_LIVE_PLEX_TOKEN`; `MPCRPC_LIVE_PLAYER` is the name shown: mpv, IINA, VLC, Celluloid, Plex, ...). Use portable player builds in a scratch
+  `MPCRPC_LIVE_IINA_PIPE`, `MPCRPC_LIVE_PLEX_ADDRESS`, `MPCRPC_LIVE_PLEX_TOKEN`, `MPCRPC_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD`; `MPCRPC_LIVE_PLAYER` is the name shown: mpv, IINA, VLC, Celluloid, Plex, ...). Use portable player builds in a scratch
   folder (MPC-QT: `portable.txt`; MPC-BE: an ini next to the exe; mpv: `portable_config\`; VLC: a `portable\` folder
   next to `vlc.exe`), verify their published checksums, and check `%APPDATA%`, `%LOCALAPPDATA%` and `HKCU\Software`
   afterwards. Test videos can be made with mpv's encoder from `lavfi` test sources, with generic names.
@@ -174,6 +188,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   `window.fetch` for `/api/plex*`. The same for Stremio: no real account or call to link.stremio.com / api.strem.io
   without the owner's OK; fakes in `internal/stremio`, `cmd/mpcvibedrpc/stremio_test.go`, `internal/engine/rest_test.go`,
   and `/api/stremio*` for the window.
+- Jellyfin / Emby: never sign in to a real server from tests or manual checks without the owner's OK. Fakes are in
+  `internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin_test.go` and `internal/engine/jellyfin_test.go`; a small fake server on
+  127.0.0.1 can drive the window's sign-in in a throwaway copy (keep presence off, so Discord is never contacted).
 - Resting: a throwaway copy rests whenever Discord is closed and its window is closed (no player is asked then). To
   test players with a closed Discord, keep its window open.
 - Leave nothing running: quit test copies, and only stop processes you started.

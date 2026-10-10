@@ -52,19 +52,27 @@ call POST /Startup/Complete > /dev/null
 sleep 3
 
 auth="$(call POST /Users/AuthenticateByName "{\"Username\":\"$user\",\"Pw\":\"$pass\"}")"
-token="$(echo "$auth" | sed -nE 's/.*"AccessToken":"([^"]+)".*/\1/p')"
-[ -n "$token" ] || { echo "the stand-in player could not sign in: $auth"; exit 1; }
-echo "stand-in player signed in"
+token="$(echo "$auth" | jq -r '.AccessToken // empty')"
+uid="$(echo "$auth" | jq -r '.User.Id // empty')"
+[ -n "$token" ] && [ -n "$uid" ] || { echo "the stand-in player could not sign in: $auth"; exit 1; }
+echo "stand-in player signed in (user $uid)"
 
 call POST "/Library/VirtualFolders?name=Shows&collectionType=tvshows&paths=%2Fmedia%2FTV&refreshLibrary=true" \
-  '{"LibraryOptions":{"PathInfos":[{"Path":"/media/TV"}]}}' "$token" > /dev/null
+  '{"LibraryOptions":{"PathInfos":[{"Path":"/media/TV"}]}}' "$token" > /dev/null || { echo "adding the library failed"; exit 1; }
+echo "libraries: $(call GET /Library/VirtualFolders "" "$token" | jq -c '[.[] | {Name, Locations}]' || true)"
 item=""
 for i in $(seq 1 90); do
-  items="$(call GET "/Items?Recursive=true&IncludeItemTypes=Episode&Fields=Path" "" "$token" || true)"
-  item="$(echo "$items" | sed -nE 's/.*"Id":"([^"]+)".*/\1/p' | head -n 1)"
+  items="$(call GET "/Users/$uid/Items?Recursive=true&IncludeItemTypes=Episode" "" "$token" || true)"
+  item="$(echo "$items" | jq -r '.Items[0].Id // empty' 2> /dev/null || true)"
   [ -n "$item" ] && break
-  [ "$i" = 45 ] && call POST /Library/Refresh "" "$token" > /dev/null || true
-  [ "$i" = 90 ] && { echo "the sample episode was not added: $items"; docker logs "ci-$kind" 2>&1 | tail -n 40; exit 1; }
+  if [ "$i" = 45 ]; then call POST /Library/Refresh "" "$token" > /dev/null || true; fi
+  if [ "$i" = 90 ]; then
+    echo "the sample episode was not added: $items"
+    call GET "/Users/$uid/Items?Recursive=true" "" "$token" | head -c 1500 || true; echo
+    ls -laR "$work/media"
+    docker logs "ci-$kind" 2>&1 | grep -i -E "librar|scan|media|error|denied|exception" | tail -n 40
+    exit 1
+  fi
   sleep 2
 done
 echo "sample episode: $item"

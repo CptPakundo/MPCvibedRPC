@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.21", "date": "2026-10-11", "items": [
+    "🎞️ Jellyfin and Emby: sign in on the Advanced tab to show what you play on your own server, on any device.",
+    "🔗 The second line and the cover on Discord open the title's page (IMDb, AniList, ...), like the button.",
+    "🙈 Hide what I'm watching is now one click away in the tray (Windows) and the menu bar (macOS)."
+  ]},
   {"version": "0.9.20", "date": "2026-10-11", "items": [
     "🍿 Stremio: sign in on the Advanced tab to show what you watch in Stremio, on any device.",
     "💤 While Discord is closed, the app rests: it asks no player and hands its memory back."
