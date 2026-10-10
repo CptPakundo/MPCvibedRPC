@@ -148,7 +148,7 @@ Every setting with its default is in [docs/config.md](docs/config.md).
 <details>
 <summary><b>Updates</b></summary>
 
-The program checks for new versions once a day (switch it off on the Updates tab). On Windows and Linux,
+The program checks for new versions when it starts and once a day (switch it off on the Updates tab). On Windows and Linux,
 **Install** downloads the new version, checks it and restarts; on macOS the Updates tab links to the download. After an
 update the window shows what's new once; the **Changelog** button at the top shows every version.
 </details>

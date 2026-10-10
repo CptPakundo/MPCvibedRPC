@@ -6,8 +6,8 @@ How MPCvibedRPC is built, tested and released. For using it, see the [README](..
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.11 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version 0.9.12 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -29,7 +29,7 @@ run-at-login entry), and `MPCRPC_BROWSER` names the browser to show the window i
 ## Releasing
 To publish a version:
 
-1. `git tag v0.9.11 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
+1. `git tag v0.9.12 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
    programs on Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, autostart,
    self-update; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app like
    the Finder does) and attaches them with their `.sha256` files to a release. The tag is the version.

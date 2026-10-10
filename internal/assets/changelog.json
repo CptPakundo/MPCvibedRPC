@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.12", "date": "2026-10-10", "items": [
+    "🔔 New versions are looked for when the app starts too, and an open window shows one right away.",
+    "📰 What's new in an available update is laid out properly on the Updates tab."
+  ]},
   {"version": "0.9.11", "date": "2026-10-10", "items": [
     "📺 Anime episode titles come from MyAnimeList first, which numbers episodes the way your files do.",
     "🎯 Long-running anime no longer show a neighbouring episode's title, or none at all.",

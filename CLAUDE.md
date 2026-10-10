@@ -104,7 +104,7 @@ the other MPRIS players need nothing.
 ```bash
 go vet ./...
 go test -count=1 ./...
-go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
 ```
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
@@ -181,7 +181,8 @@ README is for people: short, scannable, one emoji per section heading; details g
    `gh pr merge <n> --rebase --delete-branch`.
 2. Version bump: replace the next version with the one after it, then the current with the next, in
    `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `docs/development.md`, `cmd/mpcvibedrpc/main.go`,
-   `tools/ci/fake-http.ps1`, `tools/ci/smoke.ps1`, `tools/mkrsrc/main.go` and the placeholder in `bug_report.yml`.
+   `tools/ci/fake-http.ps1`, `tools/ci/smoke.ps1`, `tools/mkrsrc/main.go` and the placeholder in `bug_report.yml`. The
+   `vX.Y.Z` examples in `release.yml` and `docs/development.md` count too (a plain number search skips the `v`).
    Rewrite the top of `.github/release-notes.md` (it is the release body) and add the version's entry at the top of
    `internal/assets/changelog.json` (`TestChangelog` fails until its newest entry matches `main.go`). Retake the
    README screenshots (`docs/images/window-*.jpg`) from the new build, as `docs/development.md` > Screenshots describes

@@ -218,7 +218,7 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 		latest = latest[1:]
 	}
 	info := &Info{Configured: true, Current: current, Latest: latest, Newer: Compare(current, latest) < 0, Page: rel.HTMLURL}
-	notes := []rune(rel.Body)
+	notes := []rune(whatsNew(rel.Body))
 	if len(notes) > 1500 {
 		notes = notes[:1500]
 	}
@@ -332,4 +332,30 @@ func SwapAndRestart(exe, next string, start func(exe string, args ...string) err
 func CleanupOld(exe string) {
 	_ = os.Remove(exe + ".old")
 	_ = os.Remove(exe + ".new")
+}
+
+// whatsNew is the part of a release's notes about the release itself, for the Updates tab: without the title line,
+// and up to the first "###" section (how to get it, notes for every release) or quoted banner. Notes without that
+// shape are kept whole.
+func whatsNew(body string) string {
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	var out []string
+	titled := false
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		if !titled && t != "" {
+			titled = true
+			if strings.HasPrefix(t, "# ") || strings.HasPrefix(t, "## ") {
+				continue
+			}
+		}
+		if strings.HasPrefix(t, "### ") || strings.HasPrefix(t, "> ") {
+			break
+		}
+		out = append(out, l)
+	}
+	if s := strings.TrimSpace(strings.Join(out, "\n")); s != "" {
+		return s
+	}
+	return strings.TrimSpace(body)
 }

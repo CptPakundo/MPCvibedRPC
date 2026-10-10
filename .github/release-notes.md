@@ -1,11 +1,11 @@
-## MPCvibedRPC 0.9.11
+## MPCvibedRPC 0.9.12
 
-**Better episode titles for anime.**
+**Update checks, tidied up.**
 
-- Anime episode titles now come from **MyAnimeList** first. It numbers episodes the way anime files do, so episode 1,100 of a long-running show is simply episode 1,100.
-- Long-running anime no longer show the title of a neighbouring episode (one catalog files specials among the episodes, which shifted the count), or no title at all (another picked a live-action series of the same name).
-- When a catalog does not answer in time, the episode title is looked up again while the episode plays, and appears on Discord as soon as it is found.
-- Titles saved by earlier versions that may be off are looked up again once.
+- New versions are looked for a few seconds after the program starts, as well as once a day. An open settings window now shows a new version as soon as it is found, without reopening it.
+- The Updates tab shows what is new in an update with its paragraphs and bullet points, instead of one long run of text.
+
+Updating from 0.9.11 or earlier, the Updates tab still shows these notes as plain text one last time; from 0.9.12 on they are laid out properly.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it; there is nothing to install. An earlier version can install this one from its Updates tab; your settings are kept. Needs Windows 10/11.

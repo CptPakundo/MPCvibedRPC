@@ -237,3 +237,18 @@ func TestCheckFallsBackToTheWebsite(t *testing.T) {
 		t.Fatalf("both refused: %v", err)
 	}
 }
+
+func TestWhatsNew(t *testing.T) {
+	notes := "## MPCvibedRPC 9.9.9\r\n\r\n**Sample feature.**\r\n\r\n- One thing.\r\n- Another.\r\n\r\n### Get it\r\n- Download it.\r\n\r\n### Good to know\r\n- More."
+	if got := whatsNew(notes); got != "**Sample feature.**\n\n- One thing.\n- Another." {
+		t.Errorf("got %q", got)
+	}
+	if got := whatsNew("## Title\n\nText.\n\n> **Banner.** Words.\n\n### Get it\n"); got != "Text." {
+		t.Errorf("banner: %q", got)
+	}
+	for _, plain := range []string{"test release", "Line one\nLine two", "### Only a section"} {
+		if got := whatsNew(plain); got != plain {
+			t.Errorf("%q became %q", plain, got)
+		}
+	}
+}
