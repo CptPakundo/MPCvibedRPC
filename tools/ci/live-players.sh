@@ -89,7 +89,9 @@ else
   unset MPCRPC_HOME MPCRPC_BROWSER MPCRPC_FOREGROUND
 
   echo "-- opening IINA"
-  open -a IINA "$video" & # in the background: if macOS ever shows a prompt, the wait below fails instead of hanging
+  # by its path, not its name: a freshly installed app is not always registered with LaunchServices yet ("Unable to
+  # find application named IINA"); in the background, so that a prompt makes the wait below fail instead of hanging
+  open -a /Applications/IINA.app "$video" &
   pid=$!
   wait_socket "$tmp/iina-mpvsocket" || { pgrep -lf IINA || echo "IINA is not running"; ls -la "$tmp"; exit 1; }
   live IINA
