@@ -1,4 +1,4 @@
-# Publishes a release when a version tag is pushed:   git tag v0.9.9 && git push --tags
+# Publishes a release when a version tag is pushed:   git tag v0.9.10 && git push --tags
 # The program's own updater looks for its file (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to
 # it on the latest release; on macOS it links to the release page.
 name: release
@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           v='${{ github.ref_name }}'; v="${v#v}"
-          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "Tag $v is not a version like v0.9.9"; exit 1; }
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "Tag $v is not a version like v0.9.10"; exit 1; }
           mkdir -p dist
           if [ "$RUNNER_OS" = Linux ]; then
             for arch in amd64 arm64; do
@@ -60,7 +60,7 @@ jobs:
         shell: pwsh
         run: |
           $v = '${{ github.ref_name }}'.TrimStart('v')
-          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.9" }
+          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.10" }
           $next = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
           New-Item -ItemType Directory dist | Out-Null
           go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso

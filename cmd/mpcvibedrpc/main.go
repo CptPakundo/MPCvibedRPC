@@ -1,6 +1,6 @@
 // MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC (on macOS also IINA; on Linux any video player that
-// offers MPRIS) is playing as a Discord Rich Presence. Runs from the tray on Windows and in the background on macOS
-// and Linux; the settings are a small local web page opened in an app-style window.
+// offers MPRIS), or Plex once signed in, is playing as a Discord Rich Presence. Runs from the tray on Windows and in
+// the background on macOS and Linux; the settings are a small local web page opened in an app-style window.
 package main
 
 import (
@@ -28,7 +28,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.9"
+var version = "0.9.10"
 
 const preferredPort = 47654
 
@@ -236,7 +236,8 @@ func run() error {
 	}
 	winsys.CloseWindowBrowser(browserProfile) // a window browser left behind by a crash
 
-	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath()})
+	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath(), Version: version})
+	plexAcc := &plexAccount{st: st, eng: eng, log: log}
 	token := server.NewToken()
 
 	var (
@@ -269,6 +270,7 @@ func run() error {
 			go func() {
 				srv.Close()                               // ends the page's keep-alive connection, so an open window closes right away
 				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
+				plexAcc.stopWaiting()
 				eng.Stop()
 				tray.Close()
 				_ = os.Remove(ipcFile)
@@ -400,6 +402,29 @@ func run() error {
 				}
 			}
 			return r, nil
+		}},
+		"plex":        {Get: true, Fn: func(*jsonx.Obj) (any, error) { return plexAcc.state(), nil }},
+		"plex-signin": {Fn: func(*jsonx.Obj) (any, error) { return plexAcc.signIn() }},
+		"plex-cancel": {Fn: func(*jsonx.Obj) (any, error) { plexAcc.stopWaiting(); return plexAcc.state(), nil }},
+		"plex-signout": {Fn: func(*jsonx.Obj) (any, error) {
+			if err := plexAcc.signOut(); err != nil {
+				return nil, err
+			}
+			return plexAcc.state(), nil
+		}},
+		"plex-servers": {Fn: func(*jsonx.Obj) (any, error) {
+			list, err := plexAcc.servers()
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"servers": list}, nil
+		}},
+		"plex-server": {Fn: func(body *jsonx.Obj) (any, error) {
+			id, _ := body.M["id"].(string)
+			if err := plexAcc.choose(id); err != nil {
+				return nil, err
+			}
+			return plexAcc.state(), nil
 		}},
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := checkUpdates(true)

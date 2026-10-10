@@ -76,6 +76,8 @@ var Sections = []Section{
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
 		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
+		{Type: "heading", Label: "Plex"},
+		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
 	}},
 }
 

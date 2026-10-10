@@ -53,15 +53,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version 0.9.9 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.9" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
           go run ./tools/mkrsrc -version 0.9.10 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.10" -o dist/next.exe ./cmd/mpcvibedrpc
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.10" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version 0.9.11 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o dist/next.exe ./cmd/mpcvibedrpc
           Get-ChildItem dist | Format-Table Name, Length
           Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
       - name: Smoke test
         shell: pwsh
-        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.9 -NextVersion 0.9.10
+        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.10 -NextVersion 0.9.11
       - uses: actions/upload-artifact@v7
         with:
           name: MPCvibedRPC-windows
@@ -86,19 +86,19 @@ jobs:
         run: |
           mkdir -p dist
           for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=0.9.9" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=0.9.10" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
           done
           ls -l dist
           echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
       - name: Smoke test (Linux)
         if: runner.os == 'Linux'
         run: |
-          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.9
+          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.10
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
         shell: bash
       - name: Build (macOS app)
         if: runner.os == 'macOS'
-        run: ./tools/ci/package-macos.sh 0.9.9 dist
+        run: ./tools/ci/package-macos.sh 0.9.10 dist
         shell: bash
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
@@ -106,7 +106,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
           app="$RUNNER_TEMP/app/MPCvibedRPC.app"
-          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.9 "$app"
+          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.10 "$app"
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
       - name: Screenshot of the settings window and menu bar (macOS)
         if: always() && runner.os == 'macOS'
@@ -156,4 +156,23 @@ jobs:
           bus=""; [ "$RUNNER_OS" = Linux ] && bus="dbus-run-session --"
           PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players" $bus ./tools/ci/live-players.sh
           test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players::the script stopped before the end"; exit 1; }
+        shell: bash
+  plex:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - name: Install ffmpeg
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+      - name: Live test (Plex Media Server)
+        # the official server image, unclaimed; a stand-in player reports playback to it
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/plex-ok" ./tools/ci/run-annotated.sh "live Plex" ./tools/ci/live-plex.sh
+          test -f "$RUNNER_TEMP/plex-ok" || { echo "::error title=live Plex::the script stopped before the end"; exit 1; }
         shell: bash

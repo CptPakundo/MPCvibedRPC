@@ -41,6 +41,11 @@
   button.big { padding: 10px 18px; width: 100%; font-size: 15px; }
   button.danger:hover { border-color: var(--bad); color: var(--bad); }
   button:disabled { opacity: .55; cursor: default; }
+  .dlg-back { position: fixed; inset: 0; background: rgba(10, 12, 20, .55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+  .dlg h2 { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 8px; font-weight: 650; }
+  .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
+  .dlg .row { justify-content: flex-end; }
   .notice { border-left: 3px solid var(--warn); background: var(--field); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
   .notice p { margin: 0 0 8px; }
   .notice.info { border-color: var(--accent); }
@@ -49,6 +54,7 @@
   .field:first-of-type { border-top: 0; }
   .field label.line { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
   .help { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .help.bad { color: var(--bad); }
   input[type=text], input[type=number], input[type=password], select, textarea {
     font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%; max-width: 100%;
   }
@@ -114,7 +120,7 @@
     </header>
 
     <section class="card notice info hidden" id="welcome">
-      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in <span class="players">MPC-HC, MPC-BE, MPC-QT, mpv or VLC</span>.</p>
+      <p><b>Welcome!</b> For this to work, Discord has to allow it: <i>User Settings &gt; Activity Privacy &gt; "Share my activity"</i> must be on. Presence is already started: just play something in <span class="players">MPC-HC, MPC-BE, MPC-QT, mpv or VLC</span>. For Plex, sign in on the <b>Advanced</b> tab.</p>
       <p>You decide what is shown: the <b>Privacy</b> tab can hide titles or particular files, and switch off the online services that look up covers.</p>
       <div class="row"><button id="welcomeOk" class="primary">Got it</button><button id="welcomeGo">Open the Privacy tab</button></div>
     </section>
@@ -144,7 +150,7 @@
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
-      <p id="mpcHelpText"><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT, mpv or VLC and play something. MPC-QT works as it is; MPC-HC, MPC-BE and VLC need their web interface on, and mpv a line in mpv.conf. The button sets that up.</p>
+      <p id="mpcHelpText"><b>No player is answering.</b> Open MPC-HC, MPC-BE, MPC-QT, mpv or VLC and play something. MPC-QT works as it is; MPC-HC, MPC-BE and VLC need their web interface on, and mpv a line in mpv.conf. The button sets that up. Plex works once you sign in to it on the Advanced tab.</p>
       <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
     </section>
@@ -207,16 +213,37 @@
   const OS_TEXT = {
     darwin: {
       players: 'IINA, mpv, VLC or MPC-QT', here: 'this Mac', autoStart: 'Start at login', copyKey: 'Cmd+C',
-      help: '<b>No player is answering.</b> Open IINA, mpv, VLC or MPC-QT and play something. MPC-QT works as it is; IINA and mpv need an mpv option, and VLC its web interface on. The button sets that up.',
+      help: '<b>No player is answering.</b> Open IINA, mpv, VLC or MPC-QT and play something. MPC-QT works as it is; IINA and mpv need an mpv option, and VLC its web interface on. The button sets that up. Plex works once you sign in to it on the Advanced tab.',
     },
     linux: {
       players: 'VLC, mpv, Celluloid, Haruna, SMPlayer, MPC-QT or another video player', here: 'this computer', autoStart: 'Start at login', copyKey: 'Ctrl+C',
-      help: '<b>No player is answering.</b> Open VLC, Celluloid, Haruna, SMPlayer or another video player and play something: they are found through MPRIS, with nothing to set up. mpv needs a line in mpv.conf (or the mpv-mpris script), and the button adds it.',
+      help: '<b>No player is answering.</b> Open VLC, Celluloid, Haruna, SMPlayer or another video player and play something: they are found through MPRIS, with nothing to set up. mpv needs a line in mpv.conf (or the mpv-mpris script), and the button adds it. Plex works once you sign in to it on the Advanced tab.',
     },
   };
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
   const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
   const players = () => (osText() ? osText().players : PLAYERS);
+  // an in-page confirmation (the browser's confirm() and alert() would head the box with this page's address);
+  // with cancel set to null it is a message with a single button
+  const ask = (title, text, yes, danger, cancel = 'Cancel') => new Promise((resolve) => {
+    const prev = document.activeElement;
+    const ok = el('button', { textContent: yes, className: danger ? 'primary danger' : 'primary' });
+    const no = cancel ? el('button', { textContent: cancel }) : ok;
+    const box = el('div', { className: 'dlg' }, el('h2', { textContent: title }), el('p', { textContent: text }), el('div', { className: 'row' }, ...(cancel ? [no, ok] : [ok])));
+    box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
+    const back = el('div', { className: 'dlg-back' }, box);
+    const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
+    const key = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); done(false); }
+      else if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === ok ? no : ok).focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    back.onmousedown = (e) => { if (e.target === back) done(false); };
+    if (cancel) no.onclick = () => done(false);
+    ok.onclick = () => done(true);
+    document.body.append(back);
+    no.focus();
+  });
   const autoStartName = () => (osText() ? osText().autoStart : 'Start with Windows');
   function applyOsText() {
     const t = osText();
@@ -266,6 +293,7 @@
       const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
       for (const f of sec.fields) {
         if (f.type === 'heading') { d.append(el('h3', { className: 'grp', textContent: f.label })); continue; }
+        if (f.key === 'plexAddress') d.append(plexBox()); // the sign-in comes first in the Plex group
         const v = m.values[f.key];
         const wrap = el('div', { className: 'field' });
         const help = f.help ? el('div', { className: 'help', textContent: f.help }) : null;
@@ -331,8 +359,62 @@
     const box = el('div', {});
     box.append(
       el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. The player (' + players() + ') and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
+      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. While you are signed in to Plex, plex.tv is asked for your Plex servers when presence starts, and your Plex server tells this program what you play. The player (' + players() + ') and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
     );
+    return box;
+  }
+
+  // "Sign in to Plex" (Advanced tab). The sign-in is kept by the program: the page only ever sees the account name.
+  function plexBox() {
+    const text = el('div', { className: 'help' });
+    const err = el('div', { className: 'help bad hidden' });
+    const btn = el('button');
+    const out = el('button', { textContent: 'Sign out', className: 'hidden' });
+    const again = el('button', { textContent: 'Open the sign-in page again', className: 'hidden' });
+    const sel = el('select', { className: 'hidden' });
+    sel.setAttribute('aria-label', 'Plex server');
+    const box = el('div', { className: 'field' }, el('div', { textContent: 'Plex account' }), text, err,
+      el('div', { className: 'ctl' }, sel), el('div', { className: 'row', style: 'margin-top:6px' }, btn, again, out));
+    let cur = null, timer = null, listed = false;
+    const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
+    const listServers = async () => {
+      listed = true;
+      try {
+        const { servers } = await api('plex-servers', {});
+        sel.textContent = '';
+        servers.forEach((s) => sel.append(new Option(s.name + (s.owned ? '' : ' (shared with you)'), s.id, false, s.id === cur.server)));
+        if (!servers.length) sel.append(new Option('No Plex server in this account', '', true, true));
+        sel.disabled = servers.length < 2;
+      } catch (e) { listed = false; fail(e.message); }
+    };
+    const show = (p) => {
+      cur = p;
+      clearTimeout(timer);
+      fail(p.problem);
+      again.classList.toggle('hidden', !p.waiting);
+      out.classList.toggle('hidden', !p.signedIn || p.waiting);
+      sel.classList.toggle('hidden', !p.signedIn || p.waiting);
+      btn.className = p.signedIn && !p.waiting ? 'hidden' : p.waiting ? '' : 'primary';
+      if (p.waiting) {
+        text.textContent = 'Approve the sign-in on the plex.tv page that opened in your browser. This waits until you do.';
+        btn.textContent = 'Cancel';
+        timer = setTimeout(refresh, 2000);
+      } else if (p.signedIn) {
+        text.textContent = 'Signed in as ' + (p.user || 'your Plex account') + '. What you play on this server shows on Discord:';
+        if (!listed) { sel.textContent = ''; sel.append(new Option(p.serverName || 'Loading…', p.server || '', true, true)); listServers(); }
+      } else {
+        listed = false;
+        text.textContent = 'Shows what you play on Plex, on any device: the Plex app on this computer, Plex Web, a TV or a phone. Signing in opens plex.tv in your browser; this program only reads what plays and never sees your password.';
+        btn.textContent = 'Sign in to Plex';
+      }
+    };
+    const refresh = async () => { if (!box.isConnected) return; try { show(await api('plex')); } catch (_) { timer = setTimeout(refresh, 4000); } };
+    const act = (name, body) => { queue = queue.then(async () => { btn.disabled = out.disabled = sel.disabled = true; try { show(await api(name, body || {})); } catch (e) { fail(e.message); } btn.disabled = out.disabled = false; sel.disabled = sel.options.length < 2; }); };
+    btn.onclick = () => act(cur && cur.waiting ? 'plex-cancel' : 'plex-signin');
+    again.onclick = () => { if (cur && cur.url) window.open(cur.url, '_blank', 'noopener'); };
+    out.onclick = async () => { if (await ask('Sign out of Plex?', 'Discord stops showing what you play on Plex. You can sign in again at any time.', 'Sign out')) act('plex-signout'); };
+    sel.onchange = () => { if (sel.value) act('plex-server', { id: sel.value }); };
+    setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
     return box;
   }
 
@@ -436,9 +518,9 @@
   $('welcomeOk').onclick = dismissWelcome;
   $('welcomeGo').onclick = () => { dismissWelcome(); showTab('privacy'); };
 
-  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
-  $('reset').onclick = () => {
-    if (!confirm('Restore every setting to its default?\n\nThis also turns off ' + autoStartName() + ' and clears the TMDB key, name aliases, pinned covers and your Never show list.')) return;
+  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { await ask('Presence could not be changed', e.message, 'OK', false, null); } $('toggle').disabled = false; };
+  $('reset').onclick = async () => {
+    if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
     queue = queue.then(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
@@ -447,7 +529,7 @@
     $('webMsg').textContent = 'Working…';
     try {
       let r = await api('mpc-web', { closeMpc: false });
-      if (r.needsClose) { if (!confirm((r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
+      if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
       $('webMsg').textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
       if (r.settingsChanged) { try { fill(await api('state')); } catch (_) {} } // the mpv name or VLC's password may have been taken over
     } catch (e) { $('webMsg').textContent = e.message; }
@@ -483,7 +565,7 @@
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
-  $('quit').onclick = async () => { if (confirm(osText() ? (model.tray ? 'Quit MPCvibedRPC? Presence stops and the menu bar icon goes away.' : 'Quit MPCvibedRPC? Presence stops and the program closes.') : 'Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+  $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord will stop showing what you are watching' + (osText() ? (model.tray ? ', and the menu bar icon will be removed.' : ', and the program will close.') : ', and the tray icon will be removed.'), 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
   api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
     .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });

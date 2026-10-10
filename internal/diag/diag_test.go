@@ -65,3 +65,26 @@ func TestReportDefaultsAreQuiet(t *testing.T) {
 		t.Errorf("unexpected report:\n%s", got)
 	}
 }
+
+func TestReportLeaksNothingAboutPlex(t *testing.T) {
+	cfg := core.DefaultConfig()
+	cfg.PlexToken, cfg.PlexAccount, cfg.PlexUser, cfg.PlexClient = "SECRETTOKEN", 987654321, "SecretUser", "secretclientid"
+	cfg.PlexServer, cfg.PlexServerName, cfg.PlexAddress = "secretmachineid", "Secret Server", "http://192.168.1.20:32400"
+	got := Report(Input{Version: "1", System: "x", Config: cfg, App: store.App{UpdateRepo: store.DefaultUpdateRepo}, Log: []string{
+		`[2026-01-01T00:00:00.000Z] INFO Following the Plex server "Secret Server".`,
+		`[2026-01-01T00:00:00.000Z] WARN Could not reach the Plex server "Secret Server". Is it running, and can this computer reach it?`,
+	}})
+	for _, leak := range []string{"SECRET", "Secret", "secret", "987654321", "192.168"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("report leaks %q:\n%s", leak, got)
+		}
+	}
+	for _, want := range []string{"Plex: signed in, fixed server address", "plexToken = (set)", "plexAddress = (set)", "Following the Plex server"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report is missing %q:\n%s", want, got)
+		}
+	}
+	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Plex: off (not signed in)") {
+		t.Errorf("report without Plex:\n%s", got)
+	}
+}

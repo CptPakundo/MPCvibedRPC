@@ -84,7 +84,7 @@ func asMap(v any) map[string]any {
 
 func summarise(key string, v any) string {
 	switch key {
-	case "tmdbApiKey", "vlcPassword":
+	case "tmdbApiKey", "vlcPassword", "plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient", "plexAddress":
 		return "(set)"
 	case "clientId":
 		return "(custom)"
@@ -129,6 +129,17 @@ func Report(in Input) string {
 		vlc = fmt.Sprintf("port %d", in.Config.VlcPort)
 	}
 	w("Web interface port: %d, mpv connection: %s, VLC web interface: %s", in.Config.Port, orNone(in.Config.MpvPipe), vlc)
+	plex := "off (not signed in)"
+	if in.Config.PlexToken != "" {
+		plex = "signed in"
+		if in.Config.PlexServer == "" {
+			plex += ", no server chosen"
+		}
+		if in.Config.PlexAddress != "" {
+			plex += ", fixed server address"
+		}
+	}
+	w("Plex: %s", plex)
 	if in.Status.Hint != "" {
 		w("Player hint: %s", in.Status.Hint)
 	}

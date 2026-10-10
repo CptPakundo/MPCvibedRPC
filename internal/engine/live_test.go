@@ -14,8 +14,9 @@ import (
 //
 // MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
 // MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080). MPCRPC_LIVE_MPV_PIPE and
-// MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. MPCRPC_LIVE_PLAYER is the name the
-// player is shown under: MPC-QT, mpv, VLC, IINA, Celluloid, ...
+// MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. For Plex, MPCRPC_LIVE_PLEX_ADDRESS is the
+// server (followed without plex.tv; MPCRPC_LIVE_PLEX_TOKEN is its token, if it needs one). MPCRPC_LIVE_PLAYER is the
+// name the player is shown under: MPC-QT, mpv, VLC, IINA, Celluloid, Plex, ...
 func TestLivePlayer(t *testing.T) {
 	want := os.Getenv("MPCRPC_LIVE_PLAYER")
 	if want == "" {
@@ -32,6 +33,12 @@ func TestLivePlayer(t *testing.T) {
 	}
 	if p := os.Getenv("MPCRPC_LIVE_IINA_PIPE"); p != "" {
 		e.cfg.IinaPipe = p
+	}
+	if a := os.Getenv("MPCRPC_LIVE_PLEX_ADDRESS"); a != "" {
+		e.cfg.PlexAddress, e.cfg.PlexToken = a, os.Getenv("MPCRPC_LIVE_PLEX_TOKEN")
+		if e.cfg.PlexToken == "" {
+			e.cfg.PlexToken = "none" // a server that lets this computer in without signing in ignores it
+		}
 	}
 	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
 		e.cfg.VlcPassword = pw

@@ -1,5 +1,5 @@
-// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA or a player found
-// through MPRIS on Linux), looks up artwork and keeps Discord up to date.
+// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a player found
+// through MPRIS on Linux, or Plex), looks up artwork and keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
@@ -24,6 +24,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPCvibedRPC/internal/plex"
 	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
 )
 
@@ -41,6 +42,10 @@ type Options struct {
 	Pipes func(cfg core.Config) []PlayerPipe
 	// MPRIS, when not nil, replaces the MPRIS players asked on Linux (tests); see QueryMPRIS.
 	MPRIS func(timeout time.Duration) []*core.Info
+	// Version is the program's version (Plex is told it).
+	Version string
+	// PlexTV, when set, replaces plex.tv and clients.plex.tv (tests).
+	PlexTV string
 }
 
 // PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.
@@ -73,7 +78,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, or a Linux player found through MPRIS
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a Linux player found through MPRIS, or Plex
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
@@ -113,6 +118,7 @@ type Engine struct {
 	player     string // the player that answered last
 	vlc        *vlchttp.Reader
 	vlcProblem string // why VLC's web interface did not answer (logged once; the window shows it)
+	plex       *plex.Watcher
 	nowPlaying *string
 	preview    *core.Preview
 	paused     bool
@@ -293,6 +299,19 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 				if playing(in) {
 					info = in
 					break
+				}
+			}
+		}
+		if info == nil {
+			e.mu.Lock()
+			w := e.plex
+			e.mu.Unlock()
+			if w != nil {
+				if in := w.Now(); in != nil {
+					in.Player = "Plex"
+					if playing(in) {
+						info = in
+					}
 				}
 			}
 		}
@@ -641,6 +660,18 @@ func (e *Engine) start() {
 		Client:     e.opts.HTTPClient,
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
 	})
+	e.plex = nil
+	if cfg.PlexToken != "" {
+		e.plex = &plex.Watcher{
+			Client:  &plex.Client{HTTP: e.opts.HTTPClient, ClientID: cfg.PlexClient, Version: e.opts.Version, TVBase: e.opts.PlexTV, ResourcesBase: e.opts.PlexTV},
+			Token:   cfg.PlexToken,
+			Account: cfg.PlexAccount,
+			Server:  cfg.PlexServer,
+			Address: cfg.PlexAddress,
+			Log:     e.log,
+		}
+		go e.plex.Run(ctx)
+	}
 	e.mu.Unlock()
 	places := []string{fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT)", cfg.Port), "MPC-QT's own connection"}
 	if cfg.MpvPipe != "" {
@@ -654,6 +685,9 @@ func (e *Engine) start() {
 	}
 	if HasMPRIS && cfg.Mpris {
 		places = append(places, "the video players on D-Bus (MPRIS)")
+	}
+	if cfg.PlexToken != "" {
+		places = append(places, "your Plex server")
 	}
 	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
@@ -706,6 +740,7 @@ func (e *Engine) stop() {
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
+	e.plex = nil // its run ended with the run's context
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }
@@ -771,6 +806,13 @@ func (e *Engine) Status() Status {
 		s.Hidden = e.hidden
 		s.Preview = e.preview
 		s.Hint = e.vlcProblem
+		if e.plex != nil {
+			if p := e.plex.Problem(); p != "" && s.Hint == "" {
+				s.Hint = p
+			} else if p != "" {
+				s.Hint += " " + p
+			}
+		}
 	}
 	return s
 }
