@@ -78,7 +78,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, or a Linux player found through MPRIS
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a Linux player found through MPRIS, or Plex
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).

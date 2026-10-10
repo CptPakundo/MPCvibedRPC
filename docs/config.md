@@ -17,6 +17,8 @@ shown here.
 | `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after every other player. |
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
+| `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
+| `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Advanced tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. |
 
 ## How it looks

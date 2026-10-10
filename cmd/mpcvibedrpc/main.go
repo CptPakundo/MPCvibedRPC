@@ -1,6 +1,6 @@
 // MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC (on macOS also IINA; on Linux any video player that
-// offers MPRIS) is playing as a Discord Rich Presence. Runs from the tray on Windows and in the background on macOS
-// and Linux; the settings are a small local web page opened in an app-style window.
+// offers MPRIS), or Plex once signed in, is playing as a Discord Rich Presence. Runs from the tray on Windows and in
+// the background on macOS and Linux; the settings are a small local web page opened in an app-style window.
 package main
 
 import (

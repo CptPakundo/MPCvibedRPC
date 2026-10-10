@@ -6,7 +6,8 @@ whenever a change makes something here wrong (a new player, setting, CI step, re
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB exe, nothing to install) that shows what
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
-ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**. It talks to the Discord desktop app over its
+ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex** on every system (any device the user plays on,
+read from their Plex server after "Sign in to Plex"). It talks to the Discord desktop app over its
 local IPC pipe; the settings window is a local web page shown in an Edge/Chrome `--app=` window.
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
@@ -43,12 +44,13 @@ friend of the owner on a real Mac.
 ## Layout
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `quit`, ...), update checks, tray, quit order |
+| `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `plex*`, `quit`, ...), update checks, tray, quit order |
 | `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
+| `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store` | `config.json`, the settings window layout (`schema.go`), validation |
@@ -58,19 +60,28 @@ friend of the owner on a real Mac.
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe), `smoke-unix.sh` (macOS/Linux), `live-players.sh` (real players on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe), `smoke-unix.sh` (macOS/Linux), `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
 `engine.fetchPlayer` asks, in this order: the MPC web interface (`/variables.html` on `port`, named by `core.PlayerOf`:
 MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv's pipe (`mpvPipe`), on macOS IINA's
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
-set), and last, on Linux, the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`). **The first player that is
+set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), and last Plex, only while signed in
+(`plexToken`; see below). **The first player that is
 playing wins; otherwise the first that answers is reported.** MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. MPRIS only reads players on the allowlist in
 `internal/mpris` (music players and browsers offer MPRIS too and must never show as "Watching").
+
+Plex (`internal/plex`): "Sign in to Plex" gets a token through a plex.tv PIN the user approves in their browser
+(`cmd/mpcvibedrpc/plex.go`); the window never receives the token. While presence runs, a watcher looks the chosen
+server up on plex.tv (`clients.plex.tv/api/v2/resources`, or uses `plexAddress`), checks `/identity`, and reads
+Server-Sent Events from `/:/eventsource/notifications?filters=playing` (a `PlaySessionStateNotification` per player
+report, every few seconds). Titles come from `/library/metadata/<ratingKey>` and are written like a file name
+("Sample Show - S01E02 - Title", "Sample Movie (2020)") so the usual parsing and lookups apply. On a server the user owns
+only their own sessions count (`/status/sessions`: user 1 or the account id); music and photos are skipped.
 
 Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
 state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
@@ -97,7 +108,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.9" -o dist/
   the tests. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
   app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
-  mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. **This is the only
+  mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
+  `tools/ci/live-plex.sh`: the live engine test against the official Plex Media Server image (unclaimed, no account)
+  with a stand-in player that reports playback through `/:/timeline`. **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
@@ -130,10 +143,14 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.9" -o dist/
 - Live engine test against a real player, with the test's own fake Discord (opt-in):
   `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count=1 -run TestLivePlayer -v ./internal/engine`
   (also `MPCRPC_LIVE_PORT`, `MPCRPC_LIVE_VLC_PASSWORD`, `MPCRPC_LIVE_VLC_PORT`, `MPCRPC_LIVE_MPV_PIPE`,
-  `MPCRPC_LIVE_IINA_PIPE`; `MPCRPC_LIVE_PLAYER` is the name shown: mpv, IINA, VLC, Celluloid, ...). Use portable player builds in a scratch
+  `MPCRPC_LIVE_IINA_PIPE`, `MPCRPC_LIVE_PLEX_ADDRESS`, `MPCRPC_LIVE_PLEX_TOKEN`; `MPCRPC_LIVE_PLAYER` is the name shown: mpv, IINA, VLC, Celluloid, Plex, ...). Use portable player builds in a scratch
   folder (MPC-QT: `portable.txt`; MPC-BE: an ini next to the exe; mpv: `portable_config\`; VLC: a `portable\` folder
   next to `vlc.exe`), verify their published checksums, and check `%APPDATA%`, `%LOCALAPPDATA%` and `HKCU\Software`
   afterwards. Test videos can be made with mpv's encoder from `lavfi` test sources, with generic names.
+- Plex: never sign in to a real Plex account, and never call plex.tv's sign-in, from tests or manual checks without the
+  owner's OK. The sign-in, the server list and the notifications are tested against fakes (`internal/plex`,
+  `cmd/mpcvibedrpc/plex_test.go`, `internal/engine/plex_test.go`); the window's Plex states can be shown by overriding
+  `window.fetch` for `/api/plex*`.
 - Leave nothing running: quit test copies, and only stop processes you started.
 
 ## Recipes

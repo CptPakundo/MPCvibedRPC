@@ -19,7 +19,7 @@ docker run -d --name pms --network host -e TZ=UTC -e "ALLOWED_NETWORKS=127.0.0.1
 
 # up once /identity has a machine identifier and no start-up state
 for i in $(seq 1 150); do
-  s="$(curl -s "$P/identity" || true)"
+  s="$(curl -s -H "Accept: application/json" "$P/identity" || true)"
   if echo "$s" | grep -q machineIdentifier && ! echo "$s" | grep -q startState; then break; fi
   [ "$i" = 150 ] && { echo "the Plex server did not start"; docker logs pms 2>&1 | tail -n 30; exit 1; }
   sleep 2

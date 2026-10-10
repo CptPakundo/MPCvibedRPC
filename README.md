@@ -3,9 +3,9 @@
 > **Entirely AI-generated ("vibe coded").** Every line of this program, its tests, its documentation and its build setup was written by an AI (Claude, by Anthropic) in conversation with the repository owner. The owner did not write it, takes **no credit** for it, and has not reviewed it line by line: their part was giving prompts and trying the result. Use it accordingly. There is no warranty (see `LICENSE`), no promise that it is correct, secure or maintained, and nobody here is an expert you can ask about the code. The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
 Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows, IINA, mpv, VLC and MPC-QT on macOS, and VLC,
-mpv, Celluloid, Haruna, SMPlayer and most other video players on Linux, based on the approach of
+mpv, Celluloid, Haruna, SMPlayer and most other video players on Linux, plus Plex on all three, based on the approach of
 [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC):
-it reads what's playing from the player (MPC-HC's or VLC's built-in web interface, mpv's IPC connection, or MPRIS on Linux) and forwards what you're watching to Discord.
+it reads what's playing from the player (MPC-HC's or VLC's built-in web interface, mpv's IPC connection, MPRIS on Linux, or your Plex server once you sign in to Plex) and forwards what you're watching to Discord.
 MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 
 <p align="center">
@@ -18,7 +18,7 @@ MIT licensed; see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install and nothing else is needed.
 2. A small window opens and presence is already on: play something in your player. If no player is answering, the window offers
    **Set up the player connection** (see [Players](#players): MPC-QT needs nothing, MPC-HC, MPC-BE and VLC get their web
-   interface switched on, mpv gets one line in `mpv.conf`).
+   interface switched on, mpv gets one line in `mpv.conf`). For **Plex**, press **Sign in to Plex** on the Advanced tab.
 3. Optional: switch on **Start with Windows**. It then starts quietly at login, with a tray icon
    (double-click: settings; right-click: start/stop presence, quit). Turn off **Show this window when I open the app**
    (General tab) if you want it to go straight to the tray when you open it yourself too.
@@ -27,7 +27,7 @@ A new install greets you with a short welcome card (it reminds you about Discord
 
 Run the program again at any time to bring the window back. Closing the window leaves it running in the tray.
 
-Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC), the **Discord
+Requirements: Windows 10/11 (Edge or Chrome for the window; Edge ships with Windows), a supported player (MPC-HC, MPC-BE, MPC-QT, mpv or VLC) or a Plex account, the **Discord
 desktop app** with User Settings > Activity Privacy > "Share my activity" on.
 
 ### macOS
@@ -53,8 +53,8 @@ desktop app** with User Settings > Activity Privacy > "Share my activity" on.
    bottom of the window. **Start at login** (General tab) adds it to your desktop's autostart.
 
 Requirements on macOS and Linux: the **Discord desktop app** (on Linux also the Flatpak or Snap version) with
-"Share my activity" on, and a supported player. Music players and web browsers are never shown, even though they offer
-MPRIS too.
+"Share my activity" on, and a supported player (or a Plex account: **Sign in to Plex** on the Advanced tab). Music
+players and web browsers are never shown, even though they offer MPRIS too.
 
 ### All systems
 Checking a download: each release file has a `.sha256` file next to it, and GitHub keeps a signed record that it was
@@ -114,6 +114,7 @@ Without a GitHub repository, just replace the program by hand; settings are kept
 | `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
 | `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
 | `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
+| `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
@@ -122,9 +123,9 @@ Without a GitHub repository, just replace the program by hand; settings are kept
 | `docs/` | the full settings reference (`docs/config.md`) |
 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
-(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC and a fake Discord, and the
+(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
-program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid) and macOS (mpv, and IINA after the program has set it up).
+program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, and a real Plex Media Server) and macOS (mpv, and IINA after the program has set it up).
 
 ## Behaviour
 - **Watching, not Playing.** The activity is sent as type "Watching" with a real Discord
@@ -238,14 +239,28 @@ The program asks the players in this order and shows the first one that is playi
 | IINA (macOS) | its mpv core's JSON IPC | IINA Settings > Advanced: enable advanced settings and add the mpv option `input-ipc-server` with a socket path. The button does both (it keeps a socket you already set) and IINA uses it once it is reopened. |
 | VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. On macOS the same, in `~/Library/Preferences/org.videolan.vlc/vlcrc`. On Linux VLC needs none of this: it is found through MPRIS. |
 | Linux video players | MPRIS over D-Bus: VLC, Celluloid, Haruna, SMPlayer, GNOME Videos (Totem), Showtime, Clapper, Dragon Player, Kodi, Parole, QMPlay2, MPC-QT, and mpv with the mpv-mpris script | none; **Advanced > Find video players through MPRIS** switches it off. Music players and web browsers are left out. |
+| Plex | your Plex Media Server's play notifications, for whatever you play with your Plex account: the Plex app on this computer, Plex Web, a TV, a phone | **Advanced > Sign in to Plex**: plex.tv opens in your browser, you approve the sign-in there (the program never sees your password), and it follows your server (choose another one under the button; your own servers come first, then those shared with you). **Plex server address** is only needed when this computer cannot reach the server at the addresses plex.tv lists. |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; MPRIS players come last.
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; then MPRIS players, and Plex last, only while you are signed in.
+
+Plex: the program signs in like a Plex app (it introduces itself to Plex as "MPCvibedRPC") and
+keeps the sign-in in `config.json`; **Sign out** or **Restore defaults** removes it. It only reads: titles, episode
+numbers and the position of what you play. On a server you own, it shows only your own playback, not that of people you
+share with; music and photos are never shown as "Watching". Plex playback on any of your devices counts, not only on this
+computer. The episode or movie name comes from your server, and cover art is looked up the same way as for files. Plex
+is tried on GitHub's test machines with every change: the official Plex Media Server, without a Plex account, with a
+stand-in player reporting playback to it. Signing in with a real Plex account, servers shared by someone else and real
+Plex apps have not been tried yet.
 
 ## Troubleshooting
 - Nothing shows: the window's player pill says which player is reachable, if any. If none, press **Set up the player connection**,
   or (MPC-HC, MPC-BE) check http://127.0.0.1:13579/variables.html while a video plays. mpv only reads `mpv.conf` when it starts, so restart it after setting it up.
   VLC: the window says when VLC refuses the password or the port belongs to another program (8080 is a common
   default; change it in VLC and in **Advanced > VLC web interface port**).
+- Plex: the window says when the server cannot be reached or Plex refused the sign-in (then sign out and sign in
+  again). If the server runs on your network but is not found, put its address in **Advanced > Plex server address**
+  (for example `http://192.168.1.20:32400`). Plex shows up once something plays and the server tells the program;
+  Plex apps report every few seconds, so the status can lag that much behind.
 - Discord pill: "on standby" until something plays (Discord is only contacted then). If it stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser); starting it before or after the program both work.
 - No icon: image keys in the settings must match art assets in the Discord application.
 - Reporting a problem: on the **Log** tab, **Copy diagnostics** copies the version, the settings that differ from the defaults and the recent log, with titles, file names and paths left out (the text is shown so you can check it first). Paste it into the issue.
