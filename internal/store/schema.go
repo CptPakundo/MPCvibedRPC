@@ -72,12 +72,12 @@ var Sections = []Section{
 		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
 		{Key: "iinaPipe", Type: "text", Label: "IINA connection", Help: "The input-ipc-server path in IINA's mpv options (IINA Settings > Advanced). Set up the player connection adds it; IINA reads it when it next starts. Leave empty to not look for IINA.", OS: []string{"darwin"}},
 		{Key: "mpris", Type: "bool", Label: "Find video players through MPRIS", Help: "Reads VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and other video players over D-Bus, with nothing to set up. Music players and web browsers are never shown.", OS: []string{"linux"}},
-		{Type: "heading", Label: "Plex"},
-		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
 		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
+		{Type: "heading", Label: "Plex"},
+		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
 	}},
 }
 

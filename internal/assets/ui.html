@@ -414,7 +414,7 @@
     again.onclick = () => { if (cur && cur.url) window.open(cur.url, '_blank', 'noopener'); };
     out.onclick = async () => { if (await ask('Sign out of Plex?', 'Discord stops showing what you play on Plex. You can sign in again at any time.', 'Sign out')) act('plex-signout'); };
     sel.onchange = () => { if (sel.value) act('plex-server', { id: sel.value }); };
-    refresh();
+    setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
     return box;
   }
 
