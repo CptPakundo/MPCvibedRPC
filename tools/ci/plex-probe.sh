@@ -6,7 +6,8 @@ P=http://127.0.0.1:32400
 H=(-H "Accept: application/json" -H "X-Plex-Client-Identifier: ci-probe-player" -H "X-Plex-Product: CI Player" -H "X-Plex-Device-Name: CI" -H "X-Plex-Platform: Linux" -H "X-Plex-Version: 1.0")
 show() { echo "=== $1"; }
 
-show "plex.tv pin"
+: show "plex.tv pin" # recorded in the first run
+if false; then
 pin=$(curl -s -X POST -H "Accept: application/json" -H "X-Plex-Product: MPCvibedRPC" -H "X-Plex-Client-Identifier: ci-probe-0001" "https://plex.tv/api/v2/pins?strong=true")
 echo "$pin" | sed -E 's/"code":"[^"]*"/"code":"(code)"/'
 id=$(echo "$pin" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' 2>/dev/null || echo "")
@@ -17,13 +18,15 @@ if [ -n "$id" ]; then
   show "plex.tv user without token"
   curl -s -o /dev/null -w "%{http_code}\n" -H "Accept: application/json" -H "X-Plex-Client-Identifier: ci-probe-0001" "https://plex.tv/api/v2/user"
 fi
+fi
 
 mkdir -p "$T/plexmedia/Movies/Sample Movie (2020)" "$T/plexmedia/TV/Sample Show/Season 01" "$T/plexcfg"
 ffmpeg -loglevel error -y -f lavfi -i testsrc=duration=300:size=320x240:rate=25 -f lavfi -i sine=duration=300 -c:v libx264 -preset ultrafast -c:a aac -shortest "$T/plexmedia/Movies/Sample Movie (2020)/Sample Movie (2020).mkv"
 cp "$T/plexmedia/Movies/Sample Movie (2020)/Sample Movie (2020).mkv" "$T/plexmedia/TV/Sample Show/Season 01/Sample Show - S01E02.mkv"
 docker run -d --name pms --network host -e TZ=UTC -e "ALLOWED_NETWORKS=127.0.0.1/255.255.255.255" \
   -v "$T/plexcfg:/config" -v "$T/plexmedia:/data" plexinc/pms-docker:latest > /dev/null
-for i in $(seq 1 90); do curl -s -o /dev/null "$P/identity" && break; sleep 2; done
+for i in $(seq 1 150); do curl -s "$P/identity" | grep -q machineIdentifier && break; sleep 2; done
+echo "ready after $i tries"
 show "identity"; curl -s "${H[@]}" "$P/identity"; echo
 show "root"; curl -s "${H[@]}" "$P/" | head -c 1500; echo
 show "sessions (none yet)"; curl -s -w " [%{http_code}]" "${H[@]}" "$P/status/sessions"; echo
