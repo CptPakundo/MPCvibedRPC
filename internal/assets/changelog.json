@@ -1,4 +1,10 @@
 [
+  {"version": "0.9.11", "date": "2026-10-10", "items": [
+    "📺 Anime episode titles come from MyAnimeList first, which numbers episodes the way your files do.",
+    "🎯 Long-running anime no longer show a neighbouring episode's title, or none at all.",
+    "🧭 A show that shares its name with a remake or a live-action series gets its own episode list.",
+    "🔁 An episode title that did not come is looked up again while the episode plays."
+  ]},
   {"version": "0.9.10", "date": "2026-10-10", "items": [
     "🎬 Plex: sign in on the Advanced tab to show what you watch on Plex, on any device.",
     "📝 What's new: this list appears once after each update, and the Changelog button shows it any time.",

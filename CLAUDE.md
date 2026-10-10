@@ -104,10 +104,11 @@ the other MPRIS players need nothing.
 ```bash
 go vet ./...
 go test -count=1 ./...
-go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.10" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
 ```
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
-  the tests. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
+  the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
+  `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
   app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
   mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs

@@ -19,7 +19,7 @@ var Sources = []SourceInfo{
 	{"tvmaze", "TVmaze", "TV shows, seasons and episode names.", "api.tvmaze.com"},
 	{"anilist", "AniList", "Anime titles and covers.", "graphql.anilist.co"},
 	{"kitsu", "Kitsu", "Anime titles, covers and episode names.", "kitsu.io"},
-	{"jikan", "MyAnimeList (via Jikan)", "Anime titles and covers.", "api.jikan.moe"},
+	{"jikan", "MyAnimeList (via Jikan)", "Anime titles, covers and episode names.", "api.jikan.moe"},
 	{"wikipedia", "Wikipedia", "A last-resort cover image from the article.", "wikipedia.org"},
 	{"bulbapedia", "Bulbapedia", "Episode names for files named with a production code.", "bulbapedia.bulbagarden.net"},
 }

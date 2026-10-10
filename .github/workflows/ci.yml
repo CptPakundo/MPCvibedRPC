@@ -2,10 +2,14 @@
 # it for real, and runs the engine against real players on Linux and macOS.
 name: ci
 on:
+  # A change to documentation only (the README and other top-level .md files, docs/, the issue templates, the release
+  # notes) changes nothing that is built or run, so it is not tested; a change that also touches anything else is.
   push:
     branches: ['**']
     tags-ignore: ['v*']
+    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**', '.github/release-notes.md']
   pull_request:
+    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**', '.github/release-notes.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,15 +57,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version 0.9.10 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.10" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
           go run ./tools/mkrsrc -version 0.9.11 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o dist/next.exe ./cmd/mpcvibedrpc
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.11" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go run ./tools/mkrsrc -version 0.9.12 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o dist/next.exe ./cmd/mpcvibedrpc
           Get-ChildItem dist | Format-Table Name, Length
           Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
       - name: Smoke test
         shell: pwsh
-        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.10 -NextVersion 0.9.11
+        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version 0.9.11 -NextVersion 0.9.12
       - uses: actions/upload-artifact@v7
         with:
           name: MPCvibedRPC-windows
@@ -86,19 +90,19 @@ jobs:
         run: |
           mkdir -p dist
           for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=0.9.10" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=0.9.11" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
           done
           ls -l dist
           echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
       - name: Smoke test (Linux)
         if: runner.os == 'Linux'
         run: |
-          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.10
+          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" 0.9.11
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
         shell: bash
       - name: Build (macOS app)
         if: runner.os == 'macOS'
-        run: ./tools/ci/package-macos.sh 0.9.10 dist
+        run: ./tools/ci/package-macos.sh 0.9.11 dist
         shell: bash
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
@@ -106,7 +110,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
           app="$RUNNER_TEMP/app/MPCvibedRPC.app"
-          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.10 "$app"
+          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" 0.9.11 "$app"
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
       - name: Screenshot of the settings window and menu bar (macOS)
         if: always() && runner.os == 'macOS'

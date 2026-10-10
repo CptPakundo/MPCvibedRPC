@@ -141,6 +141,11 @@ type Engine struct {
 	statKey   string
 	statFound bool
 
+	// an episode shown without its title (a catalog did not answer) is asked about again a few times while it plays
+	recheckKey string
+	recheckAt  time.Time
+	rechecks   int
+
 	// stopMu serialises Start/Stop/ApplySettings.
 	stopMu sync.Mutex
 }
@@ -506,6 +511,10 @@ func (e *Engine) tick(r *run) {
 		e.prev = nil
 	}
 	update, next := core.NeedsUpdate(e.prev, info, now.UnixMilli())
+	if !update && info.State == 2 && !e.recheckAt.IsZero() && now.After(e.recheckAt) && e.recheckKey == info.Player+"/"+info.File {
+		update = true // look the episode title up again (see after sending)
+		e.recheckAt = time.Time{}
+	}
 	e.prev = next
 	e.paused = info.State == 1
 	if info.State != 1 {
@@ -541,9 +550,10 @@ func (e *Engine) tick(r *run) {
 	}
 
 	var (
-		activity *core.Activity
-		display  string
-		found    *core.Art
+		activity  *core.Activity
+		display   string
+		found     *core.Art
+		noEpTitle bool // an episode whose title was wanted but did not come
 	)
 	if cfg.HideTitle {
 		// nothing about the file is used: no parsing, no lookups, and no title in the status, the window or the log
@@ -572,6 +582,8 @@ func (e *Engine) tick(r *run) {
 			return
 		}
 		activity = core.BuildActivity(info, &cfg, time.Now().UnixMilli(), media, found)
+		noEpTitle = cfg.ShowArtwork && cfg.EpisodeTitles && media.IsEpisode && media.Episode != core.NA && media.EpTitle == "" &&
+			(found == nil || found.Episode == nil)
 		display = media.Display
 	}
 	if !e.isCurrent(r) {
@@ -590,6 +602,17 @@ func (e *Engine) tick(r *run) {
 	e.shown = true
 	d := display
 	e.statShown(info.Player+"/"+info.File, info.Player, found != nil) // player names have no slash
+	if key := info.Player + "/" + info.File; noEpTitle {
+		if e.recheckKey != key {
+			e.recheckKey, e.rechecks, e.recheckAt = key, 0, time.Time{}
+		}
+		if e.recheckAt.IsZero() && e.rechecks < len(recheckAfter) {
+			e.recheckAt = time.Now().Add(time.Duration(float64(e.pauseUnit) * recheckAfter[e.rechecks]))
+			e.rechecks++
+		}
+	} else if e.recheckKey == key {
+		e.recheckAt = time.Time{}
+	}
 	e.nowPlaying = &d
 	e.paused = info.State == 1
 	sent := activity
@@ -837,3 +860,7 @@ func pollInterval(cfg core.Config) time.Duration {
 	}
 	return interval
 }
+
+// recheckAfter is when an episode shown without its title is looked up again, in minutes after it was shown (or after
+// the previous try): a catalog that did not answer gets another chance while the episode plays.
+var recheckAfter = []float64{2.5, 5, 15}

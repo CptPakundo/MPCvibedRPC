@@ -36,11 +36,15 @@ names come from, and how each player is read.
     If a season can't be placed you get the show's poster and no season name, never a guess.
   - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it with `artworkAliases` or `artworkOverrides` on the Advanced tab (see the end of this list).
   - **Episode titles.** When the filename has an episode number but no name
-    (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key) and shown as
-    `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
+    (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key; for anime MyAnimeList first)
+    and shown as `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
     you keep the plain `E03`. Turn off with `episodeTitles: false`. An anime matched on AniList under its
     Japanese name is also looked up under its English name, which is how TVmaze lists it; a running episode
     number (`Show - 67`) is placed in the right season there, and the file's own number stays on the card.
+    When several shows share a name (an anime and a later live-action series), the one from the matched show's year
+    is used. Cinemeta is not used to count a running number through an anime's seasons, because its seasons can hold
+    specials that shift the count. If a catalog does not answer, the title is asked for again while the episode
+    plays (after about 2.5, 5 and 15 minutes).
   - **Info lines.** With a catalog match, a movie shows its year and genres (`1999 · Action, Adventure`) and
     its rating and director (`★ 7.1 · Dir. <name>`); an episode shows its title line and
     the genres and rating (`Action, Adventure · ★ 8.3`). The data comes from Cinemeta (keyed by the IMDb id, cached) and is

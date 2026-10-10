@@ -109,6 +109,9 @@ func (a *Artwork) load() {
 			if string(v) != "null" {
 				var ep core.ArtEpisode
 				if json.Unmarshal(v, &ep) == nil {
+					if ep.Source == "Cinemeta" && ep.Absolute {
+						continue // counted through Cinemeta's seasons, which can be off for anime: looked up again
+					}
 					e.ep = &ep
 				}
 			}
@@ -1249,6 +1252,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 		if present {
 			ep = cached.ep
 		} else if !missEp {
+			failed := false // a source did not answer (rather than not having the episode)
 			var epMedia *core.Media
 			if media.IsEpisode {
 				epMedia = media
@@ -1263,7 +1267,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 				epMedia = &cp
 			}
 			if epMedia != nil {
-				ep = a.res.Find(epMedia, base, query, a.warnOnce)
+				ep = a.res.Find(epMedia, base, query, func(k, msg string) { failed = true; a.warnOnce(k, msg) })
 			}
 			a.mu.Lock()
 			if epMedia == nil && base != nil {
@@ -1272,7 +1276,11 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 			if ep != nil {
 				a.disk[epKey] = &diskEntry{isEp: true, ep: ep}
 			} else if epMedia != nil {
-				a.misses[epKey] = time.Now().Add(30 * time.Minute)
+				wait := 30 * time.Minute
+				if failed {
+					wait = 2 * time.Minute // a service was down or slow: ask again soon
+				}
+				a.misses[epKey] = time.Now().Add(wait)
 			}
 			a.mu.Unlock()
 			if ep != nil {
