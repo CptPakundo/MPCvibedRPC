@@ -214,5 +214,8 @@ One branch and one PR per release: the change, the version bump and the release 
    publishes, and then runs `verify` (`tools/ci/verify-release.ps1`): the ten assets, every checksum and build record,
    the exe's version, that it is the latest release, and a real self-update from the previous release.
 4. Read the `verify` job's log (`gh run view --log`) and report. Nothing needs re-running locally after a release.
+5. A release with new features also updates the repository to match: its description and topics
+   (`gh repo edit --description ... --add-topic ...`), so they name every player and system the program supports.
+   The owner gave a standing go-ahead for this.
 
 Merging, tagging and publishing are outward-facing: do them only with the owner's go-ahead.
