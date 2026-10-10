@@ -25,19 +25,26 @@ ffmpeg -loglevel error -y -f lavfi -i testsrc=duration=300:size=320x240:rate=25 
 cp "$T/plexmedia/Movies/Sample Movie (2020)/Sample Movie (2020).mkv" "$T/plexmedia/TV/Sample Show/Season 01/Sample Show - S01E02.mkv"
 docker run -d --name pms --network host -e TZ=UTC -e "ALLOWED_NETWORKS=127.0.0.1/255.255.255.255" \
   -v "$T/plexcfg:/config" -v "$T/plexmedia:/data" plexinc/pms-docker:latest > /dev/null
-for i in $(seq 1 150); do curl -s "$P/identity" | grep -q machineIdentifier && break; sleep 2; done
+for i in $(seq 1 150); do s=$(curl -s "$P/identity"); echo "$s" | grep -q machineIdentifier && ! echo "$s" | grep -q startState && break; sleep 2; done
 echo "ready after $i tries"
 show "identity"; curl -s "${H[@]}" "$P/identity"; echo
 show "root"; curl -s "${H[@]}" "$P/" | head -c 1500; echo
 show "sessions (none yet)"; curl -s -w " [%{http_code}]" "${H[@]}" "$P/status/sessions"; echo
 
 show "create sections"
-curl -s -w " [%{http_code}]\n" -X POST "${H[@]}" "$P/library/sections?name=Movies&type=movie&agent=tv.plex.agents.none&scanner=Plex%20Video%20Files%20Scanner&language=xn&location=%2Fdata%2FMovies"
-curl -s -w " [%{http_code}]\n" -X POST "${H[@]}" "$P/library/sections?name=TV&type=show&agent=tv.plex.agents.none&scanner=Plex%20Series%20Scanner&language=xn&location=%2Fdata%2FTV"
+add() { echo "-- $1"; curl -s -w " [%{http_code}]
+" -X POST "${H[@]}" "$P/library/sections?$1&language=xn"; }
+add "name=Movies&type=movie&agent=tv.plex.agents.none&scanner=Plex%20Movie&location=%2Fdata%2FMovies"
+add "name=TV&type=show&agent=tv.plex.agents.none&scanner=Plex%20TV%20Series&location=%2Fdata%2FTV"
+add "name=Movies2&type=movie&agent=com.plexapp.agents.none&scanner=Plex%20Movie%20Scanner&location=%2Fdata%2FMovies"
+add "name=TV2&type=show&agent=com.plexapp.agents.none&scanner=Plex%20Series%20Scanner&location=%2Fdata%2FTV"
+show "sections"; curl -s "${H[@]}" "$P/library/sections" | head -c 1500; echo
+for k in 1 2 3 4; do curl -s -o /dev/null -w "refresh $k %{http_code}
+" "${H[@]}" "$P/library/sections/$k/refresh"; done
 rk=""; ek=""
 for i in $(seq 1 60); do
-  rk=$(curl -s "${H[@]}" "$P/library/sections/1/all" | python3 -c 'import json,sys; m=json.load(sys.stdin)["MediaContainer"].get("Metadata",[]); print(m[0]["ratingKey"] if m else "")' 2>/dev/null)
-  ek=$(curl -s "${H[@]}" "$P/library/sections/2/allLeaves" | python3 -c 'import json,sys; m=json.load(sys.stdin)["MediaContainer"].get("Metadata",[]); print(m[0]["ratingKey"] if m else "")' 2>/dev/null)
+  rk=$(curl -s "${H[@]}" "$P/library/all?type=1" | python3 -c 'import json,sys; m=json.load(sys.stdin)["MediaContainer"].get("Metadata",[]); print(m[0]["ratingKey"] if m else "")' 2>/dev/null)
+  ek=$(curl -s "${H[@]}" "$P/library/all?type=4" | python3 -c 'import json,sys; m=json.load(sys.stdin)["MediaContainer"].get("Metadata",[]); print(m[0]["ratingKey"] if m else "")' 2>/dev/null)
   [ -n "$rk" ] && [ -n "$ek" ] && break; sleep 2
 done
 echo "movie ratingKey=$rk episode ratingKey=$ek"
