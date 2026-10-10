@@ -236,7 +236,7 @@ func run() error {
 	}
 	winsys.CloseWindowBrowser(browserProfile) // a window browser left behind by a crash
 
-	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath(), Version: version})
+	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath()})
 	plexAcc := &plexAccount{st: st, eng: eng, log: log}
 	token := server.NewToken()
 
@@ -261,6 +261,7 @@ func run() error {
 		return map[string]any{
 			"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": st.Values(), "app": st.App(), "status": eng.Status(),
 			"autoStart": canAutoStart && winsys.GetAutoStart(exe), "canAutoStart": canAutoStart, "dataDir": st.Dir, "update": upd,
+			"changelog": json.RawMessage(assets.Changelog), "stats": eng.Stats(),
 			"tray": hasTray(), // macOS: whether the menu bar icon is there (a build without it runs in the background)
 		}
 	}
@@ -403,6 +404,8 @@ func run() error {
 			}
 			return r, nil
 		}},
+		"stats":       {Get: true, Fn: func(*jsonx.Obj) (any, error) { return eng.Stats(), nil }},
+		"stats-reset": {Fn: func(*jsonx.Obj) (any, error) { eng.ResetStats(); log("INFO", "Stats reset."); return eng.Stats(), nil }},
 		"plex":        {Get: true, Fn: func(*jsonx.Obj) (any, error) { return plexAcc.state(), nil }},
 		"plex-signin": {Fn: func(*jsonx.Obj) (any, error) { return plexAcc.signIn() }},
 		"plex-cancel": {Fn: func(*jsonx.Obj) (any, error) { plexAcc.stopWaiting(); return plexAcc.state(), nil }},

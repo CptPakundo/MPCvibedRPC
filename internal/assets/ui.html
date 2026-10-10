@@ -46,6 +46,11 @@
   .dlg h2 { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 8px; font-weight: 650; }
   .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
   .dlg .row { justify-content: flex-end; }
+  .dlg.wide { max-width: 520px; }
+  .chg { max-height: 60vh; overflow: auto; margin: 0 0 14px; }
+  .chg ul { list-style: none; margin: 4px 0 12px; padding: 0; }
+  .chg li { margin: 7px 0; line-height: 1.4; }
+  header button.small { padding: 3px 10px; font-size: 12px; }
   .notice { border-left: 3px solid var(--warn); background: var(--field); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
   .notice p { margin: 0 0 8px; }
   .notice.info { border-color: var(--accent); }
@@ -117,6 +122,7 @@
       <img src="/icon.ico" alt="">
       <h1>MPCvibedRPC</h1>
       <span class="ver" id="ver"></span>
+      <button id="changelogBtn" class="small">Changelog</button>
     </header>
 
     <section class="card notice info hidden" id="welcome">
@@ -163,6 +169,7 @@
       <div class="field"><label class="line"><span><span id="autoStartLabel">Start with Windows</span><div class="help" id="autoStartHelp">Starts when you log in, straight to the tray (no window).</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
       <div class="field"><label class="line"><span>Show this window when I open the app<div class="help" id="openWindowHelp">When you start it yourself. Turn off to go straight to the tray, like at login. You can always reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
       <div class="field"><label class="line"><span>Start presence when the app opens<div class="help">Otherwise it waits until you press Start.</div></span><span class="sw"><input type="checkbox" id="startPresence"><span></span></span></label></div>
+      <div class="field"><div>Your stats</div><div class="help" id="statsText"></div><div class="help">Counted on this computer only: numbers, never titles. Nothing is sent anywhere.</div><div class="row" style="margin-top:6px"><button id="statsReset">Reset stats</button></div></div>
     </section>
 
     <section class="panel" id="p-updates">
@@ -223,27 +230,60 @@
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
   const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
   const players = () => (osText() ? osText().players : PLAYERS);
-  // an in-page confirmation (the browser's confirm() and alert() would head the box with this page's address);
-  // with cancel set to null it is a message with a single button
-  const ask = (title, text, yes, danger, cancel = 'Cancel') => new Promise((resolve) => {
+  // an in-page dialog (the browser's confirm() and alert() would head the box with this page's address). buttons are
+  // [label, class] pairs, the first being the safe choice that has the focus; it resolves to the index of the button
+  // pressed, or -1 for Escape or a click outside. body is text or an element.
+  const modal = (title, body, buttons, wide) => new Promise((resolve) => {
     const prev = document.activeElement;
-    const ok = el('button', { textContent: yes, className: danger ? 'primary danger' : 'primary' });
-    const no = cancel ? el('button', { textContent: cancel }) : ok;
-    const box = el('div', { className: 'dlg' }, el('h2', { textContent: title }), el('p', { textContent: text }), el('div', { className: 'row' }, ...(cancel ? [no, ok] : [ok])));
+    const btns = buttons.map(([label, cls], i) => { const b = el('button', { textContent: label, className: cls || '' }); b.onclick = () => done(i); return b; });
+    const content = typeof body === 'string' ? el('p', { textContent: body }) : body;
+    const box = el('div', { className: 'dlg' + (wide ? ' wide' : '') }, el('h2', { textContent: title }), content, el('div', { className: 'row' }, ...btns));
     box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
     const back = el('div', { className: 'dlg-back' }, box);
     const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
     const key = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); done(false); }
-      else if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === ok ? no : ok).focus(); }
+      if (e.key === 'Escape') { e.preventDefault(); done(-1); }
+      else if (e.key === 'Tab') { e.preventDefault(); const i = btns.indexOf(document.activeElement); btns[(i + (e.shiftKey ? btns.length - 1 : 1)) % btns.length].focus(); }
     };
     document.addEventListener('keydown', key, true);
-    back.onmousedown = (e) => { if (e.target === back) done(false); };
-    if (cancel) no.onclick = () => done(false);
-    ok.onclick = () => done(true);
+    back.onmousedown = (e) => { if (e.target === back) done(-1); };
     document.body.append(back);
-    no.focus();
+    btns[0].focus();
   });
+  // a yes/no question (Cancel first); with cancel set to null it is a message with a single button
+  const ask = async (title, text, yes, danger, cancel = 'Cancel') => {
+    const ok = [yes, danger ? 'primary danger' : 'primary'];
+    if (!cancel) { await modal(title, text, [ok]); return true; }
+    return (await modal(title, text, [[cancel], ok])) === 1;
+  };
+
+  // the changelog: the newest version's changes, or every version's
+  function changelogList(entries) {
+    const box = el('div', { className: 'chg' });
+    entries.forEach((v) => {
+      if (entries.length > 1) box.append(el('h3', { className: 'grp', textContent: 'Version ' + v.version + ' · ' + v.date }));
+      box.append(el('ul', {}, ...v.items.map((t) => el('li', { textContent: t }))));
+    });
+    return box;
+  }
+  async function showChangelog(all) {
+    const log = (model && model.changelog) || [];
+    if (!log.length) return;
+    const list = all ? log : log.slice(0, 1);
+    const buttons = all || log.length < 2 ? [['Close', 'primary']] : [['Close', 'primary'], ['Earlier versions']];
+    if ((await modal(all ? 'Changelog' : "What's new in " + log[0].version, changelogList(list), buttons, true)) === 1) showChangelog(true);
+  }
+
+  // the counts on the General tab (kept on this computer only)
+  const dur = (ms) => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + ' h ' + (m % 60) + ' min' : m + ' min'; };
+  function paintStats(s) {
+    if (!s) return;
+    const since = new Date(s.since + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const by = Object.entries(s.players || {}).sort((a, b) => b[1] - a[1]).map(([p, n]) => p + ' ' + n).join(', ');
+    $('statsText').textContent = s.videos
+      ? 'Since ' + since + ': ' + s.videos + (s.videos === 1 ? ' video' : ' videos') + ' shown on Discord, ' + s.matched + ' found in a catalog, ' + dur(s.watchedMs) + ' of playing.' + (by ? ' By player: ' + by + '.' : '')
+      : 'Nothing shown on Discord yet (counting since ' + since + ').';
+  }
   const autoStartName = () => (osText() ? osText().autoStart : 'Start with Windows');
   function applyOsText() {
     const t = osText();
@@ -359,7 +399,7 @@
     const box = el('div', {});
     box.append(
       el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. While you are signed in to Plex, plex.tv is asked for your Plex servers when presence starts, and your Plex server tells this program what you play. The player (' + players() + ') and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking, and file paths are never sent.' }))
+      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('div', { className: 'help', textContent: 'Discord receives your status (that is the point of the program). GitHub is asked about new versions while Check for updates is on. While you are signed in to Plex, plex.tv is asked for your Plex servers when presence starts, and your Plex server tells this program what you play. The player (' + players() + ') and Discord are only ever reached on this computer. The preview at the top loads the cover image straight from the service that hosts it. There is no analytics or tracking (Your stats on the General tab stay on this computer), and file paths are never sent.' }))
     );
     return box;
   }
@@ -436,6 +476,7 @@
     document.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
     document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'p-' + id));
     if (id === 'log') pollLog();
+    if (id === 'general') api('stats').then(paintStats).catch(() => {});
   }
   function flagUpdate() { const b = document.querySelector('.tab[data-tab="updates"]'); if (b) b.classList.add('has'); }
 
@@ -447,6 +488,7 @@
     applyOsText();
     if (!m.canAutoStart) { $('autoStart').disabled = true; $('autoStart').closest('.field').querySelector('.help').textContent = 'Available on Windows only.'; }
     renderFields(m);
+    paintStats(m.stats);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
   }
   ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'updateRepo'].forEach((id) => autosave($(id), 'app', id));
@@ -565,9 +607,19 @@
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
+  // the changelog shows once for each new version (a new install too), and the button shows it any time
+  function showNews(v) {
+    showChangelog(false);
+    queue = queue.then(async () => { try { model = await api('save', { app: { seenVersion: v } }); } catch (_) {} });
+  }
+  $('changelogBtn').onclick = () => showChangelog(true);
+  $('statsReset').onclick = async () => {
+    if (!await ask('Reset your stats?', 'The counts start again from today.', 'Reset', true)) return;
+    try { paintStats(await api('stats-reset', {})); } catch (e) { note(e.message, true); }
+  };
   $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord will stop showing what you are watching' + (osText() ? (model.tray ? ', and the menu bar icon will be removed.' : ', and the program will close.') : ', and the tray icon will be removed.'), 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
-  api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
+  api('state').then((m) => { fill(m); paint(m.status); if (m.app.seenVersion !== m.version) showNews(m.version); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
     .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
   setInterval(poll, 1000); setInterval(pollLog, 3000);
 })();

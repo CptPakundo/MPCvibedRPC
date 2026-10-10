@@ -464,3 +464,21 @@ func TestPlexSignInIsSavedButNeverShownOrTyped(t *testing.T) {
 		t.Error("Restore defaults signs out of Plex")
 	}
 }
+
+func TestSeenVersionIsOnlyWrittenOnceSet(t *testing.T) {
+	s := New2(t, t.TempDir())
+	p, _ := jsonx.Parse(`{"app":{"checkUpdates":false}}`)
+	if err := s.Update(p.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(s.File); strings.Contains(string(b), "seenVersion") || s.App().SeenVersion != "" {
+		t.Fatalf("written before a changelog was shown:\n%s", b)
+	}
+	p, _ = jsonx.Parse(`{"app":{"seenVersion":" 0.9.10 "}}`)
+	if err := s.Update(p.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	if a := New2(t, s.Dir).App(); a.SeenVersion != "0.9.10" || a.CheckUpdates {
+		t.Errorf("%+v", a)
+	}
+}

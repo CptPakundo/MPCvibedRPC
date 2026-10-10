@@ -8,3 +8,8 @@ var UI string
 
 //go:embed icon.ico
 var Icon []byte
+
+// Changelog is what changed in each version, newest first (shown in the window once after an update, and on demand).
+//
+//go:embed changelog.json
+var Changelog string

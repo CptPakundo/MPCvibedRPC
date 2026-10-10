@@ -4,7 +4,7 @@ labels: [enhancement]
 body:
   - type: markdown
     attributes:
-      value: This program is entirely AI-generated (see the README), so there is no promise that a request will be built.
+      value: There is no promise that a request will be built, but ideas are welcome.
   - type: textarea
     id: idea
     attributes:

@@ -52,12 +52,13 @@ type App struct {
 	UpdateRepo    string `json:"updateRepo"`    // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
 	WelcomeSeen   bool   `json:"welcomeSeen"`   // the first-run welcome card was dismissed (existing installs count as having seen it)
 	OpenWindow    bool   `json:"openWindow"`    // show the window when the program is started by hand (it always starts in the tray at login)
+	SeenVersion   string `json:"seenVersion"`   // the version whose changelog was last shown ("" = none yet: a new install, or one from before changelogs)
 }
 
 // DefaultUpdateRepo is where releases of this program are published.
 const DefaultUpdateRepo = "CptPakundo/MPCvibedRPC"
 
-var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "updateRepo", "openWindow", "welcomeSeen"}
+var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "updateRepo", "openWindow", "welcomeSeen", "seenVersion"}
 
 func appDefaults() *jsonx.Obj {
 	o := jsonx.NewObj()
@@ -89,6 +90,7 @@ func New(dir string) (*Store, error) {
 func (s *Store) CachePath() string { return filepath.Join(s.Dir, "artwork-cache.json") }
 func (s *Store) LogPath() string   { return filepath.Join(s.Dir, "mpcvibedrpc.log") }
 func (s *Store) IPCPath() string   { return filepath.Join(s.Dir, "ipc.json") }
+func (s *Store) StatsPath() string { return filepath.Join(s.Dir, "stats.json") }
 
 // FirstRun is true when config.json does not exist yet.
 func (s *Store) FirstRun() bool {
@@ -170,6 +172,9 @@ func (s *Store) App() App {
 		if v, ok := cur.M["updateRepo"].(string); ok {
 			a.UpdateRepo = v
 		}
+		if v, ok := cur.M["seenVersion"].(string); ok {
+			a.SeenVersion = v
+		}
 	}
 	return a
 }
@@ -242,6 +247,8 @@ func (s *Store) Update(patch *jsonx.Obj) error {
 					return &ValidationError{"Update source must look like owner/repo"}
 				}
 				app.Set(k, repo)
+			} else if k == "seenVersion" {
+				app.Set(k, jsTrim(jsString(orEmpty(v)))) // not in appDefaults: written only once a changelog was shown
 			} else {
 				b, _ := v.(bool)
 				if str, ok := v.(string); ok {

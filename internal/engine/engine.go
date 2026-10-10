@@ -46,6 +46,8 @@ type Options struct {
 	Version string
 	// PlexTV, when set, replaces plex.tv and clients.plex.tv (tests).
 	PlexTV string
+	// StatsFile keeps the counts of what was shown (see Stats; "" = counted in memory only).
+	StatsFile string
 }
 
 // PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.
@@ -131,6 +133,14 @@ type Engine struct {
 	hidden       bool          // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
 
+	// the counts kept for the window (stats.go): what was shown and for how long; the key only tells videos apart
+	stats     Stats
+	statDirty bool
+	statSaved time.Time
+	statTick  time.Time
+	statKey   string
+	statFound bool
+
 	// stopMu serialises Start/Stop/ApplySettings.
 	stopMu sync.Mutex
 }
@@ -145,7 +155,9 @@ func New(cfg core.Config, opts Options) *Engine {
 	if unit <= 0 {
 		unit = time.Minute
 	}
-	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient}}
+	now := time.Now()
+	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient},
+		stats: loadStats(opts.StatsFile, now), statSaved: now}
 }
 
 // Config returns the settings the engine is using.
@@ -423,6 +435,7 @@ func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Act
 func (e *Engine) tick(r *run) {
 	e.mu.Lock()
 	cfg := e.cfg
+	e.statTime(time.Now(), pollInterval(cfg))
 	e.mu.Unlock()
 
 	info := e.fetchPlayer(r.ctx, cfg)
@@ -576,6 +589,7 @@ func (e *Engine) tick(r *run) {
 	e.mu.Lock()
 	e.shown = true
 	d := display
+	e.statShown(info.Player+"/"+info.File, info.Player, found != nil) // player names have no slash
 	e.nowPlaying = &d
 	e.paused = info.State == 1
 	sent := activity
@@ -691,11 +705,7 @@ func (e *Engine) start() {
 	}
 	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
-	interval := time.Duration(cfg.PollInterval) * time.Millisecond
-	if interval < 250*time.Millisecond {
-		interval = 250 * time.Millisecond
-	}
-	go e.loop(r, interval)
+	go e.loop(r, pollInterval(cfg))
 }
 
 // Stop clears the presence (waiting at most 1.5 s for Discord) and disconnects.
@@ -741,6 +751,8 @@ func (e *Engine) stop() {
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.plex = nil // its run ended with the run's context
+	e.saveStats(time.Now())
+	e.statTick = time.Time{}
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }
@@ -815,4 +827,13 @@ func (e *Engine) Status() Status {
 		}
 	}
 	return s
+}
+
+// pollInterval is how often the players are asked (at least every 250 ms).
+func pollInterval(cfg core.Config) time.Duration {
+	interval := time.Duration(cfg.PollInterval) * time.Millisecond
+	if interval < 250*time.Millisecond {
+		interval = 250 * time.Millisecond
+	}
+	return interval
 }
