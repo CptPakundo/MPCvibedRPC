@@ -72,7 +72,11 @@ for i in $(seq 1 90); do
     call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -c '[.Items[] | {Name, Type, IsFolder, Id}]' || true
     ls -laR "$work/media"
     docker exec "ci-$kind" ls -la "/media/TV/Sample Show/Season 01" || true
-    docker logs "ci-$kind" 2>&1 | grep -v -i "entry point" | tail -n 150
+    for p in $(call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -r '.Items[] | select(.Type == "Season") | .Id'); do
+      echo "season $p: $(call GET "/Users/$uid/Items?ParentId=$p" "" "$token" | head -c 800)"
+    done
+    docker logs "ci-$kind" 2>&1 | tail -n 20
+    for l in "$work"/config/logs/*.txt; do echo "== $l"; grep -v -E "PRAGMA|SQLITE_DBCONFIG|Opening sqlite|journal_mode" "$l" | tail -n 120; done
     exit 1
   fi
   sleep 2
