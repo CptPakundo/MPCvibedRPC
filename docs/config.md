@@ -112,6 +112,6 @@ These belong to the program itself and live under `app` in `config.json`. They a
 | `autoStart` | `false` | Start when you log in, straight to the tray (macOS and Linux: in the background). The real switch is the login item itself: the registry's Run key on Windows, a LaunchAgent on macOS, an autostart entry in `~/.config/autostart` on Linux. |
 | `startPresence` | `true` | Begin sending presence as soon as the app opens. |
 | `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
-| `checkUpdates` | `true` | Look for a newer release now and then. |
+| `checkUpdates` | `true` | Look for a newer release a few seconds after the program starts, then once a day. |
 | `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. |
 | `seenVersion` | (none) | The version whose changes the window last showed. Written by the window; a different version (an update, a new install) shows its changes once. Not in the settings window. |

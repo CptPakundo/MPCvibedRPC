@@ -28,7 +28,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.11"
+var version = "0.9.12"
 
 const preferredPort = 47654
 
@@ -266,6 +266,19 @@ func run() error {
 		}
 	}
 
+	// statusNow is what the window polls: the engine's status, and a newer version once a check has found one.
+	type status struct {
+		engine.Status
+		Update *updater.Info `json:"update,omitempty"`
+	}
+	statusNow := func() status {
+		s := status{Status: eng.Status()}
+		if u := getUpdate(); u != nil && u.Newer {
+			s.Update = u
+		}
+		return s
+	}
+
 	quit := func() {
 		quitOnce.Do(func() {
 			go func() {
@@ -322,7 +335,7 @@ func run() error {
 
 	handlers := map[string]server.Handler{
 		"state":  {Get: true, Fn: func(*jsonx.Obj) (any, error) { return fullState(), nil }},
-		"status": {Get: true, Fn: func(*jsonx.Obj) (any, error) { return eng.Status(), nil }},
+		"status": {Get: true, Fn: func(*jsonx.Obj) (any, error) { return statusNow(), nil }},
 		"log":    {Get: true, Fn: func(*jsonx.Obj) (any, error) { return map[string]any{"lines": lg.last(200)}, nil }},
 		"diagnostics": {Get: true, Fn: func(*jsonx.Obj) (any, error) {
 			return map[string]any{"text": diag.Report(diag.Input{
@@ -532,9 +545,15 @@ func run() error {
 		openWindow()
 	}
 
-	time.AfterFunc(20*time.Second, func() {
+	// Look for a new version shortly after starting (an open window shows it as soon as it is known), then daily. A copy
+	// started at login may have no network yet, so a failed first check is tried again a minute later.
+	time.AfterFunc(5*time.Second, func() {
 		if _, err := checkUpdates(false); err != nil {
-			log("WARN", "Update check failed: "+err.Error())
+			time.AfterFunc(time.Minute, func() {
+				if _, err := checkUpdates(false); err != nil {
+					log("WARN", "Update check failed: "+err.Error())
+				}
+			})
 		}
 	})
 	go func() {

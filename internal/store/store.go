@@ -48,7 +48,7 @@ func dataDirNamed(name string) string {
 type App struct {
 	AutoStart     bool   `json:"autoStart"`     // run at Windows login (the registry entry is the source of truth; this mirrors it)
 	StartPresence bool   `json:"startPresence"` // begin sending presence as soon as the app opens
-	CheckUpdates  bool   `json:"checkUpdates"`  // look for a newer release now and then
+	CheckUpdates  bool   `json:"checkUpdates"`  // look for a newer release at start, then daily
 	UpdateRepo    string `json:"updateRepo"`    // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
 	WelcomeSeen   bool   `json:"welcomeSeen"`   // the first-run welcome card was dismissed (existing installs count as having seen it)
 	OpenWindow    bool   `json:"openWindow"`    // show the window when the program is started by hand (it always starts in the tray at login)
