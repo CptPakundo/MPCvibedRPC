@@ -69,9 +69,10 @@ for i in $(seq 1 90); do
   if [ "$i" = 45 ]; then call POST /Library/Refresh "" "$token" > /dev/null || true; fi
   if [ "$i" = 90 ]; then
     echo "the sample episode was not added: $items"
-    call GET "/Users/$uid/Items?Recursive=true" "" "$token" | head -c 1500 || true; echo
+    call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -c '[.Items[] | {Name, Type, IsFolder, Id}]' || true
     ls -laR "$work/media"
-    docker logs "ci-$kind" 2>&1 | grep -i -E "librar|scan|media|error|denied|exception" | tail -n 40
+    docker exec "ci-$kind" ls -la "/media/TV/Sample Show/Season 01" || true
+    docker logs "ci-$kind" 2>&1 | grep -v -i "entry point" | tail -n 150
     exit 1
   fi
   sleep 2
