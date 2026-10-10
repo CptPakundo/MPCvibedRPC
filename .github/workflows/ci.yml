@@ -157,3 +157,10 @@ jobs:
           PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players" $bus ./tools/ci/live-players.sh
           test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players::the script stopped before the end"; exit 1; }
         shell: bash
+  plex-probe: # TEMPORARY (removed before merge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+      - run: bash ./tools/ci/plex-probe.sh
