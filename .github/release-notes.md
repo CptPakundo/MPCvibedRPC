@@ -7,9 +7,10 @@
 - On a server you own, only your own playback is shown, not that of people you share with. Music and photos are never shown as "Watching". Choose another of your servers under the button, and **Sign out** at any time (Restore defaults signs you out too).
 - Nothing changes until you sign in: plex.tv and your server are only contacted while you are signed in, and the players you already use are asked first, as before.
 
-**Also new:** the Quit, Restore defaults and "close the player for a moment" questions are now shown inside the window, with a clear title and buttons, instead of a browser box headed with the window's local address.
-
-> **Entirely AI-generated ("vibe coded").** This whole program was written by an AI (Claude, by Anthropic) in conversation with the repository owner, who wrote none of it, takes no credit for it and has not reviewed it line by line. No warranty, no promise that it is correct, secure or maintained. See the README.
+**Also new**
+- **What's new:** after an update (or on a new install) the window shows the new version's changes once. The **Changelog** button at the top shows every version's.
+- **Your stats** (General tab): how many videos were shown on Discord, how many were found in a catalog, how long they played and with which player. Numbers only, never titles, and they stay on your computer; nothing is sent anywhere.
+- Quit, Restore defaults and the other questions are now shown inside the window, with a clear title and buttons, instead of a browser box headed with the window's local address.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it; there is nothing to install. An earlier version can install this one from its Updates tab; your settings are kept. Needs Windows 10/11.

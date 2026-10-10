@@ -114,3 +114,4 @@ These belong to the program itself and live under `app` in `config.json`. They a
 | `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
 | `checkUpdates` | `true` | Look for a newer release now and then. |
 | `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. |
+| `seenVersion` | (none) | The version whose changes the window last showed. Written by the window; a different version (an update, a new install) shows its changes once. Not in the settings window. |

@@ -299,7 +299,7 @@ func versionInfo(version string) ([]byte, error) {
 	var strs [][]byte
 	for _, kv := range [][2]string{
 		{"CompanyName", ""},
-		{"Comments", "Entirely AI-generated (vibe coded); no human authorship is claimed. No warranty."},
+		{"Comments", "Made with AI (vibe coded). MIT License, no warranty."},
 		{"FileDescription", "MPCvibedRPC - Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv, VLC and Plex"},
 		{"FileVersion", version},
 		{"InternalName", "MPCvibedRPC"},

@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This program is entirely AI-generated (see the README), so there is no guarantee of a fix, but reports are welcome.
+        There is no guarantee of a fix, but reports are welcome.
 
         **Privacy:** logs and screenshots can contain the names of the videos you watch and folder names. Look through them and blank out anything you don't want to share before pasting.
   - type: textarea

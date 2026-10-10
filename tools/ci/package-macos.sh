@@ -50,7 +50,7 @@ cat > "$app/Contents/Info.plist" <<EOF
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>MIT License. Entirely AI-generated (vibe coded).</string>
+	<string>MIT License. Made with AI (vibe coded).</string>
 </dict>
 </plist>
 EOF

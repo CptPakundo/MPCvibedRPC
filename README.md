@@ -1,6 +1,11 @@
 # MPCvibedRPC (hassle-free edition)
 
-> **Entirely AI-generated ("vibe coded").** Every line of this program, its tests, its documentation and its build setup was written by an AI (Claude, by Anthropic) in conversation with the repository owner. The owner did not write it, takes **no credit** for it, and has not reviewed it line by line: their part was giving prompts and trying the result. Use it accordingly. There is no warranty (see `LICENSE`), no promise that it is correct, secure or maintained, and nobody here is an expert you can ask about the code. The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
+<p align="center">
+  <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest"><img alt="Download the latest version" src="https://img.shields.io/github/v/release/CptPakundo/MPCvibedRPC?label=Download&style=for-the-badge&color=5865f2"></a>
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/CptPakundo/MPCvibedRPC/total?style=for-the-badge&color=444">
+</p>
+
+> **Made with AI ("vibe coded").** The code, tests and documentation were written by an AI (Claude, by Anthropic) from the repository owner's prompts and testing. There is no warranty (see `LICENSE`). The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
 Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows, IINA, mpv, VLC and MPC-QT on macOS, and VLC,
 mpv, Celluloid, Haruna, SMPlayer and most other video players on Linux, plus Plex on all three, based on the approach of
@@ -70,7 +75,7 @@ A copy started with its own data folder (the `MPCRPC_HOME` environment variable:
 
 Everything it stores is in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux:
 `~/.local/share/MPCvibedRPC`, or `$XDG_DATA_HOME/MPCvibedRPC`): `config.json` (settings), `mpcvibedrpc.log`,
-`artwork-cache.json` and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" / "Start at login" first).
+`artwork-cache.json`, `stats.json` (the counts under Your stats) and `window\` (the settings window's own browser profile, so your regular Edge is left alone). Delete that folder and the program to remove all traces (turn off "Start with Windows" / "Start at login" first).
 
 ## Building the .exe (maintainers)
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
@@ -221,6 +226,12 @@ program gets a smoke test, and the engine is run against real players on Linux (
   offline). **Clear my status when paused for N minutes** takes the status down after a long pause (30 minutes by default; 0 = never) and brings
   it back when you play again or seek. **Clear cover cache** forgets everything that was looked up. There is no analytics or
   tracking, and file paths are never sent.
+- **Your stats** (General tab): how many videos were shown on Discord, how many were found in a catalog, how long they
+  played and with which player. Numbers only, never titles, kept in `stats.json` on this computer; nothing is sent
+  anywhere. **Reset stats** starts over. (The download count at the top of this page is GitHub's public count of release
+  downloads.)
+- **What's new.** After an update (and on a new install) the window shows the new version's changes once; the
+  **Changelog** button at the top shows every version's.
 - Clears itself when you stop or close the player; reconnects on its own if Discord restarts.
   If Discord ever rejects the Watching format, it falls back to a basic presence automatically.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](docs/config.md) (extra ones go in

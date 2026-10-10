@@ -18,11 +18,13 @@ the window, and Quit is in the window. Windows is the main system and its behavi
 The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI below), and once by a
 friend of the owner on a real Mac.
 
-- The program is **entirely AI-generated**, and the repo says so (README banner, release notes, exe file properties,
-  repo description). Keep those statements; never present the code as written by the repository owner.
+- The program is **AI-generated ("vibe coded")**. The README says so once, near the top, and that is enough: the owner
+  chose a light touch. A short "Made with AI" (exe properties, the macOS app, the repo description) is fine; no heavy
+  disclaimers elsewhere. Never present the code as written by the repository owner.
 - The idea comes from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC) (MIT). That credit
   stays in `README.md`, `LICENSE` and `THIRD-PARTY-NOTICES.md`. Otherwise, docs present the program as it is now:
-  no changelog of earlier versions or former names outside `.github/release-notes.md`.
+  no history of earlier versions or former names outside `.github/release-notes.md` and the in-app changelog
+  (`internal/assets/changelog.json`: short lines, one emoji each, newest version first).
 - Versions are `0.9.x` (pre-1.0, three-part, needed by the updater). The current version is in `cmd/mpcvibedrpc/main.go`.
 
 ## Ground rules
@@ -45,7 +47,7 @@ friend of the owner on a real Mac.
 | Path | Job |
 |---|---|
 | `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `plex*`, `quit`, ...), update checks, tray, quit order |
-| `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window |
+| `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles) |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
@@ -54,7 +56,7 @@ friend of the owner on a real Mac.
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store` | `config.json`, the settings window layout (`schema.go`), validation |
-| `internal/server`, `internal/assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP) and the whole page (`ui.html`) |
+| `internal/server`, `internal/assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP) and the whole page (`ui.html`), the changelog (`changelog.json`) |
 | `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
 | `internal/diag` | "Copy diagnostics" with redaction (titles, paths, URL queries, secrets) |
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
@@ -178,8 +180,8 @@ behaviour bullets, `docs/config.md`, schema help text and release notes in sync 
 2. Version bump: replace the next version with the one after it, then the current with the next, in
    `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `README.md`, `cmd/mpcvibedrpc/main.go`,
    `tools/ci/fake-http.ps1`, `tools/ci/smoke.ps1`, `tools/mkrsrc/main.go` and the placeholder in `bug_report.yml`.
-   Rewrite the top of `.github/release-notes.md` (it is the release body; keep the blank line before the
-   "Entirely AI-generated" banner).
+   Rewrite the top of `.github/release-notes.md` (it is the release body) and add the version's entry at the top of
+   `internal/assets/changelog.json` (`TestChangelog` fails until its newest entry matches `main.go`).
 3. `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"` with the Claude identity, `git push origin vX.Y.Z`. The release workflow
    builds and smoke-tests the Linux binaries and the macOS app on their own runners, then on Windows tests, builds and
    smoke-tests the exe, writes a `.sha256` for each program, attests them all and publishes.
