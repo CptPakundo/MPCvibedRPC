@@ -18,9 +18,9 @@ The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
 
 ## Testing
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
-(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex, a fake Stremio and a fake Discord, and the
+(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex, a fake Stremio, a fake Jellyfin / Emby and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
-program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, and a real Plex Media Server) and macOS (mpv, and IINA after the program has set it up).
+program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, a real Plex Media Server, and the official Jellyfin and Emby server images: `tools/ci/live-jellyfin.sh jellyfin|emby`) and macOS (mpv, and IINA after the program has set it up).
 
 Running a copy that cannot touch an installed one: `MPCRPC_HOME` gives it its own data folder (and its own
 run-at-login entry), and `MPCRPC_BROWSER` names the browser to show the window in (one that understands `--app`), or
@@ -68,6 +68,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
 | `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
+| `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |

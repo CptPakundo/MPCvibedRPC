@@ -20,6 +20,8 @@ shown here.
 | `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
 | `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Advanced tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
 | `stremioKey` | `''` | Written by **Sign in to Stremio** (Advanced tab), not typed: the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. Kept in `config.json` as plain text, like Stremio keeps its own; the settings window and **Copy diagnostics** never show it. |
+| `jellyfinAddress` | `''` | The address of your Jellyfin or Emby server, such as `http://192.168.1.20:8096` (typed in the Jellyfin / Emby sign-in on the Advanced tab and saved by it; `http://` is added if missing, and a path is kept for a reverse proxy; **Sign out** removes it). |
+| `jellyfinToken`, `jellyfinUser`, `jellyfinUserName`, `jellyfinServerName`, `jellyfinProduct`, `jellyfinDevice` | `''` | Written by the **Jellyfin / Emby** sign-in (Advanced tab), not typed: the server's access token, the user's id and name, the server's name, whether it is Jellyfin or Emby, and this install's device id (made at the first sign-in, kept after signing out). Empty `jellyfinToken`: Jellyfin / Emby is not followed and the server is never contacted. **Sign out** ends the session on the server and removes the sign-in (`jellyfinDevice` is kept); **Restore defaults** ends it too. The token is kept in `config.json` as plain text, like other apps keep theirs; a password is sent to your own server once and never stored. The settings window and **Copy diagnostics** never show these (diagnostics only say whether you are signed in). |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. While Discord is closed and the window is too, a check only looks whether Discord has started (see [Resting](how-it-works.md#resting-while-discord-is-closed)). |
 
 ## How it looks
@@ -33,7 +35,7 @@ shown here.
 | `showRemainingTime` | `false` | Only used when `activityType` is `'playing'`. |
 | `episodeInDetails` | `false` | `true` repeats the season and episode number in the title line too (Discord already shows a badge when the card is expanded). |
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
-| `linkButton` | `true` | Adds a "View on IMDb / AniList / ..." button (visible to others). |
+| `linkButton` | `true` | Link to the title's page (IMDb, AniList, ...): adds a "View on IMDb" style button and makes the second line and the cover clickable (visible to others on your profile). If Discord refuses the line and cover links, they are left out from then on. |
 
 ## Privacy
 
@@ -41,7 +43,7 @@ These are all on the **Privacy** tab of the settings window.
 
 | Setting | Default | What it does |
 |---|---|---|
-| `hideTitle` | `false` | Show only "Watching a video" with the progress bar: no title, cover, episode or buttons, and nothing is looked up online. The log does not record the title either. |
+| `hideTitle` | `false` | Show only "Watching a video" with the progress bar: no title, cover, episode or buttons, and nothing is looked up online. The log does not record the title either. Also a tick item, **Hide what I'm watching**, in the Windows tray menu and the macOS menu bar menu (not on Linux, which has no tray). |
 | `hideFiles` | `[]` | Files that are never shown. Each entry is matched without regard to case; `/` and `\` are alike. A plain entry hides a file whose whole path (folders and name) contains it, for example `Private` or `D:\Videos\Private`. An entry with `*` (any run of characters) or `?` (one character) must match the whole file name or the whole path, for example `*.xyz`. A hidden file shows no status at all and is not looked up. At most 100 entries of 300 characters. |
 | `showArtwork` | `true` | Look up cover art and titles online. `false` stays completely offline (it also turns off episode-title lookups). |
 | `disabledSources` | `[]` | Online services that must never be contacted, whatever the source lists below say. Ids: `tmdb`, `imdb`, `cinemeta`, `tvmaze`, `anilist`, `kitsu`, `jikan` (MyAnimeList), `wikipedia`, `bulbapedia`. The window shows a switch for each; the stored list holds the ones that are off. |

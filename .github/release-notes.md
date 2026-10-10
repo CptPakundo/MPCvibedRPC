@@ -1,9 +1,10 @@
-## MPCvibedRPC 0.9.20
+## MPCvibedRPC 0.9.21
 
-**Stremio, and a program that rests while Discord is closed.**
+**Jellyfin and Emby, a clickable title, and hiding from the tray.**
 
-- **Stremio:** press **Sign in to Stremio** on the Advanced tab and approve it on stremio.com. What you watch with your Stremio account then shows on Discord, on any device: the desktop app, Stremio Web, a TV or a phone. The program reads your library, which Stremio's player updates while it plays, so a video shows up within about 20 seconds; pausing takes the status down, and it comes back when you resume. It only reads, and **Sign out** also ends the session on Stremio's side.
-- **Resting:** while Discord is not running and the settings window is closed, the program asks no player, follows no Plex server or Stremio account, and hands its memory back to the system (on Windows it drops to about 3 MB). It only looks whether Discord has started, and picks up by itself when it does. Opening the window wakes it at once.
+- **Jellyfin and Emby:** on the Advanced tab, enter your server's address and press **Sign in**. On Jellyfin you approve a code in a Jellyfin app or page where you are already signed in (your profile > Quick Connect); on Emby, or when Quick Connect is off, you sign in with your user name and password, which go to your server once and are never stored. What you play on that server then shows on Discord, on any device: a TV, a phone, the web page or an app on this computer. Only your own playback counts, music is left out, and the program only reads. **Sign out** also ends the session on your server.
+- **Clickable title and cover:** when a title is recognised, the second line and the cover on your Discord card now open its page (IMDb, AniList, ...), just like the "View on IMDb" button. It follows the same switch as the button (How it looks > Link to the title's page), which is on unless you turned it off.
+- **Hide what I'm watching from the tray:** the tray menu (Windows) and the menu bar menu (macOS) have a **Hide what I'm watching** item with a tick, so you can hide the title without opening the window. An open window follows along.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it; there is nothing to install. An earlier version can install this one from its Updates tab; your settings are kept. Needs Windows 10/11.
@@ -13,8 +14,9 @@
 Presence starts by itself: play something. If no player is answering, the window offers to set up the connection for you. Every system needs the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
 
 ### Good to know
-- Stremio is tested against a stand-in for Stremio's servers, built from Stremio's own open-source core. Signing in with a real Stremio account has not been tried yet; reports are welcome. Newer Stremio apps can show a Discord status of their own: turn that off in Stremio, or you may see two.
-- Plex is tested on GitHub's test machines with every change: the official Plex Media Server, a stand-in player and a stand-in for Discord. Signing in with a real Plex account and real Plex apps have not been tried yet; reports are welcome.
+- Jellyfin and Emby are tested on GitHub's test machines with every change: the official Jellyfin and Emby servers, a stand-in player and a stand-in for Discord, through the real sign-in (password and Quick Connect). Real Jellyfin and Emby apps and your own server have not been tried yet; reports are welcome.
+- The clickable title and cover use fields Discord added recently. Should your Discord refuse them, the program carries on without the links (the button stays).
+- Stremio is tested against a stand-in for Stremio's servers, built from Stremio's own open-source core; Plex on GitHub's test machines against the official Plex Media Server. Real Stremio and Plex accounts have not been tried yet; reports are welcome.
 - The macOS and Linux versions are tested on GitHub's test machines with real players (mpv, IINA, VLC, Celluloid) and a stand-in for Discord. A tester has also used the Mac version with IINA and the real Discord. Linux has not been tried on a real desktop yet. Reports are welcome.
 - The programs are **unsigned** (no code-signing certificate), so Windows SmartScreen or your antivirus may warn, and macOS asks you to confirm the first start. Check a download with its `.sha256` file, or with `gh attestation verify <file> --repo CptPakundo/MPCvibedRPC` (a signed GitHub record that it was built from this repository).
 - Settings are kept in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux: `~/.local/share/MPCvibedRPC`).
