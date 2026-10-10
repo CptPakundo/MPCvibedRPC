@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
@@ -73,6 +74,8 @@ func appDefaults() *jsonx.Obj {
 type Store struct {
 	Dir  string
 	File string
+
+	mu sync.Mutex // one change at a time (the window and a Plex sign-in can save at the same moment)
 }
 
 // New opens (and creates) the data folder.
@@ -121,6 +124,8 @@ func (s *Store) write(o *jsonx.Obj) error {
 
 // Reset puts every setting, including the program's own, back to its default.
 func (s *Store) Reset() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.write(jsonx.NewObj())
 }
 
@@ -194,6 +199,8 @@ func (s *Store) Values() map[string]any {
 
 // Update validates and saves a partial update from the window: { settings: {...}, app: {...} }.
 func (s *Store) Update(patch *jsonx.Obj) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	cur := s.read()
 	next := jsonx.NewObj()
 	for _, k := range cur.Keys {
@@ -246,6 +253,26 @@ func (s *Store) Update(patch *jsonx.Obj) error {
 		next.Set("app", app)
 	}
 	return s.write(next)
+}
+
+// SetHidden saves settings that are not typed in the window (the Plex sign-in), in the order given; a nil value
+// removes the setting. Only keys of core.Config are taken.
+func (s *Store) SetHidden(keys []string, values map[string]any) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	known := core.ConfigAsMap(&core.Config{})
+	cur := s.read()
+	for _, k := range keys {
+		if _, ok := known[k]; !ok {
+			continue
+		}
+		if v := values[k]; v == nil {
+			cur.Delete(k)
+		} else {
+			cur.Set(k, v)
+		}
+	}
+	return s.write(cur)
 }
 
 var reRepo = jsre.MustCompile(`^[\w.-]+\/[\w.-]+$`, "")

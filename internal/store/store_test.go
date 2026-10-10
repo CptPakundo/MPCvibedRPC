@@ -427,3 +427,40 @@ func TestSectionsForEachSystem(t *testing.T) {
 		t.Error("iinaPipe must stay a known setting")
 	}
 }
+
+func TestPlexSignInIsSavedButNeverShownOrTyped(t *testing.T) {
+	s := New2(t, t.TempDir())
+	keys := []string{"plexToken", "plexAccount", "plexUser", "plexServer", "notASetting"}
+	if err := s.SetHidden(keys, map[string]any{"plexToken": "sample-token", "plexAccount": int64(12345), "plexUser": "SampleUser", "plexServer": "srv-1", "notASetting": "x"}); err != nil {
+		t.Fatal(err)
+	}
+	c := New2(t, s.Dir).Config()
+	if c.PlexToken != "sample-token" || c.PlexAccount != 12345 || c.PlexUser != "SampleUser" || c.PlexServer != "srv-1" {
+		t.Fatalf("saved %+v", c)
+	}
+	if b, _ := os.ReadFile(s.File); strings.Contains(string(b), "notASetting") {
+		t.Error("only settings are written")
+	}
+	for k := range s.Values() {
+		if strings.HasPrefix(k, "plex") && k != "plexAddress" {
+			t.Errorf("the window must not receive %s", k)
+		}
+	}
+	p, _ := jsonx.Parse(`{"settings":{"plexToken":"typed","plexAddress":"http://192.168.1.20:32400"}}`)
+	if err := s.Update(p.(*jsonx.Obj)); err != nil {
+		t.Fatal(err)
+	}
+	if c := s.Config(); c.PlexToken != "sample-token" || c.PlexAddress != "http://192.168.1.20:32400" {
+		t.Errorf("the window can set the address, never the token: %+v", c)
+	}
+	if err := s.SetHidden([]string{"plexToken", "plexUser"}, map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if c := s.Config(); c.PlexToken != "" || c.PlexUser != "" || c.PlexServer != "srv-1" {
+		t.Errorf("signing out removes what it names: %+v", c)
+	}
+	_ = s.SetHidden([]string{"plexToken"}, map[string]any{"plexToken": "sample-token"})
+	if err := s.Reset(); err != nil || s.Config().PlexToken != "" {
+		t.Error("Restore defaults signs out of Plex")
+	}
+}

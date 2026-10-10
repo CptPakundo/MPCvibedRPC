@@ -19,6 +19,15 @@ type Config struct {
 	IinaPipe     string `json:"iinaPipe"`    // macOS: the input-ipc-server path in IINA's mpv options; empty = don't look for IINA
 	Mpris        bool   `json:"mpris"`       // Linux: read video players through MPRIS (D-Bus)
 
+	// Plex: the sign-in made with "Sign in to Plex" (not typed in the window; empty plexToken = Plex is not followed)
+	PlexToken      string `json:"plexToken"`      // the account's token
+	PlexAccount    int64  `json:"plexAccount"`    // the account's id (on a server the user owns, only their own playback counts)
+	PlexUser       string `json:"plexUser"`       // the account's name, for the window
+	PlexServer     string `json:"plexServer"`     // the chosen server's machine identifier ("" = the account's only or first own server)
+	PlexServerName string `json:"plexServerName"` // its name, for the window
+	PlexClient     string `json:"plexClient"`     // this install's Plex client identifier (made at the first sign-in)
+	PlexAddress    string `json:"plexAddress"`    // a fixed address for the server ("" = the addresses plex.tv lists)
+
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
 	TitleAsName       bool   `json:"titleAsName"`

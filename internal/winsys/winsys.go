@@ -555,3 +555,14 @@ func OpenFolder(dir string) {
 		start(proc.Detach(exec.Command("xdg-open", dir)))
 	}
 }
+
+// OpenURL shows a web page in the default browser (the Plex sign-in, where the user is likely signed in already).
+func OpenURL(u string) bool {
+	switch {
+	case IsWindows:
+		return start(proc.Hide(exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", u)))
+	case runtime.GOOS == "darwin":
+		return start(proc.Detach(exec.Command("open", u)))
+	}
+	return start(proc.Detach(exec.Command("xdg-open", u)))
+}
