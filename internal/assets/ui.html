@@ -41,6 +41,11 @@
   button.big { padding: 10px 18px; width: 100%; font-size: 15px; }
   button.danger:hover { border-color: var(--bad); color: var(--bad); }
   button:disabled { opacity: .55; cursor: default; }
+  .dlg-back { position: fixed; inset: 0; background: rgba(10, 12, 20, .55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+  .dlg h2 { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 8px; font-weight: 650; }
+  .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
+  .dlg .row { justify-content: flex-end; }
   .notice { border-left: 3px solid var(--warn); background: var(--field); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
   .notice p { margin: 0 0 8px; }
   .notice.info { border-color: var(--accent); }
@@ -217,6 +222,26 @@
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
   const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
   const players = () => (osText() ? osText().players : PLAYERS);
+  // an in-page confirmation (the browser's confirm() would head the box with this page's address)
+  const ask = (title, text, yes, danger) => new Promise((resolve) => {
+    const prev = document.activeElement;
+    const no = el('button', { textContent: 'Cancel' });
+    const ok = el('button', { textContent: yes, className: danger ? 'primary danger' : 'primary' });
+    const box = el('div', { className: 'dlg' }, el('h2', { textContent: title }), el('p', { textContent: text }), el('div', { className: 'row' }, no, ok));
+    box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
+    const back = el('div', { className: 'dlg-back' }, box);
+    const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
+    const key = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); done(false); }
+      else if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === ok ? no : ok).focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    back.onmousedown = (e) => { if (e.target === back) done(false); };
+    no.onclick = () => done(false);
+    ok.onclick = () => done(true);
+    document.body.append(back);
+    no.focus();
+  });
   const autoStartName = () => (osText() ? osText().autoStart : 'Start with Windows');
   function applyOsText() {
     const t = osText();
@@ -437,8 +462,8 @@
   $('welcomeGo').onclick = () => { dismissWelcome(); showTab('privacy'); };
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
-  $('reset').onclick = () => {
-    if (!confirm('Restore every setting to its default?\n\nThis also turns off ' + autoStartName() + ' and clears the TMDB key, name aliases, pinned covers and your Never show list.')) return;
+  $('reset').onclick = async () => {
+    if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ' and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
     queue = queue.then(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
@@ -447,7 +472,7 @@
     $('webMsg').textContent = 'Working…';
     try {
       let r = await api('mpc-web', { closeMpc: false });
-      if (r.needsClose) { if (!confirm((r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
+      if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { $('webMsg').textContent = ''; return; } r = await api('mpc-web', { closeMpc: true }); }
       $('webMsg').textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
       if (r.settingsChanged) { try { fill(await api('state')); } catch (_) {} } // the mpv name or VLC's password may have been taken over
     } catch (e) { $('webMsg').textContent = e.message; }
@@ -483,7 +508,7 @@
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('openFolder').onclick = () => api('open-folder', {}).catch(() => {});
-  $('quit').onclick = async () => { if (confirm(osText() ? (model.tray ? 'Quit MPCvibedRPC? Presence stops and the menu bar icon goes away.' : 'Quit MPCvibedRPC? Presence stops and the program closes.') : 'Quit MPCvibedRPC? Presence stops and the tray icon goes away.')) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+  $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord will stop showing what you are watching' + (osText() ? (model.tray ? ', and the menu bar icon will be removed.' : ', and the program will close.') : ', and the tray icon will be removed.'), 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
   api('state').then((m) => { fill(m); paint(m.status); if (m.update && m.update.newer) { $('updText').textContent = 'Version ' + m.update.latest + ' is available.'; offerUpdate(m.update, false); flagUpdate(); } })
     .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
