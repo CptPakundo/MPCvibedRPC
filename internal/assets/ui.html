@@ -222,12 +222,13 @@
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
   const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
   const players = () => (osText() ? osText().players : PLAYERS);
-  // an in-page confirmation (the browser's confirm() would head the box with this page's address)
-  const ask = (title, text, yes, danger) => new Promise((resolve) => {
+  // an in-page confirmation (the browser's confirm() and alert() would head the box with this page's address);
+  // with cancel set to null it is a message with a single button
+  const ask = (title, text, yes, danger, cancel = 'Cancel') => new Promise((resolve) => {
     const prev = document.activeElement;
-    const no = el('button', { textContent: 'Cancel' });
     const ok = el('button', { textContent: yes, className: danger ? 'primary danger' : 'primary' });
-    const box = el('div', { className: 'dlg' }, el('h2', { textContent: title }), el('p', { textContent: text }), el('div', { className: 'row' }, no, ok));
+    const no = cancel ? el('button', { textContent: cancel }) : ok;
+    const box = el('div', { className: 'dlg' }, el('h2', { textContent: title }), el('p', { textContent: text }), el('div', { className: 'row' }, ...(cancel ? [no, ok] : [ok])));
     box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
     const back = el('div', { className: 'dlg-back' }, box);
     const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
@@ -237,7 +238,7 @@
     };
     document.addEventListener('keydown', key, true);
     back.onmousedown = (e) => { if (e.target === back) done(false); };
-    no.onclick = () => done(false);
+    if (cancel) no.onclick = () => done(false);
     ok.onclick = () => done(true);
     document.body.append(back);
     no.focus();
@@ -461,7 +462,7 @@
   $('welcomeOk').onclick = dismissWelcome;
   $('welcomeGo').onclick = () => { dismissWelcome(); showTab('privacy'); };
 
-  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { alert(e.message); } $('toggle').disabled = false; };
+  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { await ask('Presence could not be changed', e.message, 'OK', false, null); } $('toggle').disabled = false; };
   $('reset').onclick = async () => {
     if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ' and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
     queue = queue.then(async () => {
