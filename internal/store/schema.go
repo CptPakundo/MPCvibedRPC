@@ -78,6 +78,7 @@ var Sections = []Section{
 		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
 		{Type: "heading", Label: "Plex"},
 		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
+		{Type: "heading", Label: "Stremio"}, // the window puts the sign-in under it
 	}},
 }
 

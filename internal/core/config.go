@@ -28,6 +28,9 @@ type Config struct {
 	PlexClient     string `json:"plexClient"`     // this install's Plex client identifier (made at the first sign-in)
 	PlexAddress    string `json:"plexAddress"`    // a fixed address for the server ("" = the addresses plex.tv lists)
 
+	// Stremio: the sign-in made with "Sign in to Stremio" (not typed in the window; empty = Stremio is not followed)
+	StremioKey string `json:"stremioKey"` // the account's key
+
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
 	TitleAsName       bool   `json:"titleAsName"`

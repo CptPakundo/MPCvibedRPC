@@ -126,8 +126,9 @@ The program asks the players in this order and shows the first one that is playi
 | VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. On macOS the same, in `~/Library/Preferences/org.videolan.vlc/vlcrc`. On Linux VLC needs none of this: it is found through MPRIS. |
 | Linux video players | MPRIS over D-Bus: VLC, Celluloid, Haruna, SMPlayer, GNOME Videos (Totem), Showtime, Clapper, Dragon Player, Kodi, Parole, QMPlay2, MPC-QT, and mpv with the mpv-mpris script | none; **Advanced > Find video players through MPRIS** switches it off. Music players and web browsers are left out. |
 | Plex | your Plex Media Server's play notifications, for whatever you play with your Plex account: the Plex app on this computer, Plex Web, a TV, a phone | **Advanced > Sign in to Plex**: plex.tv opens in your browser, you approve the sign-in there (the program never sees your password), and it follows your server (choose another one under the button; your own servers come first, then those shared with you). **Plex server address** is only needed when this computer cannot reach the server at the addresses plex.tv lists. |
+| Stremio | your Stremio account's library, which Stremio's player updates while you watch: the desktop app, Stremio Web, a TV, a phone | **Advanced > Sign in to Stremio**: stremio.com opens in your browser and you approve the sign-in there (the program never sees your password). |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; then MPRIS players, and Plex last, only while you are signed in.
+MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; then MPRIS players, then Plex and last Stremio, each only while you are signed in.
 
 Plex: the program signs in like a Plex app (it introduces itself to Plex as "MPCvibedRPC") and
 keeps the sign-in in `config.json`; **Sign out** or **Restore defaults** removes it. It only reads: titles, episode
@@ -137,4 +138,23 @@ computer. The episode or movie name comes from your server, and cover art is loo
 is tried on GitHub's test machines with every change: the official Plex Media Server, without a Plex account, with a
 stand-in player reporting playback to it. Signing in with a real Plex account, servers shared by someone else and real
 Plex apps have not been tried yet.
+
+Stremio: the program signs in the way Stremio's TV apps do (a code you approve on stremio.com) and keeps the account's
+key in `config.json`; **Sign out** ends that session on Stremio's side and removes it, and so does **Restore defaults**.
+It only reads. Stremio has no live "now playing" for other apps, so the program reads the account's library instead:
+every 20 seconds it asks which entries changed, and fetches only those. Stremio's player updates the entry of what you
+watch when it starts, pauses, resumes and stops, and every 90 seconds while it plays. An update that finds the video
+where it was is a start or a resume; one that comes early with the video moved on is a pause or a stop, and the status
+is taken down; when the 90-second updates stop coming, the video stopped without a word. Series episodes come from the
+entry's video ("Sample Show - S01E02"), and cover art is looked up the same way as for files. Entries of type "other"
+(which Stremio does not save to the account) are never shown. Stremio is tried against a stand-in for its servers built
+from Stremio's own open-source core (`stremio-core`); a real Stremio account has not been tried yet.
+
+## Resting while Discord is closed
+While Discord is not running and the settings window is closed, presence rests: no player is asked, the Plex server
+and the Stremio account are not followed, and memory the program does not need is handed back to the system. At each
+check (every 5 seconds by default) it only looks whether Discord's connection is there; it never connects to see. Once
+Discord starts, everything picks up at the next check; opening the window does so at once. Resting needs no setting: with Discord closed
+there is nobody to show a status to.
+
 

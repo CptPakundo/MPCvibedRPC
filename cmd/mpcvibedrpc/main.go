@@ -1,5 +1,5 @@
 // MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC (on macOS also IINA; on Linux any video player that
-// offers MPRIS), or Plex once signed in, is playing as a Discord Rich Presence. Runs from the tray on Windows and in
+// offers MPRIS), or Plex or Stremio once signed in, is playing as a Discord Rich Presence. Runs from the tray on Windows and in
 // the background on macOS and Linux; the settings are a small local web page opened in an app-style window.
 package main
 
@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.12"
+var version = "0.9.20"
 
 const preferredPort = 47654
 
@@ -236,8 +237,11 @@ func run() error {
 	}
 	winsys.CloseWindowBrowser(browserProfile) // a window browser left behind by a crash
 
-	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath()})
+	var windows atomic.Int32 // settings windows open now: presence never rests while one is
+	eng := engine.New(st.Config(), engine.Options{Log: log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath(),
+		MayRest: func() bool { return windows.Load() == 0 }, OnRest: winsys.TrimMemory})
 	plexAcc := &plexAccount{st: st, eng: eng, log: log}
+	stremioAcc := &stremioAccount{st: st, eng: eng, log: log}
 	token := server.NewToken()
 
 	var (
@@ -285,6 +289,7 @@ func run() error {
 				srv.Close()                               // ends the page's keep-alive connection, so an open window closes right away
 				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
 				plexAcc.stopWaiting()
+				stremioAcc.stopWaiting()
 				eng.Stop()
 				tray.Close()
 				_ = os.Remove(ipcFile)
@@ -372,6 +377,8 @@ func run() error {
 			return fullState(), nil
 		}},
 		"reset": {Fn: func(*jsonx.Obj) (any, error) {
+			stremioAcc.stopWaiting()
+			stremioAcc.revoke() // the reset forgets the Stremio key: end its session too
 			if err := st.Reset(); err != nil {
 				return nil, err
 			}
@@ -442,6 +449,15 @@ func run() error {
 			}
 			return plexAcc.state(), nil
 		}},
+		"stremio":        {Get: true, Fn: func(*jsonx.Obj) (any, error) { return stremioAcc.state(), nil }},
+		"stremio-signin": {Fn: func(*jsonx.Obj) (any, error) { return stremioAcc.signIn() }},
+		"stremio-cancel": {Fn: func(*jsonx.Obj) (any, error) { stremioAcc.stopWaiting(); return stremioAcc.state(), nil }},
+		"stremio-signout": {Fn: func(*jsonx.Obj) (any, error) {
+			if err := stremioAcc.signOut(); err != nil {
+				return nil, err
+			}
+			return stremioAcc.state(), nil
+		}},
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := checkUpdates(true)
 			if err != nil {
@@ -491,7 +507,15 @@ func run() error {
 		}},
 	}
 
-	srv = server.New(server.Options{Token: token, Page: assets.UI, Icon: assets.Icon, Handlers: handlers, Version: version})
+	srv = server.New(server.Options{Token: token, Page: assets.UI, Icon: assets.Icon, Handlers: handlers, Version: version,
+		OnWindow: func(open bool) {
+			if open {
+				windows.Add(1)
+				eng.Wake() // stop resting at once, so the window shows the player
+			} else {
+				windows.Add(-1)
+			}
+		}})
 	port, err := srv.Listen(preferredPort)
 	if err != nil {
 		return err

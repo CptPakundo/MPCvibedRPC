@@ -40,6 +40,8 @@ type Options struct {
 	Icon     []byte
 	Handlers map[string]Handler
 	Version  string
+	// OnWindow is told when a settings window opens (true) and closes (false): each open window holds /api/alive.
+	OnWindow func(open bool)
 }
 
 // Server serves the settings window and API.
@@ -123,6 +125,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		if fl, ok := w.(http.Flusher); ok {
 			fl.Flush()
+		}
+		if s.o.OnWindow != nil {
+			s.o.OnWindow(true)
+			defer s.o.OnWindow(false)
 		}
 		<-r.Context().Done()
 		return

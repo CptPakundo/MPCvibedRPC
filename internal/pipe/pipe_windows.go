@@ -5,6 +5,7 @@ package pipe
 import (
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -98,4 +99,23 @@ func (p *pipeConn) Close() error {
 	}
 	p.closed = true
 	return syscall.CloseHandle(p.h)
+}
+
+// Exists reports whether a named pipe is there, without connecting to it (a connection would take one of the
+// server's instances). The pipe file system answers a directory query for the exact name.
+func Exists(path string) bool {
+	if rest, ok := strings.CutPrefix(path, `\\?\pipe\`); ok {
+		path = `\\.\pipe\` + rest
+	}
+	p, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return false
+	}
+	var fd syscall.Win32finddata
+	h, err := syscall.FindFirstFile(p, &fd)
+	if err != nil {
+		return false
+	}
+	syscall.FindClose(h)
+	return true
 }

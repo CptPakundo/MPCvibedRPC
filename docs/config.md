@@ -19,7 +19,8 @@ shown here.
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
 | `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Advanced tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
-| `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. |
+| `stremioKey` | `''` | Written by **Sign in to Stremio** (Advanced tab), not typed: the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. Kept in `config.json` as plain text, like Stremio keeps its own; the settings window and **Copy diagnostics** never show it. |
+| `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. While Discord is closed and the window is too, a check only looks whether Discord has started (see [Resting](how-it-works.md#resting-while-discord-is-closed)). |
 
 ## How it looks
 

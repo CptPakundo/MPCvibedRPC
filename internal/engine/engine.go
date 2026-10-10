@@ -25,6 +25,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 	"github.com/CptPakundo/MPCvibedRPC/internal/plex"
+	"github.com/CptPakundo/MPCvibedRPC/internal/stremio"
 	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
 )
 
@@ -48,6 +49,14 @@ type Options struct {
 	PlexTV string
 	// StatsFile keeps the counts of what was shown (see Stats; "" = counted in memory only).
 	StatsFile string
+	// StremioAPI, when set, replaces Stremio's account services (tests).
+	StremioAPI string
+	// MayRest, when set, says whether the engine may rest while Discord is not running (the program: while the
+	// settings window is closed). Resting, it asks no player and follows no Plex server or Stremio account; it only
+	// looks for Discord's connection every check. nil = never rest.
+	MayRest func() bool
+	// OnRest is called when the engine starts resting (the program hands memory back to the system).
+	OnRest func()
 }
 
 // PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.
@@ -93,6 +102,9 @@ type Status struct {
 	Hint      string  `json:"hint,omitempty"`
 	LastError *string `json:"lastError"`
 	Since     *int64  `json:"since"`
+	// Resting is true while Discord is not running and nothing is asked (see Options.MayRest; never while the
+	// window is open).
+	Resting bool `json:"resting,omitempty"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -121,6 +133,10 @@ type Engine struct {
 	vlc        *vlchttp.Reader
 	vlcProblem string // why VLC's web interface did not answer (logged once; the window shows it)
 	plex       *plex.Watcher
+	stremio    *stremio.Watcher
+	remote     context.CancelFunc // ends the Plex and Stremio watchers of the run (they stop while resting)
+	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
+	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nowPlaying *string
 	preview    *core.Preview
 	paused     bool
@@ -162,7 +178,7 @@ func New(cfg core.Config, opts Options) *Engine {
 	}
 	now := time.Now()
 	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient},
-		stats: loadStats(opts.StatsFile, now), statSaved: now}
+		stats: loadStats(opts.StatsFile, now), statSaved: now, wake: make(chan struct{}, 1)}
 }
 
 // Config returns the settings the engine is using.
@@ -333,6 +349,19 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 			}
 		}
 		if info == nil {
+			e.mu.Lock()
+			w := e.stremio
+			e.mu.Unlock()
+			if w != nil {
+				if in := w.Now(); in != nil {
+					in.Player = "Stremio"
+					if playing(in) {
+						info = in
+					}
+				}
+			}
+		}
+		if info == nil {
 			info = first
 		}
 	}
@@ -437,7 +466,105 @@ func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Act
 	return rpc.SetActivity(core.LegacyActivity(a, cfg))
 }
 
+// discordRunning reports whether Discord's connection is there (it is looked for, never connected to).
+func (e *Engine) discordRunning() bool {
+	if e.opts.NewDiscord != nil {
+		return true // the tests' stand-in has no endpoint
+	}
+	paths := e.opts.DiscordPaths
+	if paths == nil {
+		paths = discord.SocketPaths()
+	}
+	for _, p := range paths {
+		if pipe.Exists(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// rest reports whether this check rests: Discord is not running and the engine may rest (Options.MayRest). It
+// starts and ends the resting state; the Plex and Stremio watchers run only while it does not rest.
+func (e *Engine) rest(r *run) bool {
+	want := e.opts.MayRest != nil && e.opts.MayRest() && !e.discordRunning()
+	e.mu.Lock()
+	if e.cur != r {
+		e.mu.Unlock()
+		return true
+	}
+	if want {
+		if e.resting {
+			e.mu.Unlock()
+			return true
+		}
+		e.resting = true
+		stop := e.remote
+		e.remote, e.plex, e.stremio = nil, nil, nil
+		e.mpcUp, e.player, e.vlcProblem = false, "", ""
+		e.shown, e.prev, e.nowPlaying, e.preview, e.paused = false, nil, nil, nil, false
+		e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
+		e.statTick = time.Time{}
+		e.mu.Unlock()
+		if stop != nil {
+			stop()
+		}
+		e.log("INFO", "Discord is not running: resting until it starts (no player is asked meanwhile).")
+		if e.opts.OnRest != nil {
+			e.opts.OnRest()
+		}
+		return true
+	}
+	was := e.resting
+	e.resting = false
+	if e.remote == nil {
+		e.startRemote(r)
+	}
+	e.mu.Unlock()
+	if was {
+		e.log("INFO", "Resting ended: looking for a player again.")
+	}
+	return false
+}
+
+// startRemote starts following the Plex server and the Stremio account the user signed in to (e.mu held).
+func (e *Engine) startRemote(r *run) {
+	cfg := e.cfg
+	ctx, cancel := context.WithCancel(r.ctx)
+	e.remote = cancel
+	e.plex, e.stremio = nil, nil
+	if cfg.PlexToken != "" {
+		e.plex = &plex.Watcher{
+			Client:  &plex.Client{HTTP: e.opts.HTTPClient, ClientID: cfg.PlexClient, Version: e.opts.Version, TVBase: e.opts.PlexTV, ResourcesBase: e.opts.PlexTV},
+			Token:   cfg.PlexToken,
+			Account: cfg.PlexAccount,
+			Server:  cfg.PlexServer,
+			Address: cfg.PlexAddress,
+			Log:     e.log,
+		}
+		go e.plex.Run(ctx)
+	}
+	if cfg.StremioKey != "" {
+		e.stremio = &stremio.Watcher{
+			Client: &stremio.Client{HTTP: e.opts.HTTPClient, APIBase: e.opts.StremioAPI, LinkBase: e.opts.StremioAPI},
+			Key:    cfg.StremioKey,
+			Log:    e.log,
+		}
+		go e.stremio.Run(ctx)
+	}
+}
+
+// Wake makes the engine check at once instead of at its next check (the window opened, so it must stop resting).
+func (e *Engine) Wake() {
+	select {
+	case e.wake <- struct{}{}:
+	default:
+	}
+}
+
 func (e *Engine) tick(r *run) {
+	if e.rest(r) {
+		return
+	}
 	e.mu.Lock()
 	cfg := e.cfg
 	e.statTime(time.Now(), pollInterval(cfg))
@@ -663,6 +790,8 @@ func (e *Engine) loop(r *run, interval time.Duration) {
 			t.Stop()
 			return
 		case <-t.C:
+		case <-e.wake:
+			t.Stop()
 		}
 	}
 }
@@ -697,18 +826,7 @@ func (e *Engine) start() {
 		Client:     e.opts.HTTPClient,
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
 	})
-	e.plex = nil
-	if cfg.PlexToken != "" {
-		e.plex = &plex.Watcher{
-			Client:  &plex.Client{HTTP: e.opts.HTTPClient, ClientID: cfg.PlexClient, Version: e.opts.Version, TVBase: e.opts.PlexTV, ResourcesBase: e.opts.PlexTV},
-			Token:   cfg.PlexToken,
-			Account: cfg.PlexAccount,
-			Server:  cfg.PlexServer,
-			Address: cfg.PlexAddress,
-			Log:     e.log,
-		}
-		go e.plex.Run(ctx)
-	}
+	e.plex, e.stremio, e.remote, e.resting = nil, nil, nil, false // the first check starts them (unless it rests)
 	e.mu.Unlock()
 	places := []string{fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT)", cfg.Port), "MPC-QT's own connection"}
 	if cfg.MpvPipe != "" {
@@ -725,6 +843,9 @@ func (e *Engine) start() {
 	}
 	if cfg.PlexToken != "" {
 		places = append(places, "your Plex server")
+	}
+	if cfg.StremioKey != "" {
+		places = append(places, "your Stremio account")
 	}
 	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
@@ -773,7 +894,7 @@ func (e *Engine) stop() {
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
-	e.plex = nil // its run ended with the run's context
+	e.plex, e.stremio, e.remote, e.resting = nil, nil, nil, false // their runs ended with the run's context
 	e.saveStats(time.Now())
 	e.statTick = time.Time{}
 	e.mu.Unlock()
@@ -841,15 +962,30 @@ func (e *Engine) Status() Status {
 		s.Hidden = e.hidden
 		s.Preview = e.preview
 		s.Hint = e.vlcProblem
-		if e.plex != nil {
-			if p := e.plex.Problem(); p != "" && s.Hint == "" {
+		for _, p := range []string{e.plexProblem(), e.stremioProblem()} {
+			if p != "" && s.Hint == "" {
 				s.Hint = p
 			} else if p != "" {
 				s.Hint += " " + p
 			}
 		}
+		s.Resting = e.resting
 	}
 	return s
+}
+
+func (e *Engine) plexProblem() string {
+	if e.plex == nil {
+		return ""
+	}
+	return e.plex.Problem()
+}
+
+func (e *Engine) stremioProblem() string {
+	if e.stremio == nil {
+		return ""
+	}
+	return e.stremio.Problem()
 }
 
 // pollInterval is how often the players are asked (at least every 250 ms).

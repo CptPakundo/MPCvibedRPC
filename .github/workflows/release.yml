@@ -1,6 +1,7 @@
-# Publishes a release when a version tag is pushed:   git tag v0.9.12 && git push --tags
-# The program's own updater looks for its file (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to
-# it on the latest release; on macOS it links to the release page.
+# Publishes a release when a version tag is pushed:   git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z
+# The tag must match the version in cmd/mpcvibedrpc/main.go. The program's own updater looks for its file
+# (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to it on the latest release; on macOS it links to
+# the release page. Once published, the release is checked as a user gets it (tools/ci/verify-release.ps1).
 name: release
 on:
   push:
@@ -24,12 +25,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with: { go-version: '1.24', cache: false }
+      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+        shell: bash
       - run: go test -count=1 ./...
       - name: Build and smoke-test
         shell: bash
         run: |
-          v='${{ github.ref_name }}'; v="${v#v}"
-          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "Tag $v is not a version like v0.9.12"; exit 1; }
+          v="$VERSION"
           mkdir -p dist
           if [ "$RUNNER_OS" = Linux ]; then
             for arch in amd64 arm64; do
@@ -55,13 +57,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with: { go-version: '1.24', cache: false }
+      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+        shell: bash
       - run: go test -count=1 ./...
       - name: Build
         shell: pwsh
         run: |
-          $v = '${{ github.ref_name }}'.TrimStart('v')
-          if ($v -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Tag $v is not a version like v0.9.12" }
-          $next = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+          $v, $next = $env:VERSION, $env:NEXT
           New-Item -ItemType Directory dist | Out-Null
           go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
           go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
@@ -108,3 +110,22 @@ jobs:
             dist/THIRD-PARTY-NOTICES.md
           body_path: .github/release-notes.md
           fail_on_unmatched_files: true
+
+  # The published release, as a user downloads it: the files, their checksums and build records, the exe's version,
+  # and a real self-update from the release before it (its own data folder, no window, no Discord needed).
+  verify:
+    needs: release
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+        shell: bash
+      - name: Verify the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/ci/verify-release.ps1 -Version $env:VERSION

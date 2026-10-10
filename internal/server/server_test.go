@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,5 +150,52 @@ func TestAliveEndsWhenServerCloses(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("stream did not end when the server closed")
+	}
+}
+
+// OnWindow hears of each window that holds /api/alive, and of it closing.
+func TestOnWindow(t *testing.T) {
+	var mu sync.Mutex
+	open := 0
+	s := New(Options{Token: "tok", Page: "<html></html>", OnWindow: func(o bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		if o {
+			open++
+		} else {
+			open--
+		}
+	}})
+	if _, err := s.Listen(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	count := func() int { mu.Lock(); defer mu.Unlock(); return open }
+	wait := func(n int) {
+		t.Helper()
+		for i := 0; i < 200 && count() != n; i++ {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if count() != n {
+			t.Fatalf("%d windows open, want %d", count(), n)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "GET", "http://127.0.0.1:"+itoa(s.Port())+"/api/alive", nil)
+	req.Header.Set("X-Token", "tok")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait(1)
+	cancel() // the window closes
+	res.Body.Close()
+	wait(0)
+	req, _ = http.NewRequest("GET", "http://127.0.0.1:"+itoa(s.Port())+"/api/alive", nil)
+	if res, err := http.DefaultClient.Do(req); err != nil || res.StatusCode != 401 {
+		t.Fatalf("no token: %v %v", res, err)
+	}
+	if count() != 0 {
+		t.Fatal("a refused request counts as a window")
 	}
 }

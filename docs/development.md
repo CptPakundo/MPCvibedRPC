@@ -6,8 +6,8 @@ How MPCvibedRPC is built, tested and released. For using it, see the [README](..
 The program is written in Go and uses only the standard library: one small file (about 8 MB, a few MB of memory while
 running), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
 
-    go run ./tools/mkrsrc -version 0.9.12 -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.9.12" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version X.Y.Z -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
+    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
@@ -18,7 +18,7 @@ The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
 
 ## Testing
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
-(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex and a fake Discord, and the
+(tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex, a fake Stremio and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
 program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, and a real Plex Media Server) and macOS (mpv, and IINA after the program has set it up).
 
@@ -29,17 +29,21 @@ run-at-login entry), and `MPCRPC_BROWSER` names the browser to show the window i
 ## Releasing
 To publish a version:
 
-1. `git tag v0.9.12 && git push --tags` - the workflow in `.github/workflows/release.yml` runs the tests, builds the
-   programs on Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, autostart,
-   self-update; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app like
-   the Finder does) and attaches them with their `.sha256` files to a release. The tag is the version.
-
-Before tagging: the version's lines go at the top of `internal/assets/changelog.json` (the window shows them once
-after the update; a test checks that the newest entry is the version being built), `.github/release-notes.md` becomes
-the release text, and the screenshots below are taken again.
+1. In the change that makes the release: the version in `cmd/mpcvibedrpc/main.go` (the workflows and smoke tests read
+   it from there), the version's lines at the top of `internal/assets/changelog.json` (the window shows them once
+   after the update; a test checks that the newest entry is the version being built), and `.github/release-notes.md`,
+   which becomes the release text.
+2. `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z` - the workflow in
+   `.github/workflows/release.yml` checks that the tag matches the version, runs the tests, builds the programs on
+   Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, resting while Discord is
+   closed, DPI awareness, version details, autostart, self-update; macOS and Linux: the API, login item, player setup, a
+   second start, and on macOS opening the app like the Finder does) and attaches them with their `.sha256` files and
+   build records to a release.
+3. Then it checks the published release as a user gets it (`tools/ci/verify-release.ps1`): the ten files, each
+   program's checksum and build record, the exe's version, and a real self-update from the release before it.
 
 ## Screenshots
-The README's pictures (`docs/images/window-*.jpg`) show the current version and are taken again for every release:
+The README's pictures (`docs/images/window-*.jpg`) are taken again when the part of the window they show changes:
 
 1. Build the program and start it with a throwaway data folder (`MPCRPC_HOME`), with presence off and
    `{"app": {"seenVersion": "<version>"}}` in its `config.json` so the What's new box stays closed.
@@ -63,6 +67,7 @@ The README's pictures (`docs/images/window-*.jpg`) show the current version and 
 | `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
 | `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
 | `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
+| `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
