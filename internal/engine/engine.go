@@ -1,5 +1,5 @@
 // Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a player found
-// through MPRIS on Linux, or Plex), looks up artwork and keeps Discord up to date.
+// through MPRIS on Linux, Plex, Jellyfin, Emby or Stremio), looks up artwork and keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
@@ -21,6 +21,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
@@ -51,9 +52,11 @@ type Options struct {
 	StatsFile string
 	// StremioAPI, when set, replaces Stremio's account services (tests).
 	StremioAPI string
+	// JellyfinEvery, when set, replaces how often a Jellyfin or Emby server is asked (tests).
+	JellyfinEvery time.Duration
 	// MayRest, when set, says whether the engine may rest while Discord is not running (the program: while the
-	// settings window is closed). Resting, it asks no player and follows no Plex server or Stremio account; it only
-	// looks for Discord's connection every check. nil = never rest.
+	// settings window is closed). Resting, it asks no player and follows no Plex, Jellyfin or Emby server or Stremio
+	// account; it only looks for Discord's connection every check. nil = never rest.
 	MayRest func() bool
 	// OnRest is called when the engine starts resting (the program hands memory back to the system).
 	OnRest func()
@@ -89,7 +92,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // a player answers
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a Linux player found through MPRIS, or Plex
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a Linux player found through MPRIS, Plex, Jellyfin, Emby or Stremio
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
@@ -127,6 +130,7 @@ type Engine struct {
 	shown      bool
 	prev       *core.Prev
 	basicMode  bool
+	noLinks    bool // Discord refused the clickable title and cover: they are sent without links
 	art        *artwork.Artwork
 	mpcUp      bool
 	player     string // the player that answered last
@@ -134,7 +138,8 @@ type Engine struct {
 	vlcProblem string // why VLC's web interface did not answer (logged once; the window shows it)
 	plex       *plex.Watcher
 	stremio    *stremio.Watcher
-	remote     context.CancelFunc // ends the Plex and Stremio watchers of the run (they stop while resting)
+	jellyfin   *jellyfin.Watcher
+	remote     context.CancelFunc // ends the Plex, Jellyfin and Stremio watchers of the run (they stop while resting)
 	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
 	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nowPlaying *string
@@ -362,6 +367,19 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 			}
 		}
 		if info == nil {
+			e.mu.Lock()
+			w := e.jellyfin
+			e.mu.Unlock()
+			if w != nil {
+				if in := w.Now(); in != nil {
+					in.Player = orJellyfin(cfg.JellyfinProduct) // Jellyfin or Emby
+					if playing(in) {
+						info = in
+					}
+				}
+			}
+		}
+		if info == nil {
 			info = first
 		}
 	}
@@ -449,21 +467,38 @@ func (e *Engine) connectDiscord(r *run) {
 	}()
 }
 
-func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity) error {
+// sendActivity shows a on Discord and returns what was sent. A Discord that refuses the clickable title and cover
+// gets them without links from then on; one that refuses the Watching activity gets the basic one.
+func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity) (*core.Activity, error) {
 	e.mu.Lock()
-	basic := e.basicMode
+	basic, noLinks := e.basicMode, e.noLinks
 	e.mu.Unlock()
 	if !basic {
+		if noLinks && core.HasLinks(a) {
+			a = core.WithoutLinks(a)
+		}
 		err := rpc.SetActivity(a)
 		if err == nil {
-			return nil
+			return a, nil
+		}
+		var refused *discord.Error
+		if core.HasLinks(a) && errors.As(err, &refused) {
+			e.log("WARN", fmt.Sprintf("Discord rejected the clickable title and cover (%s). Sending them without links.", err.Error()))
+			e.mu.Lock()
+			e.noLinks = true
+			e.mu.Unlock()
+			a = core.WithoutLinks(a)
+			if err = rpc.SetActivity(a); err == nil {
+				return a, nil
+			}
 		}
 		e.log("WARN", fmt.Sprintf("Discord rejected the Watching activity (%s). Falling back to basic mode.", err.Error()))
 		e.mu.Lock()
 		e.basicMode = true
 		e.mu.Unlock()
 	}
-	return rpc.SetActivity(core.LegacyActivity(a, cfg))
+	l := core.LegacyActivity(a, cfg)
+	return l, rpc.SetActivity(l)
 }
 
 // discordRunning reports whether Discord's connection is there (it is looked for, never connected to).
@@ -499,7 +534,7 @@ func (e *Engine) rest(r *run) bool {
 		}
 		e.resting = true
 		stop := e.remote
-		e.remote, e.plex, e.stremio = nil, nil, nil
+		e.remote, e.plex, e.stremio, e.jellyfin = nil, nil, nil, nil
 		e.mpcUp, e.player, e.vlcProblem = false, "", ""
 		e.shown, e.prev, e.nowPlaying, e.preview, e.paused = false, nil, nil, nil, false
 		e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
@@ -526,12 +561,13 @@ func (e *Engine) rest(r *run) bool {
 	return false
 }
 
-// startRemote starts following the Plex server and the Stremio account the user signed in to (e.mu held).
+// startRemote starts following the Plex, Jellyfin or Emby server and the Stremio account the user signed in to (e.mu
+// held).
 func (e *Engine) startRemote(r *run) {
 	cfg := e.cfg
 	ctx, cancel := context.WithCancel(r.ctx)
 	e.remote = cancel
-	e.plex, e.stremio = nil, nil
+	e.plex, e.stremio, e.jellyfin = nil, nil, nil
 	if cfg.PlexToken != "" {
 		e.plex = &plex.Watcher{
 			Client:  &plex.Client{HTTP: e.opts.HTTPClient, ClientID: cfg.PlexClient, Version: e.opts.Version, TVBase: e.opts.PlexTV, ResourcesBase: e.opts.PlexTV},
@@ -550,6 +586,17 @@ func (e *Engine) startRemote(r *run) {
 			Log:    e.log,
 		}
 		go e.stremio.Run(ctx)
+	}
+	if cfg.JellyfinToken != "" && cfg.JellyfinAddress != "" {
+		e.jellyfin = &jellyfin.Watcher{
+			Client:  &jellyfin.Client{HTTP: e.opts.HTTPClient, Base: cfg.JellyfinAddress, DeviceID: cfg.JellyfinDevice, Version: e.opts.Version},
+			Token:   cfg.JellyfinToken,
+			UserID:  cfg.JellyfinUser,
+			Product: cfg.JellyfinProduct,
+			Every:   e.opts.JellyfinEvery,
+			Log:     e.log,
+		}
+		go e.jellyfin.Run(ctx)
 	}
 }
 
@@ -709,6 +756,7 @@ func (e *Engine) tick(r *run) {
 			return
 		}
 		activity = core.BuildActivity(info, &cfg, time.Now().UnixMilli(), media, found)
+		core.AddLinks(activity, &cfg, found)
 		noEpTitle = cfg.ShowArtwork && cfg.EpisodeTitles && media.IsEpisode && media.Episode != core.NA && media.EpTitle == "" &&
 			(found == nil || found.Episode == nil)
 		display = media.Display
@@ -716,7 +764,8 @@ func (e *Engine) tick(r *run) {
 	if !e.isCurrent(r) {
 		return
 	}
-	if err := e.sendActivity(rpc, &cfg, activity); err != nil {
+	sent, err := e.sendActivity(rpc, &cfg, activity)
+	if err != nil {
 		msg := err.Error()
 		e.mu.Lock()
 		e.lastError = &msg
@@ -742,11 +791,7 @@ func (e *Engine) tick(r *run) {
 	}
 	e.nowPlaying = &d
 	e.paused = info.State == 1
-	sent := activity
-	if e.basicMode { // the fallback carries less: show what Discord actually got
-		sent = core.LegacyActivity(activity, &cfg)
-	}
-	e.preview = core.PreviewOf(sent, &cfg)
+	e.preview = core.PreviewOf(sent, &cfg) // what Discord actually got (the basic fallback carries less)
 	e.mu.Unlock()
 	word := "Paused"
 	if info.State == 2 {
@@ -812,7 +857,7 @@ func (e *Engine) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
-	e.basicMode, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, nil, false, false, false, ""
+	e.basicMode, e.noLinks, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, false, nil, false, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	e.vlcProblem = ""
 	now := time.Now().UnixMilli()
@@ -826,7 +871,7 @@ func (e *Engine) start() {
 		Client:     e.opts.HTTPClient,
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
 	})
-	e.plex, e.stremio, e.remote, e.resting = nil, nil, nil, false // the first check starts them (unless it rests)
+	e.plex, e.stremio, e.jellyfin, e.remote, e.resting = nil, nil, nil, nil, false // the first check starts them (unless it rests)
 	e.mu.Unlock()
 	places := []string{fmt.Sprintf("the web interface on port %d (MPC-HC, MPC-BE, MPC-QT)", cfg.Port), "MPC-QT's own connection"}
 	if cfg.MpvPipe != "" {
@@ -846,6 +891,9 @@ func (e *Engine) start() {
 	}
 	if cfg.StremioKey != "" {
 		places = append(places, "your Stremio account")
+	}
+	if cfg.JellyfinToken != "" && cfg.JellyfinAddress != "" {
+		places = append(places, "your "+orJellyfin(cfg.JellyfinProduct)+" server")
 	}
 	looking := strings.Join(places[:len(places)-1], ", ") + " and " + places[len(places)-1]
 	e.log("INFO", "Presence started. Looking for a player on "+looking+".")
@@ -894,7 +942,7 @@ func (e *Engine) stop() {
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
 	e.nowPlaying, e.since, e.preview = nil, nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
-	e.plex, e.stremio, e.remote, e.resting = nil, nil, nil, false // their runs ended with the run's context
+	e.plex, e.stremio, e.jellyfin, e.remote, e.resting = nil, nil, nil, nil, false // their runs ended with the run's context
 	e.saveStats(time.Now())
 	e.statTick = time.Time{}
 	e.mu.Unlock()
@@ -962,7 +1010,7 @@ func (e *Engine) Status() Status {
 		s.Hidden = e.hidden
 		s.Preview = e.preview
 		s.Hint = e.vlcProblem
-		for _, p := range []string{e.plexProblem(), e.stremioProblem()} {
+		for _, p := range []string{e.plexProblem(), e.stremioProblem(), e.jellyfinProblem()} {
 			if p != "" && s.Hint == "" {
 				s.Hint = p
 			} else if p != "" {
@@ -986,6 +1034,21 @@ func (e *Engine) stremioProblem() string {
 		return ""
 	}
 	return e.stremio.Problem()
+}
+
+func (e *Engine) jellyfinProblem() string {
+	if e.jellyfin == nil {
+		return ""
+	}
+	return e.jellyfin.Problem()
+}
+
+// orJellyfin names a signed-in server whose kind was not saved.
+func orJellyfin(product string) string {
+	if product == "" {
+		return "Jellyfin"
+	}
+	return product
 }
 
 // pollInterval is how often the players are asked (at least every 250 ms).

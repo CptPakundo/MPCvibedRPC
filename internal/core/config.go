@@ -31,6 +31,15 @@ type Config struct {
 	// Stremio: the sign-in made with "Sign in to Stremio" (not typed in the window; empty = Stremio is not followed)
 	StremioKey string `json:"stremioKey"` // the account's key
 
+	// Jellyfin or Emby: the sign-in made on the Advanced tab (not typed in the window; empty jellyfinToken = not followed)
+	JellyfinAddress    string `json:"jellyfinAddress"`    // the server's address (ending in /emby for an Emby server that needs it)
+	JellyfinToken      string `json:"jellyfinToken"`      // this install's sign-in on the server
+	JellyfinUser       string `json:"jellyfinUser"`       // the user's id (only their own playback counts)
+	JellyfinUserName   string `json:"jellyfinUserName"`   // the user's name, for the window
+	JellyfinServerName string `json:"jellyfinServerName"` // the server's name, for the window
+	JellyfinProduct    string `json:"jellyfinProduct"`    // Jellyfin or Emby
+	JellyfinDevice     string `json:"jellyfinDevice"`     // this install's device id towards the server (made at the first sign-in)
+
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
 	TitleAsName       bool   `json:"titleAsName"`

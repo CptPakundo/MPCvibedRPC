@@ -105,3 +105,23 @@ func TestReportLeaksNothingAboutStremio(t *testing.T) {
 		t.Errorf("report without Stremio:\n%s", got)
 	}
 }
+
+func TestReportLeaksNothingAboutJellyfin(t *testing.T) {
+	cfg := core.DefaultConfig()
+	cfg.JellyfinToken, cfg.JellyfinAddress, cfg.JellyfinUser, cfg.JellyfinUserName = "SECRETTOKEN", "http://media.example:8096", "USERID", "SAMPLEUSER"
+	cfg.JellyfinServerName, cfg.JellyfinDevice, cfg.JellyfinProduct = "SAMPLESERVER", "DEVICEID", "Jellyfin"
+	got := Report(Input{Version: "1", System: "x", Config: cfg})
+	for _, secret := range []string{"SECRETTOKEN", "media.example", "USERID", "SAMPLEUSER", "SAMPLESERVER", "DEVICEID"} {
+		if strings.Contains(got, secret) {
+			t.Errorf("%s leaks:\n%s", secret, got)
+		}
+	}
+	for _, want := range []string{"Jellyfin / Emby: signed in to a Jellyfin server", "jellyfinToken = (set)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in\n%s", want, got)
+		}
+	}
+	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Jellyfin / Emby: off (not signed in)") {
+		t.Errorf("report without Jellyfin:\n%s", got)
+	}
+}

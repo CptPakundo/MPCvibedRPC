@@ -61,8 +61,10 @@ type disc struct {
 	mu     sync.Mutex
 	acts   []map[string]any // args of each SET_ACTIVITY
 	reject bool             // reject activities that carry a "type"
-	ln     fakeListener
-	conns  []io.ReadWriteCloser
+	// rejectLinks rejects activities whose details line is a link (a Discord that does not know details_url)
+	rejectLinks bool
+	ln          fakeListener
+	conns       []io.ReadWriteCloser
 }
 
 func newDisc(t *testing.T) *disc { return newDiscAt(t, fakePath(sockDir(t))) }
@@ -125,7 +127,7 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		act, _ := args["activity"].(map[string]any)
 		d.mu.Lock()
 		d.acts = append(d.acts, args)
-		rej := d.reject && act != nil && act["type"] != nil
+		rej := (d.reject && act != nil && act["type"] != nil) || (d.rejectLinks && act != nil && act["details_url"] != nil)
 		d.mu.Unlock()
 		if rej {
 			reply(c, map[string]any{"evt": "ERROR", "nonce": m["nonce"], "data": map[string]any{"code": 4000, "message": "bad"}})

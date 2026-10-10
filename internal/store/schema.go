@@ -45,7 +45,7 @@ var Sections = []Section{
 		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
-		{Key: "linkButton", Type: "bool", Label: `Add a "View on IMDb" style button`, Help: "Visible to others on your profile."},
+		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the second line and the cover clickable. Visible to others on your profile.`},
 		{Key: "episodeInDetails", Type: "bool", Label: "Repeat the season and episode number in the title line", Help: "Discord already shows a season and episode badge, so this is off by default."},
 	}},
 	{ID: "titles", Title: "Titles and artwork", Fields: []Field{
@@ -78,7 +78,8 @@ var Sections = []Section{
 		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
 		{Type: "heading", Label: "Plex"},
 		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
-		{Type: "heading", Label: "Stremio"}, // the window puts the sign-in under it
+		{Type: "heading", Label: "Stremio"},         // the window puts the sign-in under it
+		{Type: "heading", Label: "Jellyfin / Emby"}, // the window puts the sign-in under it
 	}},
 }
 

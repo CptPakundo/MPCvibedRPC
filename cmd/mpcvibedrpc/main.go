@@ -1,6 +1,7 @@
 // MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv or VLC (on macOS also IINA; on Linux any video player that
-// offers MPRIS), or Plex or Stremio once signed in, is playing as a Discord Rich Presence. Runs from the tray on Windows and in
-// the background on macOS and Linux; the settings are a small local web page opened in an app-style window.
+// offers MPRIS), or Plex, Jellyfin, Emby or Stremio once signed in, is playing as a Discord Rich Presence. Runs from
+// the tray on Windows and in the background on macOS and Linux; the settings are a small local web page opened in an
+// app-style window.
 package main
 
 import (
@@ -161,6 +162,24 @@ func (l *logger) close() {
 	}
 }
 
+// setHideTitle switches "Hide what I'm watching" from the tray or the menu bar, saved like a switch in the window.
+func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg string), on bool) {
+	patch, err := jsonx.Parse(fmt.Sprintf(`{"settings":{"hideTitle":%t}}`, on))
+	if err == nil {
+		err = st.Update(patch.(*jsonx.Obj))
+	}
+	if err != nil {
+		log("ERROR", "Could not save Hide what I'm watching: "+err.Error())
+		return
+	}
+	eng.ApplySettings(st.Config())
+	if on {
+		log("INFO", "Hide what I'm watching turned on from the menu.")
+	} else {
+		log("INFO", "Hide what I'm watching turned off from the menu.")
+	}
+}
+
 func windowURL(port int, token string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
 }
@@ -242,6 +261,7 @@ func run() error {
 		MayRest: func() bool { return windows.Load() == 0 }, OnRest: winsys.TrimMemory})
 	plexAcc := &plexAccount{st: st, eng: eng, log: log}
 	stremioAcc := &stremioAccount{st: st, eng: eng, log: log}
+	jellyfinAcc := &jellyfinAccount{st: st, eng: eng, log: log}
 	token := server.NewToken()
 
 	var (
@@ -273,10 +293,11 @@ func run() error {
 	// statusNow is what the window polls: the engine's status, and a newer version once a check has found one.
 	type status struct {
 		engine.Status
-		Update *updater.Info `json:"update,omitempty"`
+		HideTitle bool          `json:"hideTitle"` // the window follows a switch made from the tray or the menu bar
+		Update    *updater.Info `json:"update,omitempty"`
 	}
 	statusNow := func() status {
-		s := status{Status: eng.Status()}
+		s := status{Status: eng.Status(), HideTitle: eng.Config().HideTitle}
 		if u := getUpdate(); u != nil && u.Newer {
 			s.Update = u
 		}
@@ -290,6 +311,7 @@ func run() error {
 				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
 				plexAcc.stopWaiting()
 				stremioAcc.stopWaiting()
+				jellyfinAcc.stopWaiting()
 				eng.Stop()
 				tray.Close()
 				_ = os.Remove(ipcFile)
@@ -337,6 +359,7 @@ func run() error {
 	}
 
 	openWindow := func() { winsys.OpenWindow(windowURL(srv.Port(), token), browserProfile) }
+	setHideTitle := func(on bool) { setHideTitle(st, eng, log, on) }
 
 	handlers := map[string]server.Handler{
 		"state":  {Get: true, Fn: func(*jsonx.Obj) (any, error) { return fullState(), nil }},
@@ -379,6 +402,8 @@ func run() error {
 		"reset": {Fn: func(*jsonx.Obj) (any, error) {
 			stremioAcc.stopWaiting()
 			stremioAcc.revoke() // the reset forgets the Stremio key: end its session too
+			jellyfinAcc.stopWaiting()
+			jellyfinAcc.revoke() // and the Jellyfin or Emby sign-in
 			if err := st.Reset(); err != nil {
 				return nil, err
 			}
@@ -457,6 +482,24 @@ func run() error {
 				return nil, err
 			}
 			return stremioAcc.state(), nil
+		}},
+		"jellyfin": {Get: true, Fn: func(*jsonx.Obj) (any, error) { return jellyfinAcc.state(), nil }},
+		"jellyfin-signin": {Fn: func(body *jsonx.Obj) (any, error) {
+			address, _ := body.M["address"].(string)
+			return jellyfinAcc.signIn(address)
+		}},
+		"jellyfin-password": {Fn: func(body *jsonx.Obj) (any, error) {
+			address, _ := body.M["address"].(string)
+			user, _ := body.M["user"].(string)
+			password, _ := body.M["password"].(string)
+			return jellyfinAcc.signInPassword(address, strings.TrimSpace(user), password)
+		}},
+		"jellyfin-cancel": {Fn: func(*jsonx.Obj) (any, error) { jellyfinAcc.stopWaiting(); return jellyfinAcc.state(), nil }},
+		"jellyfin-signout": {Fn: func(*jsonx.Obj) (any, error) {
+			if err := jellyfinAcc.signOut(); err != nil {
+				return nil, err
+			}
+			return jellyfinAcc.state(), nil
 		}},
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := checkUpdates(true)
@@ -552,6 +595,8 @@ func run() error {
 				eng.Start()
 			}
 		},
+		Hidden: func() bool { return eng.Config().HideTitle },
+		OnHide: func() { setHideTitle(!eng.Config().HideTitle) },
 		OnQuit: quit,
 	})
 	mu.Lock()
