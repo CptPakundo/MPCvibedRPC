@@ -30,6 +30,7 @@ type Watcher struct {
 }
 
 type playback struct {
+	key    string // the session and item
 	item   Item
 	paused bool
 	offset int       // ms, at "at"
@@ -209,6 +210,12 @@ func (w *Watcher) poll(ctx context.Context) error {
 			at = now.Add(-age)
 		}
 	}
-	w.play = &playback{item: *best.NowPlayingItem, paused: best.PlayState.IsPaused, offset: pos, at: at}
+	key := best.ID + "/" + best.NowPlayingItem.ID
+	if p := w.play; p != nil && p.key == key && p.offset == pos && p.paused == best.PlayState.IsPaused {
+		// no new report since the last poll: the time keeps running from when that report came (Emby says nothing
+		// about when it was, so without this the time would jump back to the report at every poll)
+		at = p.at
+	}
+	w.play = &playback{key: key, item: *best.NowPlayingItem, paused: best.PlayState.IsPaused, offset: pos, at: at}
 	return nil
 }
