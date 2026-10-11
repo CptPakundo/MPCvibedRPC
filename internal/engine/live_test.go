@@ -76,6 +76,16 @@ func TestLivePlayer(t *testing.T) {
 	if !l.has(want + " detected.") {
 		t.Error("log should name the player")
 	}
+	l.mu.Lock()
+	for _, line := range l.l {
+		if strings.Contains(line, "Playing: ") || strings.Contains(line, "Paused: ") {
+			t.Logf("log: %s", line)
+		}
+	}
+	l.mu.Unlock()
+	if !l.has(`(` + want + `: "`) {
+		t.Error("the log should name what the player played")
+	}
 }
 
 func atoiOr(s string, def int) int {

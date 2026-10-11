@@ -57,7 +57,9 @@ or open the app again; on Linux, run the program again. Closing the window leave
 
 ## Wrong title or no cover
 
-The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) lists what each catalog returned. Under
+The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) shows each title next to the file name it was
+read from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each
+catalog returned. Under
 **Titles & art > Fix a match** you can search under another name or pin your own cover image. A free TMDB key
 (**Titles & art > More**) improves some matches.
 
@@ -92,5 +94,6 @@ See [SECURITY.md](../SECURITY.md).
 
 ## Reporting a problem
 
-On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the recent log, with titles,
-file names and paths left out. Paste it into a [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
+On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the recent log. It names
+the titles and file names you played (that is how a wrong title is traced); folder paths, sign-ins and keys are left
+out. Paste it into a [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).

@@ -1,23 +1,45 @@
-## MPCvibedRPC 0.9.21
+## MPCvibedRPC 0.9.22
 
-**Jellyfin and Emby, a clickable title, and hiding from the tray.**
+**A log that can explain a wrong title, a simpler window, and a round of fixes.**
 
-- **Jellyfin and Emby:** on the Advanced tab, enter your server's address and press **Sign in**. On Jellyfin you approve a code in a Jellyfin app or page where you are already signed in (your profile > Quick Connect); on Emby, or when Quick Connect is off, you sign in with your user name and password, which go to your server once and are never stored. What you play on that server then shows on Discord, on any device: a TV, a phone, the web page or an app on this computer. Only your own playback counts, music is left out, and the program only reads. **Sign out** also ends the session on your server.
-- **Clickable title and cover:** when a title is recognised, the second line and the cover on your Discord card now open its page (IMDb, AniList, ...), just like the "View on IMDb" button. It follows the same switch as the button (How it looks > Link to the title's page), which is on unless you turned it off.
-- **Hide what I'm watching from the tray:** the tray menu (Windows) and the menu bar menu (macOS) have a **Hide what I'm watching** item with a tick, so you can hide the title without opening the window. An open window follows along.
+### The log now names the file
+When a title comes out wrong ("Sample Show" shows up as "Sample Movie"), the only way to find out why is to see the
+file name it was read from. Until now the log recorded only the recognised title, and **Copy diagnostics** left titles
+and file names out, so a report about a wrong match couldn't be traced back to its cause.
+
+- Each title in the log now names its source: `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`.
+  When the show's name came from the folder, the line says so.
+- **Copy diagnostics** (Help tab) keeps titles and file names. It still leaves out folder paths (they can contain your
+  user name), the paths and queries of web addresses, server names, sign-ins, keys and your **Never show** list.
+- Nothing changes for what you keep private: with **Hide what I'm watching** on, or for a file on your **Never show**
+  list, the log records no title and no file name, as before. Those files are never looked up, so there is nothing to
+  trace. The log stays on your computer; only what you choose to paste into a report leaves it.
+
+### A simpler window
+- Sign-ins for Plex, Stremio and Jellyfin / Emby have their own **Accounts** tab, and the three look alike.
+- One way of saying it: **Show on Discord** / **Stop showing**. The tray menu (Windows) and the menu bar menu (macOS)
+  start with a line that says what the app is doing.
+- Shorter texts and a shorter welcome. Settings are grouped: Advanced has **Players** (with **Set up the player
+  connection**), **Discord** and **Maintenance** (Restore defaults, the settings folder, the update source);
+  Titles & art has **Fix a match** and **More**. The **Log** tab is now **Help**, with **Report a problem**.
+- A line at the top of the window says when an update is available. The tabs work with the arrow keys.
+
+### Fixes
+- A dropped connection while Discord restarts no longer leaves a plain, cover-less status behind until you restart.
+- Plex no longer brings back a video that stopped while the connection was down. Stremio no longer misses a start when
+  one request fails. VLC keeps the folder name for the whole video.
+- Settings, the cover cache and the players' own settings files are written safely, so a crash can't leave half a file.
+  "Clear cover cache" now clears everything.
+- Updates are refused when their checksum file is missing or broken, and a double click no longer starts two installs.
+- On macOS and Linux, the settings and sign-ins can only be read by your own user.
+- When Discord turns the program away, the log says why (for example "Invalid Client ID").
 
 ### Get it
-- **Windows:** download **`MPCvibedRPC.exe`** and run it; there is nothing to install. An earlier version can install this one from its Updates tab; your settings are kept. Needs Windows 10/11.
-- **macOS:** download **`MPCvibedRPC-macos.zip`**, move the app to Applications and open it. The app is not notarized by Apple, so the first time go to System Settings > Privacy & Security and choose **Open Anyway** (see the README).
+- **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates tab of an earlier version;
+  your settings are kept.
+- **macOS:** download **`MPCvibedRPC-macos.zip`** and move the app to Applications (the first time, System Settings >
+  Privacy & Security > **Open Anyway**).
 - **Linux:** download **`MPCvibedRPC-linux-amd64`** (or `-arm64`), `chmod +x` it and run it.
 
-Presence starts by itself: play something. If no player is answering, the window offers to set up the connection for you. Every system needs the Discord desktop app (User Settings > Activity Privacy > "Share my activity" on).
-
-### Good to know
-- Jellyfin and Emby are tested on GitHub's test machines with every change: the official Jellyfin and Emby servers, a stand-in player and a stand-in for Discord, through the real sign-in (password and Quick Connect). Real Jellyfin and Emby apps and your own server have not been tried yet; reports are welcome.
-- The clickable title and cover use fields Discord added recently. Should your Discord refuse them, the program carries on without the links (the button stays).
-- Stremio is tested against a stand-in for Stremio's servers, built from Stremio's own open-source core; Plex on GitHub's test machines against the official Plex Media Server. Real Stremio and Plex accounts have not been tried yet; reports are welcome.
-- The macOS and Linux versions are tested on GitHub's test machines with real players (mpv, IINA, VLC, Celluloid) and a stand-in for Discord. A tester has also used the Mac version with IINA and the real Discord. Linux has not been tried on a real desktop yet. Reports are welcome.
-- The programs are **unsigned** (no code-signing certificate), so Windows SmartScreen or your antivirus may warn, and macOS asks you to confirm the first start. Check a download with its `.sha256` file, or with `gh attestation verify <file> --repo CptPakundo/MPCvibedRPC` (a signed GitHub record that it was built from this repository).
-- Settings are kept in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux: `~/.local/share/MPCvibedRPC`).
-- The idea and approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); see `LICENSE` and `THIRD-PARTY-NOTICES.md`.
+Every system needs the Discord desktop app with User Settings > Activity Privacy > "Share my activity" on. To check a
+download, see [SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md).

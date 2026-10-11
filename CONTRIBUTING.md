@@ -4,7 +4,7 @@ The program is AI-generated ("vibe coded"): the code, tests and docs were writte
 and testing. Bug reports, reviews and pull requests with tests are welcome all the same.
 
 - **Bugs:** use the [issue templates](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose). On the **Help** tab,
-  **Copy diagnostics** gives a redacted report to attach. Look through it before you post it.
+  **Copy diagnostics** gives a report to attach. It names what you played (folder paths, sign-ins and keys are left out); look through it before you post it.
 - **Security problems:** report them privately, as described in [SECURITY.md](SECURITY.md), not in a public issue.
 - **Building and testing:** see [docs/development.md](docs/development.md). `go vet ./...` and `go test ./...` are the
   basics; CI runs the rest.
