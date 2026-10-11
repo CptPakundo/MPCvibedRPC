@@ -1,10 +1,11 @@
 package store
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -302,20 +303,22 @@ func (s *Store) Update(patch *jsonx.Obj) error {
 }
 
 // SetSettings validates and saves a patch of window settings given as plain values (for example
-// {"hideTitle": true}), through the same validation as Update.
+// {"hideTitle": true}), through the same validation as Update. The values go through JSON first, so they arrive
+// the way the window sends them (an int becomes a JSON number).
 func (s *Store) SetSettings(values map[string]any) error {
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
+	b, err := json.Marshal(map[string]any{"settings": values})
+	if err != nil {
+		return err
 	}
-	sort.Strings(keys)
-	ps := jsonx.NewObj()
-	for _, k := range keys {
-		ps.Set(k, values[k])
+	patch, err := jsonx.Parse(string(b))
+	if err != nil {
+		return err
 	}
-	patch := jsonx.NewObj()
-	patch.Set("settings", ps)
-	return s.Update(patch)
+	obj, ok := patch.(*jsonx.Obj)
+	if !ok {
+		return errors.New("bad settings patch")
+	}
+	return s.Update(obj)
 }
 
 // SetHidden saves settings that are not typed in the window (the sign-ins), in the order given; a nil value
