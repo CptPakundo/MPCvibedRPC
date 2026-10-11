@@ -482,3 +482,21 @@ func TestSeenVersionIsOnlyWrittenOnceSet(t *testing.T) {
 		t.Errorf("%+v", a)
 	}
 }
+
+// SetSettings takes plain Go values, as the setup button hands them over (a port is an int).
+func TestSetSettingsTakesPlainValues(t *testing.T) {
+	st, err := New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSettings(map[string]any{"vlcPassword": "sample-pass", "vlcPort": 8081, "hideTitle": true}); err != nil {
+		t.Fatal(err)
+	}
+	c := st.Config()
+	if c.VlcPassword != "sample-pass" || c.VlcPort != 8081 || !c.HideTitle {
+		t.Fatalf("saved: password %q, port %d, hideTitle %v", c.VlcPassword, c.VlcPort, c.HideTitle)
+	}
+	if err := st.SetSettings(map[string]any{"vlcPort": 0}); err == nil {
+		t.Fatal("an invalid port must be refused")
+	}
+}
