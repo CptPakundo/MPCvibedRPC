@@ -31,9 +31,10 @@ type Input struct {
 var (
 	reURL    = regexp.MustCompile(`(https?://[^/\s"']+)[^\s"']*`)
 	reServer = regexp.MustCompile(`(server) "[^"]*"`) // a server's name is often a person's or a computer's name
-	// A path may contain spaces, so it runs to the ": " that ends it in an error message (or the end of the line).
-	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|$)`)
-	reUnix    = regexp.MustCompile(`(^|[\s(])/(?:home|Users|tmp|var|mnt|media)/[^"']*?(:\s|$)`)
+	// A path may contain spaces, so it runs to the ": " that ends it in an error message, to a closing quote, or to the
+	// end of the line.
+	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|["']|$)`)
+	reUnix    = regexp.MustCompile(`(^|[\s("'])/(?:home|Users|tmp|var|private|mnt|media)/[^"']*?(:\s|["']|$)`)
 )
 
 // Redact shortens a log line for a bug report: web addresses keep only their server (a path or query can carry a key),

@@ -252,7 +252,9 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if code, dg := a.call(t, "GET", "diagnostics", ""); code != 200 {
 		t.Fatalf("diagnostics: %d", code)
-	} else if text, _ := dg["text"].(string); !strings.Contains(text, "MPCvibedRPC diagnostics") || !strings.Contains(text, "pollInterval = 2000") || strings.Contains(text, "Sample.Movie") || strings.Contains(text, home) {
+	} else if text, _ := dg["text"].(string); !strings.Contains(text, "MPCvibedRPC diagnostics") || !strings.Contains(text, "pollInterval = 2000") ||
+		!strings.Contains(text, `"Sample.Movie.2001.1080p.mkv"`) || strings.Contains(text, "/movies/") || strings.Contains(text, home) {
+		// the file name is kept (a wrong title is traced back to it); its folder path and the data folder are not
 		t.Fatalf("diagnostics text is wrong or leaks: %s", text)
 	}
 
