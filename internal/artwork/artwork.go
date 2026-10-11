@@ -28,6 +28,7 @@ type diskEntry struct {
 	art  *core.Art
 	ep   *core.ArtEpisode
 	isEp bool
+	seq  int64 // when it was added in this run (0 = read from the file): the oldest go first when the file is trimmed
 }
 
 type lookupFlight struct {
@@ -45,6 +46,8 @@ type Artwork struct {
 	res   *Resolver
 
 	closed atomic.Bool // Close was called: this finder was replaced (see Close)
+	unavail atomic.Int64 // provider searches that failed because a service was down, slow or paused (see search)
+	seq     int64        // the last diskEntry.seq handed out (a.mu)
 	saveMu sync.Mutex  // one cache write at a time (and none while the cache is being cleared)
 
 	mu        sync.Mutex
@@ -146,8 +149,16 @@ func (a *Artwork) load() {
 	}
 }
 
+// put adds an answer to the cache (a.mu held).
+func (a *Artwork) put(key string, e *diskEntry) {
+	a.seq++
+	e.seq = a.seq
+	a.disk[key] = e
+}
+
 func (a *Artwork) save() {
-	if a.opts.CacheFile == "" {
+	// A finder that was replaced (presence restarted, or the cache cleared) must not write its older map over the file.
+	if a.opts.CacheFile == "" || a.closed.Load() {
 		return
 	}
 	a.saveMu.Lock()
@@ -157,7 +168,13 @@ func (a *Artwork) save() {
 	for k := range a.disk {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys) // insertion order is not tracked; trim deterministically when huge
+	// when huge, the entries read from the file go first (in a fixed order), then the oldest of this run
+	sort.Slice(keys, func(i, j int) bool {
+		if si, sj := a.disk[keys[i]].seq, a.disk[keys[j]].seq; si != sj {
+			return si < sj
+		}
+		return keys[i] < keys[j]
+	})
 	if len(keys) > 2000 {
 		for _, k := range keys[:len(keys)-2000] {
 			delete(a.disk, k)
@@ -336,6 +353,9 @@ func (a *Artwork) hitOf(p *Provider, typ string, c *Cand) *core.Art {
 func (a *Artwork) runProvider(p *Provider, typ, query string, media *core.Media, contain []string) *provResult {
 	all, err := p.Search(a, typ, query, media)
 	if err != nil {
+		if unavailable(err) {
+			a.unavail.Add(1)
+		}
 		a.warnOnce(p.Label, p.Label+" lookup failed ("+err.Error()+"); skipping it.")
 		return &provResult{p: p, typ: typ}
 	}
@@ -1226,10 +1246,13 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 	a.mu.Unlock()
 
 	if base == nil && !missKey {
+		down := a.unavail.Load()
 		base = a.search(media)
 		a.mu.Lock()
 		if base != nil {
-			a.disk[key] = &diskEntry{art: base}
+			a.put(key, &diskEntry{art: base})
+		} else if a.unavail.Load() != down {
+			a.misses[key] = time.Now().Add(2 * time.Minute) // a service was down or offline: not a real "not found"
 		} else {
 			a.misses[key] = time.Now().Add(30 * time.Minute)
 		}
@@ -1315,7 +1338,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 	}
 	if base != nil && overrideArt == nil {
 		a.mu.Lock()
-		a.disk[key] = &diskEntry{art: base}
+		a.put(key, &diskEntry{art: base})
 		a.mu.Unlock()
 	}
 
@@ -1347,10 +1370,10 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 			}
 			a.mu.Lock()
 			if epMedia == nil && base != nil {
-				a.disk[epKey] = &diskEntry{isEp: true} // a movie: the list number is not an episode
+				a.put(epKey, &diskEntry{isEp: true}) // a movie: the list number is not an episode
 			}
 			if ep != nil {
-				a.disk[epKey] = &diskEntry{isEp: true, ep: ep}
+				a.put(epKey, &diskEntry{isEp: true, ep: ep})
 			} else if epMedia != nil {
 				wait := 30 * time.Minute
 				if failed {
