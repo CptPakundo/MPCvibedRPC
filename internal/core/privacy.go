@@ -42,17 +42,47 @@ var audioExt = map[string]bool{
 	".dff": true, ".mid": true, ".midi": true, ".mpc": true, ".tta": true,
 }
 
-// IsAudioFile reports whether a file name (or path or URL) ends like a music file: a song in a video player is not
-// something to show as "Watching".
+// IsAudioFile reports whether a file name (or path or URL) ends like a music file: a song in a video player is shown
+// as "Listening to", and is not looked up in the movie and TV catalogs.
 func IsAudioFile(file string) bool {
-	if i := strings.IndexAny(file, "?#"); i >= 0 && strings.Contains(file, "://") {
-		file = file[:i] // a URL's query or fragment
-	}
+	file = withoutQuery(file)
 	dot := strings.LastIndexByte(file, '.')
-	if dot < 0 || strings.ContainsAny(file[dot:], `/`) {
+	if dot < 0 || strings.ContainsAny(file[dot:], `/\`) {
 		return false
 	}
 	return audioExt[strings.ToLower(file[dot:])]
+}
+
+// withoutQuery drops a URL's query or fragment.
+func withoutQuery(file string) string {
+	if i := strings.IndexAny(file, "?#"); i >= 0 && strings.Contains(file, "://") {
+		return file[:i]
+	}
+	return file
+}
+
+// MusicMedia is a song's title: its file name without folder and ending, as it is. The file-name rules for videos are
+// not used ("01 Sample Song" is a track number, not an episode).
+func MusicMedia(file string) *Media {
+	name := withoutQuery(file)
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	if dot := strings.LastIndexByte(name, '.'); dot > 0 {
+		name = name[:dot]
+	}
+	name = strings.TrimSpace(strings.ReplaceAll(name, "_", " "))
+	if name == "" {
+		name = "Music"
+	}
+	m := newMedia()
+	m.Title, m.Display = name, name
+	return m
+}
+
+// Listening turns a Watching activity into a Listening one (for music).
+func Listening(a *Activity) {
+	if a != nil && a.Type == 3 {
+		a.Type = 2
+	}
 }
 
 func normHidePath(s string) string {

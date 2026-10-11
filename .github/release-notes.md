@@ -1,13 +1,13 @@
 ## MPCvibedRPC 0.9.23
 
-**The right player wins, music stays private, and a full round of fixes.**
+**The right player wins, music is "Listening to", and a full round of fixes.**
 
 ### What's shown
 - **A paused player no longer hides one that plays.** Leave MPC-HC paused and start a video in mpv, VLC or Plex: the
   video that plays is shown. When nothing plays, the paused one is shown again.
-- **Music is not shown.** A song played in a video player (`.mp3`, `.flac`, `.ogg`, `.m4a`, ...) no longer appears as
-  "Watching Artist - Song", and its name is not sent to the movie and TV catalogs. A video in another player still
-  shows. Want it back? Turn on **Privacy > Show music too**.
+- **Music is "Listening to".** A song played in a video player (`.mp3`, `.flac`, `.ogg`, `.m4a`, ...) now shows as
+  "Listening to Artist - Song" instead of "Watching", named as the file is, and its name is no longer sent to the movie
+  and TV catalogs. A video playing in another player still comes first.
 - Players other than MPC-HC, MPC-BE and MPC-QT no longer show Media Player Classic's logo in the corner of the cover.
 - A video whose length is only known after a moment (a stream, a slow network file) gets its progress bar once the
   length arrives.

@@ -78,8 +78,9 @@ MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv'
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
 set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex, Stremio and last
 Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). **The first player
-that is playing wins; otherwise the first that is paused; otherwise the first that answers is reported.** A song
-(`core.IsAudioFile`: `.mp3`, `.flac`, ...) counts as nothing playing unless `showMusic` is on. MPC-HC must keep behaving exactly as before whenever
+that plays a video wins; otherwise the first that plays music; otherwise the first that is paused; otherwise the first
+that answers is reported.** A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is shown as "Listening to" (`core.Listening`)
+with its file name (`core.MusicMedia`), never looked up and not counted in the stats. MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. MPRIS only reads players on the allowlist in

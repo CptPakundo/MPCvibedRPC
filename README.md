@@ -95,7 +95,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 - To find covers, the **title** (never the file path) is sent to the catalog services you allow. The **Privacy** tab has
   a switch for each one, plus one switch to stay fully offline.
 - **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders or names completely.
-  Music played in a video player is not shown, unless **Show music too** is on.
+- Music played in a video player shows as "Listening to" and is never looked up in the movie and TV catalogs.
 - Your status clears itself after a long pause (30 minutes, adjustable).
 - **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
   analytics, no tracking. The download count above is GitHub's public count of release downloads.

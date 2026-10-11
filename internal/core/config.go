@@ -51,8 +51,6 @@ type Config struct {
 	HideTitle bool `json:"hideTitle"`
 	// HideFiles lists files that are never shown (see MatchesHideList); they are not looked up either.
 	HideFiles []string `json:"hideFiles"`
-	// ShowMusic shows music files (see IsAudioFile) too; off, a song in a video player shows no status and is not looked up.
-	ShowMusic bool `json:"showMusic"`
 
 	// PauseClearMinutes clears the status after the video has been paused this long (0 = never; the default is 30). It comes back on resume.
 	PauseClearMinutes int `json:"pauseClearMinutes"`
