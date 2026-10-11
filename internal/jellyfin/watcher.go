@@ -132,7 +132,7 @@ func (w *Watcher) Run(ctx context.Context) {
 			w.conn, w.play = false, nil
 			w.mu.Unlock()
 			if errors.Is(err, ErrToken) {
-				w.setProblem(w.product() + " refused the sign-in. Sign in again (Advanced > " + w.product() + ").")
+				w.setProblem(w.product() + " refused the sign-in. Sign in again (Accounts > Jellyfin / Emby).")
 			} else {
 				w.setProblem(fmt.Sprintf("Could not reach your %s server (%v). Is it running, and can this computer reach it?", w.product(), Reason(err)))
 			}

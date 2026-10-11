@@ -49,7 +49,7 @@ jobs:
       - name: Test
         if: runner.os == 'Windows'
         # the Unix-socket fakes and the end-to-end run are Linux-only; the smoke test covers them on Windows
-        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestLiveJellyfin|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending' go test -count=1 ./...
+        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh 'TestLivePlayer|TestLiveJellyfin|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending|TestCloseFrameSaysWhy' go test -count=1 ./...
         shell: bash
 
   windows:
