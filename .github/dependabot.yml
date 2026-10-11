@@ -1,11 +1,8 @@
-# Keeps the GitHub Actions and Go module versions current (weekly pull requests).
+# Keeps the GitHub Actions versions current (weekly pull requests). The program uses only Go's standard library, so
+# there are no Go modules to update.
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly

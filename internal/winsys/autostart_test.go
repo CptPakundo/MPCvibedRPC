@@ -35,3 +35,12 @@ func TestRunNameFollowsTheEnvironment(t *testing.T) {
 		t.Errorf("custom folder: %q", runName())
 	}
 }
+
+func TestRunCommandCarriesTheDataFolder(t *testing.T) {
+	if got := runCommand(`C:\Apps\MPCvibedRPC.exe`, ""); got != `"C:\Apps\MPCvibedRPC.exe" --background` {
+		t.Errorf("default copy: %s", got)
+	}
+	if got := runCommand(`D:\Portable\MPCvibedRPC.exe`, `D:\Portable\data\`); got != `"D:\Portable\MPCvibedRPC.exe" --background --home "D:\Portable\data"` {
+		t.Errorf("own data folder: %s", got)
+	}
+}

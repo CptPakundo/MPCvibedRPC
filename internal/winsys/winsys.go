@@ -58,7 +58,7 @@ func SetAutoStart(enabled bool, exe string) bool {
 		return setLoginItem(enabled, exe)
 	}
 	if enabled {
-		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", `"`+exe+`" --background`, "/f").ok
+		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", runCommand(exe, os.Getenv("MPCRPC_HOME")), "/f").ok
 	}
 	run("reg", "delete", runKey, "/v", runName(), "/f")
 	return true
@@ -364,7 +364,12 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 			done = append(done, p.name)
 		}
 	}
+	reopened := map[string]bool{}
 	for _, e := range exes {
+		if reopened[strings.ToLower(e)] {
+			continue // two windows of one player: it is opened once
+		}
+		reopened[strings.ToLower(e)] = true
 		c := proc.DetachVisible(exec.Command(e))
 		if c.Start() == nil {
 			_ = c.Process.Release()

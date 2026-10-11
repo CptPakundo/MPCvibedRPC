@@ -158,6 +158,7 @@ type iinaResult struct {
 type iinaSettings struct {
 	Advanced bool       // "Enable advanced settings": without it IINA ignores its extra mpv options
 	Options  [][]string // the extra mpv options, as name/value pairs
+	Odd      bool       // a row that is not a name and a value: writing the list back would lose it
 }
 
 // readIINA reads IINA's settings from its exported property list.
@@ -179,6 +180,8 @@ func readIINA(export []byte) iinaSettings {
 		}
 		if len(row) == 2 {
 			s.Options = append(s.Options, row)
+		} else {
+			s.Odd = true
 		}
 	}
 	return s
@@ -224,6 +227,9 @@ func enableIINA(home, name string) iinaResult {
 	options, using := planIINA(s, name)
 	if options == nil && s.Advanced {
 		return iinaResult{Message: "IINA was already set up (" + mpvIPCKey + "=" + using + ").", Using: using, OK: true}
+	}
+	if options != nil && s.Odd {
+		return iinaResult{Message: "IINA: its mpv options could not all be read, so they were left alone. Add " + mpvIPCKey + "=" + pipe.Path(name) + " in IINA Settings > Advanced."}
 	}
 	if options != nil && !run("defaults", "write", iinaDomain, "userOptions", oldStylePlist(options)).ok {
 		return iinaResult{Message: "IINA: could not change its settings."}

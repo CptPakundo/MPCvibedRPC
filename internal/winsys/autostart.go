@@ -15,6 +15,16 @@ const runNameBase = "MPCvibedRPC"
 // installed program's run-at-login on or off.
 func runName() string { return runNameFor(os.Getenv("MPCRPC_HOME")) }
 
+// runCommand is the registry value's command line. A copy with its own data folder passes it on with --home, so the
+// copy started at login uses that folder too (the registry cannot set MPCRPC_HOME the way a LaunchAgent can).
+func runCommand(exe, home string) string {
+	cmd := `"` + exe + `" --background`
+	if home = strings.TrimRight(strings.TrimSpace(home), `\/`); home != "" {
+		cmd += ` --home "` + home + `"` // no trailing backslash: it would escape the closing quote
+	}
+	return cmd
+}
+
 func runNameFor(home string) string {
 	home = strings.ToLower(strings.TrimRight(strings.TrimSpace(home), `\/`))
 	if home == "" {

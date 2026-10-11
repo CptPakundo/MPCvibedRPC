@@ -118,7 +118,7 @@ try {
   $plainBefore = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
   Api 'Post' 'save' @{ app = @{ autoStart = $true } } | Out-Null
   $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
-  Check ($reg -match 'MPCvibedRPC\.exe" --background') 'autostart writes the Run entry (under the name for this data folder)'
+  Check ($reg -match 'MPCvibedRPC\.exe" --background --home "') 'autostart writes the Run entry (under the name for this data folder, passing that folder on)'
   Check ((Api 'Get' 'state').autoStart -eq $true) 'state reports autostart on'
   Api 'Post' 'save' @{ app = @{ autoStart = $false } } | Out-Null
   $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"

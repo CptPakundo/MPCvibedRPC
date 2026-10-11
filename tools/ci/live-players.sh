@@ -18,7 +18,7 @@ trap cleanup EXIT
 live() {
   local name="$1"; shift
   echo "== $name"
-  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
+  bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
 wait_socket() { for _ in $(seq 1 240); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }

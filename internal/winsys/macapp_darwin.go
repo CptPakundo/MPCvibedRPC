@@ -37,12 +37,14 @@ static atomic_int pending; // the menu command waiting for the Go side: 1 open, 
 // alert() and confirm() from the page (WebKit shows nothing unless the app does)
 - (void)webView:(WKWebView *)v runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame
 	completionHandler:(void (^)(void))done {
+	if (!window) { done(); return; } // WebKit needs an answer even when the window has gone
 	NSAlert *a = [NSAlert new];
 	a.messageText = message;
 	[a beginSheetModalForWindow:window completionHandler:^(NSModalResponse r) { done(); }];
 }
 - (void)webView:(WKWebView *)v runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame
 	completionHandler:(void (^)(BOOL))done {
+	if (!window) { done(NO); return; }
 	NSAlert *a = [NSAlert new];
 	a.messageText = message;
 	[a addButtonWithTitle:@"OK"];
@@ -65,7 +67,7 @@ static atomic_int pending; // the menu command waiting for the Go side: 1 open, 
 		decide(WKNavigationActionPolicyAllow);
 		return;
 	}
-	[[NSWorkspace sharedWorkspace] openURL:u];
+	if (u) [[NSWorkspace sharedWorkspace] openURL:u];
 	decide(WKNavigationActionPolicyCancel);
 }
 @end
