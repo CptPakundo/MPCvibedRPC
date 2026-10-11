@@ -1,6 +1,7 @@
 // Package diag builds the "Copy diagnostics" text: version, system, the settings that differ from the defaults,
-// the current state and the recent log, with everything private left out (titles, file names, paths, URL queries,
-// keys and the like). It is meant to be pasted into a bug report.
+// the current state and the recent log, for pasting into a bug report. Titles and file names stay in: a wrong title can
+// only be traced back to the name it came from. Left out are folder paths (they can hold a user name), the paths and
+// queries of web addresses, sign-ins, keys and the Never show list.
 package diag
 
 import (
@@ -28,31 +29,19 @@ type Input struct {
 }
 
 var (
-	rePlaying = regexp.MustCompile(`^(\[[^\]]*\] \w+ )(Playing|Paused): .*$`)
-	reQuote   = regexp.MustCompile(`^([^"]*)".*$`)
-	reVia     = regexp.MustCompile(`\bvia ([A-Za-z]+)`)
-	reURL     = regexp.MustCompile(`(https?://[^/\s"']+)[^\s"']*`)
+	reURL    = regexp.MustCompile(`(https?://[^/\s"']+)[^\s"']*`)
+	reServer = regexp.MustCompile(`(server) "[^"]*"`) // a server's name is often a person's or a computer's name
 	// A path may contain spaces, so it runs to the ": " that ends it in an error message (or the end of the line).
 	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|$)`)
 	reUnix    = regexp.MustCompile(`(^|[\s(])/(?:home|Users|tmp|var|mnt|media)/[^"']*?(:\s|$)`)
 )
 
-// Redact removes what a log line says about what you watch: the title after "Playing:"/"Paused:", anything from the
-// first quote on (titles are always quoted in the log; the service that answered is kept), URL paths and queries,
-// and file paths.
+// Redact shortens a log line for a bug report: web addresses keep only their server (a path or query can carry a key),
+// and folder paths and server names are replaced (they can hold a user name). Titles and file names stay: they are
+// what a report about a wrong title needs.
 func Redact(line string) string {
-	if m := rePlaying.FindStringSubmatch(line); m != nil {
-		return m[1] + m[2] + ": (title omitted)"
-	}
-	if strings.Contains(line, `"`) {
-		tail := line[strings.Index(line, `"`):]
-		out := reQuote.ReplaceAllString(line, `$1"…"`)
-		if v := reVia.FindStringSubmatch(tail); v != nil {
-			out += " (via " + v[1] + ")"
-		}
-		line = out + " (details omitted)"
-	}
 	line = reURL.ReplaceAllString(line, "$1/…")
+	line = reServer.ReplaceAllString(line, `$1 "…"`)
 	line = reWinPath.ReplaceAllString(line, "$1<path>$2")
 	return reUnix.ReplaceAllString(line, "$1<path>$2")
 }
@@ -96,8 +85,11 @@ func summarise(key string, v any) string {
 		return baseSafe(v)
 	}
 	switch key {
-	case "artworkAliases", "artworkOverrides", "hideFiles":
-		return fmt.Sprintf("(%d entries)", count(v))
+	case "hideFiles":
+		return fmt.Sprintf("(%d entries)", count(v)) // the user's private list stays private
+	case "artworkOverrides":
+		b, _ := json.Marshal(v)
+		return reURL.ReplaceAllString(string(b), "$1/…") // which titles have a pinned cover, and from which server
 	}
 	b, _ := json.Marshal(v)
 	return string(b)
@@ -200,6 +192,9 @@ func Report(in Input) string {
 		w("  Player reachable: %s", yn(in.Status.MPC))
 	}
 	w("  Something playing: %s (paused: %s, hidden: %s, cleared while paused: %s)", yn(in.Status.NowPlaying != nil), yn(in.Status.Paused), yn(in.Status.Hidden), yn(in.Status.PauseCleared))
+	if in.Status.NowPlaying != nil {
+		w("  Now playing: %s", *in.Status.NowPlaying)
+	}
 	if in.Status.LastError != nil && *in.Status.LastError != "" {
 		w("  Last error: %s", Redact(*in.Status.LastError))
 	}
@@ -219,7 +214,7 @@ func Report(in Input) string {
 		}
 	}
 	w("")
-	w("Recent log (titles, file names and paths left out)")
+	w("Recent log (titles and file names kept; folder paths and web address details left out)")
 	if len(in.Log) == 0 {
 		w("  (empty)")
 	}

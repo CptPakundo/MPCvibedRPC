@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.22", "date": "2026-10-11", "items": [
+    "🔎 The log names the file each title came from, and Copy diagnostics keeps titles and file names, so a wrong match can be traced.",
+    "🗂️ Sign-ins have their own Accounts tab; settings are grouped, texts are shorter, and the tray menu shows what the app is doing.",
+    "🔧 More reliable: Discord restarts no longer leave a plain status behind, and the settings and cover cache are saved safely."
+  ]},
   {"version": "0.9.21", "date": "2026-10-11", "items": [
     "🎞️ Jellyfin and Emby: sign in on the Advanced tab to show what you play on your own server, on any device.",
     "🔗 The second line and the cover on Discord open the title's page (IMDb, AniList, ...), like the button.",

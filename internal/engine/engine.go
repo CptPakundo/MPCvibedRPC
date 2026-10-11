@@ -735,10 +735,11 @@ func (e *Engine) tick(r *run) {
 	}
 
 	var (
-		activity  *core.Activity
-		display   string
-		found     *core.Art
-		noEpTitle bool // an episode whose title was wanted but did not come
+		activity   *core.Activity
+		display    string
+		found      *core.Art
+		noEpTitle  bool // an episode whose title was wanted but did not come
+		fromFolder bool // the show's name came from the file's folder
 	)
 	if cfg.HideTitle {
 		// nothing about the file is used: no parsing, no lookups, and no title in the status, the window or the log
@@ -771,6 +772,7 @@ func (e *Engine) tick(r *run) {
 		noEpTitle = cfg.ShowArtwork && cfg.EpisodeTitles && media.IsEpisode && media.Episode != core.NA && media.EpTitle == "" &&
 			(found == nil || found.Episode == nil)
 		display = media.Display
+		fromFolder = media.FromFolder
 	}
 	if !e.isCurrent(r) {
 		return
@@ -816,7 +818,12 @@ func (e *Engine) tick(r *run) {
 	if found != nil {
 		tag = " [artwork]"
 	}
-	e.log("INFO", fmt.Sprintf("%s: %s%s", word, display, tag))
+	// The name the player gave is logged too (never the folder path): a wrong title can only be traced back to it.
+	src := info.Player + `: "` + info.File + `"`
+	if fromFolder {
+		src += ", show name from its folder"
+	}
+	e.log("INFO", fmt.Sprintf("%s: %s%s (%s)", word, display, tag, src))
 }
 
 func (e *Engine) loop(r *run, interval time.Duration) {

@@ -11,11 +11,11 @@ import (
 
 func TestRedact(t *testing.T) {
 	for in, want := range map[string]string{
-		`[2026-01-01T00:00:00.000Z] INFO Playing: Secret Show S01E02 [artwork]`:                                          `[2026-01-01T00:00:00.000Z] INFO Playing: (title omitted)`,
-		`[2026-01-01T00:00:00.000Z] INFO Paused: Secret Show`:                                                            `[2026-01-01T00:00:00.000Z] INFO Paused: (title omitted)`,
-		`[2026-01-01T00:00:00.000Z] INFO Artwork for "Secret Show" S01E02: Secret Name (1999) via tvmaze.`:               `[2026-01-01T00:00:00.000Z] INFO Artwork for "…" (via tvmaze) (details omitted)`,
-		`[2026-01-01T00:00:00.000Z] INFO No artwork match for "Secret Show". Seen: "Other" ...`:                          `[2026-01-01T00:00:00.000Z] INFO No artwork match for "…" (details omitted)`,
-		`[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "https://api.example.com/repos/x/y?q=Secret": timeout`: `[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "…" (details omitted)`,
+		// titles and file names stay: a wrong title can only be traced back to the name it came from
+		`[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show · S01E02 [artwork] (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`: `[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show · S01E02 [artwork] (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`,
+		`[2026-01-01T00:00:00.000Z] INFO Artwork for "Sample Show" S01E02: Sample Name (1999) via tvmaze.`:                 `[2026-01-01T00:00:00.000Z] INFO Artwork for "Sample Show" S01E02: Sample Name (1999) via tvmaze.`,
+		// web addresses keep only their server, folder paths go
+		`[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "https://api.example.com/repos/x/y?q=Secret": timeout`: `[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "https://api.example.com/…": timeout`,
 		`[2026-01-01T00:00:00.000Z] ERROR Update failed: open C:\Users\Someone\AppData\x.exe: denied`:                    `[2026-01-01T00:00:00.000Z] ERROR Update failed: open <path>: denied`,
 		`[2026-01-01T00:00:00.000Z] ERROR fetch https://host.example/a/b?q=Secret failed`:                                `[2026-01-01T00:00:00.000Z] ERROR fetch https://host.example/… failed`,
 		`[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`:                                                          `[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`,
@@ -51,32 +51,35 @@ func TestReportHidesCustomPaths(t *testing.T) {
 	}
 }
 
-func TestReportLeaksNothingPrivate(t *testing.T) {
+func TestReportKeepsTitlesLeavesOutPrivateThings(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.TmdbAPIKey = "SECRETKEY123"
 	cfg.ClientID = "999999999999"
 	cfg.HideFiles = []string{"PrivateFolder"}
-	cfg.ArtworkAliases = map[string]string{"secret title": "Other Secret"}
-	cfg.ArtworkOverrides = map[string]string{"secret title": "https://img.example/secret.jpg"}
+	cfg.ArtworkAliases = map[string]string{"sample show": "Sample Show (2020)"}
+	cfg.ArtworkOverrides = map[string]string{"sample movie": "https://img.example/secret/poster.jpg"}
 	cfg.PauseClearMinutes = 5
-	np, le := "Secret Show S01E02", `failed for "Secret Show" at C:\Users\Someone\x`
+	np, le := "Sample Show · S01E02", `failed for "Sample Show" at C:\Users\Someone\x`
 	in := Input{
 		Version: "9.9.9", System: "Test OS 1.0", Players: []string{"MPC-BE"},
 		Config: cfg, App: store.App{UpdateRepo: "someone/secret-fork"},
 		Status: engine.Status{Running: true, Discord: "connected", MPC: true, NowPlaying: &np, LastError: &le},
 		Log: []string{
-			`[2026-01-01T00:00:00.000Z] INFO Playing: Secret Show S01E02`,
-			`[2026-01-01T00:00:00.000Z] INFO Artwork for "Secret Show": found via imdb.`,
-			`[2026-01-01T00:00:00.000Z] ERROR open C:\Users\Someone\Videos\Secret Show.mkv: denied`,
+			`[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show · S01E02 (MPC-BE: "Sample.Show.S01E02.mkv")`,
+			`[2026-01-01T00:00:00.000Z] INFO Artwork for "Sample Show": found via imdb.`,
+			`[2026-01-01T00:00:00.000Z] ERROR open C:\Users\Someone\Videos\Sample Show.mkv: denied`,
 		},
 	}
 	got := Report(in)
-	for _, leak := range []string{"Secret", "secret", "SECRETKEY", "999999999999", "PrivateFolder", "Someone", "img.example", `C:\`} {
+	for _, leak := range []string{"SECRETKEY", "999999999999", "PrivateFolder", "Someone", "secret", `C:\`} {
 		if strings.Contains(got, leak) {
 			t.Errorf("report leaks %q:\n%s", leak, got)
 		}
 	}
-	for _, want := range []string{"Version: 9.9.9", "Test OS 1.0", "MPC-BE", "tmdbApiKey = (set)", "clientId = (custom)", "hideFiles = (1 entries)", "artworkAliases = (1 entries)", "pauseClearMinutes = 5", "update source: (custom)", "Discord: connected", "via imdb"} {
+	for _, want := range []string{"Version: 9.9.9", "Test OS 1.0", "MPC-BE", "tmdbApiKey = (set)", "clientId = (custom)", "hideFiles = (1 entries)",
+		`artworkAliases = {"sample show":"Sample Show (2020)"}`, `artworkOverrides = {"sample movie":"https://img.example/…"}`, "pauseClearMinutes = 5",
+		"update source: (custom)", "Discord: connected", "Now playing: Sample Show · S01E02", `(MPC-BE: "Sample.Show.S01E02.mkv")`,
+		`Artwork for "Sample Show": found via imdb.`, `Last error: failed for "Sample Show" at <path>`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("report is missing %q:\n%s", want, got)
 		}

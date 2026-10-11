@@ -198,7 +198,7 @@
 
     <section class="panel" id="p-help" role="tabpanel">
       <div class="row"><button id="copyDiag">Copy diagnostics</button><button id="reportBtn">Report a problem</button></div>
-      <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults and the recent log, without titles, file names or paths.</div>
+      <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults and the recent log. Titles and file names are included, so a wrong title can be traced; folder paths, sign-ins and keys are left out.</div>
       <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
       <div id="log" tabindex="0" role="region" aria-label="Log"></div>
     </section>
@@ -881,7 +881,7 @@
       box.value = text; box.classList.remove('hidden');
       let ok = false;
       try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { box.focus(); box.select(); try { ok = document.execCommand('copy'); } catch (_) {} }
-      msg.textContent = ok ? 'Copied. Look it over before you post it; titles, file names and paths are left out.' : 'Select the text below and copy it (' + (osText() ? osText().copyKey : 'Ctrl+C') + ').';
+      msg.textContent = ok ? 'Copied. Look it over before you post it: it names what you played (folder paths, sign-ins and keys are left out).' : 'Select the text below and copy it (' + (osText() ? osText().copyKey : 'Ctrl+C') + ').';
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose', '_blank', 'noopener');
