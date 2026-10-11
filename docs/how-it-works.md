@@ -16,7 +16,7 @@ names come from, and how each player is read.
   `Show Name Ep03 (2010).mkv`, `Show.Name.S05E14.720p.HDTV.x264-GRP.mkv` or
   `[Group] Show Name - 05 [1080p].mkv`.
 - **Cover art, from several sources.** The title parsed from the filename is looked up on
-  up to six sources at once, and the highest-priority one with a trustworthy match wins:
+  every source in `artworkSources` at once (eight by default; TMDB only with a key), and the highest-priority one with a trustworthy match wins:
   TMDB (only if you add a free API key), IMDb's own search, Cinemeta, TVmaze, AniList, Kitsu and
   MyAnimeList (anime; AniList, then Kitsu, then MyAnimeList are asked first for fansub-style
   filenames, everything else goes IMDb-first) and, as a last resort, Wikipedia (Hebrew titles use
@@ -34,7 +34,7 @@ names come from, and how each player is read.
     TVmaze (or TMDB with a key), together with that season's own poster. The season's name is shown
     on the second line (`<Season name> · S14 · <code>`).
     If a season can't be placed you get the show's poster and no season name, never a guess.
-  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then pin it with `artworkAliases` or `artworkOverrides` on the Advanced tab (see the end of this list).
+  - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then fix it under **Titles & art > Fix a match** (search under another name, or pin a cover image; see [All settings](config.md#titles--art-tab)).
   - **Episode titles.** When the filename has an episode number but no name
     (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key; for anime MyAnimeList first)
     and shown as `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
@@ -89,12 +89,11 @@ names come from, and how each player is read.
     (from `Title: A Franchise Mystery`, a name catalogs often list as just `Title`) is retried as `Title` when
     nothing else matches, only with the file's year, and shown as `Title: A Franchise Mystery` (also for
     `A ... Story`, `Movie`, `Film`, `Adventure`, `Tale`, `Saga`, `Legend`, `Odyssey`).
-    Advanced settings in the window (or `config.json`): `artworkAliases: { 'my show': 'Official Name' }` searches under another name,
+    In the window (**Titles & art > Fix a match**, or `config.json`): `artworkAliases: { 'my show': 'Official Name' }` searches under another name,
     `artworkOverrides: { 'my show': 'https://.../poster.jpg' }` uses your own image.
-  - Set `showArtwork: false` (the first switch on the Privacy tab) to stay fully offline (this also disables episode-title lookups) (otherwise the title parsed from your
-    filename is sent to these services).
+  - Set `showArtwork: false` (the first switch under "What online services see" on the Privacy tab) to stay fully offline; this also turns off episode-title lookups. Otherwise the title parsed from your filename is sent to these services.
 - **Clickable title and cover.** With **Link to the title's page** on (the default) and the title matched in a catalog that has a page (IMDb, AniList, ...), the second line and the cover open that page too, besides the "View on IMDb" style button. Others see the links on your profile. If Discord refuses these link fields, the same activity is sent without them from then on (it does not drop to the basic mode).
-- **Preview.** While a status is showing, the window has a **How it looks on Discord** card: the title lines, cover,
+- **Preview.** While a status is showing, the **Look** tab has a **How it looks on Discord** card: the title lines, cover,
   progress bar and link button, built from what was actually sent (so it also shows the basic-mode fallback); the second line is underlined (dotted) when it is a link.
 - **Hiding things** (Privacy tab). **Hide what I'm watching** shows only "Watching a video" with the progress bar (no title, cover or buttons, and nothing looked up). The same switch is in the Windows tray menu and the macOS menu bar menu (with a tick when on); an open window follows it. Linux has no tray, so it is only in the window there. **Never show these files** takes folders, names or wildcards (such as `Private` or `*.xyz`); a listed file shows no status at all and is never looked up. Hidden names are not written to the log either.
 - **Privacy controls** (Privacy tab). Every online service the program can ask about a title has its own switch, with what it
@@ -111,7 +110,7 @@ names come from, and how each player is read.
 - Clears itself when you stop or close the player; reconnects on its own if Discord restarts.
   If Discord ever rejects the Watching format, it falls back to a basic presence automatically.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](config.md) (extra ones go in
-  `config.json`). Set `activityType` to `playing` for the classic look. Log: `mpcvibedrpc.log` (also in the window).
+  `config.json`). Set `activityType` to `playing` for the classic look. Log: `mpcvibedrpc.log` (also on the **Help** tab).
 
 
 ## Players in detail
@@ -126,13 +125,13 @@ The program asks the players in this order and shows the first one that is playi
 | IINA (macOS) | its mpv core's JSON IPC | IINA Settings > Advanced: enable advanced settings and add the mpv option `input-ipc-server` with a socket path. The button does both (it keeps a socket you already set) and IINA uses it once it is reopened. |
 | VLC | its web interface (`http://127.0.0.1:8080/requests/status.json`, with a password) | Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua HTTP; copy it to **Advanced > VLC web interface password**. Or press the button: it switches the interface on in `vlcrc` (`portable\vlcrc` next to a portable VLC, else `%APPDATA%\vlc\vlcrc`), gives it a password and fills it in for you. It keeps a password and port you already set, and an interface it switches on only answers this PC (`http-host=127.0.0.1`; VLC also uses that address for streams sent over HTTP without one). VLC rewrites `vlcrc` when it exits, so a running VLC is closed and reopened if something has to change. On macOS the same, in `~/Library/Preferences/org.videolan.vlc/vlcrc`. On Linux VLC needs none of this: it is found through MPRIS. |
 | Linux video players | MPRIS over D-Bus: VLC, Celluloid, Haruna, SMPlayer, GNOME Videos (Totem), Showtime, Clapper, Dragon Player, Kodi, Parole, QMPlay2, MPC-QT, and mpv with the mpv-mpris script | none; **Advanced > Find video players through MPRIS** switches it off. Music players and web browsers are left out. |
-| Plex | your Plex Media Server's play notifications, for whatever you play with your Plex account: the Plex app on this computer, Plex Web, a TV, a phone | **Advanced > Sign in to Plex**: plex.tv opens in your browser, you approve the sign-in there (the program never sees your password), and it follows your server (choose another one under the button; your own servers come first, then those shared with you). **Plex server address** is only needed when this computer cannot reach the server at the addresses plex.tv lists. |
-| Stremio | your Stremio account's library, which Stremio's player updates while you watch: the desktop app, Stremio Web, a TV, a phone | **Advanced > Sign in to Stremio**: stremio.com opens in your browser and you approve the sign-in there (the program never sees your password). |
-| Jellyfin, Emby | your own server's list of sessions, for whatever you play on it: any Jellyfin or Emby app, the web player, a TV, a phone | **Advanced > Jellyfin / Emby**: type the server's address, then sign in (Jellyfin: Quick Connect; Emby, or Jellyfin with Quick Connect off: user name and password). |
+| Plex | your Plex Media Server's play notifications, for whatever you play with your Plex account: the Plex app on this computer, Plex Web, a TV, a phone | **Accounts > Sign in to Plex**: plex.tv opens in your browser, you approve the sign-in there (the program never sees your password), and it follows your server (choose another one under the button; your own servers come first, then those shared with you). **Plex server address** (Accounts tab) is only needed when this computer cannot reach the server at the addresses plex.tv lists. |
+| Stremio | your Stremio account's library, which Stremio's player updates while you watch: the desktop app, Stremio Web, a TV, a phone | **Accounts > Sign in to Stremio**: stremio.com opens in your browser and you approve the sign-in there (the program never sees your password). |
+| Jellyfin, Emby | your own server's list of sessions, for whatever you play on it: any Jellyfin or Emby app, the web player, a TV, a phone | **Accounts > Jellyfin / Emby**: type the server's address, then sign in (Jellyfin: Quick Connect; Emby, or Jellyfin with Quick Connect off: user name and password). |
 
-MPC-HC (2.8.3 here) is what the program was built around; MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; then MPRIS players, then Plex, then Stremio and last Jellyfin / Emby, each only while you are signed in.
+MPC-HC is what the program was built around (tested with MPC-HC 2.8.3); MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, which is not released yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change, with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on a real desktop yet. Streams show their title (there is no file name or folder). With players other than the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC media player", ...) instead of "Media Player Classic". VLC's web interface is asked after mpv and IINA, and only once its password is set; then MPRIS players, then Plex, then Stremio and last Jellyfin / Emby, each only while you are signed in.
 
-Plex: the program signs in like a Plex app (it introduces itself to Plex as "MPCvibedRPC") and
+Plex (sign-in on the Accounts tab): the program signs in like a Plex app (it introduces itself to Plex as "MPCvibedRPC") and
 keeps the sign-in in `config.json`; **Sign out** or **Restore defaults** removes it. It only reads: titles, episode
 numbers and the position of what you play. On a server you own, it shows only your own playback, not that of people you
 share with; music and photos are never shown as "Watching". Plex playback on any of your devices counts, not only on this
@@ -141,7 +140,7 @@ is tried on GitHub's test machines with every change: the official Plex Media Se
 stand-in player reporting playback to it. Signing in with a real Plex account, servers shared by someone else and real
 Plex apps have not been tried yet.
 
-Stremio: the program signs in the way Stremio's TV apps do (a code you approve on stremio.com) and keeps the account's
+Stremio (sign-in on the Accounts tab): the program signs in the way Stremio's TV apps do (a code you approve on stremio.com) and keeps the account's
 key in `config.json`; **Sign out** ends that session on Stremio's side and removes it, and so does **Restore defaults**.
 It only reads. Stremio has no live "now playing" for other apps, so the program reads the account's library instead:
 every 20 seconds it asks which entries changed, and fetches only those. Stremio's player updates the entry of what you
@@ -152,7 +151,7 @@ entry's video ("Sample Show - S01E02"), and cover art is looked up the same way 
 (which Stremio does not save to the account) are never shown. Stremio is tried against a stand-in for its servers built
 from Stremio's own open-source core (`stremio-core`); a real Stremio account has not been tried yet.
 
-Jellyfin and Emby: type your server's address (`http://` is added if missing, and a path is kept for a reverse proxy).
+Jellyfin and Emby (sign-in on the Accounts tab): type your server's address (`http://` is added if missing, and a path is kept for a reverse proxy).
 The program asks the server who it is (`/System/Info/Public`; an Emby server that only answers under `/emby` is found
 there), and shows the player as "Jellyfin" or "Emby". Jellyfin signs in with Quick Connect: the window shows a 6-digit
 code, you enter it in a Jellyfin app or web page where you are already signed in (profile > Quick Connect), and the
