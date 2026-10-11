@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -164,9 +165,12 @@ func TestEndToEnd(t *testing.T) {
 	rel = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/releases/latest"):
-			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%s/dl"},{"name":"MPCvibedRPC-linux-amd64","browser_download_url":"%s/dl"},{"name":"MPCvibedRPC-linux-arm64","browser_download_url":"%s/dl"}]}`, rel.URL, rel.URL, rel.URL)
+			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC.exe.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPCvibedRPC-linux-amd64","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC-linux-amd64.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPCvibedRPC-linux-arm64","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC-linux-arm64.sha256","browser_download_url":"%[1]s/sha"}]}`, rel.URL)
 		case r.URL.Path == "/dl":
 			w.Write(newBytes)
+		case r.URL.Path == "/sha": // the program only installs a release with a checksum file
+			sum := sha256.Sum256(newBytes)
+			fmt.Fprintf(w, "%x  MPCvibedRPC\n", sum)
 		}
 	}))
 	defer rel.Close()
