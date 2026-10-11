@@ -90,7 +90,7 @@ echo "sample episode: $item"
 echo "$items" | head -c 600; echo
 
 # the stand-in player: starts playing, then reports its position every 3 seconds, like a Jellyfin or Emby app
-call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"PositionTicks\":0,\"IsPaused\":false,\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" || {
+call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"MediaSourceId\":\"$item\",\"PlaySessionId\":\"ci-play-1\",\"PositionTicks\":0,\"IsPaused\":false,\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" || {
   echo "the server refused the start of playback"
   for l in "$work"/config/logs/*.txt; do grep -i -E -B2 -A12 "Sessions/Playing|Exception" "$l" | tail -n 60; done
   exit 1
@@ -99,7 +99,7 @@ call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"PositionTicks\":0,\"IsPause
   t=0
   while :; do
     sleep 3; t=$((t + 30000000))
-    call POST /Sessions/Playing/Progress "{\"ItemId\":\"$item\",\"PositionTicks\":$t,\"IsPaused\":false,\"EventName\":\"timeupdate\",\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" > /dev/null || true
+    call POST /Sessions/Playing/Progress "{\"ItemId\":\"$item\",\"MediaSourceId\":\"$item\",\"PlaySessionId\":\"ci-play-1\",\"PositionTicks\":$t,\"IsPaused\":false,\"EventName\":\"timeupdate\",\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" > /dev/null || true
   done
 ) &
 feed=$!
