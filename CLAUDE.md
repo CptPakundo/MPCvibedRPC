@@ -62,14 +62,14 @@ friend of the owner on a real Mac.
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
-| `internal/store` | `config.json`, the settings window layout (`schema.go`), validation |
+| `internal/store`, `internal/jsonx` | `config.json`, the settings window layout (`schema.go`), validation; a JSON reader/writer that keeps the file's key order and unknown keys and prints numbers like JavaScript |
 | `internal/server`, `internal/assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP) and the whole page (`ui.html`), the changelog (`changelog.json`) |
 | `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
 | `internal/diag` | "Copy diagnostics": titles and file names kept (a wrong title is traced back to its file name); folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list left out |
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `package-macos.sh` (the .app), `test-noskip.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
@@ -78,7 +78,8 @@ MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv'
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
 set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex, Stremio and last
 Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). **The first player
-that is playing wins; otherwise the first that answers is reported.** MPC-HC must keep behaving exactly as before whenever
+that is playing wins; otherwise the first that is paused; otherwise the first that answers is reported.** A song
+(`core.IsAudioFile`: `.mp3`, `.flac`, ...) counts as nothing playing unless `showMusic` is on. MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. MPRIS only reads players on the allowlist in
@@ -117,7 +118,9 @@ a stat elsewhere; never a connection) and no settings window holds `/api/alive` 
 
 Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
 state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
-playlist. With the default app name, the tooltip names mpv and VLC as themselves.
+playlist. With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's
+logo) is left out for players outside the MPC family. The default Discord application (`clientId`, which holds the
+`mpc-hc` images) was registered by the upstream project, not by this one: every install depends on it staying there.
 
 "Set up the player connection" (`winsys.EnableMpcWebInterface`): MPC-HC/MPC-BE get their web interface on (registry
 and ini; they are closed and reopened, after the user confirms) and **this-PC-only when the button switches it on**;
@@ -153,7 +156,8 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
-  Windows-only or opt-in must be added to the allowlists in `ci.yml`.
+  Windows-only or opt-in must be added to `tools/ci/allowed-skips.sh` (ci.yml and release.yml both use it). The live
+  test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
 - Engine tests use a fake Discord (Unix socket on Linux, named pipe on Windows) and fake players (`players_test.go`,
   `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once.
   `Options.Pipes` keeps a real local MPC-QT/mpv/IINA out of the tests and `Options.MPRIS` the real session bus; VLC is
@@ -210,8 +214,8 @@ existing players; engine tests including player order; setup support in `winsys`
 a live run in `tools/ci/live-players.sh` if it exists on Linux or macOS (a Linux MPRIS player only needs its bus-name
 part in `mpris.videoPlayers`, its process name in `winsys.unixPlayers`, and the lists below);
 then every place that lists players: `ui.html` (welcome card, "No player is answering" card, "Nothing playing" hint,
-Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (tagline, What you get, Getting started, the Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/development.md` (Where things are),
-`docs/config.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
+Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (tagline, What you get, Getting started, the Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/troubleshooting.md`, `docs/development.md` (Where things are),
+`docs/config.md`, the help texts in `store/schema.go` (`port`, `mpris`, `iinaPipe`), `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
 the header comment in `main.go`, the engine's "Looking for a player on ..." log line, `diag` and the repo description/topics.
 
 **UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. The window

@@ -14,6 +14,7 @@ listed in [All settings](config.md).
   and in **Advanced > VLC web interface port**.
 - Linux: a player that isn't found probably doesn't offer MPRIS, or isn't on the list yet (music players and browsers
   are left out on purpose). Please report it.
+- Music (a song in a video player: `.mp3`, `.flac` and the like) shows nothing unless **Privacy > Show music too** is on.
 
 ## Plex
 

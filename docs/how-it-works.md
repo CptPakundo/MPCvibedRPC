@@ -92,10 +92,10 @@ names come from, and how each player is read.
     In the window (**Titles & art > Fix a match**, or `config.json`): `artworkAliases: { 'my show': 'Official Name' }` searches under another name,
     `artworkOverrides: { 'my show': 'https://.../poster.jpg' }` uses your own image.
   - Set `showArtwork: false` (the first switch under "What online services see" on the Privacy tab) to stay fully offline; this also turns off episode-title lookups. Otherwise the title parsed from your filename is sent to these services.
-- **Clickable title and cover.** With **Link to the title's page** on (the default) and the title matched in a catalog that has a page (IMDb, AniList, ...), the second line and the cover open that page too, besides the "View on IMDb" style button. Others see the links on your profile. If Discord refuses these link fields, the same activity is sent without them from then on (it does not drop to the basic mode).
-- **Preview.** While a status is showing, the **Look** tab has a **How it looks on Discord** card: the title lines, cover,
+- **Clickable title and cover.** With **Link to the title's page** on (the default) and the title matched in a catalog that has a page (IMDb, AniList, ...), the second line and the cover open that page too, besides the "View on IMDb" style button. Others see the links on your profile. If Discord refuses these link fields, the same activity is sent without them from then on (it does not drop to the basic mode). A "View on ..." button Discord refuses is left out of that update only.
+- **Preview.** While a status is showing, a **How it looks on Discord** card sits at the top of the window, above the tabs: the title lines, cover,
   progress bar and link button, built from what was actually sent (so it also shows the basic-mode fallback); the second line is underlined (dotted) when it is a link.
-- **Hiding things** (Privacy tab). **Hide what I'm watching** shows only "Watching a video" with the progress bar (no title, cover or buttons, and nothing looked up). The same switch is in the Windows tray menu and the macOS menu bar menu (with a tick when on); an open window follows it. Linux has no tray, so it is only in the window there. **Never show these files** takes folders, names or wildcards (such as `Private` or `*.xyz`); a listed file shows no status at all and is never looked up. Hidden names are not written to the log either.
+- **Hiding things** (Privacy tab). **Hide what I'm watching** shows only "Watching a video" with the progress bar (no title, cover or buttons, and nothing looked up). The same switch is in the Windows tray menu and the macOS menu bar menu (with a tick when on); an open window follows it. Linux has no tray, so it is only in the window there. **Never show these files** takes folders, names or wildcards (such as `Private` or `*.xyz`); a listed file shows no status at all and is never looked up. Hidden names are not written to the log either. Music (a song played in a video player: `.mp3`, `.flac` and the like) is not shown either, unless **Show music too** is on.
 - **Privacy controls** (Privacy tab). Every online service the program can ask about a title has its own switch, with what it
   is used for and where requests go; a switched-off service is never contacted. One switch turns all lookups off (fully
   offline). **Clear my status when paused for N minutes** takes the status down after a long pause (30 minutes by default; 0 = never) and brings
@@ -114,7 +114,7 @@ names come from, and how each player is read.
 
 
 ## Players in detail
-The program asks the players in this order and shows the first one that is playing something (if none is, the window still names the first that answers):
+The program asks the players in this order and shows the first one that is playing something; if none is, the first one that is paused (a paused player left open does not hide another that plays); if none is, the window still names the first that answers:
 
 | Player | How it is read | Setup |
 |---|---|---|
@@ -161,7 +161,7 @@ never stored. Only the server's access token is kept, in `config.json` as plain 
 window and **Copy diagnostics** never show it. **Sign out** and **Restore defaults** end the session on the server
 (`/Sessions/Logout`) and forget the sign-in. While presence runs and you are signed in, the program asks the server's
 session list every 5 seconds. Only your own sessions count (an administrator would see everyone's), music, audiobooks
-and photos are skipped, a playing session beats a paused one, and the position is moved on by how long ago the player
+and photos are skipped, a playing session beats a paused one, a playing session that has not reported for 5 minutes (its player went away without saying so) no longer counts, and the position is moved on by how long ago the player
 last reported, by the server's own clock (Emby does not say when, so there the time runs on from when a report is first seen). Titles are written like a file name ("Sample Show - S01E02 - Title", "Sample
 Movie (2020)") so the usual parsing, cover art and episode lookups apply. Problems (the server refused the sign-in, or
 can't be reached) show as a hint in the window. Jellyfin and Emby are tried with unit tests against stand-ins, and on

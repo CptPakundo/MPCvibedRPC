@@ -90,10 +90,12 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 
 ## 🔒 Privacy
 
-- The status is put together on your computer. Only Discord and the services you turn on or sign in to are contacted.
+- The status is put together on your computer. Only Discord, the services you turn on or sign in to, and GitHub
+  (the update check, which you can switch off) are contacted.
 - To find covers, the **title** (never the file path) is sent to the catalog services you allow. The **Privacy** tab has
   a switch for each one, plus one switch to stay fully offline.
 - **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders or names completely.
+  Music played in a video player is not shown, unless **Show music too** is on.
 - Your status clears itself after a long pause (30 minutes, adjustable).
 - **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
   analytics, no tracking. The download count above is GitHub's public count of release downloads.

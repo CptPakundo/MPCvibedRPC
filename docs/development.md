@@ -58,7 +58,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 ## Where things are
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`; on macOS `--serve`, the copy that keeps running after the app is opened) |
+| `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`, `--home <folder>` (a data folder of its own, like `MPCRPC_HOME`), `--version`; on macOS `--serve`, the copy that keeps running after the app is opened) |
 | `internal/engine` | polls the player, looks up artwork, sends presence; start/stop/apply settings live |
 | `internal/core` | settings defaults, filename parsing, the Discord activity itself |
 | `internal/artwork`, `internal/jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics, which the title-matching rules rely on |
@@ -71,6 +71,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
+| `internal/diag` | **Copy diagnostics**: the report, with folder paths, addresses, server names and sign-ins left out |
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
 | `tools/` | the resource (.syso) and icon writers and the CI scripts (smoke tests, live player tests, the macOS app) |

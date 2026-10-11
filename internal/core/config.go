@@ -60,7 +60,7 @@ type Config struct {
 	// Filename cleanup
 	SmartFormat       bool `json:"smartFormat"`
 	IgnoreBrackets    bool `json:"ignoreBrackets"`
-	IgnoreFiletype    bool `json:"ignoreFiletype"`
+	IgnoreFiletype    bool `json:"ignoreFiletype"` // only CleanName uses it (the recorded parse tests); titles never carry the extension
 	ReplaceUnderscore bool `json:"replaceUnderscore"`
 	ReplaceDots       bool `json:"replaceDots"`
 
