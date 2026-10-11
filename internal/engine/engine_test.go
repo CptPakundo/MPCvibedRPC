@@ -63,8 +63,10 @@ type disc struct {
 	reject bool             // reject activities that carry a "type"
 	// rejectLinks rejects activities whose details line is a link (a Discord that does not know details_url)
 	rejectLinks bool
-	ln          fakeListener
-	conns       []io.ReadWriteCloser
+	// dropNext closes the connection on the next SET_ACTIVITY without answering (a Discord that goes away)
+	dropNext bool
+	ln       fakeListener
+	conns    []io.ReadWriteCloser
 }
 
 func newDisc(t *testing.T) *disc { return newDiscAt(t, fakePath(sockDir(t))) }
@@ -128,7 +130,13 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		d.mu.Lock()
 		d.acts = append(d.acts, args)
 		rej := (d.reject && act != nil && act["type"] != nil) || (d.rejectLinks && act != nil && act["details_url"] != nil)
+		drop := d.dropNext
+		d.dropNext = false
 		d.mu.Unlock()
+		if drop {
+			c.Close()
+			return
+		}
 		if rej {
 			reply(c, map[string]any{"evt": "ERROR", "nonce": m["nonce"], "data": map[string]any{"code": 4000, "message": "bad"}})
 		} else {

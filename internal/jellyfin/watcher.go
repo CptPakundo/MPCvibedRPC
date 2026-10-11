@@ -120,7 +120,7 @@ func (w *Watcher) Run(ctx context.Context) {
 	if w.retry > 0 {
 		first = w.retry
 	}
-	wait, ok := first, false
+	wait, ok, seen := first, false, false // ok: the last poll worked; seen: one has worked since the start
 	for ctx.Err() == nil {
 		err := w.poll(ctx)
 		if ctx.Err() != nil {
@@ -136,19 +136,17 @@ func (w *Watcher) Run(ctx context.Context) {
 			} else {
 				w.setProblem(fmt.Sprintf("Could not reach your %s server (%v). Is it running, and can this computer reach it?", w.product(), Reason(err)))
 			}
-			if ok {
-				wait = first // it had been working: try again soon
-			}
 			next, ok = wait, false
 			if wait < 2*time.Minute {
 				wait *= 2
 			}
 		} else {
-			if !ok && w.Problem() == "" {
+			if !ok && !seen {
 				w.log("INFO", "Following your "+w.product()+" server.")
 			} else if !ok {
 				w.log("INFO", "Your "+w.product()+" server answers again.")
 			}
+			seen = true
 			w.setProblem("")
 			ok, wait = true, first
 		}

@@ -89,11 +89,44 @@ func summarise(key string, v any) string {
 		return "(set)"
 	case "clientId":
 		return "(custom)"
+	case "mpvPipe", "iinaPipe":
+		return pathSafe(v)
+	}
+	if strings.HasSuffix(key, "Base") {
+		return baseSafe(v)
+	}
+	switch key {
 	case "artworkAliases", "artworkOverrides", "hideFiles":
 		return fmt.Sprintf("(%d entries)", count(v))
 	}
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+// pathSafe shows a bare name (an mpv pipe name) as it is and anything with a path in it as "(custom path)": a path
+// can hold a user's home folder.
+func pathSafe(v any) string {
+	s, _ := v.(string)
+	if strings.ContainsAny(s, `/\~`) {
+		return `"(custom path)"`
+	}
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+// baseSafe shows only the server of a custom web address; anything else with a path in it is "(custom path)".
+func baseSafe(v any) string {
+	s, _ := v.(string)
+	for _, p := range []string{"http://", "https://"} {
+		if strings.HasPrefix(strings.ToLower(s), p) {
+			rest := s[len(p):]
+			if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+				return `"` + s[:len(p)+i] + `/…"`
+			}
+			return `"` + s + `"`
+		}
+	}
+	return pathSafe(s)
 }
 
 func count(v any) int {
@@ -129,7 +162,7 @@ func Report(in Input) string {
 	if in.Config.VlcPassword != "" {
 		vlc = fmt.Sprintf("port %d", in.Config.VlcPort)
 	}
-	w("Web interface port: %d, mpv connection: %s, VLC web interface: %s", in.Config.Port, orNone(in.Config.MpvPipe), vlc)
+	w("Web interface port: %d, mpv connection: %s, VLC web interface: %s", in.Config.Port, orNone(strings.Trim(pathSafe(in.Config.MpvPipe), `"`)), vlc)
 	plex := "off (not signed in)"
 	if in.Config.PlexToken != "" {
 		plex = "signed in"

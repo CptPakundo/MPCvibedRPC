@@ -124,7 +124,7 @@ func (j *jellyfinAccount) signIn(address string) (map[string]any, error) {
 func (j *jellyfinAccount) finish(ctx context.Context, problem string) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	if ctx.Err() == context.Canceled && problem == "" {
+	if ctx.Err() == context.Canceled {
 		return // cancelled, or replaced by a newer sign-in that now owns the state
 	}
 	j.waiting, j.code, j.problem = false, "", problem
@@ -185,7 +185,15 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	if user == "" {
 		return nil, errors.New("Enter your user name.")
 	}
-	j.stopWaiting()
+	// Only a Quick Connect that is waiting ends here: stopWaiting would also forget the server found and the password
+	// form, and after a wrong password the box would fall back to the address form.
+	j.mu.Lock()
+	if j.cancel != nil {
+		j.cancel()
+		j.cancel = nil
+	}
+	j.waiting, j.code = false, ""
+	j.mu.Unlock()
 	base, err := jellyfin.Address(address)
 	if err != nil {
 		return nil, err

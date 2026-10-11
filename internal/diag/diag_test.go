@@ -27,6 +27,30 @@ func TestRedact(t *testing.T) {
 	}
 }
 
+func TestReportHidesCustomPaths(t *testing.T) {
+	cfg := core.DefaultConfig()
+	cfg.MpvPipe = `C:\Users\Someone\pipes\mpv`
+	cfg.IinaPipe = "~/sockets/iina"
+	cfg.TvmazeBase = "file:///home/someone/fake"
+	cfg.JikanBase = "http://127.0.0.1:9000/secret/path?q=Secret"
+	got := Report(Input{Version: "9.9.9", System: "Test OS 1.0", Config: cfg})
+	for _, leak := range []string{"Someone", "someone", "sockets", "Secret", "secret", `C:\`} {
+		if strings.Contains(got, leak) {
+			t.Errorf("report leaks %q:\n%s", leak, got)
+		}
+	}
+	for _, want := range []string{"mpv connection: (custom path)", `iinaPipe = "(custom path)"`, `tvmazeBase = "(custom path)"`, `jikanBase = "http://127.0.0.1:9000/…"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report is missing %q:\n%s", want, got)
+		}
+	}
+	cfg = core.DefaultConfig()
+	cfg.MpvPipe = "my-mpv-pipe"
+	if got := Report(Input{Config: cfg}); !strings.Contains(got, "mpv connection: my-mpv-pipe") {
+		t.Errorf("a bare name is kept:\n%s", got)
+	}
+}
+
 func TestReportLeaksNothingPrivate(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.TmdbAPIKey = "SECRETKEY123"

@@ -12,7 +12,7 @@ import (
 var (
 	reTT        = re(`^tt\d+$`, "")
 	reShard     = re(`^[a-z0-9]`, "")
-	reHebrew    = re(`[֐-׿]`, "")
+	reHebrew    = re(`[\u0590-\u05FF]`, "")
 	reWikiTitle = re(`^(.*?)\s*\(([^)]*)\)\s*$`, "")
 	reWikiKind  = re(`tv|television|series|anime|film|movie|sitcom|miniseries|manga|franchise|show`, "i")
 	reHr        = re(`(\d+)\s*hr`, "")
@@ -21,13 +21,10 @@ var (
 )
 
 func yearOf(v any) int {
-	s := str(v)
-	if truthy(v) {
-		s = u16head(s, 4)
-	} else {
-		s = ""
+	if !truthy(v) {
+		return 0
 	}
-	n, ok := core.ParseIntPrefix(s)
+	n, ok := core.ParseIntPrefix(u16head(str(v), 4))
 	if !ok {
 		return 0
 	}
@@ -116,8 +113,6 @@ func yearNum(v any) int {
 	}
 	return 0
 }
-
-func (a *Artwork) providers() map[string]*Provider { return a.provs }
 
 func buildProviders() map[string]*Provider {
 	P := map[string]*Provider{}
@@ -442,10 +437,7 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, lang := range langs {
-				u := strings.ReplaceAll(a.cfg.WikipediaBase, "{lang}", lang)
-				if i := strings.Index(a.cfg.WikipediaBase, "{lang}"); i >= 0 {
-					u = a.cfg.WikipediaBase[:i] + lang + a.cfg.WikipediaBase[i+6:] // String.replace: first occurrence only
-				}
+				u := strings.Replace(a.cfg.WikipediaBase, "{lang}", lang, 1) // first occurrence only
 				u += "/w/api.php?action=query&format=json&generator=search&gsrsearch=" + encURI(query) + "&gsrlimit=6&prop=pageimages&piprop=thumbnail&pithumbsize=500"
 				j, err := a.net.getJSON(u, reqInit{NoRetryOnTimeout: true})
 				if err != nil {

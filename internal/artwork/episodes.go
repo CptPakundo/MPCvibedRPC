@@ -3,12 +3,10 @@ package artwork
 import (
 	"math"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
 )
 
 // Looks up the real title of the episode being watched when the filename doesn't carry one
@@ -249,6 +247,14 @@ func newResolver(a *Artwork) *Resolver {
 	return r
 }
 
+// clearCaches forgets the Bulbapedia pages and the MyAnimeList ids kept in memory.
+func (r *Resolver) clearCaches() {
+	r.mu.Lock()
+	r.bulba = map[string]*bulbaPage{}
+	r.mal = map[string]string{}
+	r.mu.Unlock()
+}
+
 func (r *Resolver) enc(s string) string { return encURI(plain(s)) }
 
 func epNumF(v any) float64 {
@@ -382,7 +388,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			pg := r.bulba[page]
 			r.mu.Unlock()
 			if pg == nil || pg.until.Before(time.Now()) {
-				headers := map[string]string{"User-Agent": "MPCvibedRPC/1.0 (Discord rich presence for MPC-HC; reads episode titles)", "Accept": "application/json, text/plain"}
+				headers := map[string]string{"User-Agent": userAgent, "Accept": "application/json, text/plain"}
 				api := cfg.BulbapediaBase + "/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&titles=" + encURI(page)
 				status, text, err := a.net.fetchText(api, headers, 10*time.Second)
 				if err != nil {
@@ -748,6 +754,3 @@ func intOrNA(f float64) int {
 	}
 	return int(f)
 }
-
-var _ = strings.TrimSpace
-var _ = jsre.NFC

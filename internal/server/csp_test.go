@@ -17,6 +17,11 @@ func TestPolicyAllowsCoverImages(t *testing.T) {
 	if !strings.Contains(" "+img+" ", " https: ") {
 		t.Fatalf("img-src %q blocks cover images", img)
 	}
+	for _, d := range []string{"frame-ancestors 'none'", "base-uri 'none'", "form-action 'none'"} {
+		if !strings.Contains(csp, d) {
+			t.Errorf("policy lacks %q", d)
+		}
+	}
 	if strings.Contains(csp, "connect-src") || strings.Contains(img, "http:") || strings.Contains(img, "*") {
 		t.Fatalf("policy is wider than needed: %q", csp)
 	}

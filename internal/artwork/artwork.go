@@ -3,9 +3,12 @@ package artwork
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"net/http"
@@ -40,6 +43,9 @@ type Artwork struct {
 	net   *Net
 	provs map[string]*Provider
 	res   *Resolver
+
+	closed atomic.Bool // Close was called: this finder was replaced (see Close)
+	saveMu sync.Mutex  // one cache write at a time (and none while the cache is being cleared)
 
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
@@ -77,7 +83,19 @@ func New(cfg *core.Config, opts Options) *Artwork {
 	return a
 }
 
-func (a *Artwork) log(level, msg string) { a.opts.Log(level, msg) }
+// keyVersion starts every key of the saved answers; a key of another version is an old format and is not loaded.
+const keyVersion = "v3|"
+
+// Close marks this finder as replaced (the settings changed and a new one took over). Lookups still running go on
+// and finish, but they no longer write to the log or call OnResolved.
+func (a *Artwork) Close() { a.closed.Store(true) }
+
+func (a *Artwork) log(level, msg string) {
+	if a.closed.Load() {
+		return
+	}
+	a.opts.Log(level, msg)
+}
 
 func (a *Artwork) warnOnce(k, msg string) {
 	a.mu.Lock()
@@ -104,6 +122,9 @@ func (a *Artwork) load() {
 		return
 	}
 	for k, v := range raw {
+		if !strings.HasPrefix(k, keyVersion) && !strings.HasPrefix(k, "ep|"+keyVersion) {
+			continue // another key version: not used any more, so it must not take one of the saved places
+		}
 		if strings.HasPrefix(k, "ep|") {
 			e := &diskEntry{isEp: true}
 			if string(v) != "null" {
@@ -129,6 +150,8 @@ func (a *Artwork) save() {
 	if a.opts.CacheFile == "" {
 		return
 	}
+	a.saveMu.Lock()
+	defer a.saveMu.Unlock()
 	a.mu.Lock()
 	keys := make([]string, 0, len(a.disk))
 	for k := range a.disk {
@@ -154,18 +177,51 @@ func (a *Artwork) save() {
 	a.mu.Unlock()
 	b, err := json.Marshal(out)
 	if err == nil {
-		_ = os.WriteFile(a.opts.CacheFile, b, 0o644)
+		writeFileAtomic(a.opts.CacheFile, b)
 	}
 }
 
+// writeFileAtomic writes next to the file and renames over it, so a crash never leaves half a cache file. On Windows
+// the rename can fail for a moment (a virus scanner or indexer has the file open), so it is tried a few times.
+func writeFileAtomic(path string, b []byte) {
+	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return
+	}
+	tmp := f.Name()
+	_, werr := f.Write(b)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		_ = os.Remove(tmp)
+		return
+	}
+	for i := 0; i < 5; i++ {
+		if err = os.Rename(tmp, path); err == nil {
+			return
+		}
+		if runtime.GOOS != "windows" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	_ = os.Remove(tmp)
+}
+
 // ClearCache forgets everything that was looked up: the saved answers (and the file they live in), the remembered
-// misses and the short-lived network cache. The next lookups ask the services again.
+// misses, the episode lists kept in memory and the short-lived network cache. The next lookups ask the services again.
+// It waits for a cache write in progress, and a write started later saves only what is in memory by then, so a
+// lookup that was running cannot bring the cleared file back with the old answers.
 func (a *Artwork) ClearCache() {
+	a.saveMu.Lock()
+	defer a.saveMu.Unlock()
 	a.mu.Lock()
 	a.disk = map[string]*diskEntry{}
 	a.misses = map[string]time.Time{}
 	a.runtimes = map[string]int{}
 	a.mu.Unlock()
+	a.res.clearCaches()
 	a.net.clearCache()
 	if a.opts.CacheFile != "" {
 		_ = os.Remove(a.opts.CacheFile)
@@ -225,10 +281,17 @@ type future struct {
 	v    *provResult
 }
 
-func async(f func() *provResult) *future {
+// async runs f on its own goroutine. A panic in f must not take the app down: it gives an empty result.
+func (a *Artwork) async(f func() *provResult) *future {
 	fu := &future{done: make(chan struct{})}
 	go func() {
 		defer close(fu.done)
+		defer func() {
+			if r := recover(); r != nil {
+				fu.v = &provResult{}
+				a.warnOnce("panic:provider", "A cover lookup failed unexpectedly.")
+			}
+		}()
 		fu.v = f()
 	}()
 	return fu
@@ -351,7 +414,7 @@ func (a *Artwork) searchSeason(media *core.Media, query string, contain []string
 			if typ != "series" {
 				rank++
 			}
-			jobs = append(jobs, job{rank, async(func() *provResult { return a.runProvider(p, typ, query, media, contain) })})
+			jobs = append(jobs, job{rank, a.async(func() *provResult { return a.runProvider(p, typ, query, media, contain) })})
 		}
 	}
 	sort.SliceStable(jobs, func(i, j int) bool { return jobs[i].rank < jobs[j].rank })
@@ -431,7 +494,7 @@ func (a *Artwork) searchWith(media *core.Media, query string, contain []string) 
 	run := func(p *Provider, typ string) *future {
 		k := p.Label + "|" + typ
 		if memo[k] == nil {
-			memo[k] = async(func() *provResult { return a.runProvider(p, typ, query, media, contain) })
+			memo[k] = a.async(func() *provResult { return a.runProvider(p, typ, query, media, contain) })
 		}
 		return memo[k]
 	}
@@ -508,7 +571,7 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 		query = v
 	}
 	var seen []string
-	spaced := core.Trim(reWS.ReplaceStr(re(`\s+[-–—]\s+`, "g").ReplaceStr(query, " "), " "))
+	spaced := core.Trim(reWS.ReplaceStr(reDashSpace.ReplaceStr(query, " "), " "))
 	vars := titleVariants(media, query)
 	var lead, rest []variant
 	for _, v := range vars {
@@ -546,7 +609,6 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 	seq = append(seq, numbered...)
 	seq = append(seq, stripped...)
 	seq = append(seq, franchiseSubtitle(media, query)...)
-	_ = cfg
 	for _, v := range seq {
 		m := media
 		if v.year != 0 {
@@ -710,10 +772,7 @@ var (
 )
 
 func minutesOf(v any) int {
-	s := ""
-	if truthy(v) {
-		s = str(v)
-	}
+	s := str(v) // a falsy value (nil, false, 0, NaN) prints as text without "<n>h" or "<n>m", so it gives 0 as before
 	h, m := reHours.Exec(s), reMins.Exec(s)
 	if h == nil && m == nil {
 		return 0
@@ -732,6 +791,9 @@ func minutesOf(v any) int {
 
 // attachRuntimes: IMDb's search results carry no runtime. For same-named candidates, read it from Cinemeta.
 func (a *Artwork) attachRuntimes(list []*Cand, query, typ string) {
+	if !a.cfg.SourceOn("cinemeta") {
+		return
+	}
 	want := normTitle(query)
 	var group []*Cand
 	for _, c := range list {
@@ -753,6 +815,11 @@ func (a *Artwork) attachRuntimes(list []*Cand, query, typ string) {
 		wg.Add(1)
 		go func(c *Cand) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					a.warnOnce("panic:runtime", "A cover lookup failed unexpectedly.")
+				}
+			}()
 			id := imdbIDFrom(c.URL)
 			if id == "" {
 				return
@@ -828,6 +895,9 @@ type imdbFound struct{ id, typ string }
 // name and the file's name, and accepts an exact name, or a candidate holding every word of the file's name when
 // the years agree.
 func (a *Artwork) findImdbId(b *core.Art, media *core.Media) (*imdbFound, error) {
+	if !a.cfg.SourceOn("imdb") || a.provs["imdb"] == nil {
+		return nil, nil
+	}
 	first := "series"
 	if b.Type == "movie" {
 		first = "movie"
@@ -991,7 +1061,7 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	if !truthy2(media.Year) && !media.IsEpisode && media.DurationMin != 0 {
 		dur = "|d" + core.Itoa(int(jsRound(float64(media.DurationMin)/10)))
 	}
-	key := "v3|" + kind + "|" + nt + "|" + yearS + "|" + normTitle(a.aliases[nt]) + "|" + seasonS + "|" + media.CodePrefix + dur
+	key := keyVersion + kind + "|" + nt + "|" + yearS + "|" + normTitle(a.aliases[nt]) + "|" + seasonS + "|" + media.CodePrefix + dur
 	// A leading list number ("02. Show Name") is the episode number if the title turns out to be a series.
 	epNo := media.Index
 	if media.IsEpisode {
@@ -1116,6 +1186,7 @@ func (a *Artwork) runLookup(f *lookupFlight, fullKey, key, epKey string, wantEp 
 		defer func() {
 			if r := recover(); r != nil {
 				result = nil
+				a.log("WARN", "A cover lookup failed unexpectedly.") // no title: it could be private
 			}
 		}()
 		result = a.lookupBody(fullKey, key, epKey, wantEp, media, query, overrideArt, inEntry, merge, fits, infoIDOf, needInfo, needAlt, infoKey, aniKey)
@@ -1125,12 +1196,17 @@ func (a *Artwork) runLookup(f *lookupFlight, fullKey, key, epKey string, wantEp 
 	f.res = result
 	close(f.done)
 	cb := result != nil && a.late[fullKey]
-	if cb {
-		delete(a.late, fullKey)
-	}
+	delete(a.late, fullKey) // whatever the outcome: the next lookup of this title starts clean
 	a.mu.Unlock()
-	if cb {
-		a.opts.OnResolved(result)
+	if cb && !a.closed.Load() {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					a.log("WARN", "A cover lookup failed unexpectedly.")
+				}
+			}()
+			a.opts.OnResolved(result)
+		}()
 	}
 }
 

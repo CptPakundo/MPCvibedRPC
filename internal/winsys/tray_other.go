@@ -16,14 +16,14 @@ type TrayOptions struct {
 	Log      func(level, msg string)
 }
 
-// Tray is the notification-area icon (Windows only).
+// Tray is the tray icon (Windows) or menu bar icon (macOS); on the other systems there is none.
 type Tray struct{}
 
-// StartTray does nothing outside Windows.
+// StartTray does nothing here (no tray icon on this system, or macOS built without Cocoa).
 func StartTray(TrayOptions) *Tray { return nil }
 
 // Close removes the icon.
 func (t *Tray) Close() {}
 
-// Balloon shows a notification (Windows only).
+// Balloon shows a notification (Windows only; here it does nothing).
 func (t *Tray) Balloon(title, text string) bool { return false }

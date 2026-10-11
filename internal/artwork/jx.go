@@ -110,20 +110,10 @@ func numOK(v any) (float64, bool) {
 	return f, ok && !math.IsNaN(f)
 }
 
-func isStr(v any) bool { _, ok := v.(string); return ok }
-
 // orStr is `v || fallback` for string-ish values.
 func orStr(v any, fallback string) string {
 	if truthy(v) {
 		return str(v)
 	}
 	return fallback
-}
-
-func strs(v any) []string {
-	var out []string
-	for _, e := range asArr(v) {
-		out = append(out, str(e))
-	}
-	return out
 }

@@ -236,6 +236,8 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	return info, nil
 }
 
+var reSHA256 = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
+
 // Download fetches the new program next to exe (as exe+".new") and returns its path.
 func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if info == nil || info.URL == "" {
@@ -281,13 +283,17 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 			return "", err
 		}
 		defer sres.Body.Close()
+		if sres.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("The checksum file could not be fetched (HTTP %d), so the download was not installed.", sres.StatusCode)
+		}
 		txt, _ := io.ReadAll(io.LimitReader(sres.Body, 4096))
 		f := strings.Fields(string(txt))
-		if len(f) > 0 {
-			sum := sha256.Sum256(buf)
-			if strings.ToLower(f[0]) != hex.EncodeToString(sum[:]) {
-				return "", errors.New("The download is corrupted (checksum mismatch).")
-			}
+		if len(f) == 0 || !reSHA256.MatchString(f[0]) {
+			return "", errors.New("The checksum file is not valid, so the download was not installed.")
+		}
+		sum := sha256.Sum256(buf)
+		if strings.ToLower(f[0]) != hex.EncodeToString(sum[:]) {
+			return "", errors.New("The download is corrupted (checksum mismatch).")
 		}
 	}
 	next := exe + ".new"

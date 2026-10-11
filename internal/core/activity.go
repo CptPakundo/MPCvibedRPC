@@ -64,9 +64,6 @@ func ProgressBar(position, duration, width int) string {
 		return ""
 	}
 	filled := int(math.Max(0, math.Min(float64(width), jsRound(float64(position)/float64(duration)*float64(width)))))
-	if filled > width {
-		filled = width
-	}
 	return strings.Repeat("▰", filled) + strings.Repeat("▱", width-filled)
 }
 
@@ -82,14 +79,14 @@ func clip(s string) string {
 
 // toFixed1 is Number.prototype.toFixed(1): exact value, ties round up.
 func toFixed1(x float64) string {
+	if x < 0 {
+		return strconv.FormatFloat(x, 'f', 1, 64)
+	}
 	r := new(big.Rat)
 	r.SetFloat64(x)
 	r.Mul(r, big.NewRat(10, 1))
 	r.Add(r, big.NewRat(1, 2))
 	n := new(big.Int).Div(r.Num(), r.Denom()) // floor for positive numbers
-	if x < 0 {
-		return strconv.FormatFloat(x, 'f', 1, 64)
-	}
 	s := n.String()
 	for len(s) < 2 {
 		s = "0" + s
@@ -152,8 +149,6 @@ var (
 	rePartSuffix = re(`^(?:part|pt)(?:i|ii|iii|iv|v|vi|vii|viii|ix|[1-9]|one|two|three|four|five)$|^(?:ii|iii|iv|v|vi|vii|viii|ix|[2-9])$`, "")
 	genNames     = map[string]string{"BW": "Black & White", "DP": "Diamond & Pearl", "SM": "Sun & Moon", "HGSS": "HeartGold & SoulSilver"}
 )
-
-func isNA(n int) bool { return n == NA }
 
 // truthy is JavaScript truthiness for the optional numbers.
 func truthy(n int) bool { return n != NA && n != 0 }

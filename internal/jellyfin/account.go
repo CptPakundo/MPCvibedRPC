@@ -30,6 +30,24 @@ var (
 	ErrNotServer = errors.New("this address does not answer as a Jellyfin or Emby server")
 )
 
+// errUnexpected is an answer that is not what the server should send (the message goes on with what was wrong), and
+// errNoSignIn a sign-in that came without a token or user.
+var (
+	errUnexpected = errors.New("unexpected answer")
+	errNoSignIn   = errors.New("the server did not hand out a sign-in")
+)
+
+// httpError is a status the server answered with that is neither a success nor a refusal of the sign-in.
+type httpError struct{ Status int }
+
+func (e *httpError) Error() string { return fmt.Sprintf("HTTP %d", e.Status) }
+
+// isStatus tells whether err is an answer with that status.
+func isStatus(err error, status int) bool {
+	var he *httpError
+	return errors.As(err, &he) && he.Status == status
+}
+
 // Client talks to one server.
 type Client struct {
 	HTTP     *http.Client // nil = a client with a 15-second limit
@@ -121,11 +139,11 @@ func (c *Client) do(ctx context.Context, method, path, token string, body, v any
 	case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
 		return date, ErrToken
 	case res.StatusCode < 200 || res.StatusCode > 299:
-		return date, fmt.Errorf("HTTP %d", res.StatusCode)
+		return date, &httpError{res.StatusCode}
 	}
 	if v != nil {
 		if err := json.Unmarshal(raw, v); err != nil {
-			return date, fmt.Errorf("unexpected answer: %w", err)
+			return date, fmt.Errorf("%w: %v", errUnexpected, err)
 		}
 	}
 	return date, nil
@@ -170,7 +188,8 @@ func (c *Client) Find(ctx context.Context) (*Server, error) {
 		}
 		return s, nil
 	}
-	if lastErr != nil && (strings.HasPrefix(lastErr.Error(), "HTTP ") || strings.HasPrefix(lastErr.Error(), "unexpected answer")) {
+	var he *httpError
+	if errors.As(lastErr, &he) || errors.Is(lastErr, errUnexpected) {
 		return nil, ErrNotServer
 	}
 	return nil, lastErr
@@ -193,7 +212,7 @@ type authResult struct {
 
 func (r *authResult) auth() (*Auth, error) {
 	if r.AccessToken == "" || r.User.ID == "" {
-		return nil, errors.New("the server did not hand out a sign-in")
+		return nil, errNoSignIn
 	}
 	return &Auth{Token: r.AccessToken, UserID: r.User.ID, UserName: r.User.Name}, nil
 }
@@ -221,7 +240,7 @@ type Pending struct {
 func (c *Client) StartQuickConnect(ctx context.Context) (*Pending, error) {
 	var p Pending
 	_, err := c.do(ctx, "POST", "/QuickConnect/Initiate", "", nil, &p)
-	if errors.Is(err, ErrToken) || (err != nil && strings.HasPrefix(err.Error(), "HTTP 404")) {
+	if errors.Is(err, ErrToken) || isStatus(err, http.StatusNotFound) {
 		return nil, ErrNoQuickConnect // switched off (401), or no Quick Connect at all (Emby)
 	}
 	if err != nil {
@@ -240,7 +259,7 @@ func (c *Client) CheckQuickConnect(ctx context.Context, p *Pending) (*Auth, erro
 	}
 	_, err := c.do(ctx, "GET", "/QuickConnect/Connect?secret="+url.QueryEscape(p.Secret), "", nil, &r)
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "HTTP 404") {
+		if isStatus(err, http.StatusNotFound) {
 			return nil, ErrExpired
 		}
 		return nil, err
@@ -268,12 +287,13 @@ func (c *Client) SignOut(ctx context.Context, token string) error {
 // hold).
 func Reason(err error) string {
 	var ne net.Error
+	var he *httpError
 	switch {
 	case err == nil:
 		return ""
 	case errors.Is(err, ErrToken), errors.Is(err, ErrLogin), errors.Is(err, ErrNotServer), errors.Is(err, ErrNoQuickConnect), errors.Is(err, ErrExpired):
 		return err.Error()
-	case strings.HasPrefix(err.Error(), "HTTP "), strings.HasPrefix(err.Error(), "unexpected answer"), strings.HasPrefix(err.Error(), "the server "):
+	case errors.As(err, &he), errors.Is(err, errUnexpected), errors.Is(err, errNoSignIn):
 		return err.Error()
 	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
 		return "no answer in time"

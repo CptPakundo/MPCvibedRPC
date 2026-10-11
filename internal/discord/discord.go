@@ -93,6 +93,7 @@ type Client struct {
 	mu      sync.Mutex
 	pending map[string]chan reply
 	closed  bool
+	gone    error // why Discord ended the connection, when it said so (an opClose frame)
 
 	ready chan struct{}
 	done  chan struct{}
@@ -139,7 +140,7 @@ func (c *Client) Login(clientID string, timeout time.Duration) error {
 	case <-c.ready:
 		return nil
 	case <-c.done:
-		return errors.New("Discord closed the connection")
+		return c.goneErr("Discord closed the connection")
 	case <-t.C:
 		c.Close()
 		return errors.New("Discord did not answer the handshake")
@@ -185,6 +186,7 @@ func (c *Client) readLoop() {
 				_ = c.write(pong)
 			}
 		case opClose:
+			c.setGone(body)
 			return
 		case opFrame:
 			if data.Cmd == "DISPATCH" && data.Evt == "READY" {
@@ -218,6 +220,38 @@ func (c *Client) readLoop() {
 	}
 }
 
+// setGone keeps what Discord said when it closed the connection (a frame with a code and a message), so the pending
+// and the next calls can say why.
+func (c *Client) setGone(body []byte) {
+	var e struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	_ = json.Unmarshal(body, &e)
+	msg := "Discord closed the connection"
+	switch {
+	case e.Message != "" && e.Code != 0:
+		msg = fmt.Sprintf("%s: %s (%d)", msg, e.Message, e.Code)
+	case e.Message != "":
+		msg += ": " + e.Message
+	case e.Code != 0:
+		msg = fmt.Sprintf("%s (%d)", msg, e.Code)
+	}
+	c.mu.Lock()
+	c.gone = errors.New(msg)
+	c.mu.Unlock()
+}
+
+// goneErr is why the connection ended: what Discord said, or def.
+func (c *Client) goneErr(def string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.gone != nil {
+		return c.gone
+	}
+	return errors.New(def)
+}
+
 func orEmpty(b []byte) []byte {
 	if json.Valid(b) {
 		return b
@@ -232,7 +266,11 @@ func (c *Client) Request(cmd string, args any, timeout time.Duration) (json.RawM
 	}
 	c.mu.Lock()
 	if c.closed || c.conn == nil {
+		gone := c.gone
 		c.mu.Unlock()
+		if gone != nil {
+			return nil, gone
+		}
 		return nil, errors.New("Not connected to Discord")
 	}
 	n := strconv.FormatInt(time.Now().UnixMilli(), 36) + "-" + strconv.FormatUint(c.nonce.Add(1), 36)
@@ -261,7 +299,7 @@ func (c *Client) Request(cmd string, args any, timeout time.Duration) (json.RawM
 		c.mu.Unlock()
 		return nil, errors.New("Discord did not answer in time")
 	case <-c.done:
-		return nil, errors.New("Connection to Discord closed")
+		return nil, c.goneErr("Connection to Discord closed")
 	}
 }
 
@@ -285,6 +323,10 @@ func (c *Client) Close() {
 		return
 	}
 	c.closed = true
+	gone := c.gone
+	if gone == nil {
+		gone = errors.New("Connection to Discord closed")
+	}
 	conn := c.conn
 	pend := c.pending
 	c.pending = map[string]chan reply{}
@@ -293,9 +335,7 @@ func (c *Client) Close() {
 		_ = conn.Close()
 	}
 	for _, ch := range pend {
-		ch <- reply{err: errors.New("Connection to Discord closed")}
+		ch <- reply{err: gone}
 	}
 	close(c.done)
 }
-
-var _ = fmt.Sprintf

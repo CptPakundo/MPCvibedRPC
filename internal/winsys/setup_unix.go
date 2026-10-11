@@ -97,7 +97,7 @@ func enableUnix(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPasswor
 
 	if !mac {
 		parts = append(parts, "VLC, Celluloid, Haruna, SMPlayer and the other video players that offer MPRIS need no setup.")
-	} else if _, err := exec.LookPath("mpc-qt"); err == nil || dirExists("/Applications/mpc-qt.app") {
+	} else if onPath("mpc-qt") || dirExists("/Applications/mpc-qt.app") {
 		parts = append(parts, "MPC-QT needs no setup.")
 	}
 	if len(parts) == 0 {
@@ -106,6 +106,20 @@ func enableUnix(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPasswor
 	}
 	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using,
 		VlcPort: vlc.Port, VlcPassword: vlc.Password, IinaPipe: iina.Using}
+}
+
+// onPath reports whether a program is on PATH, or in Homebrew's folders: a program started from the Finder or at login
+// has a short PATH that lacks them.
+func onPath(name string) bool {
+	if _, err := exec.LookPath(name); err == nil {
+		return true
+	}
+	for _, d := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
+		if st, err := os.Stat(filepath.Join(d, name)); err == nil && !st.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // mpvConfPathsUnix is where mpv reads mpv.conf on macOS and Linux ($XDG_CONFIG_HOME/mpv, else ~/.config/mpv).
@@ -118,8 +132,7 @@ func mpvConfPathsUnix(home string) (paths []string, present bool) {
 		base = filepath.Join(home, ".config")
 	}
 	dir := filepath.Join(base, "mpv")
-	_, err := exec.LookPath("mpv")
-	present = err == nil || dirExists(dir) || dirExists("/Applications/mpv.app") || len(runningExes([]player{otherPlayers[1]})) > 0
+	present = onPath("mpv") || dirExists(dir) || dirExists("/Applications/mpv.app") || len(runningExes([]player{mpvPlayer})) > 0
 	return []string{filepath.Join(dir, "mpv.conf")}, present
 }
 
@@ -174,7 +187,7 @@ func readIINA(export []byte) iinaSettings {
 // iinaPresent reports whether IINA is on this Mac: in Applications, running, or with settings of its own.
 func iinaPresent(home string, hasOwnSettings bool) bool {
 	return hasOwnSettings || dirExists("/Applications/IINA.app") || dirExists(filepath.Join(home, "Applications", "IINA.app")) ||
-		len(runningExes(unixPlayers[:1])) > 0
+		len(runningExes([]player{iinaPlayer})) > 0
 }
 
 // hasSettings reports whether an exported property list holds any setting.
@@ -219,7 +232,7 @@ func enableIINA(home, name string) iinaResult {
 		return iinaResult{Message: "IINA: could not switch its advanced settings on."}
 	}
 	msg := "IINA set up (Settings > Advanced); it takes effect the next time IINA starts."
-	if len(runningExes(unixPlayers[:1])) > 0 {
+	if len(runningExes([]player{iinaPlayer})) > 0 {
 		msg = "IINA set up (Settings > Advanced); quit IINA and open it again to connect."
 	}
 	return iinaResult{Message: msg, Using: using, Edited: true, OK: true}

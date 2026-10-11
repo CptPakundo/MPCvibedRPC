@@ -92,7 +92,7 @@ func (p *plexAccount) signIn() (map[string]any, error) {
 func (p *plexAccount) finish(ctx context.Context, problem string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if ctx.Err() == context.Canceled && problem == "" {
+	if ctx.Err() == context.Canceled {
 		return // cancelled, or replaced by a newer sign-in that now owns the state
 	}
 	p.waiting, p.url, p.problem = false, "", problem

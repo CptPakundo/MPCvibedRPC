@@ -29,6 +29,7 @@ var (
 	reColonSplit = re(`:|\s[-–]\s`, "")
 	reHasSub     = re(`^[^:]*:|\s[-–]\s`, "")
 	reArt1       = re(`^(?:the|a|an)$`, "")
+	reTrailPunct = re(`[^\p{L}\p{N}\s)\]]+$`, "u")
 )
 
 var ordinals = map[string]int{"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10}
@@ -111,8 +112,6 @@ type Cand struct {
 	l0       string // titles[0] as the catalog gave it (IMDb alias check)
 }
 
-func (c *Cand) names() []string { return c.Titles }
-
 func yearClose(c *Cand, year int) bool {
 	return c.Year != 0 && math.Abs(float64(c.Year-year)) <= 1
 }
@@ -169,6 +168,17 @@ func yr(c *Cand) int {
 	return 9999
 }
 
+// dropArticle removes a leading "the", "a" or "an" from a list of words.
+func dropArticle(ws []string) []string {
+	var out []string
+	for i, w := range ws {
+		if !(i == 0 && reArt1.Test(w)) {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
 func firstSeg(n string) string { return reColonSplit.Split(n)[0] }
 
 func anyName(c *Cand, f func(n string) bool) bool {
@@ -186,12 +196,7 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 	if want == "" {
 		return nil
 	}
-	var wantWords []string
-	for i, w := range words(title) {
-		if !(i == 0 && reArt1.Test(w)) {
-			wantWords = append(wantWords, w)
-		}
-	}
+	wantWords := dropArticle(words(title))
 	byYear := func(list []*Cand) []*Cand {
 		if o.Earliest {
 			cp := append([]*Cand(nil), list...)
@@ -274,9 +279,8 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 		return reNonAN.ReplaceStr(t, "")
 	}
 	wantFull := full(title)
-	tailRe := re(`[^\p{L}\p{N}\s)\]]+$`, "u")
 	tail := func(x string) string {
-		if m := tailRe.Exec(core.Trim(x)); m != nil {
+		if m := reTrailPunct.Exec(core.Trim(x)); m != nil {
 			return m.Str(0)
 		}
 		return ""
@@ -348,15 +352,11 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 			ln := func(c *Cand) int {
 				best := math.MaxInt32
 				for _, n := range c.Titles {
-					nn := normTitle(n)
-					ok := true
-					for _, x := range o.Contain {
-						if !strings.Contains(nn, x) {
-							ok = false
-						}
+					if !hasAll(n) {
+						continue
 					}
-					if ok && u16len(nn) < best {
-						best = u16len(nn)
+					if l := u16len(normTitle(n)); l < best {
+						best = l
 					}
 				}
 				return best
@@ -427,12 +427,7 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 				continue
 			}
 			if anyName(c, func(n string) bool {
-				var w []string
-				for i, x := range words(n) {
-					if !(i == 0 && reArt1.Test(x)) {
-						w = append(w, x)
-					}
-				}
+				w := dropArticle(words(n))
 				if len(w) <= len(wantWords) {
 					return false
 				}

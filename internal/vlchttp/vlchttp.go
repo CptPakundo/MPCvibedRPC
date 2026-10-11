@@ -113,12 +113,12 @@ func (r *Reader) Query(ctx context.Context, port int, password string) (*core.In
 		uri = ""
 		if pl, err := r.get(ctx, port, password, "playlist.json"); err == nil {
 			uri = currentURI(pl, s.CurrentPLID)
+			r.mu.Lock()
+			r.lastKey, r.lastPath = key, uri // remembered only when the playlist answered; a failure is asked again
+			r.mu.Unlock()
 		} else if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		r.mu.Lock()
-		r.lastKey, r.lastPath = key, uri
-		r.mu.Unlock()
 	}
 
 	file, filePath, dir := name, "", ""

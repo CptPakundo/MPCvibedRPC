@@ -123,6 +123,29 @@ func TestDownloadRejects(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("checksum file missing or malformed", func(t *testing.T) {
+		for name, sha := range map[string]string{"malformed": "not-a-checksum", "short": strings.Repeat("a", 63)} {
+			_, done := setup(t, good, sha, "")
+			info, _ := Check(nil, "o/r", "1.0.0")
+			if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "checksum file") {
+				t.Errorf("%s: %v", name, err)
+			}
+			done()
+		}
+		// a release whose .sha256 answers 404
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/sha" {
+				http.NotFound(w, r)
+				return
+			}
+			w.Write(good)
+		}))
+		defer srv.Close()
+		info := &Info{URL: srv.URL + "/exe", ShaURL: srv.URL + "/sha"}
+		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "HTTP 404") {
+			t.Errorf("404: %v", err)
+		}
+	})
 	t.Run("not a program", func(t *testing.T) {
 		_, done := setup(t, bytes.Repeat([]byte("<html>"), 400000), "", "")
 		defer done()

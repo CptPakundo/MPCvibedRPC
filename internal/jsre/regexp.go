@@ -626,7 +626,6 @@ type Regexp struct {
 	unic   bool
 	ncap   int
 	root   matcher
-	names  map[string]int
 }
 
 type state struct {
@@ -637,10 +636,11 @@ type state struct {
 
 type matcher func(s *state, i int, k func(int) bool) bool
 
-// ErrTooComplex is returned (via panic recovery in Exec) when a pattern backtracks without end.
+// stepLimit caps the repetition steps of one search (ExecAt). A pattern that exceeds it stops and reports no match,
+// rather than hanging on catastrophic backtracking.
 const stepLimit = 5_000_000
 
-// Compile parses a pattern with JavaScript flags ("g", "i", "m", "s", "u", "y").
+// Compile parses a pattern with JavaScript flags ("g", "i", "m", "s", "u", "y") and returns the compiled regexp.
 func Compile(pattern, flags string) (*Regexp, error) {
 	re := &Regexp{Source: pattern, Flags: flags}
 	for _, f := range flags {
@@ -662,7 +662,7 @@ func Compile(pattern, flags string) (*Regexp, error) {
 		}
 	}
 	p := &parser{src: []rune(pattern), unic: re.unic, icase: re.icase}
-	// first pass names so \k<name> can resolve forward references is not needed for the patterns in use
+	// A \k<name> that refers to a group defined later in the pattern is not resolved (no pattern in use needs it).
 	root, err := p.parseDisjunction()
 	if err != nil {
 		return nil, fmt.Errorf("invalid regular expression /%s/: %v", pattern, err)
@@ -671,7 +671,6 @@ func Compile(pattern, flags string) (*Regexp, error) {
 		return nil, fmt.Errorf("invalid regular expression /%s/: unmatched )", pattern)
 	}
 	re.ncap = p.ncap
-	re.names = p.names
 	re.root = re.compile(root, false)
 	return re, nil
 }
@@ -1011,9 +1010,6 @@ func (m *Match) Has(n int) bool { _, ok := m.Group(n); return ok }
 
 // NumGroups is the number of capture groups (excluding group 0).
 func (re *Regexp) NumGroups() int { return re.ncap }
-
-// GroupIndex looks up a named group (0 when missing).
-func (re *Regexp) GroupIndex(name string) int { return re.names[name] }
 
 func (re *Regexp) execAt(in []rune, from int) *Match {
 	s := &state{in: in, caps: make([]int, 2*(re.ncap+1))}

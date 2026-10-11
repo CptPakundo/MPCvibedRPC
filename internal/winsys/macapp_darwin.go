@@ -124,7 +124,7 @@ static void macTrayCreate(const void *png, int len, const char *tip) {
 		statusLine.enabled = NO;
 		[m addItem:[NSMenuItem separatorItem]];
 		menuItem(m, @"Open settings", @",", 1);
-		toggleItem = menuItem(m, @"Stop presence", @"", 2);
+		toggleItem = menuItem(m, @"Stop showing on Discord", @"", 2);
 		hideItem = menuItem(m, @"Hide what I'm watching", @"", 4);
 		[m addItem:[NSMenuItem separatorItem]];
 		menuItem(m, @"Quit MPCvibedRPC", @"q", 3);
@@ -138,7 +138,7 @@ static void macTraySetState(const char *tip, int running, int hidden) {
 		if (!item) return;
 		item.button.toolTip = text;
 		statusLine.title = text;
-		toggleItem.title = running ? @"Stop presence" : @"Start presence";
+		toggleItem.title = running ? @"Stop showing on Discord" : @"Show on Discord";
 		hideItem.state = hidden ? NSControlStateValueOn : NSControlStateValueOff;
 	});
 }
@@ -250,7 +250,7 @@ type Tray struct {
 	once sync.Once
 }
 
-// StartTray puts the icon in the menu bar. Its menu shows the status, Open settings, Start/Stop presence,
+// StartTray puts the icon in the menu bar. Its menu shows the status, Open settings, Show on Discord / Stop showing on Discord,
 // Hide what I'm watching and Quit.
 func StartTray(o TrayOptions) *Tray {
 	t := &Tray{o: o, stop: make(chan struct{})}
@@ -296,7 +296,7 @@ func (t *Tray) push(tip string, running, hidden bool) {
 
 // loop hands menu commands to the program and keeps the status line current.
 func (t *Tray) loop() {
-	tick := time.NewTicker(100 * time.Millisecond)
+	tick := time.NewTicker(250 * time.Millisecond) // menu commands wait at most this long; the status refreshes every fourth tick
 	defer tick.Stop()
 	lastTip, lastRunning, lastHidden, n := "", false, false, 0
 	for {
@@ -318,9 +318,9 @@ func (t *Tray) loop() {
 		}
 		if f != nil {
 			go f()
-			n = 9 // show the result soon
+			n = 3 // show the result soon
 		}
-		if n++; n >= 10 {
+		if n++; n >= 4 {
 			n = 0
 			if tip, running, hidden := t.state(); tip != lastTip || running != lastRunning || hidden != lastHidden {
 				lastTip, lastRunning, lastHidden = tip, running, hidden

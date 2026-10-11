@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -67,17 +68,18 @@ const (
 	mfString            = 0x0
 	mfSeparator         = 0x800
 	mfChecked           = 0x8
+	mfGrayed            = 0x1
+	mfDisabled          = 0x2
 	tpmRightBtn         = 0x2
 	imageIcon           = 1
 	lrLoadFile          = 0x10
-	lrDefault           = 0x40
 	smCxSmIcon          = 49
 	cmdOpen             = 1
 	cmdToggle           = 2
 	cmdQuit             = 3
 	cmdHide             = 4
 	timerID             = 1
-	ClassName           = "MPCDiscordRPC.Tray"
+	ClassName           = "MPCvibedRPC.Tray"
 )
 
 type wndClassEx struct {
@@ -130,7 +132,7 @@ type TrayOptions struct {
 	Icon     []byte
 	Dir      string
 	Tooltip  func() string // text shown on hover
-	Running  func() bool   // decides "Stop presence" / "Start presence"
+	Running  func() bool   // decides "Stop showing on Discord" / "Show on Discord"
 	OnOpen   func()
 	OnToggle func()
 	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
@@ -290,10 +292,14 @@ func (t *Tray) showMenu() {
 		return
 	}
 	defer pDestroyMenu.Call(menu)
-	toggle := "Start presence"
+	toggle := "Show on Discord"
 	if t.o.Running != nil && t.o.Running() {
-		toggle = "Stop presence"
+		toggle = "Stop showing on Discord"
 	}
+	// the first line says what the program is doing (the icon's tooltip, without the program's name)
+	status := strings.TrimPrefix(t.tooltip(), "MPCvibedRPC - ")
+	pAppendMenu.Call(menu, mfString|mfDisabled|mfGrayed, 0, uintptr(unsafe.Pointer(utf16Ptr(status))))
+	pAppendMenu.Call(menu, mfSeparator, 0, 0)
 	pAppendMenu.Call(menu, mfString, cmdOpen, uintptr(unsafe.Pointer(utf16Ptr("Open settings"))))
 	pAppendMenu.Call(menu, mfString, cmdToggle, uintptr(unsafe.Pointer(utf16Ptr(toggle))))
 	if t.o.OnHide != nil {
