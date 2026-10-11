@@ -38,9 +38,10 @@ To publish a version:
    Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, resting while Discord is
    closed, DPI awareness, version details, autostart, self-update; macOS and Linux: the API, login item, player setup, a
    second start, and on macOS opening the app like the Finder does) and attaches them with their `.sha256` files and
-   build records to a release.
-3. Then it checks the published release as a user gets it (`tools/ci/verify-release.ps1`): the ten files, each
-   program's checksum and build record, the exe's version, and a real self-update from the release before it.
+   build records to a release that is still a draft.
+3. Then it checks the draft as a user would get it (`tools/ci/verify-release.ps1`): the ten files, each program's
+   checksum and build record, the exe's version. Only then is the release made public, and a real self-update from the
+   release before it is tried.
 
 ## Screenshots
 The README's pictures (`docs/images/window-*.jpg`) are taken again when the part of the window they show changes:
