@@ -275,15 +275,13 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		in.Player = p.Name
 		return in
 	}
-	// The first player that is playing something wins; failing that, the first one that is paused, then the first
-	// one that answers (a paused or idle player that is open must not hide another that plays).
-	var first, paused *core.Info
+	// The first player that is playing a video wins; failing that, the first one playing music, then the first one that
+	// is paused, then the first one that answers (a paused or idle player that is open must not hide another that plays,
+	// and music in the background must not hide a video).
+	var first, music, paused *core.Info
 	playing := func(in *core.Info) bool {
 		if in == nil {
 			return false
-		}
-		if !cfg.ShowMusic && core.IsAudioFile(in.File) {
-			in.File, in.State = "", 0 // a song: the player counts as open with nothing to show
 		}
 		if first == nil {
 			first = in
@@ -291,7 +289,16 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		if in.File != "" && in.State == 1 && paused == nil {
 			paused = in
 		}
-		return in.File != "" && (in.State == 2 || in.State == 3)
+		if in.File == "" || (in.State != 2 && in.State != 3) {
+			return false
+		}
+		if core.IsAudioFile(in.File) {
+			if music == nil {
+				music = in
+			}
+			return false // keep looking for a video
+		}
+		return true
 	}
 	info := e.fetchMPC(ctx, cfg.Port)
 	askedQt := false
@@ -386,6 +393,9 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 					}
 				}
 			}
+		}
+		if info == nil {
+			info = music
 		}
 		if info == nil {
 			info = paused
@@ -763,6 +773,7 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 
+	music := core.IsAudioFile(info.File)
 	var (
 		activity   *core.Activity
 		display    string
@@ -774,6 +785,16 @@ func (e *Engine) tick(r *run) {
 		// nothing about the file is used: no parsing, no lookups, and no title in the status, the window or the log
 		activity = core.HiddenActivity(info, &cfg, time.Now().UnixMilli())
 		display = "A video (title hidden)"
+		if music && activity != nil {
+			core.Listening(activity)
+			activity.Details, display = "Listening to music", "Music (title hidden)"
+		}
+	} else if music {
+		// a song: shown as it is named, as "Listening to"; never sent to the movie and TV catalogs
+		media := core.MusicMedia(info.File)
+		activity = core.BuildActivity(info, &cfg, time.Now().UnixMilli(), media, nil)
+		core.Listening(activity)
+		display = media.Display
 	} else {
 		media := core.ParseMedia(info.File, &cfg, info.Dir)
 		if info.Duration > 0 {
@@ -820,7 +841,9 @@ func (e *Engine) tick(r *run) {
 	e.shown = true
 	e.lastError = nil
 	d := display
-	e.statShown(info.Player+"/"+info.File, info.Player, found != nil) // player names have no slash
+	if !music {
+		e.statShown(info.Player+"/"+info.File, info.Player, found != nil) // player names have no slash; songs are not videos
+	}
 	if key := info.Player + "/" + info.File; noEpTitle {
 		if e.recheckKey != key {
 			e.recheckKey, e.rechecks, e.recheckAt = key, 0, time.Time{}

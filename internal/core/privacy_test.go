@@ -109,3 +109,24 @@ func TestIsAudioFile(t *testing.T) {
 		}
 	}
 }
+
+func TestMusicMedia(t *testing.T) {
+	for file, want := range map[string]string{
+		`D:\Music\01 Sample Artist - Sample Song.flac`: "01 Sample Artist - Sample Song",
+		"/music/Sample_Artist_-_Sample_Song.mp3":       "Sample Artist - Sample Song",
+		"https://example.com/radio/stream.ogg?token=x": "stream",
+		".mp3": ".mp3",
+	} {
+		if got := MusicMedia(file); got.Title != want || got.Display != want || got.IsEpisode {
+			t.Errorf("MusicMedia(%q) = %q / %q (episode %v), want %q", file, got.Title, got.Display, got.IsEpisode, want)
+		}
+	}
+	a := &Activity{Type: 3}
+	if Listening(a); a.Type != 2 {
+		t.Errorf("Listening: type %d", a.Type)
+	}
+	p := &Activity{} // the classic Playing style stays as it is
+	if Listening(p); p.Type != 0 {
+		t.Errorf("Listening changed a Playing activity: %d", p.Type)
+	}
+}

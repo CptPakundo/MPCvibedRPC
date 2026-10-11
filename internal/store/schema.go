@@ -70,7 +70,6 @@ var Sections = []Section{
 		{Type: "heading", Label: "What other people see on Discord"},
 		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar. No title, cover or buttons, and nothing is looked up online."},
 		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up. For Plex, Stremio, Jellyfin and Emby the entry is matched against the title."},
-		{Key: "showMusic", Type: "bool", Label: "Show music too", Help: "Off: a song played in a video player (mp3, flac, ...) shows no status and is not looked up."},
 		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume (default 30). It comes back when you play again.", Min: ip(0), Max: ip(1440)},
 		{Type: "heading", Label: "What online services see"},
 		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},

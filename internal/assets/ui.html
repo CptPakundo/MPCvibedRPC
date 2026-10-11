@@ -698,7 +698,7 @@
     const box = $('preview');
     box.classList.toggle('hidden', !p);
     if (!p) return;
-    $('pvName').textContent = (p.watching ? 'Watching ' : 'Playing ') + p.name;
+    $('pvName').textContent = (p.listening ? 'Listening to ' : p.watching ? 'Watching ' : 'Playing ') + p.name;
     $('pvDetails').textContent = p.details || '';
     $('pvDetails').classList.toggle('pv-link', !!p.linked);
     $('pvDetails').title = p.linked ? 'Opens the catalog page on Discord (the cover too)' : '';

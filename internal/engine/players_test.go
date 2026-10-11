@@ -190,21 +190,25 @@ func TestPlayingPlayerWinsOverPausedOne(t *testing.T) {
 	eventually(t, "back to the paused MPC-HC", func() bool { s := e.Status(); return s.Player == "MPC-HC" && s.Paused })
 }
 
-// A song in one player is not shown and does not hide a video in another; with showMusic it is shown.
-func TestMusicIsNotShown(t *testing.T) {
-	song := newFakeMpv(t, map[string]any{"path": `D:\Music\Sample Artist - Sample Song.flac`, "pause": false, "time-pos": 5.0, "duration": 200.0, "speed": 1.0, "idle-active": false})
+// A song in one player does not hide a video in another; alone, it is shown as "Listening to" with its own name.
+func TestMusicIsListening(t *testing.T) {
+	song := newFakeMpv(t, map[string]any{"path": `D:\Music\01 Sample Artist - Sample Song.flac`, "pause": false, "time-pos": 5.0, "duration": 200.0, "speed": 1.0, "idle-active": false})
 	video := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
-	e, _, _ := pipeEngine(t, deadPort(t), []PlayerPipe{{"mpv", song.path}, {"MPC-QT", video.path}})
+	e, d, _ := pipeEngine(t, deadPort(t), []PlayerPipe{{"mpv", song.path}, {"MPC-QT", video.path}})
 	e.Start()
 	eventually(t, "the video shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "MPC-QT" })
 
-	video.set("idle-active", true) // only the song is left: nothing is shown
-	eventually(t, "the song not shown", func() bool { s := e.Status(); return s.Player == "mpv" && s.NowPlaying == nil })
-
-	cfg := e.Config()
-	cfg.ShowMusic = true
-	e.ApplySettings(cfg)
-	eventually(t, "the song shown with showMusic", func() bool { s := e.Status(); return s.Player == "mpv" && s.NowPlaying != nil })
+	video.set("idle-active", true) // only the song is left
+	eventually(t, "the song shown", func() bool { s := e.Status(); return s.Player == "mpv" && s.NowPlaying != nil })
+	eventually(t, "sent as Listening", func() bool {
+		l := d.list()
+		if len(l) == 0 {
+			return false
+		}
+		act, _ := l[len(l)-1]["activity"].(map[string]any)
+		return act != nil && act["type"] == float64(2) && act["name"] == "01 Sample Artist - Sample Song"
+	})
+	eventually(t, "the window's preview says Listening to", func() bool { p := e.Status().Preview; return p != nil && p.Listening })
 }
 
 func TestMissingPipesMeanNoPlayer(t *testing.T) {

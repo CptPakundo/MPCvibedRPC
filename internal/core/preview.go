@@ -5,7 +5,8 @@ import "strings"
 // Preview is how the presence looks on Discord's card, for the settings window. It is built from the activity that
 // was actually sent, so it shows what other people see.
 type Preview struct {
-	Watching   bool   `json:"watching"` // "Watching <name>" (otherwise "Playing <name>")
+	Watching   bool   `json:"watching"`  // "Watching <name>" (otherwise "Playing <name>")
+	Listening  bool   `json:"listening"` // "Listening to <name>" (music)
 	Name       string `json:"name"`
 	Details    string `json:"details"`
 	State      string `json:"state"`
@@ -24,7 +25,7 @@ func PreviewOf(a *Activity, cfg *Config) *Preview {
 	if a == nil {
 		return nil
 	}
-	p := &Preview{Watching: a.Type == 3, Name: a.Name, Details: a.Details, State: a.State}
+	p := &Preview{Watching: a.Type == 3, Listening: a.Type == 2, Name: a.Name, Details: a.Details, State: a.State}
 	if p.Name == "" && cfg != nil {
 		p.Name = cfg.AppName
 	}
