@@ -232,7 +232,7 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 			info.ShaURL = a.URL
 		}
 	}
-	info.CanInstall = info.URL != ""
+	info.CanInstall = info.URL != "" && info.ShaURL != "" // a release without a checksum is offered on its page only
 	return info, nil
 }
 
@@ -273,28 +273,29 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 		}
 		return "", errors.New("The downloaded file does not look like a Windows program.")
 	}
-	if info.ShaURL != "" {
-		sreq, err := newReq(ctx, info.ShaURL, "")
-		if err != nil {
-			return "", err
-		}
-		sres, err := client.Do(sreq)
-		if err != nil {
-			return "", err
-		}
-		defer sres.Body.Close()
-		if sres.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("The checksum file could not be fetched (HTTP %d), so the download was not installed.", sres.StatusCode)
-		}
-		txt, _ := io.ReadAll(io.LimitReader(sres.Body, 4096))
-		f := strings.Fields(string(txt))
-		if len(f) == 0 || !reSHA256.MatchString(f[0]) {
-			return "", errors.New("The checksum file is not valid, so the download was not installed.")
-		}
-		sum := sha256.Sum256(buf)
-		if strings.ToLower(f[0]) != hex.EncodeToString(sum[:]) {
-			return "", errors.New("The download is corrupted (checksum mismatch).")
-		}
+	if info.ShaURL == "" {
+		return "", errors.New("The release has no checksum file, so the download was not installed. Get it from the release page.")
+	}
+	sreq, err := newReq(ctx, info.ShaURL, "")
+	if err != nil {
+		return "", err
+	}
+	sres, err := client.Do(sreq)
+	if err != nil {
+		return "", err
+	}
+	defer sres.Body.Close()
+	if sres.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("The checksum file could not be fetched (HTTP %d), so the download was not installed.", sres.StatusCode)
+	}
+	txt, _ := io.ReadAll(io.LimitReader(sres.Body, 4096))
+	f := strings.Fields(string(txt))
+	if len(f) == 0 || !reSHA256.MatchString(f[0]) {
+		return "", errors.New("The checksum file is not valid, so the download was not installed.")
+	}
+	sum := sha256.Sum256(buf)
+	if strings.ToLower(f[0]) != hex.EncodeToString(sum[:]) {
+		return "", errors.New("The download is corrupted (checksum mismatch).")
 	}
 	next := exe + ".new"
 	if err := os.WriteFile(next, buf, 0o755); err != nil {

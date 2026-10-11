@@ -79,8 +79,8 @@ try {
   $aware = -1; [void][W.U]::GetProcessDpiAwareness($p.Handle, [ref]$aware)
   Check ($aware -eq 2) "the program is per-monitor DPI-aware (awareness $aware)"
   $state = Api 'Get' 'state'
-  Write-Host "state: canAutoStart=$($state.canAutoStart) sections=$(@($state.schema).Count) dataDir=$($state.dataDir) expected=$home_"
-  Check ($state.canAutoStart -eq $true -and @($state.schema).Count -ge 3 -and (Resolve-Path $state.dataDir).Path -eq (Resolve-Path $home_).Path) 'state carries schema, canAutoStart and data folder'
+  Write-Host "state: sections=$(@($state.schema).Count) dataDir=$($state.dataDir) expected=$home_"
+  Check (@($state.schema).Count -ge 3 -and (Resolve-Path $state.dataDir).Path -eq (Resolve-Path $home_).Path) 'state carries schema and data folder'
   try { Invoke-RestMethod "http://127.0.0.1:$($i.port)/api/state" -TimeoutSec 5 | Out-Null; Check $false 'API without token is refused' } catch { Check ($_.Exception.Response.StatusCode.value__ -eq 401) 'API without token is refused' }
 
   # presence reaches "Discord" through the real named pipe

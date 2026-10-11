@@ -50,7 +50,7 @@ func (p *plexAccount) state() map[string]any {
 		"waiting": p.waiting, "url": p.url, "problem": p.problem}
 }
 
-func (p *plexAccount) apply() { p.eng.ApplySettings(p.st.Config()) }
+func (p *plexAccount) apply() { applySettings(p.st, p.eng) }
 
 // signIn asks plex.tv for a code, opens the page that approves it, and waits for the approval in the background.
 func (p *plexAccount) signIn() (map[string]any, error) {

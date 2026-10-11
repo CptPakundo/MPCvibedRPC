@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -82,6 +83,7 @@ type Store struct {
 	File string
 
 	mu sync.Mutex // guards config.json: reads and changes are serialised (the window and a sign-in can save at the same moment)
+	broken []byte     // the unreadable config.json last kept as a .broken copy (it is kept once, not at every read)
 }
 
 // New opens (and creates) the data folder.
@@ -113,7 +115,10 @@ func (s *Store) read() *jsonx.Obj {
 	v, perr := jsonx.Parse(txt)
 	o, ok := v.(*jsonx.Obj)
 	if perr != nil {
-		_ = os.WriteFile(s.brokenName(), b, 0o600)
+		if !bytes.Equal(b, s.broken) {
+			_ = os.WriteFile(s.brokenName(), b, 0o600)
+			s.broken = b
+		}
 		return jsonx.NewObj()
 	}
 	if !ok {
@@ -156,11 +161,24 @@ func (s *Store) write(o *jsonx.Obj) error {
 	return err
 }
 
-// Reset puts every setting, including the program's own, back to its default.
+// Reset puts every setting, including the program's own, back to its default (the welcome card shows again). Which
+// version's news was last shown is kept: it is not a setting, and the same news must not pop up again.
 func (s *Store) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.write(jsonx.NewObj())
+	fresh := jsonx.NewObj()
+	if cur, ok := s.read().M["app"].(*jsonx.Obj); ok {
+		keep := jsonx.NewObj()
+		for _, k := range []string{"seenVersion"} {
+			if v, ok := cur.M[k]; ok {
+				keep.Set(k, v)
+			}
+		}
+		if len(keep.M) > 0 {
+			fresh.Set("app", keep)
+		}
+	}
+	return s.write(fresh)
 }
 
 // SettingsObj is the file without the app block.

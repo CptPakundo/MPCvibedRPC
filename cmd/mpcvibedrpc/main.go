@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -119,16 +121,32 @@ func pingExisting(ipcFile string) *ipcInfo {
 // logger writes to the log file (kept small) and keeps the last lines for the window.
 type logger struct {
 	mu   sync.Mutex
+	path string
 	f    *os.File
+	size int64 // of the file, so it is moved to .old once it passes logLimit (also in a copy that runs for weeks)
 	ring []string
 }
 
+const logLimit = 1024 * 1024
+
 func newLogger(path string) *logger {
-	if st, err := os.Stat(path); err == nil && st.Size() > 1024*1024 {
-		_ = os.Rename(path, path+".old")
+	l := &logger{path: path}
+	l.open()
+	return l
+}
+
+// open opens the log file, first moving a full one to .old (l.mu held, or not shared yet).
+func (l *logger) open() {
+	if st, err := os.Stat(l.path); err == nil && st.Size() > logLimit {
+		_ = os.Rename(l.path, l.path+".old")
 	}
-	f, _ := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	return &logger{f: f}
+	l.f, _ = os.OpenFile(l.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	l.size = 0
+	if l.f != nil {
+		if st, err := l.f.Stat(); err == nil {
+			l.size = st.Size()
+		}
+	}
 }
 
 func (l *logger) log(level, msg string) {
@@ -140,7 +158,11 @@ func (l *logger) log(level, msg string) {
 		l.ring = l.ring[len(l.ring)-300:]
 	}
 	if l.f != nil {
-		fmt.Fprintln(l.f, line)
+		n, _ := fmt.Fprintln(l.f, line)
+		if l.size += int64(n); l.size > logLimit {
+			l.f.Close()
+			l.open()
+		}
 	}
 }
 
@@ -162,13 +184,24 @@ func (l *logger) close() {
 	}
 }
 
+// applyMu makes "read the saved settings, hand them to the engine" one step: two saves at once (the window and the
+// tray, or a sign-in finishing) could otherwise leave the engine on the older of the two.
+var applyMu sync.Mutex
+
+// applySettings gives the engine the settings as saved now.
+func applySettings(st *store.Store, eng *engine.Engine) {
+	applyMu.Lock()
+	defer applyMu.Unlock()
+	eng.ApplySettings(st.Config())
+}
+
 // setHideTitle switches "Hide what I'm watching" from the tray or the menu bar, saved like a switch in the window.
 func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg string), on bool) {
 	if err := st.SetSettings(map[string]any{"hideTitle": on}); err != nil {
 		log("ERROR", "Could not save Hide what I'm watching: "+err.Error())
 		return
 	}
-	eng.ApplySettings(st.Config())
+	applySettings(st, eng)
 	if on {
 		log("INFO", "Hide what I'm watching turned on from the menu.")
 	} else {
@@ -280,7 +313,7 @@ func run() error {
 		}
 		return map[string]any{
 			"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": st.Values(), "app": st.App(), "status": eng.Status(),
-			"autoStart": winsys.GetAutoStart(exe), "canAutoStart": true, "dataDir": st.Dir, "update": upd,
+			"autoStart": winsys.GetAutoStart(exe), "dataDir": st.Dir, "update": upd,
 			"changelog": json.RawMessage(assets.Changelog), "stats": eng.Stats(),
 			"tray": hasTray(), // macOS: whether the menu bar icon is there (a build without it runs in the background)
 		}
@@ -383,11 +416,20 @@ func run() error {
 			if err := st.Update(body); err != nil {
 				return nil, err
 			}
-			eng.ApplySettings(st.Config())
+			applySettings(st, eng)
 			after := st.App()
 			if pa, ok := body.M["app"].(*jsonx.Obj); ok {
-				if _, has := pa.M["autoStart"]; has {
-					winsys.SetAutoStart(after.AutoStart, exe)
+				if _, has := pa.M["autoStart"]; has && !winsys.SetAutoStart(after.AutoStart, exe) {
+					// the switch would only flip back at the next redraw, with "Saved." shown: say so, and keep the saved
+					// value matching the system
+					undo, _ := jsonx.Parse(`{"app":{"autoStart":` + strconv.FormatBool(!after.AutoStart) + `}}`)
+					_ = st.Update(undo.(*jsonx.Obj))
+					name := "Start at login"
+					if runtime.GOOS == "windows" {
+						name = "Start with Windows"
+					}
+					log("WARN", "Could not change "+name+".")
+					return nil, errors.New("Could not change " + name + ": the system refused it.")
 				}
 			}
 			if after.UpdateRepo != before.UpdateRepo {
@@ -405,7 +447,7 @@ func run() error {
 			if err := st.Reset(); err != nil {
 				return nil, err
 			}
-			eng.ApplySettings(st.Config())
+			applySettings(st, eng)
 			winsys.SetAutoStart(st.App().AutoStart, exe)
 			setUpdate(nil)
 			log("INFO", "Settings restored to their defaults.")
@@ -429,7 +471,7 @@ func run() error {
 			}
 			if len(take) > 0 {
 				if st.SetSettings(take) == nil {
-					eng.ApplySettings(st.Config())
+					applySettings(st, eng)
 					r.SettingsChanged = true
 					if _, ok := take["mpvPipe"]; ok {
 						log("INFO", "Looking for mpv under the name it is set up with: "+r.MpvPipe+".")

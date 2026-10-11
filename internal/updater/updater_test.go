@@ -145,6 +145,10 @@ func TestDownloadRejects(t *testing.T) {
 		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "HTTP 404") {
 			t.Errorf("404: %v", err)
 		}
+		// a release with no .sha256 at all is not installed (nothing to check the download against)
+		if _, err := Download(nil, &Info{URL: srv.URL + "/exe"}, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "no checksum") {
+			t.Errorf("no checksum file: %v", err)
+		}
 	})
 	t.Run("not a program", func(t *testing.T) {
 		_, done := setup(t, bytes.Repeat([]byte("<html>"), 400000), "", "")

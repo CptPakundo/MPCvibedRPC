@@ -246,8 +246,9 @@ func Clean(f Field, v any) (any, error) {
 		}
 		return false, nil
 	case "int":
+		// an emptied box is not 0 (for pauseClearMinutes that would quietly mean "never clear")
 		n := math.Floor(jsNumber(v) + 0.5)
-		if math.IsNaN(n) || math.IsInf(n, 0) || n < float64(*f.Min) || n > float64(*f.Max) {
+		if isBlank(v) || math.IsNaN(n) || math.IsInf(n, 0) || n < float64(*f.Min) || n > float64(*f.Max) {
 			return nil, &ValidationError{fmt.Sprintf("%s: enter a number from %d to %d", f.Label, *f.Min, *f.Max)}
 		}
 		return int(n), nil
@@ -357,4 +358,10 @@ func MapToText(o *jsonx.Obj) string {
 		parts = append(parts, k+" = "+jsString(o.M[k]))
 	}
 	return strings.Join(parts, "\n")
+}
+
+// isBlank is an empty or all-space string, as an emptied number box sends.
+func isBlank(v any) bool {
+	s, ok := v.(string)
+	return ok && jsTrim(s) == ""
 }

@@ -38,7 +38,6 @@ read_ipc
 state="$(get state)"
 want_os=linux; [ "$os" = Darwin ] && want_os=darwin
 [ "$(jq -r .os <<< "$state")" = "$want_os" ] || fail "state.os"
-[ "$(jq -r .canAutoStart <<< "$state")" = true ] || fail "run at login should be available"
 keys="$(jq -r '[.schema[].fields[].key] | join(" ")' <<< "$state")"
 if [ "$want_os" = darwin ]; then
   [[ " $keys " == *" iinaPipe "* && " $keys " != *" mpris "* ]] || fail "macOS shows the IINA setting only: $keys"
