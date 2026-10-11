@@ -114,6 +114,7 @@ func writeFileAtomic(file string, data []byte) error {
 	}
 	tmp := file + ".mpcvibedrpc.tmp"
 	if err := os.WriteFile(tmp, data, perm); err != nil {
+		_ = os.Remove(tmp) // a part may have been written
 		return os.WriteFile(file, data, perm)
 	}
 	if err := os.Rename(tmp, file); err != nil {

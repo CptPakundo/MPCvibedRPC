@@ -23,6 +23,11 @@ var unixPlayers = []player{
 	{name: "GNOME Videos", procs: []string{"totem"}},
 	{name: "Showtime", procs: []string{"showtime"}},
 	{name: "Clapper", procs: []string{"clapper"}},
+	{name: "Dragon Player", procs: []string{"dragonplayer"}},
+	{name: "Kodi", procs: []string{"kodi", "kodi.bin"}},
+	{name: "Parole", procs: []string{"parole"}},
+	{name: "Xplayer", procs: []string{"xplayer"}},
+	{name: "QMPlay2", procs: []string{"qmplay2"}},
 }
 
 // unixRunningExes lists the running programs of the given players, as ps names them (a full path on macOS, the

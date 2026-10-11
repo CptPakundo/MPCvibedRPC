@@ -43,8 +43,14 @@ var (
 )
 
 func main() {
-	for _, a := range os.Args[1:] {
-		switch a {
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--home": // a data folder of its own, as MPCRPC_HOME gives (Windows run-at-login passes it this way)
+			if i+1 < len(args) {
+				os.Setenv("MPCRPC_HOME", args[i+1])
+				i++
+			}
 		case "--background":
 			background = true
 		case "--after-update":

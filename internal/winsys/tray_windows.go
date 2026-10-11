@@ -148,6 +148,7 @@ type Tray struct {
 	icon    uintptr
 	created uint32 // the "TaskbarCreated" broadcast: Explorer restarted, add the icon again
 	tip     string
+	added   bool // the icon is on the taskbar (only touched on the tray's own thread)
 	ready   chan struct{}
 	done    chan struct{}
 	once    sync.Once
@@ -200,7 +201,7 @@ func (t *Tray) loop() {
 	t.created = uint32(m)
 	t.loadIcon()
 	t.tip = t.tooltip()
-	if !t.notify(nimAdd) {
+	if t.added = t.notify(nimAdd); !t.added {
 		t.o.Log("WARN", "Tray icon could not be added yet (is the taskbar running?). It will be added when the taskbar appears.")
 	} else {
 		t.o.Log("INFO", "Tray icon ready.")
@@ -352,7 +353,13 @@ func wndProc(hwnd, m, wParam, lParam uintptr) uintptr {
 			t.command(wParam & 0xffff)
 			return 0
 		case wmTimer:
-			if tip := t.tooltip(); tip != t.tip {
+			if !t.added {
+				// the first try failed (at login the taskbar may come up later, without a TaskbarCreated broadcast)
+				t.tip = t.tooltip()
+				if t.added = t.notify(nimAdd); t.added {
+					t.o.Log("INFO", "Tray icon ready.")
+				}
+			} else if tip := t.tooltip(); tip != t.tip {
 				t.tip = tip
 				t.notify(nimModify)
 			}
@@ -367,7 +374,7 @@ func wndProc(hwnd, m, wParam, lParam uintptr) uintptr {
 			return 0
 		}
 		if t.created != 0 && uint32(m) == t.created {
-			t.notify(nimAdd)
+			t.added = t.notify(nimAdd)
 			return 0
 		}
 	}

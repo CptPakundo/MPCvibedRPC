@@ -27,7 +27,8 @@ jobs:
         with: { go-version: '1.24', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
-      - run: go test -count=1 ./...
+      - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
+        shell: bash
       - name: Build and smoke-test
         shell: bash
         run: |
@@ -59,7 +60,8 @@ jobs:
         with: { go-version: '1.24', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
-      - run: go test -count=1 ./...
+      - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
+        shell: bash
       - name: Build
         shell: pwsh
         run: |
