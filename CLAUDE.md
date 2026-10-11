@@ -69,7 +69,7 @@ friend of the owner on a real Mac.
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the published release, after the release workflow), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
@@ -238,8 +238,11 @@ One branch and one PR per release: the change, the version bump and the release 
    with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
    against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
    awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
-   publishes, and then runs `verify` (`tools/ci/verify-release.ps1`): the ten assets, every checksum and build record,
-   the exe's version, that it is the latest release, and a real self-update from the previous release.
+   publishes it as a **draft**, and then runs `verify` (`tools/ci/verify-release.ps1`): on the draft the ten assets,
+   every checksum and build record and the exe's version; only if they pass is the release made public (and latest),
+   followed by the checks that need it public: that it is the latest release, and a real self-update from the previous
+   release. A release whose draft checks fail stays a draft (nobody's updater sees it): fix, then delete the draft and
+   the tag, or publish it by hand once checked.
 4. Read the `verify` job's log (`gh run view --log`) and report. Nothing needs re-running locally after a release.
 5. A release with new features also updates the repository to match: its description and topics
    (`gh repo edit --description ... --add-topic ...`), so they name every player and system the program supports.

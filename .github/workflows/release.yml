@@ -1,7 +1,8 @@
 # Publishes a release when a version tag is pushed:   git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z
 # The tag must match the version in cmd/mpcvibedrpc/main.go. The program's own updater looks for its file
 # (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to it on the latest release; on macOS it links to
-# the release page. Once published, the release is checked as a user gets it (tools/ci/verify-release.ps1).
+# the release page. The release is first a draft; it is made public only once its files check out, and then the update
+# path is tried on it (tools/ci/verify-release.ps1).
 name: release
 on:
   push:
@@ -112,22 +113,30 @@ jobs:
             dist/THIRD-PARTY-NOTICES.md
           body_path: .github/release-notes.md
           fail_on_unmatched_files: true
+          draft: true # made public by the verify job, once the files check out
 
-  # The published release, as a user downloads it: the files, their checksums and build records, the exe's version,
-  # and a real self-update from the release before it (its own data folder, no window, no Discord needed).
+  # The release as a user downloads it. While it is still a draft: the files, their checksums and build records, the
+  # exe's version. Only then is it made public, and the program's own update path is tried on it: that it is the latest
+  # release, and a real self-update from the release before it (its own data folder, no window, no Discord needed).
   verify:
     needs: release
     runs-on: windows-latest
     timeout-minutes: 20
     permissions:
-      contents: read
+      contents: write # to see the draft and make it public
       attestations: read
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
-      - name: Verify the release
+      - name: Check the draft
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: ./tools/ci/verify-release.ps1 -Version $env:VERSION
+        run: ./tools/ci/verify-release.ps1 -Version $env:VERSION -Stage draft
+      - name: Make the release public
+        shell: bash
+        run: gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+      - name: Check the public release
+        shell: pwsh
+        run: ./tools/ci/verify-release.ps1 -Version $env:VERSION -Stage public
