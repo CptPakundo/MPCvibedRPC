@@ -163,7 +163,7 @@ window and **Copy diagnostics** never show it. **Sign out** and **Restore defaul
 (`/Sessions/Logout`) and forget the sign-in. While presence runs and you are signed in, the program asks the server's
 session list every 5 seconds. Only your own sessions count (an administrator would see everyone's), music, audiobooks
 and photos are skipped, a playing session beats a paused one, and the position is moved on by how long ago the player
-last reported, by the server's own clock. Titles are written like a file name ("Sample Show - S01E02 - Title", "Sample
+last reported, by the server's own clock (Emby does not say when, so there the time runs on from when a report is first seen). Titles are written like a file name ("Sample Show - S01E02 - Title", "Sample
 Movie (2020)") so the usual parsing, cover art and episode lookups apply. Problems (the server refused the sign-in, or
 can't be reached) show as a hint in the window. Jellyfin and Emby are tried with unit tests against stand-ins, and on
 GitHub's test machines with every change: the official Jellyfin and Emby server images, with a stand-in player

@@ -338,3 +338,39 @@ func TestWatcherProblems(t *testing.T) {
 		t.Fatalf("%q", w2.Problem())
 	}
 }
+
+// Emby does not say when a player last reported: between reports the time runs on from the first poll that saw the
+// report, instead of starting again at every poll.
+func TestWatcherWithoutCheckInTimes(t *testing.T) {
+	f := newFake(t, true)
+	session := func(ticks int64) string {
+		return fmt.Sprintf(`[{"PlayState":{"PositionTicks":%d,"IsPaused":false,"PlaybackRate":1},"Id":"s1","UserId":%q,"Client":"Emby Web",
+			"NowPlayingItem":{"Name":"The Sample","Id":"7","Type":"Episode","MediaType":"Video","SeriesName":"Sample Show","ParentIndexNumber":1,"IndexNumber":2,"RunTimeTicks":14400000000}}]`, ticks, me)
+	}
+	f.set(func(f *fakeServer) { f.sessions = session(6000000000) })
+	c := client(f)
+	if _, err := c.Find(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	w := &Watcher{Client: c, Token: "tok-pw", UserID: me, Product: "Emby"}
+	w.now = func() time.Time { return now }
+	if err := w.poll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(5 * time.Second)
+	if err := w.poll(context.Background()); err != nil { // no new report
+		t.Fatal(err)
+	}
+	if in := w.Now(); in.Position != 605000 || in.File != "Sample Show - S01E02 - The Sample" {
+		t.Fatalf("the time runs on between reports: %+v", in)
+	}
+	f.set(func(f *fakeServer) { f.sessions = session(6100000000) }) // the player reports 10 s in
+	now = now.Add(5 * time.Second)
+	if err := w.poll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if in := w.Now(); in.Position != 610000 {
+		t.Fatalf("a new report sets the time: %+v", in)
+	}
+}

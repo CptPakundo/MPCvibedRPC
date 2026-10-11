@@ -104,7 +104,7 @@ Connect (`/QuickConnect/Initiate`, `Connect`, `/Users/AuthenticateWithQuickConne
 Jellyfin app); Emby, or Quick Connect off, with `/Users/AuthenticateByName` (the password is passed on once, never kept).
 Every request carries `Authorization: MediaBrowser ...` (Jellyfin 12 ignores the legacy headers by default) and
 `X-Emby-Authorization` / `X-Emby-Token` (Emby). The watcher polls `GET /Sessions` every 5 s; only the signed-in user's
-sessions count (`UserId`), the position is moved on by the server's `Date` minus `LastPlaybackCheckIn`. Sign-out and
+sessions count (`UserId`), the position is moved on by the server's `Date` minus `LastPlaybackCheckIn` (Emby sends no check-in time: an unchanged report keeps its first time base). Sign-out and
 Restore defaults call `/Sessions/Logout`. Error messages never carry the server's address (`jellyfin.Reason`).
 
 **Resting** (`engine.rest`): while Discord's IPC endpoint is absent (`pipe.Exists`: a directory query on Windows,
