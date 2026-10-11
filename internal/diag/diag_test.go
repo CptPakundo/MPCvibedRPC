@@ -18,9 +18,9 @@ func TestRedact(t *testing.T) {
 		`[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "https://api.example.com/repos/x/y?q=Secret": timeout`: `[2026-01-01T00:00:00.000Z] WARN Update check failed: Get "https://api.example.com/…": timeout`,
 		`[2026-01-01T00:00:00.000Z] ERROR Update failed: open C:\Users\Someone\AppData\x.exe: denied`:                    `[2026-01-01T00:00:00.000Z] ERROR Update failed: open <path>: denied`,
 		`[2026-01-01T00:00:00.000Z] ERROR fetch https://host.example/a/b?q=Secret failed`:                                `[2026-01-01T00:00:00.000Z] ERROR fetch https://host.example/… failed`,
-		`[2026-01-01T00:00:00.000Z] WARN fetch http://someone:secret@host.example:8096/x failed`:                        `[2026-01-01T00:00:00.000Z] WARN fetch http://host.example:8096/… failed`,
-		`[2026-01-01T00:00:00.000Z] WARN Could not read /Volumes/Backup Disk/Videos: denied`:                         `[2026-01-01T00:00:00.000Z] WARN Could not read <path>: denied`,
-		`[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`:                                                         `[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`,
+		`[2026-01-01T00:00:00.000Z] WARN fetch http://someone:secret@host.example:8096/x failed`:                         `[2026-01-01T00:00:00.000Z] WARN fetch http://host.example:8096/… failed`,
+		`[2026-01-01T00:00:00.000Z] WARN Could not read /Volumes/Backup Disk/Videos: denied`:                             `[2026-01-01T00:00:00.000Z] WARN Could not read <path>: denied`,
+		`[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`:                                                          `[2026-01-01T00:00:00.000Z] INFO Connected to Discord.`,
 		`[2026-01-01T00:00:00.000Z] INFO Settings available at http://127.0.0.1:47654/`:                                  `[2026-01-01T00:00:00.000Z] INFO Settings available at http://127.0.0.1:47654/…`,
 		// a path in quotes ends at the quote; the title next to it stays
 		`[2026-01-01T00:00:00.000Z] WARN Could not read "C:\Users\Someone\mpv.conf" for "Sample Show"`:         `[2026-01-01T00:00:00.000Z] WARN Could not read "<path>" for "Sample Show"`,
