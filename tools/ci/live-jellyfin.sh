@@ -24,9 +24,10 @@ call() { # call METHOD PATH [JSON] [TOKEN]
 cleanup() { [ -z "${feed:-}" ] || kill "$feed" 2> /dev/null || true; docker rm -f "ci-$kind" > /dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-mkdir -p "$work/media/TV/Sample Show/Season 01" "$work/config" "$work/cache"
+# "Example", not "Sample": Emby skips any file with "sample" in its name (release groups use it for preview clips)
+mkdir -p "$work/media/TV/Example Show/Season 01" "$work/config" "$work/cache"
 ffmpeg -loglevel error -f lavfi -i "testsrc=duration=300:size=320x240:rate=5" -f lavfi -i "sine=duration=300" \
-  -c:v libx264 -preset ultrafast -c:a aac -shortest "$work/media/TV/Sample Show/Season 01/Sample Show - S01E02.mkv"
+  -c:v libx264 -preset ultrafast -c:a aac -shortest "$work/media/TV/Example Show/Season 01/Example Show - S01E02.mkv"
 chmod -R a+rwX "$work"
 if [ "$kind" = jellyfin ]; then
   docker run -d --name "ci-$kind" -p "$port:8096" -v "$work/config:/config" -v "$work/cache:/cache" -v "$work/media:/media" "$image" > /dev/null
@@ -75,7 +76,7 @@ for i in $(seq 1 90); do
     echo "the sample episode was not added: $items"
     call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -c '[.Items[] | {Name, Type, IsFolder, Id}]' || true
     ls -laR "$work/media"
-    docker exec "ci-$kind" ls -la "/media/TV/Sample Show/Season 01" || true
+    docker exec "ci-$kind" ls -la "/media/TV/Example Show/Season 01" || true
     for p in $(call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -r '.Items[] | select(.Type == "Season") | .Id'); do
       echo "season $p: $(call GET "/Users/$uid/Items?ParentId=$p" "" "$token" | head -c 800)"
     done
@@ -101,7 +102,7 @@ feed=$!
 sleep 4
 
 export MPCRPC_LIVE_JELLYFIN_ADDRESS="$S" MPCRPC_LIVE_JELLYFIN_USER="$user" MPCRPC_LIVE_JELLYFIN_PASSWORD="$pass"
-export MPCRPC_LIVE_JELLYFIN_PRODUCT="$product" MPCRPC_LIVE_TITLE="Sample Show"
+export MPCRPC_LIVE_JELLYFIN_PRODUCT="$product" MPCRPC_LIVE_TITLE="Example Show"
 go test -count=1 -timeout 3m -run TestLiveJellyfin -v ./internal/jellyfin
 MPCRPC_LIVE_PLAYER="$product" go test -count=1 -timeout 3m -run TestLivePlayer -v ./internal/engine
 
