@@ -5,6 +5,9 @@
 package mpris
 
 import (
+	"errors"
+	"io"
+	"net"
 	"net/url"
 	"sort"
 	"strings"
@@ -85,6 +88,10 @@ func Query(address string, timeout time.Duration) []*core.Info {
 	var out []*core.Info
 	for _, n := range names {
 		r, err := c.Call(n, objectPath, propsIface, "GetAll", timeout, "s", playerIface)
+		var ne net.Error
+		if errors.As(err, &ne) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			break // a timeout or a broken connection: it may hold half a message, so it is not asked again this tick
+		}
 		if err != nil || len(r) == 0 {
 			continue
 		}

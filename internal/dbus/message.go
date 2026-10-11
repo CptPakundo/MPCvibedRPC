@@ -588,9 +588,13 @@ func (d *decoder) value(t string) (any, error) {
 		}
 		out := []any{}
 		for d.off < end {
+			at := d.off
 			v, err := d.value(elem)
 			if err != nil {
 				return nil, err
+			}
+			if d.off == at {
+				return nil, errShort // an element of no size (a broken message) would loop for ever
 			}
 			out = append(out, v)
 		}
