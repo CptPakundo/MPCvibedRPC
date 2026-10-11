@@ -156,7 +156,7 @@ func (w *Watcher) Run(ctx context.Context) {
 			return
 		}
 		if errors.Is(err, ErrToken) {
-			w.setProblem("Plex refused the sign-in. Sign in to Plex again (Advanced > Plex).")
+			w.setProblem("Plex refused the sign-in. Sign in to Plex again (Accounts > Plex).")
 		} else if err != nil {
 			w.setProblem(err.Error())
 		}
@@ -191,7 +191,7 @@ func (w *Watcher) find(ctx context.Context) (Server, error) {
 	if w.Server == "" {
 		return Server{}, errors.New("Your Plex account has no server to follow.")
 	}
-	return Server{}, errors.New("The chosen Plex server is no longer in your Plex account. Choose another one (Advanced > Plex).")
+	return Server{}, errors.New("The chosen Plex server is no longer in your Plex account. Choose another one (Accounts > Plex).")
 }
 
 // reach finds an address of the server that answers as that server.
@@ -217,7 +217,7 @@ func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, er
 		}
 	}
 	if w.Address != "" {
-		return "", fmt.Errorf("The Plex server%s does not answer at the address set in Advanced > Plex server address.", quoted(s.Name))
+		return "", fmt.Errorf("The Plex server%s does not answer at the address set in Accounts > Plex server address.", quoted(s.Name))
 	}
 	return "", fmt.Errorf("Could not reach the Plex server%s. Is it running, and can this computer reach it?", quoted(s.Name))
 }

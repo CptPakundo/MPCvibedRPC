@@ -8,10 +8,12 @@ MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB ex
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
 ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex**, **Stremio**, **Jellyfin** and
 **Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
-their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server after signing in on the
-Advanced tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
-shown in an Edge/Chrome `--app=` window. The tray (Windows) and menu bar (macOS) menus offer Open settings, Start/Stop
-presence, Hide what I'm watching (`hideTitle`) and Quit.
+their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server; all sign-ins are on the
+Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
+shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Updates, Help).
+The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
+on Discord, Hide what I'm watching (`hideTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
+"presence".
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
@@ -99,7 +101,7 @@ time moved on is a pause or stop (status taken down), one with the time unchange
 for ~2.5 min means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
 
 Jellyfin and Emby (`internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin.go`): the user types the server's address on the
-Advanced tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick
+Accounts tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick
 Connect (`/QuickConnect/Initiate`, `Connect`, `/Users/AuthenticateWithQuickConnect`; the user enters the code in a
 Jellyfin app); Emby, or Quick Connect off, with `/Users/AuthenticateByName` (the password is passed on once, never kept).
 Every request carries `Authorization: MediaBrowser ...` (Jellyfin 12 ignores the legacy headers by default) and
@@ -138,7 +140,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   the smoke test's update) and, on a tag, fails when the tag does not match.
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
-  `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
+  `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. A pull request from this repository
+  is tested by its branch's push run (the `pull_request` run skips itself; only forks use it), and a newer push cancels
+  a run still going on the same branch. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
   app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
   mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
@@ -210,7 +214,8 @@ Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`),
 `docs/config.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
 the header comment in `main.go`, the engine's "Looking for a player on ..." log line, `diag` and the repo description/topics.
 
-**UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. Keep the README,
+**UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. The window
+follows "less is more": short help texts, one term per thing, rarely used actions under Advanced > Maintenance. Keep the README,
 `docs/how-it-works.md`, `docs/config.md`, schema help text and release notes in sync with any behaviour change. The
 README is for people: short, scannable, one emoji per section heading; details go in `docs/`.
 
