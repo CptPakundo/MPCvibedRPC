@@ -51,6 +51,8 @@ type Config struct {
 	HideTitle bool `json:"hideTitle"`
 	// HideFiles lists files that are never shown (see MatchesHideList); they are not looked up either.
 	HideFiles []string `json:"hideFiles"`
+	// ShowMusic shows music files (see IsAudioFile) too; off, a song in a video player shows no status and is not looked up.
+	ShowMusic bool `json:"showMusic"`
 
 	// PauseClearMinutes clears the status after the video has been paused this long (0 = never; the default is 30). It comes back on resume.
 	PauseClearMinutes int `json:"pauseClearMinutes"`
@@ -159,7 +161,7 @@ func DefaultConfig() Config {
 
 // LoadConfig applies the keys present in a user's JSON on top of the defaults. It is a shallow merge:
 // a key that is present replaces the default value entirely (a map or list is not merged element by element).
-// Unknown keys and values of the wrong type are ignored.
+// Unknown keys, null and values of the wrong type are ignored.
 func LoadConfig(userJSON []byte) Config {
 	cfg := DefaultConfig()
 	if len(userJSON) == 0 {
@@ -174,7 +176,7 @@ func LoadConfig(userJSON []byte) Config {
 	for i := 0; i < t.NumField(); i++ {
 		key := t.Field(i).Tag.Get("json")
 		msg, ok := raw[key]
-		if !ok {
+		if !ok || string(msg) == "null" {
 			continue
 		}
 		fresh := reflect.New(t.Field(i).Type)

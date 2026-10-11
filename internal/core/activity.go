@@ -60,11 +60,20 @@ func FmtTime(ms int) string {
 }
 
 func ProgressBar(position, duration, width int) string {
+	width = max(0, min(width, 40)) // a hand-edited width must not panic or overflow Discord's 128 characters
 	if !(duration > 0) {
 		return ""
 	}
 	filled := int(math.Max(0, math.Min(float64(width), jsRound(float64(position)/float64(duration)*float64(width)))))
 	return strings.Repeat("▰", filled) + strings.Repeat("▱", width-filled)
+}
+
+// clipText is clip for an optional text: empty stays empty.
+func clipText(s string) string {
+	if s == "" {
+		return ""
+	}
+	return clip(s)
 }
 
 func clip(s string) string {
@@ -433,7 +442,7 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		assets.LargeImage = poster
 		if cfg.SmallImageKey != "" {
 			assets.SmallImage = cfg.SmallImageKey
-			assets.SmallText = cfg.AppName
+			assets.SmallText = clipText(cfg.AppName)
 		}
 	} else if cfg.LargeImageKey != "" {
 		assets.LargeImage = cfg.LargeImageKey
@@ -468,7 +477,7 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		a.Assets = assets
 	}
 
-	if cfg.LinkButton && art != nil && art.URL != "" {
+	if cfg.LinkButton && art != nil && buttonURL(art.URL) {
 		lbl := "View on " + firstNonEmpty(art.URLLabel, "IMDb")
 		if u16len(lbl) > 32 {
 			lbl = u16slice(lbl, 0, 32)
@@ -491,6 +500,11 @@ func AddLinks(a *Activity, cfg *Config, art *Art) {
 	if a.Assets != nil && art.Poster != "" && a.Assets.LargeImage == art.Poster {
 		a.Assets.LargeURL = art.URL
 	}
+}
+
+// buttonURL is an http(s) address Discord accepts for a button (at most 512 characters).
+func buttonURL(u string) bool {
+	return len(u) <= 512 && (strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://"))
 }
 
 // linkable is an http(s) address short enough for Discord's link fields.
@@ -548,7 +562,7 @@ func LegacyActivity(a *Activity, cfg *Config) *Activity {
 		}
 	}
 	if cfg.LargeImageKey != "" {
-		out.Assets = &Assets{LargeImage: cfg.LargeImageKey, LargeText: cfg.AppName}
+		out.Assets = &Assets{LargeImage: cfg.LargeImageKey, LargeText: clipText(cfg.AppName)}
 	}
 	return out
 }
@@ -561,6 +575,7 @@ type Prev struct {
 	Position int
 	Rate     float64
 	At       int64
+	Duration int
 }
 
 // NeedsUpdate decides whether Discord needs a fresh update; it returns the (possibly new) remembered state.
@@ -570,8 +585,8 @@ func NeedsUpdate(prev *Prev, info *Info, now int64) (bool, *Prev) {
 		rate = 1
 	}
 	dir := strings.Join(info.Dir, "/")
-	next := &Prev{File: info.File, Dir: dir, State: info.State, Position: info.Position, Rate: rate, At: now}
-	if prev == nil || prev.File != info.File || prev.Dir != dir || prev.State != info.State || prev.Rate != rate {
+	next := &Prev{File: info.File, Dir: dir, State: info.State, Position: info.Position, Rate: rate, At: now, Duration: info.Duration}
+	if prev == nil || prev.File != info.File || prev.Dir != dir || prev.State != info.State || prev.Rate != rate || (prev.Duration > 0) != (info.Duration > 0) {
 		return true, next
 	}
 	if info.State == 2 {

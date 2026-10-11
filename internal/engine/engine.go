@@ -275,17 +275,23 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		in.Player = p.Name
 		return in
 	}
-	// The first player that is playing something wins; failing that, the first one that answers (an idle player
-	// that is open must not hide another that plays).
-	var first *core.Info
+	// The first player that is playing something wins; failing that, the first one that is paused, then the first
+	// one that answers (a paused or idle player that is open must not hide another that plays).
+	var first, paused *core.Info
 	playing := func(in *core.Info) bool {
 		if in == nil {
 			return false
 		}
+		if !cfg.ShowMusic && core.IsAudioFile(in.File) {
+			in.File, in.State = "", 0 // a song: the player counts as open with nothing to show
+		}
 		if first == nil {
 			first = in
 		}
-		return in.File != "" && in.State >= 1 && in.State <= 3
+		if in.File != "" && in.State == 1 && paused == nil {
+			paused = in
+		}
+		return in.File != "" && (in.State == 2 || in.State == 3)
 	}
 	info := e.fetchMPC(ctx, cfg.Port)
 	askedQt := false
@@ -382,6 +388,9 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 			}
 		}
 		if info == nil {
+			info = paused
+		}
+		if info == nil {
 			info = first
 		}
 	}
@@ -424,8 +433,12 @@ func (e *Engine) connectDiscord(r *run) {
 		err := client.Login(cfg.ClientID, 0)
 
 		e.mu.Lock()
+		// A run that ended has had its flag reset by stop; a newer run may be connecting now, so only the current run's
+		// attempt clears it.
 		if err != nil {
-			e.connecting = false
+			if e.cur == r {
+				e.connecting = false
+			}
 			warn := !e.warnedDisc && e.cur == r
 			if warn {
 				e.warnedDisc = true
@@ -438,7 +451,6 @@ func (e *Engine) connectDiscord(r *run) {
 			return
 		}
 		if e.cur != r {
-			e.connecting = false
 			e.mu.Unlock()
 			client.Close()
 			return
@@ -470,8 +482,9 @@ func (e *Engine) connectDiscord(r *run) {
 }
 
 // sendActivity shows a on Discord and returns what was sent. Only a refusal by Discord changes the mode: one that
-// refuses the clickable title and cover gets them without links from then on; one that refuses the Watching
-// activity gets the basic one. Any other error (a timeout, a closed connection) changes nothing; the next tick retries.
+// refuses the clickable title and cover gets them without links from then on; a refused button is left out of that
+// update; one that refuses the Watching activity gets the basic one. Any other error (a timeout, a closed
+// connection) changes nothing; the next tick retries.
 func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity) (*core.Activity, error) {
 	e.mu.Lock()
 	basic, noLinks := e.basicMode, e.noLinks
@@ -499,6 +512,19 @@ func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Act
 				return plain, nil
 			}
 			a = plain
+			if !errors.As(err, &refused) {
+				return a, err
+			}
+		}
+		if len(a.Buttons) > 0 {
+			// a button Discord does not like (an odd catalog address) must not cost the Watching activity for good
+			bare := *a
+			bare.Buttons = nil
+			if err = rpc.SetActivity(&bare); err == nil {
+				e.log("WARN", "Discord rejected the button; sent this title without it.")
+				return &bare, nil
+			}
+			a = &bare
 			if !errors.As(err, &refused) {
 				return a, err
 			}
@@ -640,6 +666,9 @@ func (e *Engine) tick(r *run) {
 			cfg.AppName = "VLC media player"
 		default:
 			cfg.AppName = info.Player
+		}
+		if cfg.AppName != core.DefaultConfig().AppName && cfg.SmallImageKey == core.DefaultConfig().SmallImageKey {
+			cfg.SmallImageKey = "" // the default corner icon is Media Player Classic's logo
 		}
 	}
 
@@ -789,6 +818,7 @@ func (e *Engine) tick(r *run) {
 	}
 	e.mu.Lock()
 	e.shown = true
+	e.lastError = nil
 	d := display
 	e.statShown(info.Player+"/"+info.File, info.Player, found != nil) // player names have no slash
 	if key := info.Player + "/" + info.File; noEpTitle {

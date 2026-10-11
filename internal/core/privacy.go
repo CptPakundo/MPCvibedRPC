@@ -35,6 +35,26 @@ func MatchesHideList(file, fullDir string, entries []string) bool {
 	return false
 }
 
+// audioExt lists the endings of music files, which video players open too.
+var audioExt = map[string]bool{
+	".mp3": true, ".flac": true, ".ogg": true, ".oga": true, ".opus": true, ".wav": true, ".m4a": true, ".aac": true,
+	".wma": true, ".ape": true, ".alac": true, ".aiff": true, ".aif": true, ".mka": true, ".wv": true, ".dsf": true,
+	".dff": true, ".mid": true, ".midi": true, ".mpc": true, ".tta": true,
+}
+
+// IsAudioFile reports whether a file name (or path or URL) ends like a music file: a song in a video player is not
+// something to show as "Watching".
+func IsAudioFile(file string) bool {
+	if i := strings.IndexAny(file, "?#"); i >= 0 && strings.Contains(file, "://") {
+		file = file[:i] // a URL's query or fragment
+	}
+	dot := strings.LastIndexByte(file, '.')
+	if dot < 0 || strings.ContainsAny(file[dot:], `/`) {
+		return false
+	}
+	return audioExt[strings.ToLower(file[dot:])]
+}
+
 func normHidePath(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, `\`, "/"))
 }
@@ -82,7 +102,7 @@ func HiddenActivity(info *Info, cfg *Config, now int64) *Activity {
 	a.Buttons = nil
 	a.Assets = nil
 	if cfg.LargeImageKey != "" {
-		a.Assets = &Assets{LargeImage: cfg.LargeImageKey, LargeText: cfg.AppName}
+		a.Assets = &Assets{LargeImage: cfg.LargeImageKey, LargeText: clipText(cfg.AppName)}
 	}
 	return a
 }
