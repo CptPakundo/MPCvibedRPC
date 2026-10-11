@@ -66,7 +66,11 @@ for i in $(seq 1 90); do
   items="$(call GET "/Users/$uid/Items?Recursive=true&Fields=MediaType" "" "$token" || true)"
   item="$(echo "$items" | jq -r '[.Items[] | select(.IsFolder != true)][0].Id // empty' 2> /dev/null || true)"
   [ -n "$item" ] && break
-  if [ "$i" = 45 ]; then call POST /Library/Refresh "" "$token" > /dev/null || true; fi
+  if [ "$i" = 5 ] || [ "$i" = 45 ]; then
+    # Emby only checks the folders when a library is added; its "Scan media library" task adds the videos
+    scan="$(call GET /ScheduledTasks "" "$token" | jq -r '.[] | select(.Key == "RefreshLibrary") | .Id' | head -n 1 || true)"
+    if [ -n "$scan" ]; then call POST "/ScheduledTasks/Running/$scan" "" "$token" > /dev/null || true; fi
+  fi
   if [ "$i" = 90 ]; then
     echo "the sample episode was not added: $items"
     call GET "/Users/$uid/Items?Recursive=true" "" "$token" | jq -c '[.Items[] | {Name, Type, IsFolder, Id}]' || true
