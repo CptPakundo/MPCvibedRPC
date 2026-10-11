@@ -5,9 +5,9 @@
 package jellyfin
 
 import (
-	"crypto/tls"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"

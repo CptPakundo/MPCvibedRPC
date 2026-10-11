@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.23", "date": "2026-10-11", "items": [
+    "▶️ A paused player no longer hides another one that is playing.",
+    "🎵 Songs played in a video player aren't shown as \"Watching\" (Privacy > Show music too brings them back).",
+    "🔧 A full round of fixes: safer sign-ins, quicker cover retries, and a tray icon that always shows up."
+  ]},
   {"version": "0.9.22", "date": "2026-10-11", "items": [
     "🔎 The log names the file each title came from, and Copy diagnostics keeps titles and file names, so a wrong match can be traced.",
     "🗂️ Sign-ins have their own Accounts tab; settings are grouped, texts are shorter, and the tray menu shows what the app is doing.",

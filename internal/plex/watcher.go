@@ -1,9 +1,9 @@
 package plex
 
 import (
-	"crypto/tls"
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"

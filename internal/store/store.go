@@ -82,7 +82,7 @@ type Store struct {
 	Dir  string
 	File string
 
-	mu sync.Mutex // guards config.json: reads and changes are serialised (the window and a sign-in can save at the same moment)
+	mu     sync.Mutex // guards config.json: reads and changes are serialised (the window and a sign-in can save at the same moment)
 	broken []byte     // the unreadable config.json last kept as a .broken copy (it is kept once, not at every read)
 }
 

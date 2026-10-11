@@ -1,38 +1,45 @@
-## MPCvibedRPC 0.9.22
+## MPCvibedRPC 0.9.23
 
-**A log that can explain a wrong title, a simpler window, and a round of fixes.**
+**The right player wins, music stays private, and a full round of fixes.**
 
-### The log now names the file
-When a title comes out wrong ("Sample Show" shows up as "Sample Movie"), the only way to find out why is to see the
-file name it was read from. Until now the log recorded only the recognised title, and **Copy diagnostics** left titles
-and file names out, so a report about a wrong match couldn't be traced back to its cause.
+### What's shown
+- **A paused player no longer hides one that plays.** Leave MPC-HC paused and start a video in mpv, VLC or Plex: the
+  video that plays is shown. When nothing plays, the paused one is shown again.
+- **Music is not shown.** A song played in a video player (`.mp3`, `.flac`, `.ogg`, `.m4a`, ...) no longer appears as
+  "Watching Artist - Song", and its name is not sent to the movie and TV catalogs. A video in another player still
+  shows. Want it back? Turn on **Privacy > Show music too**.
+- Players other than MPC-HC, MPC-BE and MPC-QT no longer show Media Player Classic's logo in the corner of the cover.
+- A video whose length is only known after a moment (a stream, a slow network file) gets its progress bar once the
+  length arrives.
+- A "View on ..." button that Discord turns down is left out of that one update, instead of switching the whole status
+  to the plain fallback until the next restart.
 
-- Each title in the log now names its source: `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`.
-  When the show's name came from the folder, the line says so.
-- **Copy diagnostics** (Help tab) keeps titles and file names. It still leaves out folder paths (they can contain your
-  user name), the paths and queries of web addresses, server names, sign-ins, keys and your **Never show** list.
-- Nothing changes for what you keep private: with **Hide what I'm watching** on, or for a file on your **Never show**
-  list, the log records no title and no file name, as before. Those files are never looked up, so there is nothing to
-  trace. The log stays on your computer; only what you choose to paste into a report leaves it.
+### Accounts
+- Your Plex sign-in is no longer passed on when plex.tv or a server redirects to another address. Jellyfin and Emby
+  don't follow a redirect to another server, or from https to http, at all.
+- A sign-in that finishes at the moment you press **Sign out** or **Restore defaults** can no longer save itself
+  afterwards. Pressing Jellyfin's **Sign in** twice no longer leaves the first attempt running.
+- Jellyfin Quick Connect: when you approved the code but the server doesn't finish the sign-in, the window says so
+  after a few seconds instead of waiting ten minutes and then claiming the code wasn't approved.
+- A Jellyfin player that went away without saying so (a crashed app, a TV that lost its network) stops showing after 5
+  minutes.
+- A server whose https certificate isn't trusted says exactly that, instead of "no connection".
 
-### A simpler window
-- Sign-ins for Plex, Stremio and Jellyfin / Emby have their own **Accounts** tab, and the three look alike.
-- One way of saying it: **Show on Discord** / **Stop showing**. The tray menu (Windows) and the menu bar menu (macOS)
-  start with a line that says what the app is doing.
-- Shorter texts and a shorter welcome. Settings are grouped: Advanced has **Players** (with **Set up the player
-  connection**), **Discord** and **Maintenance** (Restore defaults, the settings folder, the update source);
-  Titles & art has **Fix a match** and **More**. The **Log** tab is now **Help**, with **Report a problem**.
-- A line at the top of the window says when an update is available. The tabs work with the arrow keys.
-
-### Fixes
-- A dropped connection while Discord restarts no longer leaves a plain, cover-less status behind until you restart.
-- Plex no longer brings back a video that stopped while the connection was down. Stremio no longer misses a start when
-  one request fails. VLC keeps the folder name for the whole video.
-- Settings, the cover cache and the players' own settings files are written safely, so a crash can't leave half a file.
-  "Clear cover cache" now clears everything.
-- Updates are refused when their checksum file is missing or broken, and a double click no longer starts two installs.
-- On macOS and Linux, the settings and sign-ins can only be read by your own user.
-- When Discord turns the program away, the log says why (for example "Invalid Client ID").
+### Reliability
+- Covers: a title looked up while a catalog was down, slow or offline is tried again after 2 minutes, not 30. The cover
+  cache keeps the answers you used recently when it trims itself, and a restart can no longer write an older cache over
+  a newer one, or bring back a cache you just cleared.
+- Two saves at the same moment (the window and the tray, or a sign-in finishing) can no longer leave the program on
+  the older settings.
+- Emptying the "Clear my status when paused for" box no longer quietly turns pause clearing off; the old value stays.
+- When the system refuses **Start with Windows** / **Start at login**, the window says so instead of "Saved.".
+- **Restore defaults** no longer shows this version's news again.
+- The log no longer grows without limit in a copy that runs for weeks.
+- Self-update only installs a release that has a checksum file; otherwise it points you to the release page.
+- Windows: the tray icon appears even when the taskbar comes up later than the program at login. A frozen Discord
+  can no longer hold the program up, and an idle connection to Discord wakes the program far less often.
+- **Copy diagnostics** also leaves out passwords in web addresses and more kinds of folder paths, and names every
+  Linux video player it finds.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates tab of an earlier version;

@@ -29,7 +29,8 @@ type Input struct {
 }
 
 var (
-	reURL    = regexp.MustCompile(`(https?://)(?:[^/\s"'@]*@)?([^/\s"']+)[^\s"']*`) // a user:password@ part goes too
+	// A web address keeps only its server: a user:password@ part, the path and the query go.
+	reURL    = regexp.MustCompile(`(https?://)(?:[^/\s"'@]*@)?([^/\s"']+)[^\s"']*`)
 	reServer = regexp.MustCompile(`(server) "[^"]*"`) // a server's name is often a person's or a computer's name
 	// A path may contain spaces, so it runs to the ": " that ends it in an error message, to a closing quote, or to the
 	// end of the line.

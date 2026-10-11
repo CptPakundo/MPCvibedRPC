@@ -45,10 +45,10 @@ type Artwork struct {
 	provs map[string]*Provider
 	res   *Resolver
 
-	closed atomic.Bool // Close was called: this finder was replaced (see Close)
+	closed  atomic.Bool  // Close was called: this finder was replaced (see Close)
 	unavail atomic.Int64 // provider searches that failed because a service was down, slow or paused (see search)
 	seq     int64        // the last diskEntry.seq handed out (a.mu)
-	saveMu sync.Mutex  // one cache write at a time (and none while the cache is being cleared)
+	saveMu  sync.Mutex   // one cache write at a time (and none while the cache is being cleared)
 
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
