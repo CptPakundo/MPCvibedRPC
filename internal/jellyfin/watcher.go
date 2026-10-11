@@ -164,6 +164,10 @@ func sameID(a, b string) bool {
 	return a != "" && n(a) == n(b)
 }
 
+// staleAfter is how long a playing session may go without a report before it no longer counts (Jellyfin keeps the
+// session of a player that crashed or lost its network until it times out itself).
+const staleAfter = 5 * time.Minute
+
 // poll asks the server once and remembers what the user plays.
 func (w *Watcher) poll(ctx context.Context) error {
 	c, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -182,6 +186,9 @@ func (w *Watcher) poll(ctx context.Context) error {
 			continue
 		}
 		at, _ := time.Parse(time.RFC3339Nano, s.LastPlaybackCheckIn)
+		if !s.PlayState.IsPaused && !at.IsZero() && !date.IsZero() && date.Sub(at) > staleAfter {
+			continue // a player that went away without saying so: playing players report every few seconds
+		}
 		switch {
 		case best == nil,
 			best.PlayState.IsPaused && !s.PlayState.IsPaused,                    // one playing beats one paused

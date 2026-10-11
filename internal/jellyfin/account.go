@@ -5,6 +5,7 @@
 package jellyfin
 
 import (
+	"crypto/tls"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -56,7 +57,19 @@ type Client struct {
 	Version  string       // the program's version
 }
 
-var defaultHTTP = &http.Client{Timeout: 15 * time.Second}
+var defaultHTTP = &http.Client{Timeout: 15 * time.Second, CheckRedirect: sameServer}
+
+// sameServer follows a redirect only on the same server and never from https to http: Go keeps the X-Emby headers
+// (which carry the token) on a redirect elsewhere, and a sign-in would send the password along.
+func sameServer(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("too many redirects")
+	}
+	if req.URL.Host != via[0].URL.Host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
+		return errors.New("the server sent the request to another address")
+	}
+	return nil
+}
 
 func (c *Client) http() *http.Client {
 	if c.HTTP != nil {
@@ -269,10 +282,13 @@ func (c *Client) CheckQuickConnect(ctx context.Context, p *Pending) (*Auth, erro
 	}
 	var a authResult
 	if _, err := c.do(ctx, "POST", "/Users/AuthenticateWithQuickConnect", "", map[string]string{"Secret": p.Secret}, &a); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w (%s)", ErrIncomplete, Reason(err))
 	}
 	return a.auth()
 }
+
+// ErrIncomplete means the user approved the code but the server did not hand over the sign-in.
+var ErrIncomplete = errors.New("the code was approved, but the server did not complete the sign-in")
 
 // ErrExpired means the server no longer knows the Quick Connect code (it lasts a few minutes).
 var ErrExpired = errors.New("the Quick Connect code expired")
@@ -291,10 +307,12 @@ func Reason(err error) string {
 	switch {
 	case err == nil:
 		return ""
-	case errors.Is(err, ErrToken), errors.Is(err, ErrLogin), errors.Is(err, ErrNotServer), errors.Is(err, ErrNoQuickConnect), errors.Is(err, ErrExpired):
+	case errors.Is(err, ErrToken), errors.Is(err, ErrLogin), errors.Is(err, ErrNotServer), errors.Is(err, ErrNoQuickConnect), errors.Is(err, ErrExpired), errors.Is(err, ErrIncomplete):
 		return err.Error()
 	case errors.As(err, &he), errors.Is(err, errUnexpected), errors.Is(err, errNoSignIn):
 		return err.Error()
+	case errors.As(err, new(*tls.CertificateVerificationError)):
+		return "the server's certificate is not trusted (use its http:// address, or give it a valid certificate)"
 	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
 		return "no answer in time"
 	}

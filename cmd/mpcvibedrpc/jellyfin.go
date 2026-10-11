@@ -27,6 +27,8 @@ type jellyfinAccount struct {
 	log   func(level, msg string)
 	every time.Duration // how often a Quick Connect code is checked (0 = every two seconds)
 
+	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
+
 	mu       sync.Mutex
 	waiting  bool   // a Quick Connect code waits for the user's approval
 	code     string // that code
@@ -114,6 +116,9 @@ func (j *jellyfinAccount) signIn(address string) (map[string]any, error) {
 	}
 	wctx, wcancel := context.WithTimeout(context.Background(), 10*time.Minute) // Jellyfin forgets a code after 10 minutes
 	j.mu.Lock()
+	if j.cancel != nil {
+		j.cancel() // a second press of Sign in while the first was still finding the server
+	}
 	j.cancel, j.waiting, j.code = wcancel, true, p.Code
 	j.mu.Unlock()
 	go j.wait(wctx, c, p)
@@ -141,6 +146,7 @@ func (j *jellyfinAccount) wait(ctx context.Context, c *jellyfin.Client, p *jelly
 	}
 	t := time.NewTicker(every)
 	defer t.Stop()
+	incomplete := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -155,17 +161,27 @@ func (j *jellyfinAccount) wait(ctx context.Context, c *jellyfin.Client, p *jelly
 			j.finish(ctx, "The Quick Connect code expired. Press Sign in to try again.")
 			return
 		}
+		if errors.Is(err, jellyfin.ErrIncomplete) {
+			if incomplete++; incomplete >= 3 {
+				j.finish(ctx, "Sign-in failed: "+err.Error()+". Press Sign in to try again.")
+				return
+			}
+			continue
+		}
 		if err != nil || a == nil {
 			continue // not approved yet (or the server did not answer this time)
 		}
+		j.saving.Lock()
+		if ctx.Err() != nil {
+			j.saving.Unlock()
+			return // cancelled: signed out, or replaced by a newer sign-in
+		}
 		j.mu.Lock()
-		stale := ctx.Err() != nil
 		srv := j.found
 		j.mu.Unlock()
-		if stale {
-			return
-		}
-		if err := j.save(c, srv, a); err != nil {
+		err = j.save(c, srv, a)
+		j.saving.Unlock()
+		if err != nil {
 			j.finish(ctx, "Could not save the sign-in: "+err.Error())
 			return
 		}
@@ -240,6 +256,8 @@ func (j *jellyfinAccount) save(c *jellyfin.Client, srv *jellyfin.Server, a *jell
 
 // stopWaiting cancels a sign-in that waits for approval, and forgets a server found for a sign-in.
 func (j *jellyfinAccount) stopWaiting() {
+	j.saving.Lock()
+	defer j.saving.Unlock()
 	j.mu.Lock()
 	if j.cancel != nil {
 		j.cancel()

@@ -27,7 +27,7 @@ var (
 
 // Client talks to plex.tv and to servers on behalf of one install of the program.
 type Client struct {
-	HTTP     *http.Client // nil = http.DefaultClient
+	HTTP     *http.Client // nil = defaultHTTP
 	ClientID string       // X-Plex-Client-Identifier: one per install, kept in the settings
 	Version  string       // the program's version
 
@@ -54,8 +54,20 @@ func (c *Client) http() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return http.DefaultClient
+	return defaultHTTP
 }
+
+// defaultHTTP is http.DefaultClient, except that the token is not passed on when plex.tv or a server redirects to another
+// host (Go only drops its own Authorization header there, not X-Plex-Token).
+var defaultHTTP = &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("too many redirects")
+	}
+	if req.URL.Host != via[0].URL.Host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
+		req.Header.Del("X-Plex-Token")
+	}
+	return nil
+}}
 
 func platform() string {
 	switch runtime.GOOS {

@@ -283,6 +283,16 @@ func TestWatcherFollowsTheUsersPlayback(t *testing.T) {
 		t.Fatalf("paused: %+v then %+v", a, b)
 	}
 
+	// a playing session that has not reported for 10 minutes (its player went away) no longer counts; the paused
+	// movie on the TV (same old report, but paused players report rarely) is shown instead
+	f.set(func(f *fakeServer) { f.sessions = sessionsJSON(now.Add(time.Hour-10*time.Minute), false) })
+	if err := w.poll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if in := w.Now(); in == nil || in.File != "Sample Movie (2020)" || in.State != 1 {
+		t.Fatalf("a stale playing session still counts: %+v", in)
+	}
+
 	// nothing of the user's plays
 	f.set(func(f *fakeServer) { f.sessions = `[{"Id":"s9","UserId":"` + me + `","PlayState":{}}]` })
 	if err := w.poll(context.Background()); err != nil {
