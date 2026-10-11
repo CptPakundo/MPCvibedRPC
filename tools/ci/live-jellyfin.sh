@@ -18,7 +18,7 @@ pass="ci-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 hdr() { echo "MediaBrowser Client=\"CI Player\", Device=\"CI\", DeviceId=\"ci-player-$kind\", Version=\"1.0\"${1:+, Token=\"$1\"}"; }
 call() { # call METHOD PATH [JSON] [TOKEN]
   local h; h="$(hdr "${4:-}")"
-  curl -sS -f -X "$1" -H "Authorization: $h" -H "X-Emby-Authorization: ${h/MediaBrowser/Emby}" ${4:+-H "X-Emby-Token: $4"} \
+  curl -sS --fail-with-body -X "$1" -H "Authorization: $h" -H "X-Emby-Authorization: ${h/MediaBrowser/Emby}" ${4:+-H "X-Emby-Token: $4"} \
     -H "Content-Type: application/json" -H "Accept: application/json" ${3:+--data "$3"} "$S$2"
 }
 cleanup() { [ -z "${feed:-}" ] || kill "$feed" 2> /dev/null || true; docker rm -f "ci-$kind" > /dev/null 2>&1 || true; }
@@ -90,7 +90,11 @@ echo "sample episode: $item"
 echo "$items" | head -c 600; echo
 
 # the stand-in player: starts playing, then reports its position every 3 seconds, like a Jellyfin or Emby app
-call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"PositionTicks\":0,\"IsPaused\":false,\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" > /dev/null
+call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"PositionTicks\":0,\"IsPaused\":false,\"CanSeek\":true,\"PlayMethod\":\"DirectPlay\"}" "$token" || {
+  echo "the server refused the start of playback"
+  for l in "$work"/config/logs/*.txt; do grep -i -E -B2 -A12 "Sessions/Playing|Exception" "$l" | tail -n 60; done
+  exit 1
+}
 (
   t=0
   while :; do
