@@ -278,9 +278,19 @@ func (c *Client) Request(cmd string, args any, timeout time.Duration) (json.RawM
 	c.pending[n] = ch
 	c.mu.Unlock()
 
+	t := time.NewTimer(timeout)
+	defer t.Stop()
 	frame, err := encode(opFrame, map[string]any{"cmd": cmd, "args": args, "nonce": n})
 	if err == nil {
-		err = c.write(frame)
+		// The timeout covers the write too: a Discord that hangs without reading would otherwise block it for good.
+		wrote := make(chan error, 1)
+		go func() { wrote <- c.write(frame) }()
+		select {
+		case err = <-wrote:
+		case <-t.C:
+			go c.Close() // the connection is unusable; the next tick connects again
+			err = errors.New("Discord did not take the request in time")
+		}
 	}
 	if err != nil {
 		c.mu.Lock()
@@ -288,8 +298,6 @@ func (c *Client) Request(cmd string, args any, timeout time.Duration) (json.RawM
 		c.mu.Unlock()
 		return nil, err
 	}
-	t := time.NewTimer(timeout)
-	defer t.Stop()
 	select {
 	case r := <-ch:
 		return r.data, r.err
