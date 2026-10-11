@@ -23,6 +23,8 @@ type stremioAccount struct {
 	openURL func(string) bool // tests: replaces the browser
 	every   time.Duration     // how often the approval is checked (0 = every two seconds)
 
+	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
+
 	mu      sync.Mutex
 	waiting bool   // a sign-in waits for the user's approval
 	url     string // where to approve it
@@ -103,13 +105,14 @@ func (s *stremioAccount) wait(ctx context.Context, c *stremio.Client, l *stremio
 		if err != nil || key == "" {
 			continue // not approved yet (or Stremio did not answer this time)
 		}
-		s.mu.Lock()
-		stale := ctx.Err() != nil
-		s.mu.Unlock()
-		if stale {
-			return
+		s.saving.Lock()
+		if ctx.Err() != nil {
+			s.saving.Unlock()
+			return // cancelled: signed out, or replaced by a newer sign-in
 		}
-		if err := s.st.SetHidden([]string{"stremioKey"}, map[string]any{"stremioKey": key}); err != nil {
+		err = s.st.SetHidden([]string{"stremioKey"}, map[string]any{"stremioKey": key})
+		s.saving.Unlock()
+		if err != nil {
 			s.finish(ctx, "Could not save the Stremio sign-in: "+err.Error())
 			return
 		}
@@ -128,6 +131,8 @@ func (s *stremioAccount) wait(ctx context.Context, c *stremio.Client, l *stremio
 
 // stopWaiting cancels a sign-in that waits for approval.
 func (s *stremioAccount) stopWaiting() {
+	s.saving.Lock()
+	defer s.saving.Unlock()
 	s.mu.Lock()
 	if s.cancel != nil {
 		s.cancel()

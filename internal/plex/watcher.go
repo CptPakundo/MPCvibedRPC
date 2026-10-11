@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"crypto/tls"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -227,6 +228,8 @@ func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, er
 func reason(err error) string {
 	var ne net.Error
 	switch {
+	case errors.As(err, new(*tls.CertificateVerificationError)):
+		return "the server's certificate is not trusted (use its http:// address, or give it a valid certificate)"
 	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
 		return "no answer in time"
 	case errors.As(err, &ne):

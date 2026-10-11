@@ -28,6 +28,8 @@ type plexAccount struct {
 	openURL func(string) bool // tests: replaces the browser
 	every   time.Duration     // how often the approval is checked (0 = every two seconds)
 
+	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
+
 	mu      sync.Mutex
 	waiting bool   // a sign-in waits for the user's approval
 	url     string // where to approve it
@@ -147,14 +149,14 @@ func (p *plexAccount) wait(ctx context.Context, c *plex.Client, pin *plex.Pin) {
 		if pick.ID == "" && len(servers) > 0 {
 			pick = servers[0] // the account's own servers come first
 		}
-		p.mu.Lock()
-		stale := ctx.Err() != nil
-		p.mu.Unlock()
-		if stale {
-			return
+		p.saving.Lock()
+		if ctx.Err() != nil {
+			p.saving.Unlock()
+			return // cancelled: signed out, or replaced by a newer sign-in
 		}
 		err = p.st.SetHidden(plexKeys, map[string]any{"plexToken": token, "plexAccount": acc.ID, "plexUser": acc.Name,
 			"plexServer": pick.ID, "plexServerName": pick.Name, "plexClient": c.ClientID})
+		p.saving.Unlock()
 		if err != nil {
 			p.finish(ctx, "Could not save the Plex sign-in: "+err.Error())
 			return
@@ -178,6 +180,8 @@ func (p *plexAccount) wait(ctx context.Context, c *plex.Client, pin *plex.Pin) {
 
 // stopWaiting cancels a sign-in that waits for approval.
 func (p *plexAccount) stopWaiting() {
+	p.saving.Lock()
+	defer p.saving.Unlock()
 	p.mu.Lock()
 	if p.cancel != nil {
 		p.cancel()
