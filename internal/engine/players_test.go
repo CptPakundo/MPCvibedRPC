@@ -177,6 +177,36 @@ func TestPlayingPlayerWinsOverIdleOnes(t *testing.T) {
 	eventually(t, "MPC-HC shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "MPC-HC" })
 }
 
+// A paused player that is left open must not hide another one that plays; once nothing plays, the paused one is shown.
+func TestPlayingPlayerWinsOverPausedOne(t *testing.T) {
+	web := newMPC(t)
+	web.set(func(m *mpc) { m.state = 1 }) // MPC-HC open and paused
+	m := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
+	e, _, _ := pipeEngine(t, web.port, []PlayerPipe{{"mpv", m.path}})
+	e.Start()
+	eventually(t, "mpv shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "mpv" && !s.Paused })
+
+	m.set("idle-active", true) // mpv stops: the paused MPC-HC is reported again
+	eventually(t, "back to the paused MPC-HC", func() bool { s := e.Status(); return s.Player == "MPC-HC" && s.Paused })
+}
+
+// A song in one player is not shown and does not hide a video in another; with showMusic it is shown.
+func TestMusicIsNotShown(t *testing.T) {
+	song := newFakeMpv(t, map[string]any{"path": `D:\Music\Sample Artist - Sample Song.flac`, "pause": false, "time-pos": 5.0, "duration": 200.0, "speed": 1.0, "idle-active": false})
+	video := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
+	e, _, _ := pipeEngine(t, deadPort(t), []PlayerPipe{{"mpv", song.path}, {"MPC-QT", video.path}})
+	e.Start()
+	eventually(t, "the video shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "MPC-QT" })
+
+	video.set("idle-active", true) // only the song is left: nothing is shown
+	eventually(t, "the song not shown", func() bool { s := e.Status(); return s.Player == "mpv" && s.NowPlaying == nil })
+
+	cfg := e.Config()
+	cfg.ShowMusic = true
+	e.ApplySettings(cfg)
+	eventually(t, "the song shown with showMusic", func() bool { s := e.Status(); return s.Player == "mpv" && s.NowPlaying != nil })
+}
+
 func TestMissingPipesMeanNoPlayer(t *testing.T) {
 	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(sockDir(t)) + "-none"}})
 	e.Start()

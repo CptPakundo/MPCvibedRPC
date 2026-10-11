@@ -92,3 +92,20 @@ func TestHiddenActivityRevealsNothing(t *testing.T) {
 		t.Error("a stopped player has no status")
 	}
 }
+
+func TestIsAudioFile(t *testing.T) {
+	for file, want := range map[string]bool{
+		"Sample Artist - Sample Song.flac":                  true,
+		`C:\Music\Sample Song.MP3`:                          true,
+		"https://example.com/stream/song.opus?token=abc#t1": true,
+		"Sample Movie (2020).mkv":                           false,
+		"Sample Show S01E02.mp4":                            false,
+		"Sample Show - S01E02 - Title":                      false,
+		"/music.flac/Sample Movie":                          false,
+		"":                                                  false,
+	} {
+		if got := IsAudioFile(file); got != want {
+			t.Errorf("IsAudioFile(%q) = %v, want %v", file, got, want)
+		}
+	}
+}
