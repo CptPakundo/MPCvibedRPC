@@ -222,6 +222,11 @@ func TestDisabledSourcesRoundTrip(t *testing.T) {
 	if cfg.PauseClearMinutes != 45 {
 		t.Errorf("pauseClearMinutes = %d", cfg.PauseClearMinutes)
 	}
+	// an emptied number box is refused, not saved as 0 ("never clear")
+	blank, _ := jsonx.Parse(`{"settings":{"pauseClearMinutes":" "}}`)
+	if err := s.Update(blank.(*jsonx.Obj)); err == nil || s.Config().PauseClearMinutes != 45 {
+		t.Errorf("an empty box was accepted: %v, %d", err, s.Config().PauseClearMinutes)
+	}
 	// a fresh store reading the same folder sees the same thing, and the window gets the list back
 	s2, _ := New(dir)
 	if got := s2.Values()["disabledSources"]; !reflect.DeepEqual(got, []any{"tvmaze", "anilist"}) {

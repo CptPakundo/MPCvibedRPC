@@ -305,7 +305,6 @@
   function applyOsText() {
     const t = osText();
     if (!t) return;
-    document.querySelectorAll('.players').forEach((e) => { e.textContent = t.players; });
     $('mpcHelpText').innerHTML = t.help;
     $('autoStartLabel').textContent = t.autoStart;
     if (model.tray) { // the macOS app has a menu bar icon
@@ -686,7 +685,6 @@
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
     $('checkUpdates').checked = !!m.app.checkUpdates; updateRepoInput.value = m.app.updateRepo || '';
     applyOsText();
-    if (!m.canAutoStart) { $('autoStart').disabled = true; $('autoStart').closest('.field').querySelector('.help').textContent = 'Available on Windows only.'; }
     renderFields(m);
     paintStats(m.stats);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);

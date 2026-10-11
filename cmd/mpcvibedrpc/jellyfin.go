@@ -249,7 +249,7 @@ func (j *jellyfinAccount) save(c *jellyfin.Client, srv *jellyfin.Server, a *jell
 	j.mu.Lock()
 	j.found, j.address, j.password = nil, "", false
 	j.mu.Unlock()
-	j.eng.ApplySettings(j.st.Config())
+	applySettings(j.st, j.eng)
 	j.log("INFO", "Signed in to "+srv.Product+".")
 	return nil
 }
@@ -294,7 +294,7 @@ func (j *jellyfinAccount) signOut() error {
 	if err := j.st.SetHidden(keys, map[string]any{}); err != nil {
 		return err
 	}
-	j.eng.ApplySettings(j.st.Config())
+	applySettings(j.st, j.eng)
 	if product == "" {
 		product = "Jellyfin"
 	}

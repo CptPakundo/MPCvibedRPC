@@ -29,19 +29,19 @@ type Input struct {
 }
 
 var (
-	reURL    = regexp.MustCompile(`(https?://[^/\s"']+)[^\s"']*`)
+	reURL    = regexp.MustCompile(`(https?://)(?:[^/\s"'@]*@)?([^/\s"']+)[^\s"']*`) // a user:password@ part goes too
 	reServer = regexp.MustCompile(`(server) "[^"]*"`) // a server's name is often a person's or a computer's name
 	// A path may contain spaces, so it runs to the ": " that ends it in an error message, to a closing quote, or to the
 	// end of the line.
 	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|["']|$)`)
-	reUnix    = regexp.MustCompile(`(^|[\s("'])/(?:home|Users|tmp|var|private|mnt|media)/[^"']*?(:\s|["']|$)`)
+	reUnix    = regexp.MustCompile(`(^|[\s("'])/(?:home|Users|Volumes|tmp|var|private|mnt|media|run|opt|srv|storage)/[^"']*?(:\s|["']|$)`)
 )
 
 // Redact shortens a log line for a bug report: web addresses keep only their server (a path or query can carry a key),
 // and folder paths and server names are replaced (they can hold a user name). Titles and file names stay: they are
 // what a report about a wrong title needs.
 func Redact(line string) string {
-	line = reURL.ReplaceAllString(line, "$1/…")
+	line = reURL.ReplaceAllString(line, "${1}${2}/…")
 	line = reServer.ReplaceAllString(line, `$1 "…"`)
 	line = reWinPath.ReplaceAllString(line, "$1<path>$2")
 	return reUnix.ReplaceAllString(line, "$1<path>$2")
@@ -82,7 +82,7 @@ func summarise(key string, v any) string {
 	case "mpvPipe", "iinaPipe":
 		return pathSafe(v)
 	}
-	if strings.HasSuffix(key, "Base") {
+	if strings.HasSuffix(key, "Base") || key == "anilistUrl" {
 		return baseSafe(v)
 	}
 	switch key {
@@ -90,7 +90,7 @@ func summarise(key string, v any) string {
 		return fmt.Sprintf("(%d entries)", count(v)) // the user's private list stays private
 	case "artworkOverrides":
 		b, _ := json.Marshal(v)
-		return reURL.ReplaceAllString(string(b), "$1/…") // which titles have a pinned cover, and from which server
+		return reURL.ReplaceAllString(string(b), "${1}${2}/…") // which titles have a pinned cover, and from which server
 	}
 	b, _ := json.Marshal(v)
 	return string(b)
@@ -181,7 +181,7 @@ func Report(in Input) string {
 	}
 	w("Jellyfin / Emby: %s", jellyfin)
 	if in.Status.Hint != "" {
-		w("Player hint: %s", in.Status.Hint)
+		w("Player hint: %s", Redact(in.Status.Hint))
 	}
 	w("")
 	w("State")

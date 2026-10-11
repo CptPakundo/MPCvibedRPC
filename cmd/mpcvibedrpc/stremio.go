@@ -116,7 +116,7 @@ func (s *stremioAccount) wait(ctx context.Context, c *stremio.Client, l *stremio
 			s.finish(ctx, "Could not save the Stremio sign-in: "+err.Error())
 			return
 		}
-		s.eng.ApplySettings(s.st.Config())
+		applySettings(s.st, s.eng)
 		s.log("INFO", "Signed in to Stremio.")
 		s.finish(ctx, "")
 		s.mu.Lock()
@@ -166,7 +166,7 @@ func (s *stremioAccount) signOut() error {
 	if err := s.st.SetHidden([]string{"stremioKey"}, map[string]any{}); err != nil {
 		return err
 	}
-	s.eng.ApplySettings(s.st.Config())
+	applySettings(s.st, s.eng)
 	s.log("INFO", "Signed out of Stremio.")
 	return nil
 }
