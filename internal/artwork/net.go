@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -43,6 +44,12 @@ func (e *FetchError) Error() string { return e.Msg }
 type MockError struct{ Name, Msg string }
 
 func (e *MockError) Error() string { return e.Msg }
+
+// unavailable reports whether a request failed because the service was down, slow, unreachable or paused by the
+// breaker, rather than answering.
+func unavailable(err error) bool {
+	return err != nil && (transient(err) || strings.HasSuffix(err.Error(), "; paused"))
+}
 
 func transient(err error) bool {
 	var fe *FetchError
@@ -101,10 +108,21 @@ func (n *Net) clearCache() {
 }
 
 func newNet(client *http.Client, gaps map[string]int) *Net {
+	n := &Net{gaps: gaps, cache: map[string]cacheEntry{}, inflight: map[string]*flight{}, fails: map[string]failState{}, next: map[string]time.Time{}}
 	if client == nil {
-		client = &http.Client{}
+		// a redirect to a service that is switched off is not followed either
+		client = &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("too many redirects")
+			}
+			if n.blocked != nil && n.blocked(req.URL.Host) {
+				return errors.New("redirected to a service that is turned off in the privacy settings")
+			}
+			return nil
+		}}
 	}
-	return &Net{Client: client, gaps: gaps, cache: map[string]cacheEntry{}, inflight: map[string]*flight{}, fails: map[string]failState{}, next: map[string]time.Time{}}
+	n.Client = client
+	return n
 }
 
 func hostOf(u string) string {
@@ -232,8 +250,13 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 	n.inflight[key] = fl
 	n.mu.Unlock()
 
-	val, err := func() (any, error) {
-		v, err := n.fetchOnce(u, in)
+	val, err := func() (v any, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				v, err = nil, errors.New("the answer could not be read") // waiting requests must still be released below
+			}
+		}()
+		v, err = n.fetchOnce(u, in)
 		if err != nil {
 			var fe *FetchError
 			errors.As(err, &fe)

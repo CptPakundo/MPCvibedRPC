@@ -431,7 +431,12 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 					}
 					text = c
 				}
-				pg = &bulbaPage{until: time.Now().Add(6 * time.Hour), titles: parseEpisodeList(text)}
+				titles := parseEpisodeList(text)
+				if len(titles) == 0 {
+					// an error page (a rate limit, a moved page) must not stand for the list for six hours
+					return nil, &FetchError{Name: "Error", Msg: "no episode list on the page"}
+				}
+				pg = &bulbaPage{until: time.Now().Add(6 * time.Hour), titles: titles}
 				r.mu.Lock()
 				r.bulba[page] = pg
 				r.mu.Unlock()
