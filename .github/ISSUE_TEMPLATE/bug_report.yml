@@ -20,7 +20,7 @@ body:
     attributes:
       label: Program version
       description: Shown at the top right of the settings window, or run the program with `--version`.
-      placeholder: e.g. 0.9.20
+      placeholder: e.g. 0.9.x, see the window's header
     validations:
       required: true
   - type: input
@@ -32,5 +32,5 @@ body:
     id: log
     attributes:
       label: Relevant log lines (optional)
-      description: Easiest is **Copy diagnostics** on the Log tab of the settings window (titles and paths are left out). Or paste lines from the Log tab or `mpcvibedrpc.log` in the data folder (use the Data folder button).
+      description: Easiest is **Copy diagnostics** on the Help tab of the settings window (titles and paths are left out). Or paste lines from the Help tab or `mpcvibedrpc.log` in the settings folder (**Open settings folder** under Advanced > Maintenance).
       render: text

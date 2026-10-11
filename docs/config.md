@@ -18,13 +18,13 @@ shown here.
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
-| `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Advanced tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
-| `stremioKey` | `''` | Written by **Sign in to Stremio** (Advanced tab), not typed: the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. Kept in `config.json` as plain text, like Stremio keeps its own; the settings window and **Copy diagnostics** never show it. |
-| `jellyfinAddress` | `''` | The address of your Jellyfin or Emby server, such as `http://192.168.1.20:8096` (typed in the Jellyfin / Emby sign-in on the Advanced tab and saved by it; `http://` is added if missing, and a path is kept for a reverse proxy; **Sign out** removes it). |
-| `jellyfinToken`, `jellyfinUser`, `jellyfinUserName`, `jellyfinServerName`, `jellyfinProduct`, `jellyfinDevice` | `''` | Written by the **Jellyfin / Emby** sign-in (Advanced tab), not typed: the server's access token, the user's id and name, the server's name, whether it is Jellyfin or Emby, and this install's device id (made at the first sign-in, kept after signing out). Empty `jellyfinToken`: Jellyfin / Emby is not followed and the server is never contacted. **Sign out** ends the session on the server and removes the sign-in (`jellyfinDevice` is kept); **Restore defaults** ends it too. The token is kept in `config.json` as plain text, like other apps keep theirs; a password is sent to your own server once and never stored. The settings window and **Copy diagnostics** never show these (diagnostics only say whether you are signed in). |
+| `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Accounts tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
+| `stremioKey` | `''` | Written by **Sign in to Stremio** (Accounts tab), not typed: the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. Kept in `config.json` as plain text, like Stremio keeps its own; the settings window and **Copy diagnostics** never show it. |
+| `jellyfinAddress` | `''` | The address of your Jellyfin or Emby server, such as `http://192.168.1.20:8096` (typed in the Jellyfin / Emby sign-in on the Accounts tab and saved by it; `http://` is added if missing, and a path is kept for a reverse proxy; **Sign out** removes it). |
+| `jellyfinToken`, `jellyfinUser`, `jellyfinUserName`, `jellyfinServerName`, `jellyfinProduct`, `jellyfinDevice` | `''` | Written by the **Jellyfin / Emby** sign-in (Accounts tab), not typed: the server's access token, the user's id and name, the server's name, whether it is Jellyfin or Emby, and this install's device id (made at the first sign-in, kept after signing out). Empty `jellyfinToken`: Jellyfin / Emby is not followed and the server is never contacted. **Sign out** ends the session on the server and removes the sign-in (`jellyfinDevice` is kept); **Restore defaults** ends it too. The token is kept in `config.json` as plain text, like other apps keep theirs; a password is sent to your own server once and never stored. The settings window and **Copy diagnostics** never show these (diagnostics only say whether you are signed in). |
 | `pollInterval` | `5000` | Milliseconds between checks. Presence is only sent when something changes. While Discord is closed and the window is too, a check only looks whether Discord has started (see [Resting](how-it-works.md#resting-while-discord-is-closed)). |
 
-## How it looks
+## Look tab
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -51,8 +51,9 @@ These are all on the **Privacy** tab of the settings window.
 
 ## Filename cleanup
 
-Smart mode understands release names: it strips BluRay, 1080p, x265, HDR, audio tags and release groups, and finds
-titles, years, seasons and episodes.
+Smart mode (`smartFormat: true`, the default) strips release junk and finds titles, seasons and episodes. It
+understands release names: BluRay, 1080p, x265, HDR, audio tags and release groups. Basic mode (`smartFormat: false`)
+only applies the switches below.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -62,10 +63,12 @@ titles, years, seasons and episodes.
 | `replaceUnderscore` | `true` | Basic mode only (smart mode always does this). |
 | `replaceDots` | `true` | Basic mode only (smart mode always does this). |
 
-## Cover art and titles
+## Titles & art tab
 
 The title parsed from the filename is looked up online (IMDb-based Cinemeta by default, no key needed). Set
-`showArtwork` to `false` to stay fully offline.
+`showArtwork` to `false` to stay fully offline. In the window, **Fix a match** holds `artworkAliases` and
+`artworkOverrides` (search under another name, pin a cover image), and **More** holds `tmdbApiKey` and
+`folderEpisodeNumbers` (labelled "Number episodes by their place in the season folder").
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -109,11 +112,12 @@ These are uploaded to the Discord application whose `clientId` you use.
 ## Program settings
 
 These belong to the program itself and live under `app` in `config.json`. They are all in the settings window.
+**Restore defaults**, **Open settings folder** and the **Update source** field are under **Advanced > Maintenance**.
 
 | Setting | Default | What it does |
 |---|---|---|
 | `autoStart` | `false` | Start when you log in, straight to the tray (macOS and Linux: in the background). The real switch is the login item itself: the registry's Run key on Windows, a LaunchAgent on macOS, an autostart entry in `~/.config/autostart` on Linux. |
-| `startPresence` | `true` | Begin sending presence as soon as the app opens. |
+| `startPresence` | `true` | Begin sending presence as soon as the app opens (the General switch **Show on Discord when the app opens**). |
 | `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
 | `checkUpdates` | `true` | Look for a newer release a few seconds after the program starts, then once a day. |
 | `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. |

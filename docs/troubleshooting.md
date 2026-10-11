@@ -1,0 +1,96 @@
+# Troubleshooting
+
+Problems and questions, by player and service. The [README](../README.md) has the first checks, and every setting is
+listed in [All settings](config.md).
+
+## Nothing shows on Discord
+
+- The status line at the top of the window says what is going on. "No player found": press **Set up the player
+  connection**. mpv and IINA read their settings when they start, so restart them afterwards.
+- IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
+- "Discord on standby" is normal until something plays. If it stays on "Waiting for Discord" while a video plays, use
+  the Discord desktop app (not the browser) and check that "Share my activity" is on.
+- VLC: the window says when VLC refuses the password, or another program uses its port (8080). Change the port in VLC
+  and in **Advanced > VLC web interface port**.
+- Linux: a player that isn't found probably doesn't offer MPRIS, or isn't on the list yet (music players and browsers
+  are left out on purpose). Please report it.
+
+## Plex
+
+- The window says when the server can't be reached, or Plex refused the sign-in (then sign out and in again on the
+  **Accounts** tab).
+- A server on your network that isn't found: put its address in **Accounts > Plex server address**, for example
+  `http://192.168.1.20:32400`.
+- Plex apps report every few seconds, so the status can lag that much behind. On your own server only *your* playback
+  is shown; music and photos never are.
+- Tried with the official Plex Media Server on GitHub's test machines. A real Plex account and real Plex apps haven't
+  been tried yet; reports are welcome.
+
+![Signing in to Plex](images/window-plex.jpg)
+
+## Stremio
+
+- Stremio's player saves where you are in your library when you start, pause or stop, and every 90 seconds while it
+  plays. The program reads that, so a video shows up within about 20 seconds, and pausing takes the status down (the
+  library doesn't tell a pause from a stop). If Stremio is closed without a word, the status goes after about two and
+  a half minutes.
+- Only videos with a catalog entry are in the library; local files and add-ons without one aren't shown.
+- Newer Stremio apps can show a Discord status of their own. Turn that off in Stremio's settings, or you may see two.
+- Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are welcome.
+
+## Jellyfin and Emby
+
+- Type the address the way you open the server in a browser; `http://` is added if missing, and a path (for a reverse
+  proxy) is kept. The window says when the server can't be reached or refused the sign-in.
+- Jellyfin: press **Sign in**, then enter the 6-digit code in a Jellyfin app or web page where you are already signed
+  in (profile > Quick Connect). **Use a password instead** is there if Quick Connect is off. Emby has no Quick Connect:
+  use your user name and password. The password goes to your own server once and is never stored.
+- Only your own playback is shown, even if you are an administrator; music, audiobooks and photos never are. The server
+  is asked every 5 seconds, so the status can lag that much behind.
+- Tried with the official Jellyfin and Emby server images on GitHub's test machines. A real server and the real apps
+  haven't been tried yet; reports are welcome.
+
+## The window doesn't open
+
+Run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings
+or open the app again; on Linux, run the program again. Closing the window leaves the program running.
+
+## Wrong title or no cover
+
+The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) lists what each catalog returned. Under
+**Titles & art > Fix a match** you can search under another name or pin your own cover image. A free TMDB key
+(**Titles & art > More**) improves some matches.
+
+## Where are my settings? How do I remove it?
+
+Everything is in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux:
+`~/.local/share/MPCvibedRPC`): settings, log, cover cache, your stats, and the window's own browser profile (your
+regular browser is left alone). **Open settings folder** (**Advanced > Maintenance**) opens it. Every setting with its
+default is in [docs/config.md](config.md).
+
+To uninstall:
+
+1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Accounts** tab first. That ends the sessions on their side.
+2. Turn off "Start with Windows" / "Start at login" (General tab).
+3. Quit the program, then delete the program and the settings folder above.
+4. The player settings that **Set up the player connection** switched on are left as they are: the MPC-HC and MPC-BE
+   web interface, the line in `mpv.conf`, VLC's web interface and IINA's option. Switch them off in the player if you
+   want them gone.
+
+## Updates
+
+The program checks for new versions when it starts and once a day (switch it off on the **Updates** tab). On Windows
+and Linux, **Install** downloads the new version, checks it and restarts; on macOS the Updates tab links to the
+download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
+an update the window shows what's new once; the **Changelog** button shows every version.
+
+## Is the download safe?
+
+Each release file has a `.sha256` checksum next to it, and GitHub keeps a signed record that it was built from this
+repository. With the [GitHub CLI](https://cli.github.com/): `gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC`.
+See [SECURITY.md](../SECURITY.md).
+
+## Reporting a problem
+
+On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the recent log, with titles,
+file names and paths left out. Paste it into a [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
