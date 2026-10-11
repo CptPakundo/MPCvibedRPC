@@ -42,8 +42,8 @@ func run(file string, args ...string) result {
 
 // ---- run at login ---------------------------------------------------------------
 
-// GetAutoStart reports whether the registry's Run entry (macOS: the LaunchAgent; Linux: the autostart entry) points at
-// this program.
+// GetAutoStart reports whether the registry's Run entry (macOS: the LaunchAgent; Linux: the autostart entry) is there
+// and names a program file with the same name as this one (it does not compare the full path).
 func GetAutoStart(exe string) bool {
 	if !IsWindows {
 		return getLoginItem(exe)
@@ -179,11 +179,12 @@ func (p player) belongs(exe string) bool {
 
 // otherPlayers are only looked for (diagnostics, the setup of mpv and VLC): they have no web interface switch of MPC's
 // kind. Only VLC is ever closed, and only when its settings have to change.
-var otherPlayers = []player{
-	{name: "MPC-QT", procs: []string{"mpc-qt"}, installDirs: []string{"MPC-QT"}, userIniDir: "mpc-qt"},
-	{name: "mpv", procs: []string{"mpv"}},
-	vlcPlayer,
-}
+var otherPlayers = []player{mpcQTPlayer, mpvPlayer, vlcPlayer}
+
+var (
+	mpcQTPlayer = player{name: "MPC-QT", procs: []string{"mpc-qt"}, installDirs: []string{"MPC-QT"}, userIniDir: "mpc-qt"}
+	mpvPlayer   = player{name: "mpv", procs: []string{"mpv"}}
+)
 
 var vlcPlayer = player{name: "VLC", procs: []string{"vlc"}, installDirs: []string{"VideoLAN\\VLC"}, userIniDir: "vlc"}
 
@@ -374,14 +375,14 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 	var mpvDirs []string
 	qtFound := false
 	for _, e := range others {
-		if otherPlayers[1].belongs(e) {
+		if mpvPlayer.belongs(e) {
 			mpvDirs = append(mpvDirs, filepath.Dir(e))
-		} else if otherPlayers[0].belongs(e) {
+		} else if mpcQTPlayer.belongs(e) {
 			qtFound = true
 		}
 	}
 	if !qtFound {
-		qtFound = otherPlayers[0].installed(nil, nil) || dirExists(filepath.Join(os.Getenv("APPDATA"), "mpc-qt"))
+		qtFound = mpcQTPlayer.installed(nil, nil) || dirExists(filepath.Join(os.Getenv("APPDATA"), "mpc-qt"))
 	}
 	mpv := enableMpvIPC(mpvPipe, mpvDirs)
 	if mpv.Edited != "" {
@@ -556,7 +557,7 @@ func OpenFolder(dir string) {
 	}
 }
 
-// OpenURL shows a web page in the default browser (the Plex sign-in, where the user is likely signed in already).
+// OpenURL shows a web page in the default browser (the sign-ins of Plex and Stremio, where the user is likely signed in already).
 func OpenURL(u string) bool {
 	switch {
 	case IsWindows:

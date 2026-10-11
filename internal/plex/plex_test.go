@@ -26,6 +26,7 @@ func TestItemName(t *testing.T) {
 		{Item{Type: "episode", GrandparentTitle: "Sample Show", Title: "Date Based"}, "Sample Show - Date Based"},
 		{Item{Type: "episode", Title: "Lonely Episode"}, "Lonely Episode"},
 		{Item{Type: "movie", Title: "Sample Movie", Year: 2020}, "Sample Movie (2020)"},
+		{Item{Type: "movie", Title: "Sample Movie (2020)", Year: 2020}, "Sample Movie (2020)"},
 		{Item{Type: "movie", Title: "Sample Movie"}, "Sample Movie"},
 		{Item{Type: "movie", Title: "Sample/Movie\\Two", Year: 2021}, "Sample-Movie-Two (2021)"},
 		{Item{Type: "clip", Title: "Sample Clip"}, "Sample Clip"},

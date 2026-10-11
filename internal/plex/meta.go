@@ -63,7 +63,7 @@ func (it *Item) Name() string {
 		}
 		return strings.Join(parts, " - ")
 	case "movie":
-		if it.Year > 0 && title != "" {
+		if it.Year > 0 && title != "" && !strings.Contains(title, fmt.Sprintf("(%d)", it.Year)) {
 			return fmt.Sprintf("%s (%d)", title, it.Year)
 		}
 	}

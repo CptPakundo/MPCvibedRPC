@@ -165,10 +165,6 @@ func (w *Watcher) poll(ctx context.Context) error {
 			changed = append(changed, id)
 		}
 	}
-	w.mtimes = m
-	if w.known == nil {
-		w.known = map[string]entry{}
-	}
 	w.mu.Unlock()
 	sort.Slice(changed, func(i, j int) bool { return m[changed[i]] > m[changed[j]] })
 	if len(changed) > 5 {
@@ -183,6 +179,11 @@ func (w *Watcher) poll(ctx context.Context) error {
 	sort.Slice(items, func(i, j int) bool { return m[items[i].ID] < m[items[j].ID] }) // the newest is taken last
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	// stored only now: a failed fetch leaves the change to be found again by the next poll
+	w.mtimes = m
+	if w.known == nil {
+		w.known = map[string]entry{}
+	}
 	for _, it := range items {
 		w.take(it, m[it.ID], now, first)
 	}

@@ -94,7 +94,7 @@ type Conn struct {
 	serial uint32
 }
 
-// Dial connects to the bus at address, logs in and says Hello. timeout bounds the whole of it.
+// Dial connects to the bus at address, logs in and says Hello. each step (connecting, logging in, Hello) gets the timeout.
 func Dial(address string, timeout time.Duration) (*Conn, error) {
 	paths := socketPaths(address)
 	if len(paths) == 0 {

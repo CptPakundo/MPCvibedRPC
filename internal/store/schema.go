@@ -40,46 +40,53 @@ func ip(n int) *int { return &n }
 
 // Sections is the settings window's layout. Adding a field here adds a control (and its validation).
 var Sections = []Section{
+	{ID: "accounts", Title: "Accounts", Fields: []Field{
+		{Type: "heading", Label: "Plex"},
+		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
+		{Type: "heading", Label: "Stremio"},         // the window puts the sign-in under it
+		{Type: "heading", Label: "Jellyfin / Emby"}, // the window puts the sign-in under it
+	}},
 	{ID: "look", Title: "How it looks", Fields: []Field{
 		{Key: "activityType", Type: "choice", Label: "Style", Options: [][2]string{{"watching", "Watching (with progress bar)"}, {"playing", "Playing (classic timer)"}}},
 		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the second line and the cover clickable. Visible to others on your profile.`},
-		{Key: "episodeInDetails", Type: "bool", Label: "Repeat the season and episode number in the title line", Help: "Discord already shows a season and episode badge, so this is off by default."},
+		{Key: "episodeInDetails", Type: "bool", Label: "Also show S01E02 in the title line", Help: "Discord already shows a season and episode badge."},
 	}},
 	{ID: "titles", Title: "Titles and artwork", Fields: []Field{
 		{Key: "episodeTitles", Type: "bool", Label: "Look up episode titles"},
 		{Key: "catalogTitle", Type: "bool", Label: "Use the catalog's spelling of titles", Help: "Restores punctuation that file names cannot contain, such as a colon in a title."},
 		{Key: "animeTitles", Type: "choice", Label: "Anime titles", Options: [][2]string{{"auto", "Closest AniList name (auto)"}, {"english", "Always English"}, {"romaji", "Always romaji"}, {"file", "Keep the file's spelling"}}},
 		{Key: "useFolderName", Type: "bool", Label: "Use the folder name when the file is just an episode number"},
-		{Key: "folderEpisodeNumbers", Type: "bool", Label: "Number code episodes by folder position", Help: "For files named with a running production code, show the episode as its position within the season folder."},
+		{Type: "heading", Label: "Fix a match"},
+		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
+		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
+		{Type: "heading", Label: "More"},
 		{Key: "tmdbApiKey", Type: "secret", Label: "TMDB API key (optional)", Help: "Free at themoviedb.org/settings/api. Improves matches for some titles."},
+		{Key: "folderEpisodeNumbers", Type: "bool", Label: "Number episodes by their place in the season folder", Help: "For files named with a running production code."},
 	}},
 	{ID: "privacy", Title: "Privacy", Fields: []Field{
 		{Type: "heading", Label: "What other people see on Discord"},
-		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar: no title, cover, episode or buttons. Nothing is looked up online either."},
+		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar. No title, cover or buttons, and nothing is looked up online."},
 		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up."},
-		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume (the default is 30). The status comes back when you play again or move around in the video.", Min: ip(0), Max: ip(1440)},
+		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume (default 30). It comes back when you play again.", Min: ip(0), Max: ip(1440)},
 		{Type: "heading", Label: "What online services see"},
 		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},
-		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name is sent to these services to find cover art and details. Switch off any you don't want to use. They are never contacted while off.", Sources: core.Sources},
+		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name goes to these services to find covers and details. A service that is off is never contacted.", Sources: core.Sources},
 	}},
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
+		{Type: "heading", Label: "Players"}, // the window puts "Set up the player connection" under it
 		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Help: "MPC-BE and MPC-QT's web interfaces use it too. MPC-QT also works without one.", Min: ip(1), Max: ip(65535)},
-		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "The input-ipc-server name in mpv.conf (Set up the player connection adds it). Leave empty to not look for mpv."},
-		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "The password of VLC's web interface (Preferences > All > Interface > Main interfaces > Lua). Set up the player connection switches the interface on and fills this in. Leave empty to not look for VLC."},
+		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "Set up the player connection fills this in. Leave empty to not look for mpv."},
+		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "Set up the player connection fills this in. Leave empty to not look for VLC."},
 		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
 		{Key: "iinaPipe", Type: "text", Label: "IINA connection", Help: "The input-ipc-server path in IINA's mpv options (IINA Settings > Advanced). Set up the player connection adds it; IINA reads it when it next starts. Leave empty to not look for IINA.", OS: []string{"darwin"}},
 		{Key: "mpris", Type: "bool", Label: "Find video players through MPRIS", Help: "Reads VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and other video players over D-Bus, with nothing to set up. Music players and web browsers are never shown.", OS: []string{"linux"}},
-		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
+		{Type: "heading", Label: "Discord"},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
-		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
-		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
-		{Type: "heading", Label: "Plex"},
-		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
-		{Type: "heading", Label: "Stremio"},         // the window puts the sign-in under it
-		{Type: "heading", Label: "Jellyfin / Emby"}, // the window puts the sign-in under it
+		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
+		{Type: "heading", Label: "Maintenance"}, // the window puts the update source, the settings folder and Restore defaults under it
 	}},
 }
 

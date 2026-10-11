@@ -133,9 +133,9 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// normKey is the comparison key used all over: accents stripped, lower-cased, letters and digits only.
 var nonAlnum = re(`[^\p{L}\p{N}]+`, "gu")
 
+// normKey is the comparison key used all over: accents stripped, lower-cased, letters and digits only.
 func normKey(s string) string { return nonAlnum.ReplaceStr(Lower(jsre.StripAccents(s)), "") }
 
 // normText is the same without accent stripping.

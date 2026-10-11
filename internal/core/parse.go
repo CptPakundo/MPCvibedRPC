@@ -331,7 +331,7 @@ func findEpisode(tokens []string, cut int) *epMatch {
 		if m := feNxM.Exec(b); m != nil {
 			return &epMatch{idx: i, length: 1, season: atoi(m.Str(1)), episode: atoi(m.Str(2)), parts: []string{"S" + pad2s(m.Str(1)) + "E" + m.Str(2)}}
 		}
-		if m := feDate.Exec(b); m != nil && i > 0 { // "Show 2024-05-01 Guest": a dated episode
+		if m := feDate.Exec(b); m != nil { // "Show 2024-05-01 Guest": a dated episode
 			return &epMatch{idx: i, length: 1, season: NA, episode: NA, parts: []string{b}, date: true}
 		}
 		// Production-code episode: "ESx02" (Extra Stage, episode 2). The letters name the season entry, like "AB001".
@@ -367,7 +367,7 @@ func findEpisode(tokens []string, cut int) *epMatch {
 		if feEpWord.Test(b) && feDigits4.Test(next) { // "Episode 3", "Ep 03"
 			return &epMatch{idx: i, length: 2, season: NA, episode: atoi(next), parts: []string{"E" + pad2s(next)}}
 		}
-		if m := feJp.Exec(b); m != nil && i > 0 { // 第28話 / 1000話
+		if m := feJp.Exec(b); m != nil { // 第28話 / 1000話
 			return &epMatch{idx: i, length: 1, season: NA, episode: atoi(m.Str(1)), parts: []string{"E" + pad2s(m.Str(1))}, anime: true}
 		}
 		if b == "-" {
@@ -737,29 +737,14 @@ func withFolder(base string, dirs []string) (string, bool) {
 		return "", false
 	}
 	rest := base
-	ep := ""
-	for _, g := range []int{2, 4, 5, 6, 8, 9} {
-		if m.Has(g) && m.Str(g) != "" {
-			ep = m.Str(g)
-			break
-		}
-	}
-	epSet := false
+	epv, epSet := "", false // the episode number group that took part (the first of them)
 	for _, g := range []int{2, 4, 5, 6, 8, 9} {
 		if m.Has(g) {
-			epSet = true
+			epv, epSet = m.Str(g), true
 			break
 		}
 	}
-	_ = ep
 	if !m.Has(1) && !m.Has(3) && !m.Has(7) && has(season) && epSet {
-		var epv string
-		for _, g := range []int{2, 4, 5, 6, 8, 9} {
-			if m.Has(g) {
-				epv = m.Str(g)
-				break
-			}
-		}
 		rest = "S" + pad2n(season) + "E" + pad2n(atoi(epv)) + u16slice(base, u16len(m.Str(0)), 1<<30) // season comes from "Season 2/"
 	}
 	dash := ""

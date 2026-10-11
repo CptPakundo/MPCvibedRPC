@@ -12,9 +12,11 @@ import (
 // The macOS and Linux versions of the parts above. They live in an ordinary file (not one for a single system) so that
 // their logic is tested everywhere; only the helper programs they start are missing on Windows.
 
+var iinaPlayer = player{name: "IINA", procs: []string{"iina"}}
+
 // unixPlayers are the players looked for on macOS and Linux, besides mpv, VLC and MPC-QT (diagnostics only).
 var unixPlayers = []player{
-	{name: "IINA", procs: []string{"iina"}},
+	iinaPlayer,
 	{name: "Celluloid", procs: []string{"celluloid"}},
 	{name: "Haruna", procs: []string{"haruna"}},
 	{name: "SMPlayer", procs: []string{"smplayer"}},

@@ -223,14 +223,14 @@ func pickSeasonEntry(cands []*Cand, title string, season int, codePrefix string)
 		pick = earliestOf(filter(func(m member) bool { return m.mark.N == season }))
 		if pick == nil {
 			numbered := filter(func(m member) bool { return m.mark.N != core.NA })
-			max := 0
+			maxN := 0
 			for _, m := range numbered {
-				if m.mark.N > max {
-					max = m.mark.N
+				if m.mark.N > maxN {
+					maxN = m.mark.N
 				}
 			}
 			fin := filter(func(m member) bool { return m.mark.Final })
-			if len(fin) > 0 && len(numbered) >= 2 && season == max+1 {
+			if len(fin) > 0 && len(numbered) >= 2 && season == maxN+1 {
 				pick = earliestOf(fin)
 			}
 		}
@@ -249,16 +249,12 @@ func chainEntry(cands []*Cand, title, prefix string, first *Cand, n int) *Season
 	if first == nil || first.Eps == 0 || n == core.NA || n <= first.Eps {
 		return nil
 	}
-	type nx struct {
-		member
-		initials
-	}
-	var nexts []nx
+	var nexts []member
 	for _, m := range franchiseMembers(cands, title) {
 		if m.c != first && m.c.Eps >= 10 && m.c.Year >= first.Year {
 			in := initialsOf(m.rem)
 			if strings.HasPrefix(in.joined, prefix) && u16len(in.joined) <= u16len(prefix)+2 {
-				nexts = append(nexts, nx{m, in})
+				nexts = append(nexts, m)
 			}
 		}
 	}

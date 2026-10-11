@@ -172,7 +172,7 @@ func enableVlcHTTP(file, text string, port int, password string) vlcResult {
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		return vlcResult{Message: "VLC: could not create " + filepath.Dir(file) + "."}
 	}
-	if err := os.WriteFile(file, []byte(t), 0o644); err != nil {
+	if err := writeFileAtomic(file, []byte(t)); err != nil {
 		return vlcResult{Message: "VLC: could not write " + file + "."}
 	}
 	where := "port " + strconv.Itoa(usePort)

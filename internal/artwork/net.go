@@ -12,9 +12,15 @@ import (
 	"time"
 )
 
-// Every provider call goes through getJSON: responses are cached and shared between identical in-flight requests,
+// Every provider call goes through doRequest, which refuses a host switched off in the settings and sends the
+// User-Agent. Most go through getJSON: responses are cached and shared between identical in-flight requests,
 // a timeout / 5xx / 429 is retried once, requests to one host are spaced out, and a host that keeps failing is left
-// alone for a minute (so rapid re-testing doesn't hammer a struggling service).
+// alone for a minute (so rapid re-testing doesn't hammer a struggling service). The exception is Bulbapedia's page
+// text (fetchText), which has none of that (no cache, spacing, retry or breaker); the Resolver keeps the page for
+// six hours itself.
+
+// userAgent is what every request says it is (Wikipedia answers 403 to Go's default client string).
+const userAgent = "MPCvibedRPC (Discord Rich Presence for video players; https://github.com/CptPakundo/MPCvibedRPC)"
 
 const (
 	respTTL    = 10 * time.Minute
@@ -125,8 +131,8 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 	if err != nil {
 		return nil, &FetchError{Name: "TypeError", Msg: err.Error()}
 	}
-	// Wikipedia answers 403 to Go's default client string; send a descriptive one unless the caller set its own.
-	req.Header.Set("User-Agent", "MPCvibedRPC/1.0 (Discord rich presence for MPC-HC)")
+	// send a descriptive User-Agent unless the caller sets its own
+	req.Header.Set("User-Agent", userAgent)
 	for k, v := range in.Headers {
 		req.Header.Set(k, v)
 	}
@@ -215,9 +221,12 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 		return f.val, f.err
 	}
 	host := hostOf(u)
-	if f, ok := n.fails[host]; ok && f.n >= breakAfter && f.until.After(time.Now()) {
-		n.mu.Unlock()
-		return nil, errors.New(host + " is failing; paused")
+	if f, ok := n.fails[host]; ok && f.n >= breakAfter {
+		if f.until.After(time.Now()) {
+			n.mu.Unlock()
+			return nil, errors.New(host + " is failing; paused")
+		}
+		delete(n.fails, host) // the pause is over: start counting again, so one new failure does not trip it at once
 	}
 	fl := &flight{done: make(chan struct{})}
 	n.inflight[key] = fl
@@ -250,11 +259,11 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 	n.mu.Lock()
 	if err == nil {
 		delete(n.fails, host)
-		if len(n.cache) >= cacheMax && len(n.order) > 0 {
-			delete(n.cache, n.order[0])
-			n.order = n.order[1:]
-		}
 		if _, exists := n.cache[key]; !exists {
+			if len(n.cache) >= cacheMax && len(n.order) > 0 {
+				delete(n.cache, n.order[0])
+				n.order = n.order[1:]
+			}
 			n.order = append(n.order, key)
 		}
 		n.cache[key] = cacheEntry{val, time.Now().Add(respTTL)}

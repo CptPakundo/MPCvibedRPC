@@ -58,6 +58,8 @@ type apiError struct {
 	Code    int    `json:"code"`
 }
 
+func (e *apiError) Error() string { return "Stremio: " + e.Message }
+
 // call sends a request and decodes the "result" of the answer into v. A refused session is ErrKey.
 func (c *Client) call(ctx context.Context, method, u string, body any, v any) error {
 	var rd io.Reader
@@ -103,7 +105,7 @@ func (c *Client) call(ctx context.Context, method, u string, body any, v any) er
 		if strings.Contains(m, "session") || strings.Contains(m, "auth") {
 			return ErrKey
 		}
-		return fmt.Errorf("Stremio: %s", r.Error.Message)
+		return r.Error
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return fmt.Errorf("HTTP %d", res.StatusCode)
@@ -153,7 +155,8 @@ func (c *Client) CheckLink(ctx context.Context, l *Link) (string, error) {
 		AuthKey string `json:"authKey"`
 	}
 	err := c.call(ctx, "GET", c.link()+"/api/v2/read?type=Read&code="+url.QueryEscape(l.Code), nil, &r)
-	if err != nil && !errors.Is(err, ErrKey) && !strings.HasPrefix(err.Error(), "Stremio: ") {
+	var refused *apiError
+	if err != nil && !errors.Is(err, ErrKey) && !errors.As(err, &refused) {
 		return "", err // the service did not answer; a refusal only means "not approved yet"
 	}
 	return r.AuthKey, nil

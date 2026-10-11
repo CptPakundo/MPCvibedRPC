@@ -7,6 +7,8 @@ param(
   [Parameter(Mandatory)][string]$NextVersion  # the version of $NewExe
 )
 $ErrorActionPreference = 'Stop'
+# The test writes to HKCU and the user's profile folders, so it only runs on a CI runner, never on someone's PC.
+if ($env:GITHUB_ACTIONS -ne 'true') { Write-Host 'smoke.ps1 only runs on a GitHub Actions runner (it writes HKCU and AppData).'; exit 2 }
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $work | Out-Null
 $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out-Null
@@ -105,12 +107,12 @@ try {
   Set-Content $stateFile '2'
 
   # tray: its hidden window exists and understands the menu commands (1 open, 2 toggle, 3 quit)
-  $hwnd = [W.U]::FindWindow('MPCDiscordRPC.Tray', [NullString]::Value)
+  $hwnd = [W.U]::FindWindow('MPCvibedRPC.Tray', [NullString]::Value)
   Check ($hwnd -ne [IntPtr]::Zero) 'tray window exists'
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]2, [IntPtr]::Zero)
-  Check (WaitFor { -not (Api 'Get' 'status').running } 10 'toggle off') 'tray menu "Stop presence" works'
+  Check (WaitFor { -not (Api 'Get' 'status').running } 10 'toggle off') 'tray menu "Stop showing on Discord" works'
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]2, [IntPtr]::Zero)
-  Check (WaitFor { (Api 'Get' 'status').running } 10 'toggle on') 'tray menu "Start presence" works'
+  Check (WaitFor { (Api 'Get' 'status').running } 10 'toggle on') 'tray menu "Show on Discord" works'
 
   # run at login
   $plainBefore = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
@@ -166,7 +168,7 @@ try {
   Check (WaitFor { ([regex]::Matches((Get-Content $discordLog -Raw), '(?<!DIS)CONNECTED')).Count -gt $connectsBefore } 30 'reconnected') 'new version reconnects to Discord'
 
   # quit from the tray menu
-  $hwnd = [W.U]::FindWindow('MPCDiscordRPC.Tray', [NullString]::Value)
+  $hwnd = [W.U]::FindWindow('MPCvibedRPC.Tray', [NullString]::Value)
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]3, [IntPtr]::Zero)
   Check (WaitFor { $null -eq (Ipc) } 15 'ipc gone') 'tray menu "Quit" shuts the program down'
   Check (WaitFor { -not (Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue) } 15 'process gone') 'no program process is left'

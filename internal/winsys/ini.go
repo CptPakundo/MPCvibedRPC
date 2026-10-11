@@ -2,6 +2,7 @@ package winsys
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf16"
@@ -97,10 +98,35 @@ func ReadIni(file string) (text string, utf16le bool, err error) {
 	return string(b), false, nil
 }
 
+// writeFileAtomic writes a player's config file through a temporary file in the same folder and a rename, so a crash
+// or a full disk never leaves half a file. The file keeps its permissions; a read-only file, or a folder that does not
+// allow the temporary file, is written in place as before.
+func writeFileAtomic(file string, data []byte) error {
+	perm := os.FileMode(0o644)
+	if r, err := filepath.EvalSymlinks(file); err == nil {
+		file = r
+	}
+	if st, err := os.Stat(file); err == nil {
+		perm = st.Mode().Perm()
+		if perm&0o200 == 0 {
+			return os.WriteFile(file, data, perm)
+		}
+	}
+	tmp := file + ".mpcvibedrpc.tmp"
+	if err := os.WriteFile(tmp, data, perm); err != nil {
+		return os.WriteFile(file, data, perm)
+	}
+	if err := os.Rename(tmp, file); err != nil {
+		_ = os.Remove(tmp)
+		return os.WriteFile(file, data, perm)
+	}
+	return nil
+}
+
 // WriteIni is the reverse of ReadIni.
 func WriteIni(file, text string, asUTF16 bool) error {
 	if !asUTF16 {
-		return os.WriteFile(file, []byte(text), 0o644)
+		return writeFileAtomic(file, []byte(text))
 	}
 	u := utf16.Encode([]rune(text))
 	b := make([]byte, 0, 2+2*len(u))
@@ -108,5 +134,5 @@ func WriteIni(file, text string, asUTF16 bool) error {
 	for _, c := range u {
 		b = append(b, byte(c), byte(c>>8))
 	}
-	return os.WriteFile(file, b, 0o644)
+	return writeFileAtomic(file, b)
 }

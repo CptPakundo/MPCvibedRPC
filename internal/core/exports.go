@@ -1,5 +1,7 @@
 package core
 
+import "encoding/json"
+
 // Small helpers the lookup packages share (JavaScript string semantics).
 
 func U16Len(s string) int                { return u16len(s) }
@@ -19,8 +21,8 @@ func NewMedia() *Media                  { return newMedia() }
 
 // ConfigAsMap returns every setting keyed by its config.json name (as JSON values).
 func ConfigAsMap(c *Config) map[string]any {
-	b, _ := jsonMarshal(c)
+	b, _ := json.Marshal(c)
 	var m map[string]any
-	_ = jsonUnmarshal(b, &m)
+	_ = json.Unmarshal(b, &m)
 	return m
 }

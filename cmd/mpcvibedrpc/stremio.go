@@ -73,7 +73,7 @@ func (s *stremioAccount) signIn() (map[string]any, error) {
 func (s *stremioAccount) finish(ctx context.Context, problem string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if ctx.Err() == context.Canceled && problem == "" {
+	if ctx.Err() == context.Canceled {
 		return // cancelled, or replaced by a newer sign-in that now owns the state
 	}
 	s.waiting, s.url, s.problem = false, "", problem

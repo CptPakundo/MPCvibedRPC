@@ -13,8 +13,15 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# A newer push to the same branch or pull request replaces a run that is still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
+    # A pull request from this repository is already tested by the push of its branch; only pull requests from forks
+    # (which get no push run here) are tested through the pull_request event. The other jobs need this one.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
       matrix:

@@ -78,7 +78,7 @@ func main() {
 }
 
 func crash(msg string) {
-	f, err := os.OpenFile(filepath.Join(os.TempDir(), "mpcvibedrpc-crash.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(filepath.Join(os.TempDir(), "mpcvibedrpc-crash.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err == nil {
 		fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339), msg)
 		f.Close()
@@ -164,11 +164,7 @@ func (l *logger) close() {
 
 // setHideTitle switches "Hide what I'm watching" from the tray or the menu bar, saved like a switch in the window.
 func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg string), on bool) {
-	patch, err := jsonx.Parse(fmt.Sprintf(`{"settings":{"hideTitle":%t}}`, on))
-	if err == nil {
-		err = st.Update(patch.(*jsonx.Obj))
-	}
-	if err != nil {
+	if err := st.SetSettings(map[string]any{"hideTitle": on}); err != nil {
 		log("ERROR", "Could not save Hide what I'm watching: "+err.Error())
 		return
 	}
@@ -182,6 +178,19 @@ func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg strin
 
 func windowURL(port int, token string) string {
 	return fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
+}
+
+// handOver asks the running copy to show its window (a start in the background just leaves quietly).
+func handOver(other *ipcInfo) {
+	if background {
+		return
+	}
+	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/open", other.Port), strings.NewReader("{}"))
+	req.Header.Set("X-Token", other.Token)
+	c := &http.Client{Timeout: 3 * time.Second}
+	if res, err := c.Do(req); err == nil {
+		res.Body.Close()
+	}
 }
 
 func run() error {
@@ -202,14 +211,7 @@ func run() error {
 	}
 	for !winsys.AcquireSingleInstance(st.Dir) {
 		if other := pingExisting(ipcFile); other != nil {
-			if !background {
-				req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/open", other.Port), strings.NewReader("{}"))
-				req.Header.Set("X-Token", other.Token)
-				c := &http.Client{Timeout: 3 * time.Second}
-				if res, err := c.Do(req); err == nil {
-					res.Body.Close()
-				}
-			}
+			handOver(other)
 			return nil
 		}
 		if time.Now().After(deadline) {
@@ -218,14 +220,7 @@ func run() error {
 		time.Sleep(250 * time.Millisecond)
 	}
 	if other := pingExisting(ipcFile); other != nil {
-		if !background {
-			req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/open", other.Port), strings.NewReader("{}"))
-			req.Header.Set("X-Token", other.Token)
-			c := &http.Client{Timeout: 3 * time.Second}
-			if res, err := c.Do(req); err == nil {
-				res.Body.Close()
-			}
-		}
+		handOver(other)
 		return nil
 	}
 
@@ -240,7 +235,6 @@ func run() error {
 	if r, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = r
 	}
-	canAutoStart := true // Windows: the registry; macOS: a LaunchAgent; Linux: an autostart entry
 
 	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
 	if background {
@@ -275,7 +269,9 @@ func run() error {
 	)
 	getUpdate := func() *updater.Info { mu.Lock(); defer mu.Unlock(); return lastUpdate }
 	setUpdate := func(u *updater.Info) { mu.Lock(); lastUpdate = u; mu.Unlock() }
-	hasTray := func() bool { mu.Lock(); defer mu.Unlock(); return tray != nil }
+	getTray := func() *winsys.Tray { mu.Lock(); defer mu.Unlock(); return tray }
+	hasTray := func() bool { return getTray() != nil }
+	var installing atomic.Bool // an update is being downloaded or swapped in
 
 	fullState := func() map[string]any {
 		var upd any
@@ -284,7 +280,7 @@ func run() error {
 		}
 		return map[string]any{
 			"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": st.Values(), "app": st.App(), "status": eng.Status(),
-			"autoStart": canAutoStart && winsys.GetAutoStart(exe), "canAutoStart": canAutoStart, "dataDir": st.Dir, "update": upd,
+			"autoStart": winsys.GetAutoStart(exe), "canAutoStart": true, "dataDir": st.Dir, "update": upd,
 			"changelog": json.RawMessage(assets.Changelog), "stats": eng.Stats(),
 			"tray": hasTray(), // macOS: whether the menu bar icon is there (a build without it runs in the background)
 		}
@@ -307,14 +303,15 @@ func run() error {
 	quit := func() {
 		quitOnce.Do(func() {
 			go func() {
-				srv.Close()                               // ends the page's keep-alive connection, so an open window closes right away
+				srv.Close() // ends the page's keep-alive connection, so an open window closes right away
+				// the port and token are gone with the server: a new copy must not find them while this one winds down
+				_ = os.Remove(ipcFile)
 				winsys.CloseWindowBrowser(browserProfile) // and no browser is left running for it
 				plexAcc.stopWaiting()
 				stremioAcc.stopWaiting()
 				jellyfinAcc.stopWaiting()
 				eng.Stop()
-				tray.Close()
-				_ = os.Remove(ipcFile)
+				getTray().Close()
 				log("INFO", "Quit.")
 				close(quitDone)
 			}()
@@ -337,8 +334,8 @@ func run() error {
 				mu.Lock()
 				first := notified != r.Latest
 				notified = r.Latest
-				t := tray
 				mu.Unlock()
+				t := getTray()
 				if first && t != nil && winsys.IsWindows { // the macOS menu bar icon has no notifications
 					if t.Balloon("MPCvibedRPC "+r.Latest+" is available", "You have "+version+". Click here, then open the Updates tab to install it.") {
 						log("INFO", "Showed an update notice next to the tray icon.")
@@ -355,7 +352,7 @@ func run() error {
 
 	writeIPC := func(port int) {
 		b, _ := json.Marshal(ipcInfo{Port: port, Token: token, Pid: os.Getpid()})
-		_ = os.WriteFile(ipcFile, b, 0o644)
+		_ = os.WriteFile(ipcFile, b, 0o600)
 	}
 
 	openWindow := func() { winsys.OpenWindow(windowURL(srv.Port(), token), browserProfile) }
@@ -388,7 +385,7 @@ func run() error {
 			}
 			eng.ApplySettings(st.Config())
 			after := st.App()
-			if pa, ok := body.M["app"].(*jsonx.Obj); ok && canAutoStart {
+			if pa, ok := body.M["app"].(*jsonx.Obj); ok {
 				if _, has := pa.M["autoStart"]; has {
 					winsys.SetAutoStart(after.AutoStart, exe)
 				}
@@ -400,6 +397,7 @@ func run() error {
 			return fullState(), nil
 		}},
 		"reset": {Fn: func(*jsonx.Obj) (any, error) {
+			plexAcc.stopWaiting() // a sign-in waiting for approval must not save a token after the reset
 			stremioAcc.stopWaiting()
 			stremioAcc.revoke() // the reset forgets the Stremio key: end its session too
 			jellyfinAcc.stopWaiting()
@@ -408,9 +406,7 @@ func run() error {
 				return nil, err
 			}
 			eng.ApplySettings(st.Config())
-			if canAutoStart {
-				winsys.SetAutoStart(st.App().AutoStart, exe)
-			}
+			winsys.SetAutoStart(st.App().AutoStart, exe)
 			setUpdate(nil)
 			log("INFO", "Settings restored to their defaults.")
 			return fullState(), nil
@@ -432,8 +428,7 @@ func run() error {
 				take["vlcPassword"], take["vlcPort"] = r.VlcPassword, r.VlcPort
 			}
 			if len(take) > 0 {
-				b, _ := json.Marshal(map[string]any{"settings": take})
-				if patch, err := jsonx.Parse(string(b)); err == nil && st.Update(patch.(*jsonx.Obj)) == nil {
+				if st.SetSettings(take) == nil {
 					eng.ApplySettings(st.Config())
 					r.SettingsChanged = true
 					if _, ok := take["mpvPipe"]; ok {
@@ -509,6 +504,15 @@ func run() error {
 			return r, nil
 		}},
 		"update-install": {Fn: func(*jsonx.Obj) (any, error) {
+			if !installing.CompareAndSwap(false, true) {
+				return nil, fmt.Errorf("An update is already being installed.")
+			}
+			failed := true
+			defer func() {
+				if failed {
+					installing.Store(false)
+				}
+			}()
 			info := getUpdate()
 			if info == nil {
 				var err error
@@ -533,7 +537,7 @@ func run() error {
 			err = updater.SwapAndRestart(exe, next, nil, func() {
 				time.AfterFunc(400*time.Millisecond, func() {
 					winsys.CloseWindowBrowser(browserProfile)
-					tray.Close()
+					getTray().Close()
 					lg.close()
 					os.Exit(0)
 				})
@@ -546,6 +550,7 @@ func run() error {
 				}
 				return nil, err
 			}
+			failed = false // the new copy takes over: further installs stay refused until this one exits
 			return nil, nil
 		}},
 	}
@@ -573,13 +578,13 @@ func run() error {
 			t := "MPCvibedRPC - "
 			switch {
 			case !s.Running:
-				t += "stopped"
+				t += "Not showing on Discord"
 			case s.NowPlaying != nil:
 				t += *s.NowPlaying
 			case s.Discord == "connected" || s.Discord == "standby":
-				t += "ready"
+				t += "Ready"
 			default:
-				t += "waiting for Discord"
+				t += "Waiting for Discord"
 			}
 			if r := []rune(t); len(r) > 62 {
 				t = string(r[:62])
@@ -604,7 +609,7 @@ func run() error {
 	mu.Unlock()
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
-	if canAutoStart && st.App().AutoStart {
+	if st.App().AutoStart {
 		go winsys.SetAutoStart(true, exe)
 	}
 	if st.App().StartPresence {

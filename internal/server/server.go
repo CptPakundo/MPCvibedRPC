@@ -55,7 +55,7 @@ type Server struct {
 type Validation interface{ IsValidation() bool }
 
 // Cover images for the preview card come straight from the catalogs' image hosts (https only, no referrer).
-const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data: https:"
+const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 func New(o Options) *Server { return &Server{o: o} }
 
@@ -103,7 +103,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, s.o.Icon, "image/x-icon")
 		return
 	case r.Method == "GET" && p == "/":
-		if r.URL.Query().Get("t") != s.o.Token {
+		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("t")), []byte(s.o.Token)) != 1 {
 			send(w, 403, "<h3>Open MPCvibedRPC from its tray icon or by launching the program again.</h3>", "text/html; charset=utf-8")
 			return
 		}

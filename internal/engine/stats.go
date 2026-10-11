@@ -44,13 +44,14 @@ func (e *Engine) saveStats(now time.Time) {
 	if !e.statDirty || e.opts.StatsFile == "" {
 		return
 	}
+	e.statSaved = now // also when the write fails, so a failing disk is tried once a minute, not every tick
 	b, err := json.MarshalIndent(e.stats, "", "  ")
 	if err != nil {
 		return
 	}
 	tmp := e.opts.StatsFile + ".tmp"
-	if os.WriteFile(tmp, b, 0o644) == nil && os.Rename(tmp, e.opts.StatsFile) == nil {
-		e.statDirty, e.statSaved = false, now
+	if os.WriteFile(tmp, b, 0o600) == nil && os.Rename(tmp, e.opts.StatsFile) == nil {
+		e.statDirty = false
 	}
 }
 

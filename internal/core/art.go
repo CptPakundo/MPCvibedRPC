@@ -202,7 +202,8 @@ type artJSON struct {
 	} `json:"episode"`
 }
 
-// UnmarshalJSON reads the JSON shape of the recorded reference data (null/absent numbers become NA).
+// UnmarshalJSON reads the JSON shape of the recorded reference data and of the saved answers in the artwork cache
+// file (the same shape, written by MarshalJSON); null or absent numbers become NA.
 func (a *Art) UnmarshalJSON(b []byte) error {
 	var j artJSON
 	if err := json.Unmarshal(b, &j); err != nil {

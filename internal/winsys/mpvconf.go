@@ -102,7 +102,7 @@ func enableMpvIPC(name string, exeDirs []string) mpvResult {
 	if !IsWindows {
 		value = pipe.Path(name) // a bare name would be a file in whatever folder mpv was started from
 	}
-	if err := os.WriteFile(file, []byte(AddMpvConfLine(string(b), mpvIPCKey, value)), 0o644); err != nil {
+	if err := writeFileAtomic(file, []byte(AddMpvConfLine(string(b), mpvIPCKey, value))); err != nil {
 		return mpvResult{Message: "mpv: could not write " + file + "."}
 	}
 	return mpvResult{Message: "mpv set up (mpv.conf); it takes effect the next time mpv starts.", Using: name, Edited: file, OK: true}

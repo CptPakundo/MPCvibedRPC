@@ -4,8 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
@@ -18,6 +21,7 @@ import (
 //	macOS:   ~/Library/Application Support/MPCvibedRPC
 //	Linux:   $XDG_DATA_HOME/MPCvibedRPC, else ~/.local/share/MPCvibedRPC
 //	config.json  settings    mpcvibedrpc.log  log    artwork-cache.json  cover cache
+//	stats.json   local counts    ipc.json  the running copy's port and token    instance.lock  single instance (macOS, Linux)
 func DataDir() string {
 	if v := os.Getenv("MPCRPC_HOME"); v != "" {
 		return v
@@ -46,7 +50,7 @@ func dataDirNamed(name string) string {
 
 // App holds the settings that belong to the program itself rather than the presence.
 type App struct {
-	AutoStart     bool   `json:"autoStart"`     // run at Windows login (the registry entry is the source of truth; this mirrors it)
+	AutoStart     bool   `json:"autoStart"`     // run at login (the registry value, login item or autostart entry is the source of truth; this mirrors it)
 	StartPresence bool   `json:"startPresence"` // begin sending presence as soon as the app opens
 	CheckUpdates  bool   `json:"checkUpdates"`  // look for a newer release at start, then daily
 	UpdateRepo    string `json:"updateRepo"`    // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
@@ -76,12 +80,12 @@ type Store struct {
 	Dir  string
 	File string
 
-	mu sync.Mutex // one change at a time (the window and a Plex sign-in can save at the same moment)
+	mu sync.Mutex // guards config.json: reads and changes are serialised (the window and a sign-in can save at the same moment)
 }
 
 // New opens (and creates) the data folder.
 func New(dir string) (*Store, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	return &Store{Dir: dir, File: filepath.Join(dir, "config.json")}, nil
@@ -98,6 +102,7 @@ func (s *Store) FirstRun() bool {
 	return err != nil
 }
 
+// read parses config.json. The caller holds s.mu.
 func (s *Store) read() *jsonx.Obj {
 	b, err := os.ReadFile(s.File)
 	if err != nil {
@@ -107,7 +112,7 @@ func (s *Store) read() *jsonx.Obj {
 	v, perr := jsonx.Parse(txt)
 	o, ok := v.(*jsonx.Obj)
 	if perr != nil {
-		_ = os.WriteFile(s.File+".broken", b, 0o644)
+		_ = os.WriteFile(s.brokenName(), b, 0o600)
 		return jsonx.NewObj()
 	}
 	if !ok {
@@ -116,12 +121,38 @@ func (s *Store) read() *jsonx.Obj {
 	return o
 }
 
+// brokenName is where an unreadable config.json is kept: config.json.broken, or a numbered name when one exists.
+func (s *Store) brokenName() string {
+	name := s.File + ".broken"
+	for i := 2; i < 1000; i++ {
+		if _, err := os.Stat(name); err != nil {
+			break
+		}
+		name = s.File + ".broken" + strconv.Itoa(i)
+	}
+	return name
+}
+
+// write saves config.json. The caller holds s.mu.
 func (s *Store) write(o *jsonx.Obj) error {
 	tmp := s.File + ".tmp"
-	if err := os.WriteFile(tmp, []byte(jsonx.Stringify(o, 2)), 0o644); err != nil {
+	if err := os.WriteFile(tmp, []byte(jsonx.Stringify(o, 2)), 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.File) // atomic: a crash never leaves half a file
+	// Atomic: a crash never leaves half a file. On Windows a scanner or a reader can hold the file for a moment
+	// ("access denied"), so the rename is tried a few times.
+	var err error
+	for i := 0; i < 5; i++ {
+		if err = os.Rename(tmp, s.File); err == nil {
+			return nil
+		}
+		if !isWindows {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	_ = os.Remove(tmp)
+	return err
 }
 
 // Reset puts every setting, including the program's own, back to its default.
@@ -133,6 +164,12 @@ func (s *Store) Reset() error {
 
 // SettingsObj is the file without the app block.
 func (s *Store) SettingsObj() *jsonx.Obj {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.settingsObj()
+}
+
+func (s *Store) settingsObj() *jsonx.Obj {
 	o := s.read()
 	out := jsonx.NewObj()
 	for _, k := range o.Keys {
@@ -150,7 +187,9 @@ func (s *Store) Config() core.Config {
 
 // App returns the program's own settings.
 func (s *Store) App() App {
+	s.mu.Lock()
 	o := s.read()
+	s.mu.Unlock()
 	cur, _ := o.M["app"].(*jsonx.Obj)
 	a := App{AutoStart: false, StartPresence: true, CheckUpdates: true, UpdateRepo: DefaultUpdateRepo, OpenWindow: true}
 	if cur != nil {
@@ -181,8 +220,8 @@ func (s *Store) App() App {
 
 // Values are the settings as the window shows them (maps as "name = value" text).
 func (s *Store) Values() map[string]any {
-	cfg := s.Config()
 	raw := s.SettingsObj()
+	cfg := core.LoadConfig([]byte(jsonx.Stringify(raw, 0)))
 	out := map[string]any{}
 	asMap := core.ConfigAsMap(&cfg)
 	for _, f := range AllFields() {
@@ -262,7 +301,24 @@ func (s *Store) Update(patch *jsonx.Obj) error {
 	return s.write(next)
 }
 
-// SetHidden saves settings that are not typed in the window (the Plex sign-in), in the order given; a nil value
+// SetSettings validates and saves a patch of window settings given as plain values (for example
+// {"hideTitle": true}), through the same validation as Update.
+func (s *Store) SetSettings(values map[string]any) error {
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	ps := jsonx.NewObj()
+	for _, k := range keys {
+		ps.Set(k, values[k])
+	}
+	patch := jsonx.NewObj()
+	patch.Set("settings", ps)
+	return s.Update(patch)
+}
+
+// SetHidden saves settings that are not typed in the window (the sign-ins), in the order given; a nil value
 // removes the setting. Only keys of core.Config are taken.
 func (s *Store) SetHidden(keys []string, values map[string]any) error {
 	s.mu.Lock()

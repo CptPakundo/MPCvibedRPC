@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -35,7 +36,6 @@ type Watcher struct {
 
 	mu       sync.Mutex
 	conn     bool   // the event stream is open
-	name     string // the server's name
 	problem  string // why the server cannot be followed (for the window)
 	players  map[string]*playback
 	items    map[string]*Item // metadata by ratingKey
@@ -181,7 +181,7 @@ func (w *Watcher) find(ctx context.Context) (Server, error) {
 		if errors.Is(err, ErrToken) {
 			return Server{}, err
 		}
-		return Server{}, fmt.Errorf("Could not ask plex.tv for your Plex servers (%v).", err)
+		return Server{}, fmt.Errorf("Could not ask plex.tv for your Plex servers (%s).", reason(err))
 	}
 	for _, s := range list {
 		if w.Server == "" || s.ID == w.Server {
@@ -222,7 +222,20 @@ func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, er
 	return "", fmt.Errorf("Could not reach the Plex server%s. Is it running, and can this computer reach it?", quoted(s.Name))
 }
 
-// quoted is " \"name\"" (or nothing): server names can be personal, and the diagnostics leave out what is quoted.
+// reason says briefly why a request failed, without the server's address (which the window and the log must not
+// hold): a failed connection is a *url.Error that carries it.
+func reason(err error) string {
+	var ne net.Error
+	switch {
+	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
+		return "no answer in time"
+	case errors.As(err, &ne):
+		return "no connection"
+	}
+	return err.Error()
+}
+
+// quoted is "\"name\"" (or nothing): server names can be personal, and the diagnostics leave out what is quoted.
 func quoted(name string) string {
 	if name == "" {
 		return ""
@@ -263,7 +276,7 @@ func (w *Watcher) follow(ctx context.Context) error {
 	req.Header.Set("Accept", "text/event-stream")
 	res, err := w.Client.stream().Do(req)
 	if err != nil {
-		return fmt.Errorf("Could not open the Plex server's notifications (%v).", err)
+		return fmt.Errorf("Could not open the Plex server's notifications (%s).", reason(err))
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusUnauthorized {
@@ -275,10 +288,8 @@ func (w *Watcher) follow(ctx context.Context) error {
 
 	w.mu.Lock()
 	first := w.base != base
-	w.conn, w.name, w.owned, w.base, w.srvToken = true, s.Name, s.Owned, base, token
-	if w.players == nil {
-		w.players = map[string]*playback{}
-	}
+	w.conn, w.owned, w.base, w.srvToken = true, s.Owned, base, token
+	w.players = map[string]*playback{} // what played before the connection dropped is not known to be playing now
 	if w.items == nil {
 		w.items = map[string]*Item{}
 	}
@@ -327,6 +338,9 @@ func (w *Watcher) follow(ctx context.Context) error {
 		case strings.HasPrefix(line, "event:"):
 			event = strings.TrimSpace(line[6:])
 		case strings.HasPrefix(line, "data:"):
+			if data != "" {
+				data += "\n" // several data lines make one message
+			}
 			data += strings.TrimPrefix(line[5:], " ")
 		}
 	}
@@ -379,9 +393,9 @@ func (w *Watcher) take(ctx context.Context, n notification) {
 		w.players[id] = p
 	}
 	p.state, p.offset, p.at = n.State, n.ViewOffset, w.clock()
-	item, owned, needItem, needOwner := w.items[rk], w.owned, false, false
-	needItem = item == nil
-	needOwner = owned && p.mine == 0
+	item := w.items[rk]
+	needItem := item == nil
+	needOwner := w.owned && p.mine == 0
 	w.mu.Unlock()
 
 	if needItem {

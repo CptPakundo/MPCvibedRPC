@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"reflect"
@@ -35,16 +36,16 @@ type Options struct {
 	Log          func(level, msg string)
 	CacheFile    string
 	DiscordPaths []string     // nil = the usual IPC locations
-	HTTPClient   *http.Client // used for MPC-HC, VLC and artwork lookups
+	HTTPClient   *http.Client // used for MPC-HC, VLC, Plex, Stremio, Jellyfin and artwork lookups
 	// PauseUnit is how long one "minute" of Config.PauseClearMinutes lasts (zero = a real minute; tests shorten it).
 	PauseUnit time.Duration
-	// DiscordAttempt, when set, replaces the Discord login (tests).
+	// NewDiscord, when set, replaces the Discord login (tests).
 	NewDiscord func() *discord.Client
 	// Pipes, when not nil, replaces the IPC endpoints asked after the web interface (tests); see PlayerPipes.
 	Pipes func(cfg core.Config) []PlayerPipe
 	// MPRIS, when not nil, replaces the MPRIS players asked on Linux (tests); see QueryMPRIS.
 	MPRIS func(timeout time.Duration) []*core.Info
-	// Version is the program's version (Plex is told it).
+	// Version is the program's version (Plex and Jellyfin are told it).
 	Version string
 	// PlexTV, when set, replaces plex.tv and clients.plex.tv (tests).
 	PlexTV string
@@ -255,7 +256,8 @@ func (e *Engine) fetchVLC(ctx context.Context, cfg core.Config) *core.Info {
 	return in
 }
 
-// fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then the mpv-style connections, then VLC.
+// fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then MPC-QT's pipe, mpv, IINA, VLC,
+// the MPRIS players, Plex, Stremio and last Jellyfin/Emby.
 func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 	pipes := PlayerPipes
 	if e.opts.Pipes != nil {
@@ -467,8 +469,9 @@ func (e *Engine) connectDiscord(r *run) {
 	}()
 }
 
-// sendActivity shows a on Discord and returns what was sent. A Discord that refuses the clickable title and cover
-// gets them without links from then on; one that refuses the Watching activity gets the basic one.
+// sendActivity shows a on Discord and returns what was sent. Only a refusal by Discord changes the mode: one that
+// refuses the clickable title and cover gets them without links from then on; one that refuses the Watching
+// activity gets the basic one. Any other error (a timeout, a closed connection) changes nothing; the next tick retries.
 func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity) (*core.Activity, error) {
 	e.mu.Lock()
 	basic, noLinks := e.basicMode, e.noLinks
@@ -482,14 +485,22 @@ func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Act
 			return a, nil
 		}
 		var refused *discord.Error
-		if core.HasLinks(a) && errors.As(err, &refused) {
+		if !errors.As(err, &refused) {
+			return a, err
+		}
+		if core.HasLinks(a) {
 			e.log("WARN", fmt.Sprintf("Discord rejected the clickable title and cover (%s). Sending them without links.", err.Error()))
-			e.mu.Lock()
-			e.noLinks = true
-			e.mu.Unlock()
-			a = core.WithoutLinks(a)
-			if err = rpc.SetActivity(a); err == nil {
-				return a, nil
+			plain := core.WithoutLinks(a)
+			err = rpc.SetActivity(plain)
+			if err == nil {
+				e.mu.Lock()
+				e.noLinks = true
+				e.mu.Unlock()
+				return plain, nil
+			}
+			a = plain
+			if !errors.As(err, &refused) {
+				return a, err
 			}
 		}
 		e.log("WARN", fmt.Sprintf("Discord rejected the Watching activity (%s). Falling back to basic mode.", err.Error()))
@@ -519,7 +530,7 @@ func (e *Engine) discordRunning() bool {
 }
 
 // rest reports whether this check rests: Discord is not running and the engine may rest (Options.MayRest). It
-// starts and ends the resting state; the Plex and Stremio watchers run only while it does not rest.
+// starts and ends the resting state; the Plex, Stremio and Jellyfin/Emby watchers run only while it does not rest.
 func (e *Engine) rest(r *run) bool {
 	want := e.opts.MayRest != nil && e.opts.MayRest() && !e.discordRunning()
 	e.mu.Lock()
@@ -736,7 +747,7 @@ func (e *Engine) tick(r *run) {
 	} else {
 		media := core.ParseMedia(info.File, &cfg, info.Dir)
 		if info.Duration > 0 {
-			media.DurationMin = int(jsRound(float64(info.Duration) / 60000))
+			media.DurationMin = int(math.Floor(float64(info.Duration)/60000 + 0.5))
 		}
 		if cfg.FolderEpisodeNumbers && media.Code != "" && info.FullDir != "" {
 			if ents, err := os.ReadDir(info.FullDir); err == nil {
@@ -806,17 +817,6 @@ func (e *Engine) tick(r *run) {
 		tag = " [artwork]"
 	}
 	e.log("INFO", fmt.Sprintf("%s: %s%s", word, display, tag))
-}
-
-func jsRound(x float64) float64 {
-	f := float64(int64(x))
-	if x < 0 && f != x {
-		f--
-	}
-	if x-f >= 0.5 {
-		return f + 1
-	}
-	return f
 }
 
 func (e *Engine) loop(r *run, interval time.Duration) {
@@ -945,6 +945,9 @@ func (e *Engine) stop() {
 	e.plex, e.stremio, e.jellyfin, e.remote, e.resting = nil, nil, nil, nil, false // their runs ended with the run's context
 	e.saveStats(time.Now())
 	e.statTick = time.Time{}
+	if e.art != nil {
+		e.art.Close() // lookups still under way finish quietly: no title in the log, no refresh (hideTitle may be on now)
+	}
 	e.mu.Unlock()
 	e.log("INFO", "Presence stopped.")
 }

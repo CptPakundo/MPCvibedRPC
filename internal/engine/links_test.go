@@ -78,6 +78,26 @@ func TestNoLinksWithTheButtonSwitchOff(t *testing.T) {
 	}
 }
 
+// A Discord that drops the connection is not a refusal: the engine keeps the Watching activity and sends it again.
+func TestDroppedConnectionKeepsWatchingMode(t *testing.T) {
+	e, d, l := linkSetup(t, nil)
+	d.mu.Lock()
+	d.dropNext = true
+	d.mu.Unlock()
+	e.Start()
+	eventually(t, "sent again after the drop", func() bool { return len(d.list()) >= 2 })
+	a := lastActivity(d)
+	if a["type"] != float64(3) || l.has("Falling back to basic mode") || l.has("Sending them without links") {
+		t.Fatalf("a dropped connection must not change the mode: %v", a)
+	}
+	e.mu.Lock()
+	basic, noLinks := e.basicMode, e.noLinks
+	e.mu.Unlock()
+	if basic || noLinks {
+		t.Fatalf("basicMode=%v noLinks=%v", basic, noLinks)
+	}
+}
+
 // A Discord that refuses the link fields gets the same Watching activity without them, not the basic one.
 func TestRefusedLinksAreLeftOut(t *testing.T) {
 	e, d, l := linkSetup(t, nil)

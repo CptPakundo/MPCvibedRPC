@@ -63,15 +63,13 @@ func (p params) String() string {
 	return strings.Join(parts, "&")
 }
 
-// jsonString is JSON.stringify for plain values (no HTML escaping; U+2028/2029 stay literal).
+// jsonString is JSON.stringify for plain values (no HTML escaping; Go writes U+2028/2029 as \u escapes, which is valid JSON).
 func jsonString(v any) string {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(v)
-	s := strings.TrimSuffix(buf.String(), "\n")
-	s = strings.ReplaceAll(s, ` `, " ")
-	return strings.ReplaceAll(s, ` `, " ")
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }

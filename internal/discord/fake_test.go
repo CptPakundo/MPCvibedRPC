@@ -20,10 +20,12 @@ type fakeDiscord struct {
 	mu   sync.Mutex
 	got  []map[string]any
 	// behaviour
-	rejectType bool // answer ERROR to activities with type != 0
-	silent     bool // never send READY
-	pingFirst  bool
-	conns      []net.Conn
+	rejectType     bool // answer ERROR to activities with type != 0
+	silent         bool // never send READY
+	pingFirst      bool
+	closeHandshake bool // answer the handshake with a close frame (Discord refuses the client id)
+	closeFrame     bool // answer a command with a close frame
+	conns          []net.Conn
 }
 
 func newFake(t *testing.T) *fakeDiscord {
@@ -91,11 +93,19 @@ func (f *fakeDiscord) serve(c net.Conn) {
 			if f.silent {
 				continue
 			}
+			if f.closeHandshake {
+				send(c, opClose, map[string]any{"code": 4000, "message": "Invalid Client ID"})
+				continue
+			}
 			if f.pingFirst {
 				send(c, opPing, map[string]any{"n": 1})
 			}
 			send(c, opFrame, map[string]any{"cmd": "DISPATCH", "evt": "READY", "data": map[string]any{"v": 1}})
 		case opFrame:
+			if f.closeFrame {
+				send(c, opClose, map[string]any{"code": 4002, "message": "Rate limited"})
+				continue
+			}
 			args, _ := m["args"].(map[string]any)
 			act, _ := args["activity"].(map[string]any)
 			if f.rejectType && act != nil && act["type"] != nil {
@@ -210,6 +220,29 @@ func TestServerCloseFailsPending(t *testing.T) {
 	}
 	if err := c.SetActivity(nil); err == nil {
 		t.Fatal("expected an error after close")
+	}
+}
+
+// The reason in a close frame is handed on: to a login that is refused, and to the call that was waiting.
+func TestCloseFrameSaysWhy(t *testing.T) {
+	f := newFake(t)
+	f.closeHandshake = true
+	c := New([]string{f.path})
+	err := c.Login("1", time.Second)
+	if err == nil || err.Error() != "Discord closed the connection: Invalid Client ID (4000)" {
+		t.Fatalf("login: %v", err)
+	}
+	f.closeHandshake, f.closeFrame = false, true
+	c = New([]string{f.path})
+	if err := c.Login("1", time.Second); err != nil {
+		t.Fatal(err)
+	}
+	err = c.SetActivity(map[string]any{"details": "x"})
+	if err == nil || err.Error() != "Discord closed the connection: Rate limited (4002)" {
+		t.Fatalf("request: %v", err)
+	}
+	if err := c.SetActivity(nil); err == nil || err.Error() != "Discord closed the connection: Rate limited (4002)" {
+		t.Fatalf("next request: %v", err)
 	}
 }
 

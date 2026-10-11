@@ -262,7 +262,7 @@ func TestPrivacySectionLayout(t *testing.T) {
 	for _, s := range Sections {
 		ids = append(ids, s.ID)
 	}
-	want := []string{"look", "titles", "privacy", "advanced"}
+	want := []string{"accounts", "look", "titles", "privacy", "advanced"}
 	if !reflect.DeepEqual(ids, want) {
 		t.Errorf("sections = %v, want %v", ids, want)
 	}

@@ -24,6 +24,7 @@ type fakeStremio struct {
 	asked    []string // the paths asked, in order
 	bodies   []map[string]any
 	loggedIn bool
+	failGet  bool // datastoreGet answers with an HTTP error
 }
 
 func newFake(t *testing.T) (*fakeStremio, *Client) {
@@ -88,6 +89,10 @@ func (f *fakeStremio) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		answer(out)
 	case "/api/datastoreGet":
+		if f.failGet {
+			http.Error(w, "down", 500)
+			return
+		}
 		out := []any{}
 		ids, _ := body["ids"].([]any)
 		for _, id := range ids {
@@ -265,6 +270,29 @@ func TestWatcherStartAndEnd(t *testing.T) {
 	w.mustPoll(t)
 	if _, st, _ := state(w); st != -1 {
 		t.Fatalf("an 'other' entry shows (state %d)", st)
+	}
+}
+
+// A failed fetch of the changed entries must not lose the change: the next poll finds it again.
+func TestWatcherFailedFetchIsRetried(t *testing.T) {
+	f, w, clk := watcher(t)
+	ms := func() int64 { return clk.t.UnixMilli() }
+	f.put("tt0000002", "Sample Show", "series", "tt0000002:1:2", 600_000, 1_500_000, ms()-30_000)
+	f.mu.Lock()
+	f.failGet = true
+	f.mu.Unlock()
+	if err := w.poll(context.Background()); err == nil {
+		t.Fatal("the failed fetch was not reported")
+	}
+	if w.Now() != nil {
+		t.Fatal("a failed fetch reports a state")
+	}
+	f.mu.Lock()
+	f.failGet = false
+	f.mu.Unlock()
+	w.mustPoll(t)
+	if file, st, _ := state(w); file != "Sample Show - S01E02" || st != 2 {
+		t.Fatalf("the change was lost: %s %d", file, st)
 	}
 }
 

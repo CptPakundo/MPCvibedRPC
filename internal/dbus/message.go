@@ -581,6 +581,9 @@ func (d *decoder) value(t string) (any, error) {
 					m[fmt.Sprint(pair[0])] = pair[1]
 				}
 			}
+			if d.off != end {
+				return nil, errShort // the last element ran past the array
+			}
 			return m, nil
 		}
 		out := []any{}
@@ -590,6 +593,9 @@ func (d *decoder) value(t string) (any, error) {
 				return nil, err
 			}
 			out = append(out, v)
+		}
+		if d.off != end {
+			return nil, errShort
 		}
 		return out, nil
 	}
