@@ -10,11 +10,11 @@ shown here.
 
 | Setting | Default | What it does |
 |---|---|---|
-| `clientId` | `427863248734388224` | Discord application ID (the one used by the original MPC-DiscordRPC project). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
+| `clientId` | `427863248734388224` | Discord application ID (it holds the `mpc-hc` images below). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
 | `port` | `13579` | Web interface port of MPC-HC, MPC-BE and MPC-QT (MPC-QT also works without its web interface). |
 | `mpvPipe` | `'mpvsocket'` | The `input-ipc-server` name mpv listens on (set in `mpv.conf`; a name such as `mpvsocket` is the pipe `\\.\pipe\mpvsocket`, on macOS and Linux a socket of that name in the temporary folder; a full path or `~/...` is used as it is). Empty: don't look for mpv. See [Players in detail](how-it-works.md#players-in-detail). |
 | `iinaPipe` | `'iina-mpvsocket'` | macOS only: the `input-ipc-server` socket in IINA's mpv options (IINA Settings > Advanced), named like `mpvPipe`. **Set up the player connection** adds it to IINA. Empty: don't look for IINA. |
-| `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after every other player. |
+| `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after the other players on this computer, before Plex, Stremio and Jellyfin / Emby. |
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
@@ -31,7 +31,7 @@ shown here.
 | `activityType` | `'watching'` | `'watching'` is "Watching ..." with a real progress bar (elapsed and total time). `'playing'` is the classic "Playing ..." with an elapsed-time counter. |
 | `titleAsName` | `true` | Shows "Watching <title>" instead of "Watching Media Player Classic". |
 | `textProgressBar` | `true` | Shows a text bar (`▰▰▰▱▱▱ 12:34 / 45:00`) while paused, because Discord can't freeze its own bar. |
-| `progressWidth` | `12` | Width of that text bar. |
+| `progressWidth` | `12` | Width of that text bar (0 to 40). |
 | `showRemainingTime` | `false` | Only used when `activityType` is `'playing'`. |
 | `episodeInDetails` | `false` | `true` repeats the season and episode number in the title line too (Discord already shows a badge when the card is expanded). |
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
@@ -44,7 +44,8 @@ These are all on the **Privacy** tab of the settings window.
 | Setting | Default | What it does |
 |---|---|---|
 | `hideTitle` | `false` | Show only "Watching a video" with the progress bar: no title, cover, episode or buttons, and nothing is looked up online. The log does not record the title either. Also a tick item, **Hide what I'm watching**, in the Windows tray menu and the macOS menu bar menu (not on Linux, which has no tray). |
-| `hideFiles` | `[]` | Files that are never shown. Each entry is matched without regard to case; `/` and `\` are alike. A plain entry hides a file whose whole path (folders and name) contains it, for example `Private` or `D:\Videos\Private`. An entry with `*` (any run of characters) or `?` (one character) must match the whole file name or the whole path, for example `*.xyz`. A hidden file shows no status at all and is not looked up. At most 100 entries of 300 characters. |
+| `hideFiles` | `[]` | Files that are never shown. Each entry is matched without regard to case; `/` and `\` are alike. A plain entry hides a file whose whole path (folders and name) contains it, for example `Private` or `D:\Videos\Private`. An entry with `*` (any run of characters) or `?` (one character) must match the whole file name or the whole path, for example `*.xyz`. A hidden file shows no status at all and is not looked up. At most 100 entries of 300 characters. Plex, Stremio, Jellyfin and Emby have no file paths: there an entry is matched against the title as "Show - S01E02 - Episode" or "Movie (2020)". |
+| `showMusic` | `false` | `false`: a song played in a video player (a file ending in `.mp3`, `.flac`, `.ogg`, `.opus`, `.m4a`, `.wav`, `.mka` and the like) shows no status and is not looked up, and a video in another player still shows. `true` shows it like a video. Plex and Jellyfin / Emby music is never shown. |
 | `showArtwork` | `true` | Look up cover art and titles online. `false` stays completely offline (it also turns off episode-title lookups). |
 | `disabledSources` | `[]` | Online services that must never be contacted, whatever the source lists below say. Ids: `tmdb`, `imdb`, `cinemeta`, `tvmaze`, `anilist`, `kitsu`, `jikan` (MyAnimeList), `wikipedia`, `bulbapedia`. The window shows a switch for each; the stored list holds the ones that are off. |
 | `pauseClearMinutes` | `30` | Take the status down after the video has been paused this many minutes (0 = never). It comes back when you play again, seek, or turn this off. |
@@ -59,7 +60,6 @@ only applies the switches below.
 |---|---|---|
 | `smartFormat` | `true` | Smart mode on or off. |
 | `ignoreBrackets` | `true` | Hide `[Group]` style tags. |
-| `ignoreFiletype` | `true` | Hide `.mkv` / `.mp4`. |
 | `replaceUnderscore` | `true` | Basic mode only (smart mode always does this). |
 | `replaceDots` | `true` | Basic mode only (smart mode always does this). |
 
@@ -96,6 +96,7 @@ Sources:
 | `anilist` | Anime (knows romaji, English and Japanese titles); asked first for fansub-style names. |
 | `kitsu`, `jikan` | More anime databases (Kitsu; MyAnimeList via Jikan), used if AniList is down or misses. |
 | `wikipedia` | Last resort: the article's lead image (Hebrew titles use he.wikipedia.org). |
+| `bulbapedia` | Episode titles only, from its episode lists, for files named with a production code. |
 
 If a title still has no cover, the log says what each source returned. Then either add an alias or pin an image.
 
@@ -106,8 +107,8 @@ These are uploaded to the Discord application whose `clientId` you use.
 | Setting | Default | What it does |
 |---|---|---|
 | `largeImageKey` | `'mpc-hc'` | Shown when no cover is found. |
-| `smallImageKey` | `'mpc-hc'` | Small corner icon when a cover is shown. |
-| `appName` | `'Media Player Classic'` | Name used when `titleAsName` is off. |
+| `smallImageKey` | `'mpc-hc'` | Small corner icon when a cover is shown. While it is the default, it is left out for players other than MPC-HC, MPC-BE and MPC-QT (it is Media Player Classic's logo). |
+| `appName` | `'Media Player Classic'` | Name used when `titleAsName` is off, and the text of the images. While it is the default, other players are named as themselves (mpv, VLC media player, Plex, ...). |
 
 ## Program settings
 
@@ -120,5 +121,23 @@ These belong to the program itself and live under `app` in `config.json`. They a
 | `startPresence` | `true` | Begin sending presence as soon as the app opens (the General switch **Show on Discord when the app opens**). |
 | `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
 | `checkUpdates` | `true` | Look for a newer release a few seconds after the program starts, then once a day. |
-| `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. |
-| `seenVersion` | (none) | The version whose changes the window last showed. Written by the window; a different version (an update, a new install) shows its changes once. Not in the settings window. |
+| `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. A release is only installed by the program when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
+| `seenVersion` | (none) | The version whose changes the window last showed. Written by the window; a different version (an update, a new install) shows its changes once. **Restore defaults** keeps it. Not in the settings window. |
+| `welcomeSeen` | `false` | Whether the first-run welcome card was closed. Written by the window; **Restore defaults** shows the card again. Not in the settings window. |
+
+## For testing
+
+These point the online lookups somewhere else (a test server or a mirror). They are not in the settings window, and
+a service switched off on the Privacy tab stays off whatever address it has here.
+
+| Setting | Default |
+|---|---|
+| `cinemetaBase` | `https://v3-cinemeta.strem.io` |
+| `imdbSuggestBase` | `https://v3.sg.media-imdb.com` |
+| `tvmazeBase` | `https://api.tvmaze.com` |
+| `anilistUrl` | `https://graphql.anilist.co` |
+| `kitsuBase` | `https://kitsu.io/api/edge` |
+| `jikanBase` | `https://api.jikan.moe/v4` |
+| `wikipediaBase` | `https://{lang}.wikipedia.org` |
+| `bulbapediaBase` | `https://bulbapedia.bulbagarden.net` |
+| `requestGapMs` | `{"graphql.anilist.co": 250, "api.jikan.moe": 400}` (the least time between two requests to a host, in milliseconds) |
