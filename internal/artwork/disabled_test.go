@@ -90,6 +90,7 @@ func (h *hostRecorder) total() int {
 func lookupAll(t *testing.T, cfg core.Config) *hostRecorder {
 	t.Helper()
 	rec := &hostRecorder{}
+	cfg.RequestGapMs = map[string]int{} // the recorder answers at once: the politeness gaps would only slow the test down
 	aw := New(&cfg, Options{Client: &http.Client{Transport: rec}})
 	for _, file := range []string{"Some.Show.S01E02.720p.mkv", "[Group] Some Anime - 05 [1080p].mkv", "Some.Movie.2001.1080p.mkv"} {
 		aw.Lookup(core.ParseMedia(file, &cfg, nil))

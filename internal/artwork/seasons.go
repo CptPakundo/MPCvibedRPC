@@ -102,8 +102,6 @@ func parseSeasonMark(rem []string) SeasonMark {
 
 type initials struct{ initials, joined, all string }
 
-
-
 func initialsOf(rem []string) initials {
 	var ws, all []string
 	for _, w := range rem {

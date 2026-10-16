@@ -179,7 +179,7 @@ func numOrNA2(v any) int {
 	return core.NA
 }
 
-// normalise drops the "empty" values JavaScript would have left undefined.
+// normalise drops the "empty" values the recorded data leaves undefined.
 func normalise(v any) any {
 	switch x := v.(type) {
 	case map[string]any:
@@ -246,7 +246,7 @@ func TestReplayLookups(t *testing.T) {
 		var logMu sync.Mutex // the finder logs from background goroutines
 		aw := New(&cfg, Options{Client: &http.Client{Transport: rt}, Log: func(l, m string) { logMu.Lock(); logs = append(logs, l+": "+m); logMu.Unlock() }})
 		for li, lk := range inst.Lookups {
-			// The JS test suite only started the next lookup after the previous one had settled.
+			// The next lookup starts only after the previous one has settled, as in the recorded run.
 			for i := 0; i < 300; i++ {
 				aw.mu.Lock()
 				n := len(aw.inflight)

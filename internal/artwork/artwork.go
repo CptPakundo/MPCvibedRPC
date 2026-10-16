@@ -801,7 +801,7 @@ var (
 )
 
 func minutesOf(v any) int {
-	s := str(v) // a falsy value (nil, false, 0, NaN) prints as text without "<n>h" or "<n>m", so it gives 0 as before
+	s := str(v) // a falsy value (nil, false, 0, NaN) prints as text without "<n>h" or "<n>m", so it gives 0
 	h, m := reHours.Exec(s), reMins.Exec(s)
 	if h == nil && m == nil {
 		return 0
