@@ -9,33 +9,6 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
-type fuzzCand struct {
-	Titles   []*string `json:"titles"`
-	Year     float64   `json:"year"`
-	Poster   string    `json:"poster"`
-	ViaAlias bool      `json:"viaAlias"`
-	Runtime  float64   `json:"runtime"`
-	Eps      float64   `json:"eps"`
-}
-
-func (f fuzzCand) cand() *Cand {
-	var t []string
-	for _, x := range f.Titles {
-		if x != nil && *x != "" {
-			t = append(t, *x)
-		}
-	}
-	return &Cand{Titles: t, Year: int(f.Year), Poster: f.Poster, ViaAlias: f.ViaAlias, Runtime: int(f.Runtime), Eps: int(f.Eps)}
-}
-
-func candsOf(fs []fuzzCand) []*Cand {
-	out := make([]*Cand, len(fs))
-	for i, f := range fs {
-		out[i] = f.cand()
-	}
-	return out
-}
-
 func TestFuzzAgainstJS(t *testing.T) {
 	f, err := os.Open("testdata/fuzz.json.gz")
 	if err != nil {
@@ -45,23 +18,19 @@ func TestFuzzAgainstJS(t *testing.T) {
 	z, _ := gzip.NewReader(f)
 	var d struct {
 		Pick []struct {
-			Cands  []fuzzCand `json:"cands"`
-			Q      string     `json:"q"`
-			Year   *float64   `json:"year"`
-			Strict bool       `json:"strict"`
-			O      struct {
-				Earliest, ExactOnly, TrustAlias, Ranked bool
-				Runtime                                 float64
-				Contain                                 []string
-			} `json:"o"`
-			Res *struct {
+			Cands  []recCand `json:"cands"`
+			Q      string    `json:"q"`
+			Year   *float64  `json:"year"`
+			Strict bool      `json:"strict"`
+			O      recOpts   `json:"o"`
+			Res    *struct {
 				Poster  string `json:"poster"`
 				ViaRank bool   `json:"viaRank"`
 			} `json:"res"`
 		} `json:"pick"`
 		Season []struct {
-			Cands []fuzzCand `json:"cands"`
-			Base  string     `json:"base"`
+			Cands []recCand `json:"cands"`
+			Base  string    `json:"base"`
 			Spec  struct {
 				Season     *float64 `json:"season"`
 				CodePrefix *string  `json:"codePrefix"`
@@ -72,10 +41,10 @@ func TestFuzzAgainstJS(t *testing.T) {
 			} `json:"res"`
 		} `json:"season"`
 		Chain []struct {
-			Cands  []fuzzCand `json:"cands"`
-			Base   string     `json:"base"`
-			Prefix string     `json:"prefix"`
-			N      *float64   `json:"n"`
+			Cands  []recCand `json:"cands"`
+			Base   string    `json:"base"`
+			Prefix string    `json:"prefix"`
+			N      *float64  `json:"n"`
 			Res    *struct {
 				Poster     string `json:"poster"`
 				Shift      int    `json:"shift"`
@@ -125,7 +94,7 @@ func TestFuzzAgainstJS(t *testing.T) {
 		if c.Year != nil {
 			y = int(*c.Year)
 		}
-		got := pickMatch(candsOf(c.Cands), c.Q, y, c.Strict, PickOpts{Earliest: c.O.Earliest, ExactOnly: c.O.ExactOnly, TrustAlias: c.O.TrustAlias, Ranked: c.O.Ranked, Runtime: int(c.O.Runtime), Contain: c.O.Contain})
+		got := pickMatch(candsOf(c.Cands), c.Q, y, c.Strict, c.O.opts())
 		switch {
 		case c.Res == nil && got != nil:
 			fail("pick #%d %q year=%d strict=%v opts=%+v: got %s want null", i, c.Q, y, c.Strict, c.O, got.Poster)

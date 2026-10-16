@@ -8,29 +8,48 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
-type jsCand struct {
-	Name     string   `json:"name"`
-	Titles   []string `json:"titles"`
-	Year     float64  `json:"year"`
-	Poster   string   `json:"poster"`
-	ViaAlias bool     `json:"viaAlias"`
-	Runtime  float64  `json:"runtime"`
-	Eps      float64  `json:"eps"`
-	URL      string   `json:"url"`
+// recCand is a candidate as the recorded data writes it.
+type recCand struct {
+	Name     string    `json:"name"`
+	Titles   []*string `json:"titles"`
+	Year     float64   `json:"year"`
+	Poster   string    `json:"poster"`
+	ViaAlias bool      `json:"viaAlias"`
+	Runtime  float64   `json:"runtime"`
+	Eps      float64   `json:"eps"`
+	URL      string    `json:"url"`
 }
 
-func (j jsCand) cand() *Cand {
-	t := j.Titles
-	if t == nil && j.Name != "" {
-		t = []string{j.Name}
-	}
+func (j recCand) cand() *Cand {
 	var tt []string
-	for _, x := range t {
-		if x != "" {
-			tt = append(tt, x)
+	if j.Titles == nil && j.Name != "" {
+		tt = []string{j.Name}
+	}
+	for _, x := range j.Titles {
+		if x != nil && *x != "" {
+			tt = append(tt, *x)
 		}
 	}
 	return &Cand{Titles: tt, Year: int(j.Year), Poster: j.Poster, ViaAlias: j.ViaAlias, Runtime: int(j.Runtime), Eps: int(j.Eps), URL: j.URL}
+}
+
+func candsOf(fs []recCand) []*Cand {
+	out := make([]*Cand, len(fs))
+	for i, f := range fs {
+		out[i] = f.cand()
+	}
+	return out
+}
+
+// recOpts are the matching options as the recorded data writes them.
+type recOpts struct {
+	Earliest, ExactOnly, TrustAlias, Ranked bool
+	Runtime                                 float64
+	Contain                                 []string
+}
+
+func (o recOpts) opts() PickOpts {
+	return PickOpts{Earliest: o.Earliest, ExactOnly: o.ExactOnly, TrustAlias: o.TrustAlias, Ranked: o.Ranked, Runtime: int(o.Runtime), Contain: o.Contain}
 }
 
 func decodeArgs(t *testing.T, args []json.RawMessage, into ...any) {
@@ -65,26 +84,19 @@ func TestPureFunctionsAgainstJS(t *testing.T) {
 				t.Errorf("usable(%q)=%v want %v", s, got, want)
 			}
 		case "pickMatch":
-			var cs []jsCand
+			var cs []recCand
 			var title string
 			var year *float64
 			var strict bool
-			var o struct {
-				Earliest, ExactOnly, TrustAlias, Ranked bool
-				Runtime                                 float64
-				Contain                                 []string
-			}
+			var o recOpts
 			decodeArgs(t, c.Args, &cs, &title, &year, &strict, &o)
-			var cands []*Cand
-			for _, j := range cs {
-				cands = append(cands, j.cand())
-			}
+			cands := candsOf(cs)
 			y := 0
 			if year != nil {
 				y = int(*year)
 			}
-			got := pickMatch(cands, title, y, strict, PickOpts{Earliest: o.Earliest, ExactOnly: o.ExactOnly, TrustAlias: o.TrustAlias, Ranked: o.Ranked, Runtime: int(o.Runtime), Contain: o.Contain})
-			var want *jsCand
+			got := pickMatch(cands, title, y, strict, o.opts())
+			var want *recCand
 			json.Unmarshal(c.Result, &want)
 			switch {
 			case want == nil && got != nil:

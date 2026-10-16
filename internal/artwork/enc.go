@@ -71,4 +71,3 @@ func jsonString(v any) string {
 	_ = enc.Encode(v)
 	return strings.TrimSuffix(buf.String(), "\n")
 }
-

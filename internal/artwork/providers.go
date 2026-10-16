@@ -66,12 +66,7 @@ type Provider struct {
 }
 
 func (p *Provider) handles(t string) bool {
-	for _, x := range p.Types {
-		if x == t {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Types, t)
 }
 
 const tmdbBase = "https://api.themoviedb.org/3"
@@ -494,7 +489,6 @@ func num0(v any) float64 {
 	}
 	return 0
 }
-
 
 func firstTruthy(vs ...any) any {
 	for _, v := range vs {

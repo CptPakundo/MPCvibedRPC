@@ -36,7 +36,6 @@ type picked struct {
 	absolute bool
 }
 
-
 func epSeasonIs(x EpItem, s int) bool { return x.Season == float64(s) }
 
 // pickEpisode selects the episode `media` names from a list of regular episodes.
@@ -539,7 +538,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 					for _, x := range asArr(get(m, "titles")) {
 						titles = append(titles, nonEmptyTitles(get(x, "title"))...)
 					}
-					cands = append(cands, &Cand{Titles: titles, Year: jikanYear(m),ID: str(get(m, "mal_id"))})
+					cands = append(cands, &Cand{Titles: titles, Year: jikanYear(m), ID: str(get(m, "mal_id"))})
 				}
 				if c := pickMatch(cands, ctx.query, year, false, PickOpts{ExactOnly: true}); c != nil {
 					id = c.ID

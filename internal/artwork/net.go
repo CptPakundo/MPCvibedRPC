@@ -30,7 +30,7 @@ const (
 	cacheMax   = 400
 )
 
-// FetchError describes a failed request the way the JavaScript errors did.
+// FetchError describes a failed request; Name is one of the error names in the recorded data.
 type FetchError struct {
 	Name       string // "TimeoutError", "TypeError", "AbortError", "Error"
 	Msg        string

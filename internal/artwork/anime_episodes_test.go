@@ -180,7 +180,7 @@ func TestAnimeEpisodeTitleFromTheRightTVmazeShow(t *testing.T) {
 }
 
 // Counting through Cinemeta's seasons is not trusted for anime (a special filed among the episodes shifts the count
-// by one); for other shows it is used as before.
+// by one); for other shows it is used.
 func TestCinemetaRunningNumbersNotUsedForAnime(t *testing.T) {
 	r, fake := animeResolver(t, []string{"cinemeta"}, true)
 	if ep := r.Find(sagaEpisode(120), sagaHit(), "Sample Saga", func(string, string) {}); ep != nil {
