@@ -25,10 +25,10 @@ func SetIniValue(text, section, key, value string) string {
 	if len(text) > 0 {
 		lines = reEOL.Split(text, -1)
 	}
-	head := core.LowerJS("[" + section + "]")
+	head := core.Lower("[" + section + "]")
 	s := -1
 	for i, l := range lines {
-		if core.LowerJS(core.Trim(l)) == head {
+		if core.Lower(core.Trim(l)) == head {
 			s = i
 			break
 		}
@@ -63,18 +63,18 @@ func SetIniValue(text, section, key, value string) string {
 
 // GetIniValue reads key inside [section] of INI text (both matched without regard to case).
 func GetIniValue(text, section, key string) (string, bool) {
-	head := core.LowerJS("[" + section + "]")
+	head := core.Lower("[" + section + "]")
 	in := false
 	for _, l := range reEOL.Split(strings.TrimPrefix(text, "\ufeff"), -1) {
 		t := core.Trim(l)
 		if reSection.MatchString(l) {
-			in = core.LowerJS(t) == head
+			in = core.Lower(t) == head
 			continue
 		}
 		if !in {
 			continue
 		}
-		if k, v, ok := strings.Cut(t, "="); ok && core.LowerJS(core.Trim(k)) == core.LowerJS(key) {
+		if k, v, ok := strings.Cut(t, "="); ok && core.Lower(core.Trim(k)) == core.Lower(key) {
 			return core.Trim(v), true
 		}
 	}

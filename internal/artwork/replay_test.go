@@ -111,7 +111,7 @@ func (rt *replayTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if len(q) == 0 {
 		rt.missing = append(rt.missing, k)
 		rt.mu.Unlock()
-		return nil, &MockError{Name: "TypeError", Msg: "fetch failed"}
+		return nil, &FetchError{Name: "TypeError", Msg: "fetch failed"}
 	}
 	r = q[0]
 	if len(q) > 1 {
@@ -126,7 +126,7 @@ func (rt *replayTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		}
 	}
 	if r.Resp.Throw != nil {
-		return nil, &MockError{Name: r.Resp.Throw.Name, Msg: r.Resp.Throw.Message}
+		return nil, &FetchError{Name: r.Resp.Throw.Name, Msg: r.Resp.Throw.Message}
 	}
 	status := r.Resp.Status
 	if status == 0 {
