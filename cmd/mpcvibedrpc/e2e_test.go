@@ -318,5 +318,4 @@ func TestEndToEnd(t *testing.T) {
 	waitFor(t, "presence from the new version", func() bool { return disc.n() >= n+3 })
 	b2.call(t, "POST", "quit", "{}")
 	waitFor(t, "ipc.json removed", func() bool { _, ok := readIPC(home); return !ok })
-	waitFor(t, ".old cleaned later", func() bool { return true })
 }

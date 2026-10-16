@@ -4,32 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/store"
 	"github.com/CptPakundo/MPCvibedRPC/internal/stremio"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
 )
 
 // stremioAccount drives "Sign in to Stremio": a code the user approves on stremio.com in their browser, after which
 // the account's key is saved with the settings and the engine follows what the account watches.
 type stremioAccount struct {
+	approval
 	st      *store.Store
 	eng     *engine.Engine
 	log     func(level, msg string)
 	api     string            // tests: replaces Stremio's services
 	openURL func(string) bool // tests: replaces the browser
 	every   time.Duration     // how often the approval is checked (0 = every two seconds)
-
-	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
-
-	mu      sync.Mutex
-	waiting bool   // a sign-in waits for the user's approval
-	url     string // where to approve it
-	problem string // why the last sign-in did not work
-	cancel  context.CancelFunc
 }
 
 func (s *stremioAccount) client() *stremio.Client {
@@ -41,7 +32,7 @@ func (s *stremioAccount) state() map[string]any {
 	cfg := s.st.Config()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return map[string]any{"signedIn": cfg.StremioKey != "", "waiting": s.waiting, "url": s.url, "problem": s.problem}
+	return map[string]any{"signedIn": cfg.StremioKey != "", "waiting": s.waiting, "url": s.shown, "problem": s.problem}
 }
 
 // signIn asks Stremio for a code, opens the page that approves it, and waits for the approval in the background.
@@ -55,91 +46,30 @@ func (s *stremioAccount) signIn() (map[string]any, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("Could not reach Stremio to sign in (%v).", err)
 	}
-	wctx, wcancel := context.WithTimeout(context.Background(), 15*time.Minute)
-	s.mu.Lock()
-	if s.cancel != nil {
-		s.cancel()
-	}
-	s.cancel, s.waiting, s.url, s.problem = wcancel, true, l.URL, ""
-	s.mu.Unlock()
-	go s.wait(wctx, c, l)
-	open := s.openURL
-	if open == nil {
-		open = winsys.OpenURL
-	}
-	open(l.URL)
+	wctx, wcancel := s.begin(15*time.Minute, l.URL)
+	go s.poll(wctx, wcancel, s.every, s.log, "The Stremio sign-in was not approved in time. Press Sign in to Stremio to try again.",
+		func() (bool, string) { return s.check(wctx, c, l) })
+	openPage(s.openURL, l.URL)
 	s.log("INFO", "Waiting for the Stremio sign-in to be approved in the browser.")
 	return s.state(), nil
 }
 
-func (s *stremioAccount) finish(ctx context.Context, problem string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if ctx.Err() == context.Canceled {
-		return // cancelled, or replaced by a newer sign-in that now owns the state
+// check asks Stremio whether the code was approved; once it is, the key is saved.
+func (s *stremioAccount) check(ctx context.Context, c *stremio.Client, l *stremio.Link) (done bool, problem string) {
+	key, err := c.CheckLink(ctx, l)
+	if err != nil || key == "" {
+		return false, "" // not approved yet (or Stremio did not answer this time)
 	}
-	s.waiting, s.url, s.problem = false, "", problem
-	if problem != "" {
-		s.log("WARN", problem)
+	saved, err := s.save(ctx, func() error { return s.st.SetHidden([]string{"stremioKey"}, map[string]any{"stremioKey": key}) })
+	if !saved {
+		return true, ""
 	}
-}
-
-// wait checks the code every two seconds until it is approved, the time is up or the sign-in is cancelled.
-func (s *stremioAccount) wait(ctx context.Context, c *stremio.Client, l *stremio.Link) {
-	every := s.every
-	if every <= 0 {
-		every = 2 * time.Second
+	if err != nil {
+		return true, "Could not save the Stremio sign-in: " + err.Error()
 	}
-	t := time.NewTicker(every)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				s.finish(ctx, "The Stremio sign-in was not approved in time. Press Sign in to Stremio to try again.")
-			}
-			return
-		case <-t.C:
-		}
-		key, err := c.CheckLink(ctx, l)
-		if err != nil || key == "" {
-			continue // not approved yet (or Stremio did not answer this time)
-		}
-		s.saving.Lock()
-		if ctx.Err() != nil {
-			s.saving.Unlock()
-			return // cancelled: signed out, or replaced by a newer sign-in
-		}
-		err = s.st.SetHidden([]string{"stremioKey"}, map[string]any{"stremioKey": key})
-		s.saving.Unlock()
-		if err != nil {
-			s.finish(ctx, "Could not save the Stremio sign-in: "+err.Error())
-			return
-		}
-		applySettings(s.st, s.eng)
-		s.log("INFO", "Signed in to Stremio.")
-		s.finish(ctx, "")
-		s.mu.Lock()
-		if s.cancel != nil {
-			s.cancel() // ends the time limit of this sign-in
-			s.cancel = nil
-		}
-		s.mu.Unlock()
-		return
-	}
-}
-
-// stopWaiting cancels a sign-in that waits for approval.
-func (s *stremioAccount) stopWaiting() {
-	s.saving.Lock()
-	defer s.saving.Unlock()
-	s.mu.Lock()
-	if s.cancel != nil {
-		s.cancel()
-		s.cancel = nil
-	}
-	s.waiting, s.url = false, ""
-	s.mu.Unlock()
+	applySettings(s.st, s.eng)
+	s.log("INFO", "Signed in to Stremio.")
+	return true, ""
 }
 
 // revoke ends the saved key's session on Stremio's side, when there is one and Stremio answers (signing out, and
@@ -159,9 +89,7 @@ func (s *stremioAccount) revoke() {
 // signOut ends the session on Stremio's side (when it answers) and forgets the key.
 func (s *stremioAccount) signOut() error {
 	s.stopWaiting()
-	s.mu.Lock()
-	s.problem = ""
-	s.mu.Unlock()
+	s.clearProblem()
 	s.revoke()
 	if err := s.st.SetHidden([]string{"stremioKey"}, map[string]any{}); err != nil {
 		return err

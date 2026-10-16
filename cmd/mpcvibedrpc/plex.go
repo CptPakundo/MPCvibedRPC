@@ -2,39 +2,29 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/plex"
 	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
 )
 
-// plexKeys are the settings "Sign in to Plex" writes (plexClient, this install's identifier, outlives a sign-out).
-var plexKeys = []string{"plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexClient"}
+// plexSignIn are the settings a Plex sign-in writes and a sign-out forgets; plexClient, this install's identifier on
+// plex.tv, is kept beside them.
+var plexSignIn = []string{"plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName"}
 
 // plexAccount drives "Sign in to Plex": a code the user approves on plex.tv in their browser, after which the
 // account's token, name and server are saved with the settings and the engine follows that server.
 type plexAccount struct {
+	approval
 	st      *store.Store
 	eng     *engine.Engine
 	log     func(level, msg string)
 	tv      string            // tests: replaces plex.tv
 	openURL func(string) bool // tests: replaces the browser
 	every   time.Duration     // how often the approval is checked (0 = every two seconds)
-
-	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
-
-	mu      sync.Mutex
-	waiting bool   // a sign-in waits for the user's approval
-	url     string // where to approve it
-	problem string // why the last sign-in did not work
-	cancel  context.CancelFunc
 }
 
 func (p *plexAccount) client(clientID string) *plex.Client {
@@ -47,24 +37,14 @@ func (p *plexAccount) state() map[string]any {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return map[string]any{"signedIn": cfg.PlexToken != "", "user": cfg.PlexUser, "server": cfg.PlexServer, "serverName": cfg.PlexServerName,
-		"waiting": p.waiting, "url": p.url, "problem": p.problem}
+		"waiting": p.waiting, "url": p.shown, "problem": p.problem}
 }
-
-func (p *plexAccount) apply() { applySettings(p.st, p.eng) }
 
 // signIn asks plex.tv for a code, opens the page that approves it, and waits for the approval in the background.
 func (p *plexAccount) signIn() (map[string]any, error) {
-	cfg := p.st.Config()
-	id := cfg.PlexClient
-	if id == "" {
-		b := make([]byte, 16)
-		if _, err := rand.Read(b); err != nil {
-			return nil, err
-		}
-		id = hex.EncodeToString(b)
-		if err := p.st.SetHidden([]string{"plexClient"}, map[string]any{"plexClient": id}); err != nil {
-			return nil, err
-		}
+	id, err := installID(p.st, "plexClient", p.st.Config().PlexClient)
+	if err != nil {
+		return nil, err
 	}
 	c := p.client(id)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -74,121 +54,58 @@ func (p *plexAccount) signIn() (map[string]any, error) {
 		return nil, fmt.Errorf("Could not reach plex.tv to sign in (%v).", err)
 	}
 	u := c.AuthURL(pin)
-	wctx, wcancel := context.WithTimeout(context.Background(), 30*time.Minute) // plex.tv's codes last 30 minutes
-	p.mu.Lock()
-	if p.cancel != nil {
-		p.cancel()
-	}
-	p.cancel, p.waiting, p.url, p.problem = wcancel, true, u, ""
-	p.mu.Unlock()
-	go p.wait(wctx, c, pin)
-	open := p.openURL
-	if open == nil {
-		open = winsys.OpenURL
-	}
-	open(u)
+	wctx, wcancel := p.begin(30*time.Minute, u) // plex.tv's codes last 30 minutes
+	go p.poll(wctx, wcancel, p.every, p.log, "The Plex sign-in was not approved in time. Press Sign in to Plex to try again.",
+		func() (bool, string) { return p.check(wctx, c, pin) })
+	openPage(p.openURL, u)
 	p.log("INFO", "Waiting for the Plex sign-in to be approved in the browser.")
 	return p.state(), nil
 }
 
-func (p *plexAccount) finish(ctx context.Context, problem string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if ctx.Err() == context.Canceled {
-		return // cancelled, or replaced by a newer sign-in that now owns the state
+// check asks plex.tv whether the code was approved; once it is, the account and its server are saved.
+func (p *plexAccount) check(ctx context.Context, c *plex.Client, pin *plex.Pin) (done bool, problem string) {
+	token, err := c.CheckPin(ctx, pin)
+	if errors.Is(err, plex.ErrPinExpired) {
+		return true, "The Plex sign-in code expired. Press Sign in to Plex to try again."
 	}
-	p.waiting, p.url, p.problem = false, "", problem
-	if problem != "" {
-		p.log("WARN", problem)
+	if err != nil || token == "" {
+		return false, "" // not approved yet (or plex.tv did not answer this time)
 	}
-}
-
-// wait checks the code every two seconds until it is approved, expires or the sign-in is cancelled.
-func (p *plexAccount) wait(ctx context.Context, c *plex.Client, pin *plex.Pin) {
-	every := p.every
-	if every <= 0 {
-		every = 2 * time.Second
+	acc, err := c.Account(ctx, token)
+	if err != nil {
+		return true, fmt.Sprintf("Signed in, but plex.tv did not say who you are (%v). Try again.", err)
 	}
-	t := time.NewTicker(every)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				p.finish(ctx, "The Plex sign-in was not approved in time. Press Sign in to Plex to try again.")
-			}
-			return
-		case <-t.C:
-		}
-		token, err := c.CheckPin(ctx, pin)
-		if errors.Is(err, plex.ErrPinExpired) {
-			p.finish(ctx, "The Plex sign-in code expired. Press Sign in to Plex to try again.")
-			return
-		}
-		if err != nil || token == "" {
-			continue // not approved yet (or plex.tv did not answer this time)
-		}
-		acc, err := c.Account(ctx, token)
-		if err != nil {
-			p.finish(ctx, fmt.Sprintf("Signed in, but plex.tv did not say who you are (%v). Try again.", err))
-			return
-		}
-		servers, err := c.Servers(ctx, token)
-		if err != nil {
-			p.finish(ctx, fmt.Sprintf("Signed in, but plex.tv did not list your Plex servers (%v). Try again.", err))
-			return
-		}
-		cur := p.st.Config()
-		pick := plex.Server{}
-		for _, s := range servers {
-			if s.ID == cur.PlexServer { // signing in again keeps the server chosen before
-				pick = s
-				break
-			}
-		}
-		if pick.ID == "" && len(servers) > 0 {
-			pick = servers[0] // the account's own servers come first
-		}
-		p.saving.Lock()
-		if ctx.Err() != nil {
-			p.saving.Unlock()
-			return // cancelled: signed out, or replaced by a newer sign-in
-		}
-		err = p.st.SetHidden(plexKeys, map[string]any{"plexToken": token, "plexAccount": acc.ID, "plexUser": acc.Name,
-			"plexServer": pick.ID, "plexServerName": pick.Name, "plexClient": c.ClientID})
-		p.saving.Unlock()
-		if err != nil {
-			p.finish(ctx, "Could not save the Plex sign-in: "+err.Error())
-			return
-		}
-		p.apply()
-		p.log("INFO", "Signed in to Plex.")
-		problem := ""
-		if pick.ID == "" {
-			problem = "Signed in, but this Plex account has no server to follow."
-		}
-		p.finish(ctx, problem)
-		p.mu.Lock()
-		if p.cancel != nil {
-			p.cancel() // ends the 30-minute limit of this sign-in
-			p.cancel = nil
-		}
-		p.mu.Unlock()
-		return
+	servers, err := c.Servers(ctx, token)
+	if err != nil {
+		return true, fmt.Sprintf("Signed in, but plex.tv did not list your Plex servers (%v). Try again.", err)
 	}
-}
-
-// stopWaiting cancels a sign-in that waits for approval.
-func (p *plexAccount) stopWaiting() {
-	p.saving.Lock()
-	defer p.saving.Unlock()
-	p.mu.Lock()
-	if p.cancel != nil {
-		p.cancel()
-		p.cancel = nil
+	cur := p.st.Config()
+	pick := plex.Server{}
+	for _, s := range servers {
+		if s.ID == cur.PlexServer { // signing in again keeps the server chosen before
+			pick = s
+			break
+		}
 	}
-	p.waiting, p.url = false, ""
-	p.mu.Unlock()
+	if pick.ID == "" && len(servers) > 0 {
+		pick = servers[0] // the account's own servers come first
+	}
+	saved, err := p.save(ctx, func() error {
+		return p.st.SetHidden(append(plexSignIn, "plexClient"), map[string]any{"plexToken": token, "plexAccount": acc.ID,
+			"plexUser": acc.Name, "plexServer": pick.ID, "plexServerName": pick.Name, "plexClient": c.ClientID})
+	})
+	if !saved {
+		return true, ""
+	}
+	if err != nil {
+		return true, "Could not save the Plex sign-in: " + err.Error()
+	}
+	applySettings(p.st, p.eng)
+	p.log("INFO", "Signed in to Plex.")
+	if pick.ID == "" {
+		return true, "Signed in, but this Plex account has no server to follow."
+	}
+	return true, ""
 }
 
 // servers lists the account's servers for the window's choice.
@@ -223,7 +140,7 @@ func (p *plexAccount) choose(id string) error {
 			if err := p.st.SetHidden([]string{"plexServer", "plexServerName"}, map[string]any{"plexServer": id, "plexServerName": s["name"]}); err != nil {
 				return err
 			}
-			p.apply()
+			applySettings(p.st, p.eng)
 			p.log("INFO", "Plex server changed.")
 			return nil
 		}
@@ -234,14 +151,11 @@ func (p *plexAccount) choose(id string) error {
 // signOut forgets the sign-in (the token is removed from the settings file).
 func (p *plexAccount) signOut() error {
 	p.stopWaiting()
-	p.mu.Lock()
-	p.problem = ""
-	p.mu.Unlock()
-	keys := plexKeys[:len(plexKeys)-1] // plexClient stays: the next sign-in is the same device on plex.tv
-	if err := p.st.SetHidden(keys, map[string]any{}); err != nil {
+	p.clearProblem()
+	if err := p.st.SetHidden(plexSignIn, map[string]any{}); err != nil {
 		return err
 	}
-	p.apply()
+	applySettings(p.st, p.eng)
 	p.log("INFO", "Signed out of Plex.")
 	return nil
 }
