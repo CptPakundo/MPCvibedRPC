@@ -115,7 +115,7 @@ func (a *app) installUpdate() error {
 	wasRunning := a.eng.Status().Running
 	a.eng.Stop()
 	a.log("INFO", "Update downloaded; restarting.")
-	_ = os.Remove(a.ipcFile)
+	_ = removeIPC(a.ipcFile)
 	// the new copy is started right away (it waits for this one to let go); we leave a moment later so the settings
 	// window still gets its answer
 	err = updater.SwapAndRestart(a.exe, next, nil, func() {

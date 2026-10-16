@@ -163,6 +163,25 @@ func (a *app) writeIPC(port int) {
 	_ = os.WriteFile(a.ipcFile, b, 0o600)
 }
 
+// ipcRemoveWait is how long removeIPC keeps trying.
+var ipcRemoveWait = time.Second
+
+// removeIPC deletes ipc.json. On Windows a file another process has open for reading cannot be deleted, so it is
+// tried again every 50 ms for up to ipcRemoveWait; a file that is already gone counts as removed.
+func removeIPC(path string) error {
+	deadline := time.Now().Add(ipcRemoveWait)
+	for {
+		err := os.Remove(path)
+		if err == nil || os.IsNotExist(err) {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func (a *app) openWindow() { winsys.OpenWindow(windowURL(a.srv.Port(), a.token), a.browserProfile) }
 
 // quit shuts the program down once (the window's Quit, the tray's Quit, or a signal).
@@ -171,7 +190,7 @@ func (a *app) quit() {
 		go func() {
 			a.srv.Close() // ends the page's keep-alive connection, so an open window closes right away
 			// the port and token are gone with the server: a new copy must not find them while this one winds down
-			_ = os.Remove(a.ipcFile)
+			_ = removeIPC(a.ipcFile)
 			winsys.CloseWindowBrowser(a.browserProfile) // and no browser is left running for it
 			a.plex.stopWaiting()
 			a.stremio.stopWaiting()
