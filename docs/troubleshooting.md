@@ -83,10 +83,10 @@ To uninstall:
 
 ## Updates
 
-The program checks for new versions when it starts and once a day (switch it off on the **Updates** tab). On Windows
-and Linux, **Install** downloads the new version, checks it and restarts; on macOS the Updates tab links to the
+The program checks for new versions when it starts and once a day (switch it off under **General > Updates**). On Windows
+and Linux, **Install** downloads the new version, checks it and restarts; on macOS the window links to the
 download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
-an update the window shows what's new once; the **Changelog** button shows every version.
+an update the window shows what's new once; the version number at the top of the window shows every version.
 
 ## Is the download safe?
 

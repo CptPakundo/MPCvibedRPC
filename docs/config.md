@@ -111,8 +111,8 @@ These are uploaded to the Discord application whose `clientId` you use.
 
 ## Program settings
 
-These belong to the program itself and live under `app` in `config.json`. They are all in the settings window.
-**Restore defaults**, **Open settings folder** and the **Update source** field are under **Advanced > Maintenance**.
+These belong to the program itself and live under `app` in `config.json`. All but `updateRepo` are in the settings window.
+**Restore defaults** and **Open settings folder** are under **Advanced > Maintenance**; the update switch and **Check now** are under **General > Updates**.
 
 | Setting | Default | What it does |
 |---|---|---|

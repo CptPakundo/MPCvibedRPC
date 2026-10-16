@@ -1,49 +1,30 @@
-## MPCvibedRPC 0.9.23
+## MPCvibedRPC 0.9.24
 
-**The right player wins, music is "Listening to", and a full round of fixes.**
+**A tidier settings window, and cleaner code underneath. What is shown on Discord doesn't change.**
 
-### What's shown
-- **A paused player no longer hides one that plays.** Leave MPC-HC paused and start a video in mpv, VLC or Plex: the
-  video that plays is shown. When nothing plays, the paused one is shown again.
-- **Music is "Listening to".** A song played in a video player (`.mp3`, `.flac`, `.ogg`, `.m4a`, ...) now shows as
-  "Listening to Artist - Song" instead of "Watching", named as the file is, and its name is no longer sent to the movie
-  and TV catalogs. A video playing in another player still comes first.
-- Players other than MPC-HC, MPC-BE and MPC-QT no longer show Media Player Classic's logo in the corner of the cover.
-- A video whose length is only known after a moment (a stream, a slow network file) gets its progress bar once the
-  length arrives.
-- A "View on ..." button that Discord turns down is left out of that one update, instead of switching the whole status
-  to the plain fallback until the next restart.
+### The window
+- **Settings in grouped cards.** Each group of settings (Startup, Plex, What other people see on Discord, ...) is one
+  card with a plain heading, so the tabs are quicker to scan.
+- **Seven tabs instead of eight.** The Updates rows moved into **General**, under Startup: **Check now**, **Install**
+  and the automatic check are all there. The notice at the top when an update is available leads to them.
+- **A quieter status card.** While nothing is shown on Discord, the card is one line and the **Show on Discord**
+  button. The Discord and player lights appear once it runs. When no player answers, the notice below explains it, so
+  the card no longer also says "Nothing playing".
+- **The version number opens the changelog.** The separate Changelog button is gone.
+- The update source (`updateRepo`) is no longer a field under Advanced. It stays a setting in `config.json`, for
+  anyone who builds their own copy.
 
-### Accounts
-- Your Plex sign-in is no longer passed on when plex.tv or a server redirects to another address. Jellyfin and Emby
-  don't follow a redirect to another server, or from https to http, at all.
-- A sign-in that finishes at the moment you press **Sign out** or **Restore defaults** can no longer save itself
-  afterwards. Pressing Jellyfin's **Sign in** twice no longer leaves the first attempt running.
-- Jellyfin Quick Connect: when you approved the code but the server doesn't finish the sign-in, the window says so
-  after a few seconds instead of waiting ten minutes and then claiming the code wasn't approved.
-- A Jellyfin player that went away without saying so (a crashed app, a TV that lost its network) stops showing after 5
-  minutes.
-- A server whose https certificate isn't trusted says exactly that, instead of "no connection".
-
-### Reliability
-- Covers: a title looked up while a catalog was down, slow or offline is tried again after 2 minutes, not 30. The cover
-  cache keeps the answers you used recently when it trims itself, and a restart can no longer write an older cache over
-  a newer one, or bring back a cache you just cleared.
-- Two saves at the same moment (the window and the tray, or a sign-in finishing) can no longer leave the program on
-  the older settings.
-- Emptying the "Clear my status when paused for" box no longer quietly turns pause clearing off; the old value stays.
-- When the system refuses **Start with Windows** / **Start at login**, the window says so instead of "Saved.".
-- **Restore defaults** no longer shows this version's news again.
-- The log no longer grows without limit in a copy that runs for weeks.
-- Self-update only installs a release that has a checksum file; otherwise it points you to the release page.
-- Windows: the tray icon appears even when the taskbar comes up later than the program at login. A frozen Discord
-  can no longer hold the program up, and an idle connection to Discord wakes the program far less often.
-- **Copy diagnostics** also leaves out passwords in web addresses and more kinds of folder paths, and names every
-  Linux video player it finds.
+### Underneath
+- The program's start-up, the window's API, updates and the tray each have a file of their own. The Plex, Stremio and
+  Jellyfin sign-ins share one piece of code for "wait until the user approves".
+- The engine reads Plex, Stremio and Jellyfin as one list. The rule for which player wins (a video that plays, then
+  music, then a paused one) lives in one small piece of code.
+- The cover lookup and its title matching are split into named steps. The regex engine drops features no rule uses.
+- The tests share their setup instead of repeating it. The cover-lookup tests run in 5 seconds instead of 12.
 
 ### Get it
-- **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates tab of an earlier version;
-  your settings are kept.
+- **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates tab of the version you have.
+  Your settings are kept.
 - **macOS:** download **`MPCvibedRPC-macos.zip`** and move the app to Applications (the first time, System Settings >
   Privacy & Security > **Open Anyway**).
 - **Linux:** download **`MPCvibedRPC-linux-amd64`** (or `-arm64`), `chmod +x` it and run it.

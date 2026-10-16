@@ -4,8 +4,10 @@ name: ci
 on:
   # A change to documentation only (the README and other top-level .md files, docs/, the issue templates, the release
   # notes) changes nothing that is built or run, so it is not tested; a change that also touches anything else is.
+  # master is not tested on push: its commits come from a pull request whose branch was tested, and the release run
+  # tests the tagged commit again before anything is published.
   push:
-    branches: ['**']
+    branches: ['**', '!master']
     tags-ignore: ['v*']
     paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**', '.github/release-notes.md']
   pull_request:

@@ -107,7 +107,7 @@ names come from, and how each player is read.
   anywhere. **Reset stats** starts over. (The download count at the top of this page is GitHub's public count of release
   downloads.)
 - **What's new.** After an update (and on a new install) the window shows the new version's changes once; the
-  **Changelog** button at the top shows every version's.
+  version number at the top shows every version's.
 - Clears itself when you stop or close the player; reconnects on its own if Discord restarts.
   If Discord ever rejects the Watching format, it falls back to a basic presence automatically.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](config.md) (extra ones go in
