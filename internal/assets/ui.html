@@ -8,75 +8,48 @@
 <link rel="icon" href="/icon.ico">
 <style>
   :root {
-    --bg: #f4f5f8; --panel: #ffffff; --line: #e1e4ec; --text: #1d2130; --muted: #646b80;
-    --accent: #5865f2; --accent-text: #ffffff; --good: #1f9d55; --warn: #b7791f; --bad: #d03b3b;
-    --field: #f8f9fc; --shadow: 0 1px 2px rgba(20, 24, 40, .06);
+    --bg: #f3f4f7; --panel: #ffffff; --line: #e3e5ec; --text: #1b1e2b; --muted: #5f6678; --field: #f7f8fb;
+    --accent: #5865f2; --accent-soft: rgba(88, 101, 242, .12); --accent-text: #ffffff;
+    --good: #1f9d55; --warn: #b7791f; --bad: #d03b3b; --shadow: 0 1px 2px rgba(20, 24, 40, .06);
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #15171f; --panel: #1e2130; --line: #2c3045; --text: #e8eaf3; --muted: #9aa1b8;
-      --good: #43c07a; --warn: #e0b04f; --bad: #f06b6b; --field: #171a27; --shadow: none; }
+    :root { --bg: #111318; --panel: #1b1d26; --line: #2a2d3a; --text: #e9ebf2; --muted: #9aa0b4; --field: #15171f;
+      --accent-soft: rgba(88, 101, 242, .22); --good: #43c07a; --warn: #e0b04f; --bad: #f06b6b; --shadow: none; }
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
-  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; }
-  header { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 640px; height: 100%; margin: 0 auto; padding: 10px 16px; display: flex; flex-direction: column; }
+  .hidden { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+  /* the top: header, status, notices, tabs */
+  .top { flex: none; }
+  header { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
   header img { width: 28px; height: 28px; }
   header h1 { font-size: 17px; margin: 0; font-weight: 650; }
-  header .ver { color: var(--muted); font-size: 12px; margin-left: auto; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
-  .status { display: grid; gap: 10px; }
+  #ver { margin-left: auto; background: none; border: 0; padding: 3px 6px; color: var(--muted); font-size: 12px; }
+  #ver:hover { color: var(--accent); text-decoration: underline; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; box-shadow: var(--shadow); }
   .row { display: flex; align-items: center; gap: 10px; }
   .row > .grow { flex: 1; min-width: 0; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--field); border: 1px solid var(--line); color: var(--muted); }
+  .status { display: grid; gap: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--field); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
   .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .pill.good { color: var(--good); } .pill.good::before { background: var(--good); }
   .pill.warn { color: var(--warn); } .pill.warn::before { background: var(--warn); }
-  .pill.bad { color: var(--bad); } .pill.bad::before { background: var(--bad); }
   .now { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
   .now small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
-  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--text); padding: 7px 14px; }
-  button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-  button.primary:hover { filter: brightness(1.08); }
-  button.big { padding: 10px 18px; width: 100%; font-size: 15px; }
-  button.danger:hover { border-color: var(--bad); color: var(--bad); }
-  button:disabled { opacity: .55; cursor: default; }
-  .dlg-back { position: fixed; inset: 0; background: rgba(10, 12, 20, .55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
-  .dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
-  .dlg h2 { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 8px; font-weight: 650; }
-  .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
-  .dlg .row { justify-content: flex-end; }
-  .dlg.wide { max-width: 520px; }
-  .chg { max-height: 60vh; overflow: auto; margin: 0 0 14px; }
-  .chg ul { list-style: none; margin: 4px 0 12px; padding: 0; }
-  .chg li { margin: 7px 0; line-height: 1.4; }
-  header button.small { padding: 3px 10px; font-size: 12px; }
-  .notice { border-left: 3px solid var(--warn); background: var(--field); padding: 10px 12px; border-radius: 6px; font-size: 13px; }
+  .notice { border-left: 3px solid var(--warn); font-size: 13px; }
   .notice p { margin: 0 0 8px; }
-  .notice.info { border-color: var(--accent); }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 650; }
-  .field { padding: 9px 0; border-top: 1px solid var(--line); }
-  .field:first-of-type { border-top: 0; }
-  .field label.line { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-  .help { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
-  .help.bad { color: var(--bad); }
-  .notes p { margin: 6px 0; } .notes ul { margin: 4px 0 8px; padding-left: 20px; } .notes li { margin: 3px 0; }
-  .notes code { font-family: Consolas, ui-monospace, monospace; font-size: 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
-  input[type=text], input[type=number], input[type=password], select, textarea {
-    font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%; max-width: 100%;
-  }
-  .field .ctl { margin-top: 6px; }
-  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  textarea { min-height: 64px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
-  /* switch */
-  .sw { position: relative; width: 38px; height: 22px; flex: none; }
-  .sw input { opacity: 0; position: absolute; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
-  .sw span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
-  .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
-  .sw input:checked + span { background: var(--accent); }
-  .sw input:checked + span::after { transform: translateX(16px); }
-  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .card.preview { padding: 10px 14px; margin-bottom: 8px; }
+  .notice.info { border-left-color: var(--accent); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .tab:hover { color: var(--text); border-color: transparent; }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .tab.has::after { content: "\25CF"; color: var(--accent); font-size: 9px; margin-left: 5px; vertical-align: 2px; }
+  .tab:focus-visible { outline-offset: -2px; }
+
+  /* "How it looks on Discord" */
   .pv-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; font-weight: 650; }
   .pv-card { display: flex; gap: 12px; align-items: flex-start; }
   .pv-card img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: var(--field); flex: none; }
@@ -85,46 +58,78 @@
   .pv-name { font-weight: 650; }
   .pv-muted { color: var(--muted); }
   .pv-link { text-decoration: underline dotted; text-underline-offset: 2px; }
-  .jf-code { font-size: 26px; font-weight: 650; letter-spacing: .18em; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
-  .jf-pw { display: flex; gap: 8px; }
-  .jf-pw.hidden { display: none; }
-  .jf-pw input { flex: 1; min-width: 0; }
   .pv-bar { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11.5px; color: var(--muted); }
   .pv-track { flex: 1; height: 4px; background: var(--line); border-radius: 2px; }
   .pv-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0; }
   .pv-button { margin-top: 6px; display: inline-block; font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
-  h3.grp { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 16px 0 0; font-weight: 650; }
-  h3.grp:first-child { margin-top: 4px; }
-  .sources .src { padding: 8px 0; border-top: 1px solid var(--line); }
-  .sources .src .help { margin-top: 1px; }
-  #log { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .L-WARN { color: var(--warn); } .L-ERROR { color: var(--bad); }
-  .hidden { display: none !important; }
-  html, body { height: 100%; }
-  main { max-width: 640px; height: 100%; display: flex; flex-direction: column; padding: 10px 16px 10px; }
-  .top { flex: none; }
-  header { margin: 0 0 8px; }
-  .card.status { padding: 10px 14px; margin-bottom: 8px; gap: 6px; }
-  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
-  .tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
-  .tab:hover { color: var(--text); border-color: transparent; }
-  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
-  .tab.has::after { content: "\25CF"; color: var(--accent); font-size: 9px; margin-left: 5px; vertical-align: 2px; }
-  .panels { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 2px 8px; }
+
+  /* the tabs' contents: settings in groups, a card per group */
+  .panels { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 12px; }
   .panel { display: none; }
   .panel.active { display: block; }
+  h3.grp { font-size: 13px; font-weight: 600; margin: 16px 2px 6px; }
+  .group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; margin-top: 10px; box-shadow: var(--shadow); }
+  h3.grp + .group { margin-top: 0; }
+  .field { padding: 10px 0; border-top: 1px solid var(--line); }
+  .group > .field:first-child { border-top: 0; }
+  .field label.line { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .field .ctl { margin-top: 6px; }
+  .help { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .help.bad { color: var(--bad); }
+  .actions { margin-top: 8px; flex-wrap: wrap; }
+  .leaves { margin: 6px 0 0; padding-left: 20px; }
+  .leaves li { margin: 3px 0; }
+  .sources .src { padding: 8px 0; border-top: 1px solid var(--line); }
+  .sources .src .help { margin-top: 1px; }
+  .sources.off { opacity: .5; }
+  .jf-code { font-size: 26px; font-weight: 650; letter-spacing: .18em; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+  .jf-pw { display: flex; gap: 8px; }
+  .jf-pw input { flex: 1; min-width: 0; }
+  .notes p { margin: 6px 0; } .notes ul { margin: 4px 0 8px; padding-left: 20px; } .notes li { margin: 3px 0; }
+  .notes code { font-family: Consolas, ui-monospace, monospace; font-size: 12px; background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  #p-help.active { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+  #p-help .group { padding: 10px 14px; }
+  #log { flex: 1; min-height: 200px; background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .L-WARN { color: var(--warn); } .L-ERROR { color: var(--bad); }
+  #diagText { min-height: 120px; margin-top: 8px; }
+
+  /* controls */
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--text); padding: 7px 14px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  button:disabled { opacity: .55; cursor: default; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%; max-width: 100%;
+  }
+  textarea { min-height: 64px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sw { position: relative; width: 38px; height: 22px; flex: none; }
+  .sw input { opacity: 0; position: absolute; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .sw span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
+  .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .sw input:checked + span { background: var(--accent); }
+  .sw input:checked + span::after { transform: translateX(16px); }
+  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw input:disabled { cursor: default; }
+
+  /* the bottom bar and the dialogs */
   .bar { flex: none; display: flex; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
   .bar button { padding: 5px 11px; font-size: 13px; }
   .bar .msg { color: var(--muted); font-size: 12.5px; flex: 1; min-width: 0; }
   .bar .msg.err { color: var(--bad); white-space: pre-line; }
-  #p-help.active { display: flex; flex-direction: column; gap: 8px; height: 100%; }
-  #log { max-height: none; flex: 1; height: auto; min-height: 200px; }
-  #diagText { min-height: 120px; }
-  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-  .sources.off { opacity: .5; }
-  .leaves { margin: 6px 0 0; padding-left: 20px; }
-  .leaves li { margin: 3px 0; }
-  .tab:focus-visible { outline-offset: -2px; }
+  .dlg-back { position: fixed; inset: 0; background: rgba(10, 12, 20, .55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .dlg { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); }
+  .dlg.wide { max-width: 520px; }
+  .dlg h2 { font-size: 16px; color: var(--text); margin: 0 0 8px; font-weight: 650; }
+  .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
+  .dlg .row { justify-content: flex-end; }
+  .chg { max-height: 60vh; overflow: auto; margin: 0 0 14px; }
+  .chg h3 { font-size: 13px; font-weight: 600; margin: 14px 0 0; }
+  .chg h3:first-child { margin-top: 0; }
+  .chg ul { list-style: none; margin: 4px 0 12px; padding: 0; }
+  .chg li { margin: 7px 0; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -133,8 +138,7 @@
     <header>
       <img src="/icon.ico" alt="">
       <h1>MPCvibedRPC</h1>
-      <span class="ver" id="ver"></span>
-      <button id="changelogBtn" class="small">Changelog</button>
+      <button id="ver" title="Changelog"></button>
     </header>
 
     <section class="card notice info hidden" id="welcome">
@@ -150,14 +154,15 @@
       <div class="row">
         <span class="pill" id="pDiscord">Discord</span>
         <span class="pill" id="pMpc">Player</span>
-        <span class="grow"></span>
-        <button id="toggle">Show on Discord</button>
+        <span class="grow now" id="idle">Not showing on Discord<small>Press Show on Discord to show what you watch.</small></span>
+        <span class="grow" id="spacer"></span>
+        <button id="toggle" class="primary">Show on Discord</button>
       </div>
-      <div class="now" id="now"></div>
+      <div class="now hidden" id="now"></div>
       <div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="card preview hidden" id="preview" aria-label="How your status looks on Discord">
+    <section class="card hidden" id="preview" aria-label="How your status looks on Discord">
       <div class="pv-head">How it looks on Discord</div>
       <div class="pv-card">
         <img id="pvImg" alt="" width="64" height="64" referrerpolicy="no-referrer">
@@ -182,24 +187,32 @@
 
   <div class="panels" id="panels">
     <section class="panel" id="p-general" role="tabpanel">
-      <div class="field"><label class="line"><span><span id="autoStartLabel">Start with Windows</span><div class="help" id="autoStartHelp">Starts in the tray, without a window.</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
-      <div class="field"><label class="line"><span>Show this window when I open the app<div class="help" id="openWindowHelp">Turn off to go straight to the tray. Reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
-      <div class="field"><label class="line"><span>Show on Discord when the app opens<div class="help">Otherwise it waits until you press Show on Discord.</div></span><span class="sw"><input type="checkbox" id="startPresence"><span></span></span></label></div>
-      <div class="field"><div>Your stats</div><div class="help" id="statsText"></div><div class="help">Counted on this computer only: numbers, never titles. Nothing is sent anywhere.</div><div class="row" style="margin-top:6px"><button id="statsReset">Reset stats</button></div></div>
-    </section>
-
-    <section class="panel" id="p-updates" role="tabpanel">
-      <div class="field">
-        <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button><button id="pageUpd" class="primary hidden">Open the download page</button></div>
-        <div class="help" id="updNotes"></div>
+      <h3 class="grp">Startup</h3>
+      <div class="group">
+        <div class="field"><label class="line"><span><span id="autoStartLabel">Start with Windows</span><div class="help" id="autoStartHelp">Starts in the tray, without a window.</div></span><span class="sw"><input type="checkbox" id="autoStart"><span></span></span></label></div>
+        <div class="field"><label class="line"><span>Show this window when I open the app<div class="help" id="openWindowHelp">Turn off to go straight to the tray. Reopen the window from the tray icon.</div></span><span class="sw"><input type="checkbox" id="openWindow"><span></span></span></label></div>
+        <div class="field"><label class="line"><span>Show on Discord when the app opens<div class="help">Otherwise it waits until you press Show on Discord.</div></span><span class="sw"><input type="checkbox" id="startPresence"><span></span></span></label></div>
       </div>
-      <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
+      <h3 class="grp" id="updates">Updates</h3>
+      <div class="group">
+        <div class="field">
+          <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button><button id="pageUpd" class="primary hidden">Open the download page</button></div>
+          <div class="help" id="updNotes"></div>
+        </div>
+        <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
+      </div>
+      <h3 class="grp">Your stats</h3>
+      <div class="group">
+        <div class="field"><div id="statsText"></div><div class="help">Counted on this computer only: numbers, never titles. Nothing is sent anywhere.</div><div class="row actions"><button id="statsReset">Reset stats</button></div></div>
+      </div>
     </section>
 
     <section class="panel" id="p-help" role="tabpanel">
-      <div class="row"><button id="copyDiag">Copy diagnostics</button><button id="reportBtn">Report a problem</button></div>
-      <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults and the recent log. Titles and file names are included, so a wrong title can be traced; folder paths, sign-ins and keys are left out.</div>
-      <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
+      <div class="group">
+        <div class="row"><button id="copyDiag">Copy diagnostics</button><button id="reportBtn">Report a problem</button></div>
+        <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults and the recent log. Titles and file names are included, so a wrong title can be traced; folder paths, sign-ins and keys are left out.</div>
+        <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
+      </div>
       <div id="log" tabindex="0" role="region" aria-label="Log"></div>
     </section>
   </div>
@@ -222,16 +235,17 @@
     return j;
   }
   const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); kids.forEach((k) => e.append(k)); return e; };
+  const help = (text) => el('div', { className: 'help', textContent: text });
+  // a switch with its label (and help) on the left
+  const switchRow = (label, input, helpText, cls) => el('label', { className: 'line' + (cls ? ' ' + cls : '') }, el('span', {}, document.createTextNode(label), ...(helpText ? [help(helpText)] : [])), el('span', { className: 'sw' }, input, el('span')));
   const note = (text, err) => {
     clearTimeout(clearTimer); $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').textContent = text;
     if (!err) clearTimer = setTimeout(() => { $('msg').textContent = 'Changes are saved as you make them.'; }, 2500);
   };
+  const later = (task) => { queue = queue.then(task, task); }; // one change at a time, in order
   const readValue = (i) => (i.type === 'checkbox' ? i.checked : i.value);
   const showValue = (i, v) => { if (i.type === 'checkbox') i.checked = !!v; else i.value = v == null ? '' : v; };
   const appValue = (key) => (key === 'autoStart' ? !!model.autoStart : model.app[key]);
-  // the update source field is kept here and placed in Advanced > Maintenance each time the settings are drawn
-  const updateRepoInput = el('input', { type: 'text', id: 'updateRepo', placeholder: 'owner/repo', spellcheck: false });
-  updateRepoInput.setAttribute('aria-label', 'Update source');
 
   // Texts that differ on macOS and Linux (the page is written for Windows; the program says which system it runs on).
   const OS_TEXT = {
@@ -245,8 +259,7 @@
     },
   };
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
-  const PLAYERS = 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC';
-  const players = () => (osText() ? osText().players : PLAYERS);
+  const players = () => (osText() ? osText().players : 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC');
   // an in-page dialog (the browser's confirm() and alert() would head the box with this page's address). buttons are
   // [label, class] pairs, the first being the safe choice that has the focus; it resolves to the index of the button
   // pressed, or -1 for Escape or a click outside. body is text or an element.
@@ -275,20 +288,17 @@
   };
 
   // the changelog: the newest version's changes, or every version's
-  function changelogList(entries) {
-    const box = el('div', { className: 'chg' });
-    entries.forEach((v) => {
-      if (entries.length > 1) box.append(el('h3', { className: 'grp', textContent: 'Version ' + v.version + ' · ' + v.date }));
-      box.append(el('ul', {}, ...v.items.map((t) => el('li', { textContent: t }))));
-    });
-    return box;
-  }
   async function showChangelog(all) {
     const log = (model && model.changelog) || [];
     if (!log.length) return;
     const list = all ? log : log.slice(0, 1);
+    const box = el('div', { className: 'chg' });
+    list.forEach((v) => {
+      if (list.length > 1) box.append(el('h3', { textContent: 'Version ' + v.version + ' · ' + v.date }));
+      box.append(el('ul', {}, ...v.items.map((t) => el('li', { textContent: t }))));
+    });
     const buttons = all || log.length < 2 ? [['Close', 'primary']] : [['Close', 'primary'], ['Earlier versions']];
-    if ((await modal(all ? 'Changelog' : "What's new in " + log[0].version, changelogList(list), buttons, true)) === 1) showChangelog(true);
+    if ((await modal(all ? 'Changelog' : "What's new in " + log[0].version, box, buttons, true)) === 1) showChangelog(true);
   }
 
   // the counts on the General tab (kept on this computer only)
@@ -342,72 +352,76 @@
   }
   function autosave(input, scope, key) {
     const run = saver(scope, key, () => readValue(input), (v) => showValue(input, v));
-    input.addEventListener('change', () => { queue = queue.then(run, run); });
+    input.addEventListener('change', () => later(run));
     if (input.tagName === 'INPUT' && input.type !== 'checkbox') input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
   }
+
+  // One control per setting. sources: a switch per online service (the stored value is the list that is OFF);
+  // lines: one entry per line (stored as a list); the rest save through autosave.
+  function fieldFor(f, v) {
+    const wrap = el('div', { className: 'field' });
+    const h = f.help ? [help(f.help)] : [];
+    if (f.type === 'sources') {
+      const off = new Set(v || []);
+      const boxes = f.sources.map((s) => { const cb = el('input', { type: 'checkbox', checked: !off.has(s.id) }); cb.dataset.id = s.id; return cb; });
+      const list = el('div', { className: 'sources' }, ...f.sources.map((s, i) => switchRow(s.label, boxes[i], s.used + ' (' + s.host + ')', 'src')));
+      wrap.append(el('div', { textContent: f.label }), ...h, list);
+      const run = saver('settings', f.key, () => boxes.filter((c) => !c.checked).map((c) => c.dataset.id), (ids) => { const o = new Set(ids || []); boxes.forEach((c) => { c.checked = !o.has(c.dataset.id); }); });
+      boxes.forEach((c) => c.addEventListener('change', () => later(run)));
+      return wrap;
+    }
+    if (f.type === 'lines') {
+      const ta = el('textarea', { value: (v || []).join('\n'), spellcheck: false, placeholder: 'One per line, e.g. Private' });
+      ta.dataset.key = f.key;
+      wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, ta), ...h);
+      const run = saver('settings', f.key, () => ta.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean), (arr) => { ta.value = (arr || []).join('\n'); });
+      ta.addEventListener('change', () => later(run));
+      return wrap;
+    }
+    let input;
+    if (f.type === 'bool') {
+      input = el('input', { type: 'checkbox', checked: !!v });
+      wrap.append(switchRow(f.label, input, f.help));
+    } else {
+      if (f.type === 'choice') { input = el('select'); f.options.forEach(([val, text]) => input.append(new Option(text, val, false, val === v))); }
+      else if (f.type === 'map') input = el('textarea', { value: v || '', spellcheck: false });
+      else if (f.type === 'int') input = el('input', { type: 'number', value: v, min: f.min, max: f.max });
+      else input = el('input', { type: f.type === 'secret' ? 'password' : 'text', value: v || '', spellcheck: false, autocomplete: 'off' });
+      wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, input), ...h);
+    }
+    input.dataset.key = f.key;
+    autosave(input, 'settings', f.key);
+    return wrap;
+  }
+
+  // What the window adds under some group headings (sign-ins, buttons); the settings themselves come from the schema.
+  const EXTRAS = {
+    'accounts/Stremio': () => [stremioBox()],
+    'accounts/Jellyfin / Emby': () => [jellyfinBox()],
+    'advanced/Players': () => [playerSetupBox()],
+    'advanced/Maintenance': () => [maintenanceBox()],
+  };
 
   function renderFields(m) {
     document.querySelectorAll('.panel.dyn').forEach((p) => p.remove());
     for (const sec of m.schema) {
       const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
+      let group = null;
+      const newGroup = (title) => { if (title) d.append(el('h3', { className: 'grp', textContent: title })); group = el('div', { className: 'group' }); d.append(group); };
       for (const f of sec.fields) {
         if (f.type === 'heading') {
-          d.append(el('h3', { className: 'grp', textContent: f.label }));
-          if (sec.id === 'accounts' && f.label === 'Stremio') d.append(stremioBox()); // the group is only the sign-in
-          if (sec.id === 'accounts' && f.label === 'Jellyfin / Emby') d.append(jellyfinBox());
-          if (sec.id === 'advanced' && f.label === 'Players') d.append(playerSetupBox());
-          if (sec.id === 'advanced' && f.label === 'Maintenance') d.append(...maintenanceFields());
+          newGroup(f.label);
+          const extra = EXTRAS[sec.id + '/' + f.label];
+          if (extra) group.append(...extra());
           continue;
         }
-        if (f.key === 'plexAddress') d.append(plexBox()); // the sign-in comes first in the Plex group
-        const v = m.values[f.key];
-        const wrap = el('div', { className: 'field' });
-        const help = f.help ? el('div', { className: 'help', textContent: f.help }) : null;
-        if (f.type === 'sources') {
-          // one switch per online service; the stored value is the list of services that are OFF
-          const off = new Set(v || []);
-          const boxes = [];
-          const list = el('div', { className: 'sources' });
-          f.sources.forEach((s) => {
-            const cb = el('input', { type: 'checkbox', checked: !off.has(s.id) });
-            cb.dataset.id = s.id; boxes.push(cb);
-            list.append(el('label', { className: 'line src' }, el('span', {}, document.createTextNode(s.label), el('div', { className: 'help', textContent: s.used + ' (' + s.host + ')' })), el('span', { className: 'sw' }, cb, el('span'))));
-          });
-          wrap.append(el('div', { textContent: f.label }), ...(help ? [help] : []), list);
-          const run = saver('settings', f.key, () => boxes.filter((c) => !c.checked).map((c) => c.dataset.id), (ids) => { const o = new Set(ids || []); boxes.forEach((c) => { c.checked = !o.has(c.dataset.id); }); });
-          boxes.forEach((c) => c.addEventListener('change', () => { queue = queue.then(run, run); }));
-          d.append(wrap);
-          continue;
-        }
-        if (f.type === 'lines') {
-          // one entry per line; the stored value is a list
-          const ta = el('textarea', { value: (v || []).join('\n'), spellcheck: false, placeholder: 'One per line, e.g. Private' });
-          ta.dataset.key = f.key; ta.dataset.type = 'lines';
-          wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, ta), ...(help ? [help] : []));
-          const run = saver('settings', f.key, () => ta.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean), (arr) => { ta.value = (arr || []).join('\n'); });
-          ta.addEventListener('change', () => { queue = queue.then(run, run); });
-          d.append(wrap);
-          continue;
-        }
-        let input;
-        if (f.type === 'bool') {
-          input = el('input', { type: 'checkbox', checked: !!v });
-          const lab = el('label', { className: 'line' }, el('span', {}, document.createTextNode(f.label), ...(help ? [help] : [])), el('span', { className: 'sw' }, input, el('span')));
-          wrap.append(lab);
-        } else {
-          if (f.type === 'choice') { input = el('select'); f.options.forEach(([val, text]) => input.append(new Option(text, val, false, val === v))); }
-          else if (f.type === 'map') input = el('textarea', { value: v || '', spellcheck: false });
-          else if (f.type === 'int') input = el('input', { type: 'number', value: v, min: f.min, max: f.max });
-          else input = el('input', { type: f.type === 'secret' ? 'password' : 'text', value: v || '', spellcheck: false, autocomplete: 'off' });
-          wrap.append(el('div', { textContent: f.label }), el('div', { className: 'ctl' }, input), ...(help ? [help] : []));
-        }
-        input.dataset.key = f.key; input.dataset.type = f.type;
-        autosave(input, 'settings', f.key);
-        d.append(wrap);
+        if (!group) newGroup('');
+        if (f.key === 'plexAddress') group.append(plexBox()); // the sign-in comes first in the Plex group
+        group.append(fieldFor(f, m.values[f.key]));
       }
-      if (sec.id === 'privacy') { dimServices(d); d.append(privacyExtras()); }
+      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newGroup('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); }
       d.setAttribute('role', 'tabpanel');
-      $('p-updates').before(d);
+      $('p-help').before(d);
     }
     buildTabs();
   }
@@ -423,7 +437,7 @@
     };
     apply();
     // queued behind the save of the switch itself, so it also sees a value that was refused and put back
-    main.addEventListener('change', () => { queue = queue.then(apply, apply); });
+    main.addEventListener('change', () => later(apply));
   }
 
   // "Set up the player connection" at the top of Advanced > Players: the same call and confirmation as the card that
@@ -433,110 +447,52 @@
     const btn = el('button', { textContent: 'Set up the player connection' });
     btn.onclick = () => setUpPlayers(btn, msg);
     return el('div', { className: 'field' }, el('div', { className: 'row' }, btn, msg),
-      el('div', { className: 'help', textContent: 'Switches on what each player needs. MPC-HC, MPC-BE and VLC are restarted after you confirm.' }));
+      help('Switches on what each player needs. MPC-HC, MPC-BE and VLC are restarted after you confirm.'));
   }
 
-  // the bottom of Advanced: the update source, the folder with the settings, and Restore defaults
-  function maintenanceFields() {
-    const repo = el('div', { className: 'field' }, el('div', { textContent: 'Update source (GitHub)' }), el('div', { className: 'ctl' }, updateRepoInput),
-      el('div', { className: 'help', textContent: 'The GitHub project that publishes releases of this program.' }));
+  // the bottom of Advanced: the folder with the settings, and Restore defaults
+  function maintenanceBox() {
     const folder = el('button', { textContent: 'Open settings folder' });
     folder.onclick = () => api('open-folder', {}).catch(() => {});
     const reset = el('button', { textContent: 'Restore defaults', className: 'danger' });
     reset.onclick = restoreDefaults;
-    return [repo, el('div', { className: 'field' }, el('div', { className: 'row' }, folder, reset))];
+    return el('div', { className: 'field' }, el('div', { className: 'row' }, folder, reset));
   }
 
   // the parts of the Privacy tab that are not settings: clearing the cover cache, and what else leaves this PC
-  function privacyExtras() {
+  function coverCacheBox() {
     const msg = el('span', { className: 'help' });
     const btn = el('button', { textContent: 'Clear cover cache' });
-    btn.onclick = () => {
-      queue = queue.then(async () => {
-        btn.disabled = true; msg.textContent = '';
-        try { await api('clear-cache', {}); msg.textContent = 'Cleared.'; note('Cover cache cleared.'); } catch (e) { msg.textContent = e.message; }
-        btn.disabled = false;
-      });
-    };
-    const box = el('div', {});
-    box.append(
-      el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }), el('div', { className: 'help', textContent: 'Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.' }), el('div', { className: 'row', style: 'margin-top:6px' }, btn, msg)),
-      el('div', { className: 'field' }, el('div', { textContent: 'What else leaves ' + (osText() ? osText().here : 'this PC') }), el('ul', { className: 'help leaves' },
-        el('li', { textContent: 'Discord: your status. That is the point of the program.' }),
-        el('li', { textContent: 'GitHub: asked about new versions while Check for updates is on.' }),
-        el('li', { textContent: 'Plex: only while you are signed in. plex.tv is asked for your servers, and your server tells this program what you play.' }),
-        el('li', { textContent: 'Stremio: only while you are signed in. It is asked every 20 seconds which library entries changed.' }),
-        el('li', { textContent: 'Jellyfin or Emby: only while you are signed in. Your own server is asked every 5 seconds what plays.' }),
-        el('li', { textContent: 'The preview at the top loads the cover image from the service that hosts it.' }),
-        el('li', { textContent: 'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.' }),
-        el('li', { textContent: 'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.' })))
-    );
-    return box;
+    btn.onclick = () => later(async () => {
+      btn.disabled = true; msg.textContent = '';
+      try { await api('clear-cache', {}); msg.textContent = 'Cleared.'; note('Cover cache cleared.'); } catch (e) { msg.textContent = e.message; }
+      btn.disabled = false;
+    });
+    return el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }),
+      help('Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.'),
+      el('div', { className: 'row actions' }, btn, msg));
+  }
+  function leavesBox() {
+    return el('div', { className: 'field' }, el('ul', { className: 'help leaves' }, ...[
+      'Discord: your status. That is the point of the program.',
+      'GitHub: asked about new versions while Check for updates is on.',
+      'Plex: only while you are signed in. plex.tv is asked for your servers, and your server tells this program what you play.',
+      'Stremio: only while you are signed in. It is asked every 20 seconds which library entries changed.',
+      'Jellyfin or Emby: only while you are signed in. Your own server is asked every 5 seconds what plays.',
+      'The preview at the top loads the cover image from the service that hosts it.',
+      'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.',
+      'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
+    ].map((t) => el('li', { textContent: t }))));
   }
 
-  // "Sign in to Plex" (Accounts tab). The sign-in is kept by the program: the page only ever sees the account name.
-  function plexBox() {
-    const text = el('div', { className: 'help' });
-    const err = el('div', { className: 'help bad hidden' });
+  // A sign-in on the Accounts tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
+  // element shown above the buttons, o.onShow(state) and o.onBusy(on) let it follow the box.
+  function signInBox(name, o) {
+    const text = help(''), err = el('div', { className: 'help bad hidden' });
     const btn = el('button');
-    const out = el('button', { textContent: 'Sign out', className: 'hidden' });
     const again = el('button', { textContent: 'Open the sign-in page again', className: 'hidden' });
-    const sel = el('select', { className: 'hidden' });
-    sel.setAttribute('aria-label', 'Plex server');
-    const box = el('div', { className: 'field' }, text, err,
-      el('div', { className: 'ctl' }, sel), el('div', { className: 'row', style: 'margin-top:6px' }, btn, again, out));
-    let cur = null, timer = null, listed = false;
-    const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
-    const listServers = async () => {
-      listed = true;
-      try {
-        const { servers } = await api('plex-servers', {});
-        sel.textContent = '';
-        servers.forEach((s) => sel.append(new Option(s.name + (s.owned ? '' : ' (shared with you)'), s.id, false, s.id === cur.server)));
-        if (!servers.length) sel.append(new Option('No Plex server in this account', '', true, true));
-        sel.disabled = servers.length < 2;
-      } catch (e) { listed = false; fail(e.message); }
-    };
-    const show = (p) => {
-      cur = p;
-      clearTimeout(timer);
-      fail(p.problem);
-      again.classList.toggle('hidden', !p.waiting);
-      out.classList.toggle('hidden', !p.signedIn || p.waiting);
-      sel.classList.toggle('hidden', !p.signedIn || p.waiting);
-      btn.className = p.signedIn && !p.waiting ? 'hidden' : p.waiting ? '' : 'primary';
-      if (p.waiting) {
-        text.textContent = 'Approve the sign-in on the page that opened in your browser.';
-        btn.textContent = 'Cancel';
-        timer = setTimeout(refresh, 2000);
-      } else if (p.signedIn) {
-        text.textContent = 'Signed in as ' + (p.user || 'your Plex account') + '. Server:';
-        if (!listed) { sel.textContent = ''; sel.append(new Option(p.serverName || 'Loading…', p.server || '', true, true)); listServers(); }
-      } else {
-        listed = false;
-        text.textContent = 'Shows what you play on Plex on any device. Signing in opens plex.tv; this app never sees your password.';
-        btn.textContent = 'Sign in to Plex';
-      }
-    };
-    const refresh = async () => { if (!box.isConnected) return; try { show(await api('plex')); } catch (_) { timer = setTimeout(refresh, 4000); } };
-    const act = (name, body) => { queue = queue.then(async () => { btn.disabled = out.disabled = sel.disabled = true; try { show(await api(name, body || {})); } catch (e) { fail(e.message); } btn.disabled = out.disabled = false; sel.disabled = sel.options.length < 2; }); };
-    btn.onclick = () => act(cur && cur.waiting ? 'plex-cancel' : 'plex-signin');
-    again.onclick = () => { if (cur && cur.url) window.open(cur.url, '_blank', 'noopener'); };
-    out.onclick = async () => { if (await ask('Sign out of Plex?', 'Discord stops showing what you play on Plex. You can sign in again at any time.', 'Sign out')) act('plex-signout'); };
-    sel.onchange = () => { if (sel.value) act('plex-server', { id: sel.value }); };
-    setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
-    return box;
-  }
-
-  // "Sign in to Stremio" (Accounts tab). The sign-in is kept by the program: the page never sees it.
-  function stremioBox() {
-    const text = el('div', { className: 'help' });
-    const err = el('div', { className: 'help bad hidden' });
-    const btn = el('button');
     const out = el('button', { textContent: 'Sign out', className: 'hidden' });
-    const again = el('button', { textContent: 'Open the sign-in page again', className: 'hidden' });
-    const box = el('div', { className: 'field' }, text, err,
-      el('div', { className: 'row', style: 'margin-top:6px' }, btn, again, out));
+    const box = el('div', { className: 'field' }, text, err, ...(o.extra ? [o.extra] : []), el('div', { className: 'row actions' }, btn, again, out));
     let cur = null, timer = null;
     const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
     const show = (p) => {
@@ -550,34 +506,70 @@
         text.textContent = 'Approve the sign-in on the page that opened in your browser.';
         btn.textContent = 'Cancel';
         timer = setTimeout(refresh, 2000);
-      } else if (p.signedIn) {
-        text.textContent = 'Signed in. Pausing takes the status down; it comes back when you resume.';
-      } else {
-        text.textContent = 'Shows what you watch in Stremio on any device. Signing in opens stremio.com; this app never sees your password.';
-        btn.textContent = 'Sign in to Stremio';
-      }
+      } else if (p.signedIn) text.textContent = o.signedIn(p);
+      else { text.textContent = o.intro; btn.textContent = 'Sign in to ' + o.service; }
+      if (o.onShow) o.onShow(p);
     };
-    const refresh = async () => { if (!box.isConnected) return; try { show(await api('stremio')); } catch (_) { timer = setTimeout(refresh, 4000); } };
-    const act = (name) => { queue = queue.then(async () => { btn.disabled = out.disabled = true; try { show(await api(name, {})); } catch (e) { fail(e.message); } btn.disabled = out.disabled = false; }); };
-    btn.onclick = () => act(cur && cur.waiting ? 'stremio-cancel' : 'stremio-signin');
+    const refresh = async () => { if (!box.isConnected) return; try { show(await api(name)); } catch (_) { timer = setTimeout(refresh, 4000); } };
+    const busy = (on) => { btn.disabled = out.disabled = on; if (o.onBusy) o.onBusy(on); };
+    const act = (call, body) => later(async () => { busy(true); try { show(await api(call, body || {})); } catch (e) { fail(e.message); } busy(false); });
+    btn.onclick = () => act(name + (cur && cur.waiting ? '-cancel' : '-signin'));
     again.onclick = () => { if (cur && cur.url) window.open(cur.url, '_blank', 'noopener'); };
-    out.onclick = async () => { if (await ask('Sign out of Stremio?', 'Discord stops showing what you watch in Stremio. You can sign in again at any time.', 'Sign out')) act('stremio-signout'); };
+    out.onclick = async () => { if (await ask('Sign out of ' + o.service + '?', o.signedOut + ' You can sign in again at any time.', 'Sign out')) act(name + '-signout'); };
     setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
-    return box;
+    return { box, act, fail };
   }
 
-  // The Jellyfin / Emby sign-in (Accounts tab): the server's address, then a Quick Connect code to approve in a Jellyfin
-  // app, or a user name and password (Emby, or Quick Connect off). The program keeps only the server's sign-in; the
-  // password is passed on to the server once and never kept.
+  // "Sign in to Plex", then the server to follow.
+  function plexBox() {
+    const sel = el('select', { className: 'hidden' });
+    sel.setAttribute('aria-label', 'Plex server');
+    let listed = false;
+    const listServers = async (cur) => {
+      listed = true;
+      try {
+        const { servers } = await api('plex-servers', {});
+        sel.textContent = '';
+        servers.forEach((s) => sel.append(new Option(s.name + (s.owned ? '' : ' (shared with you)'), s.id, false, s.id === cur.server)));
+        if (!servers.length) sel.append(new Option('No Plex server in this account', '', true, true));
+        sel.disabled = servers.length < 2;
+      } catch (e) { listed = false; s.fail(e.message); }
+    };
+    const s = signInBox('plex', {
+      service: 'Plex',
+      intro: 'Shows what you play on Plex on any device. Signing in opens plex.tv; this app never sees your password.',
+      signedIn: (p) => 'Signed in as ' + (p.user || 'your Plex account') + '. Server:',
+      signedOut: 'Discord stops showing what you play on Plex.',
+      extra: el('div', { className: 'ctl' }, sel),
+      onShow: (p) => {
+        const on = p.signedIn && !p.waiting;
+        sel.classList.toggle('hidden', !on);
+        if (!on) listed = false;
+        else if (!listed) { sel.textContent = ''; sel.append(new Option(p.serverName || 'Loading…', p.server || '', true, true)); listServers(p); }
+      },
+      onBusy: (on) => { sel.disabled = on || sel.options.length < 2; },
+    });
+    sel.onchange = () => { if (sel.value) s.act('plex-server', { id: sel.value }); };
+    return s.box;
+  }
+
+  function stremioBox() {
+    return signInBox('stremio', {
+      service: 'Stremio',
+      intro: 'Shows what you watch in Stremio on any device. Signing in opens stremio.com; this app never sees your password.',
+      signedIn: () => 'Signed in. Pausing takes the status down; it comes back when you resume.',
+      signedOut: 'Discord stops showing what you watch in Stremio.',
+    }).box;
+  }
+
+  // The Jellyfin / Emby sign-in: the server's address, then a Quick Connect code to approve in a Jellyfin app, or a user
+  // name and password (Emby, or Quick Connect off). The password is passed on to the server once and never kept.
   function jellyfinBox() {
-    const text = el('div', { className: 'help' });
-    const err = el('div', { className: 'help bad hidden' });
-    const addr = el('input', { type: 'text', spellcheck: false, autocomplete: 'off', placeholder: 'http://192.168.1.20:8096' });
+    const input = (type, placeholder) => { const i = el('input', { type, spellcheck: false, autocomplete: 'off', placeholder }); i.setAttribute('aria-label', placeholder); return i; };
+    const text = help(''), err = el('div', { className: 'help bad hidden' });
+    const addr = input('text', 'http://192.168.1.20:8096');
     addr.setAttribute('aria-label', 'Server address');
-    const user = el('input', { type: 'text', spellcheck: false, autocomplete: 'off', placeholder: 'User name' });
-    user.setAttribute('aria-label', 'User name');
-    const pass = el('input', { type: 'password', autocomplete: 'off', placeholder: 'Password' });
-    pass.setAttribute('aria-label', 'Password');
+    const user = input('text', 'User name'), pass = input('password', 'Password');
     const code = el('div', { className: 'jf-code hidden' });
     const btn = el('button', { className: 'primary' });
     const cancel = el('button', { textContent: 'Cancel', className: 'hidden' });
@@ -585,8 +577,7 @@
     const out = el('button', { textContent: 'Sign out', className: 'hidden' });
     const addrRow = el('div', { className: 'ctl' }, addr);
     const pwRow = el('div', { className: 'ctl jf-pw hidden' }, user, pass);
-    const box = el('div', { className: 'field' }, text, err, addrRow, code, pwRow,
-      el('div', { className: 'row', style: 'margin-top:6px' }, btn, usePw, cancel, out));
+    const box = el('div', { className: 'field' }, text, err, addrRow, code, pwRow, el('div', { className: 'row actions' }, btn, usePw, cancel, out));
     let cur = null, timer = null, pwMode = false;
     const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
     const show = (p) => {
@@ -620,15 +611,13 @@
       }
     };
     const refresh = async () => { if (!box.isConnected) return; try { show(await api('jellyfin')); } catch (_) { timer = setTimeout(refresh, 4000); } };
-    const act = (name, body) => {
-      queue = queue.then(async () => {
-        [btn, out, cancel, usePw].forEach((b) => { b.disabled = true; });
-        fail('');
-        try { show(await api(name, body || {})); } catch (e) { fail(e.message); }
-        [btn, out, cancel, usePw].forEach((b) => { b.disabled = false; });
-        pass.value = '';
-      });
-    };
+    const act = (name, body) => later(async () => {
+      [btn, out, cancel, usePw].forEach((b) => { b.disabled = true; });
+      fail('');
+      try { show(await api(name, body || {})); } catch (e) { fail(e.message); }
+      [btn, out, cancel, usePw].forEach((b) => { b.disabled = false; });
+      pass.value = '';
+    });
     const address = () => (cur && cur.address && (cur.password || pwMode) ? cur.address : addr.value);
     btn.onclick = () => {
       if (!pwRow.classList.contains('hidden')) act('jellyfin-password', { address: address(), user: user.value, password: pass.value });
@@ -636,7 +625,7 @@
     };
     [addr, user, pass].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); }));
     cancel.onclick = () => { pwMode = false; act('jellyfin-cancel'); };
-    usePw.onclick = () => { const a = cur.address; act('jellyfin-cancel'); queue = queue.then(() => { pwMode = true; show(Object.assign({}, cur, { address: a, password: true })); }); };
+    usePw.onclick = () => { const a = cur.address; act('jellyfin-cancel'); later(() => { pwMode = true; show(Object.assign({}, cur, { address: a, password: true })); }); };
     out.onclick = async () => { if (await ask('Sign out of ' + ((cur && cur.product) || 'Jellyfin') + '?', 'Discord stops showing what you play there. You can sign in again at any time.', 'Sign out')) act('jellyfin-signout'); };
     setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
     return box;
@@ -645,12 +634,11 @@
   const TAB_NAMES = { accounts: 'Accounts', look: 'Look', titles: 'Titles & art', privacy: 'Privacy', advanced: 'Advanced' };
   let tab = 'general';
   try { tab = localStorage.getItem('tab') || 'general'; } catch (_) {}
-  if (tab === 'log') tab = 'help'; // the Log tab is now Help
   let updFlag = false;
   function buildTabs() {
     const list = [['general', 'General']];
     model.schema.forEach((s) => list.push([s.id, TAB_NAMES[s.id] || s.title]));
-    list.push(['updates', 'Updates'], ['help', 'Help']);
+    list.push(['help', 'Help']);
     if (!list.some((x) => x[0] === tab)) tab = 'general';
     const bar = $('tabs'); bar.textContent = '';
     list.forEach(([id, label]) => {
@@ -665,7 +653,7 @@
       };
       bar.append(b);
     });
-    document.querySelectorAll('.panel').forEach((p) => { if (p.id.startsWith('p-') && !p.hasAttribute('aria-labelledby')) p.setAttribute('aria-labelledby', 'tab-' + p.id.slice(2)); });
+    document.querySelectorAll('.panel').forEach((p) => { if (!p.hasAttribute('aria-labelledby')) p.setAttribute('aria-labelledby', 'tab-' + p.id.slice(2)); });
     if (updFlag) flagUpdate();
     showTab(tab);
   }
@@ -677,20 +665,20 @@
     if (id === 'help') pollLog();
     if (id === 'general') api('stats').then(paintStats).catch(() => {});
   }
-  function flagUpdate() { updFlag = true; const b = document.querySelector('.tab[data-tab="updates"]'); if (b) b.classList.add('has'); }
+  function flagUpdate() { updFlag = true; const b = $('tab-general'); if (b) b.classList.add('has'); }
 
   function fill(m) {
     model = m;
     $('ver').textContent = 'v' + m.version;
+    $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
-    $('checkUpdates').checked = !!m.app.checkUpdates; updateRepoInput.value = m.app.updateRepo || '';
+    $('checkUpdates').checked = !!m.app.checkUpdates;
     applyOsText();
     renderFields(m);
     paintStats(m.stats);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
   }
   ['autoStart', 'startPresence', 'openWindow', 'checkUpdates'].forEach((id) => autosave($(id), 'app', id));
-  autosave(updateRepoInput, 'app', 'updateRepo'); // the field itself sits in Advanced > Maintenance
 
   const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
   // a picture of the Discord card, built from the activity the program actually sent
@@ -719,27 +707,30 @@
       const box = document.querySelector('input[data-key="hideTitle"]');
       if (box) box.checked = s.hideTitle;
     }
+    // while nothing is shown, the card is one line and a button; the two lights only say something once it runs
+    ['pDiscord', 'pMpc', 'spacer'].forEach((id) => $(id).classList.toggle('hidden', !s.running));
+    $('idle').classList.toggle('hidden', !!s.running);
     const d = $('pDiscord'), p = $('pMpc');
-    d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '');
+    d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '') + (s.running ? '' : ' hidden');
     d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : s.discord === 'standby' ? 'Discord on standby' : 'Discord idle';
     d.title = s.discord === 'standby' ? 'Discord is contacted as soon as something plays.' : s.discord === 'waiting' ? 'Discord was not found yet. Is the desktop app running?' : '';
-    p.className = 'pill ' + (s.mpc ? 'good' : s.running ? 'warn' : '');
-    p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : s.running ? 'No player found' : 'Player idle';
+    p.className = 'pill ' + (s.mpc ? 'good' : 'warn') + (s.running ? '' : ' hidden');
+    p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : 'No player found';
     const now = $('now');
-    if (!s.running) now.innerHTML = 'Not showing on Discord<small>Press Show on Discord to show what you watch.</small>';
-    else if (s.hidden) now.innerHTML = 'Hidden<small>The file playing is on your Never show list, so nothing is shown on Discord.</small>';
+    now.textContent = '';
+    if (!s.running) { /* the idle line says it */ }
+    else if (s.hidden) now.append(document.createTextNode('Hidden'), el('small', { textContent: 'The file playing is on your Never show list, so nothing is shown on Discord.' }));
     else if (s.nowPlaying) {
-      now.textContent = '';
       const sub = s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing';
       // while the Discord preview is showing, the title is already there: keep only a note that adds something
       if (s.preview) { if (s.paused) now.append(el('small', { textContent: sub })); }
       else now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: sub }));
     }
-    else { now.textContent = ''; now.append(document.createTextNode('Nothing playing'), el('small', { textContent: 'Play something in ' + players() + '.' })); }
+    else if (s.mpc) now.append(document.createTextNode('Nothing playing'), el('small', { textContent: 'Play something in ' + players() + '.' }));
     now.classList.toggle('hidden', !now.hasChildNodes());
     const t = $('toggle'); t.textContent = s.running ? 'Stop showing' : 'Show on Discord'; t.className = s.running ? '' : 'primary';
     // a short line for screen readers, changed only when the state changes (the status itself changes every second)
-    const live = d.textContent + '. ' + p.textContent + '.';
+    const live = s.running ? d.textContent + '. ' + p.textContent + '.' : 'Not showing on Discord.';
     if ($('liveStatus').textContent !== live) $('liveStatus').textContent = live;
     $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
     const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
@@ -752,7 +743,7 @@
     $('updBanner').classList.toggle('hidden', !on);
     if (on) $('updBannerText').textContent = 'MPCvibedRPC ' + u.latest + ' is available.';
   }
-  $('updBannerBtn').onclick = () => showTab('updates');
+  $('updBannerBtn').onclick = () => { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); };
 
   function closeWindow() { document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>'; try { window.close(); } catch (_) {} }
   async function poll() { try { paint(await api('status')); } catch (_) {} }
@@ -778,16 +769,15 @@
   }
 
   // the welcome card: dismissing it is remembered, so it only ever greets a new install
-  function dismissWelcome() {
+  $('welcomeOk').onclick = () => {
     $('welcome').classList.add('hidden');
-    queue = queue.then(async () => { try { model = await api('save', { app: { welcomeSeen: true } }); } catch (e) { note(e.message, true); } });
-  }
-  $('welcomeOk').onclick = dismissWelcome;
+    later(async () => { try { model = await api('save', { app: { welcomeSeen: true } }); } catch (e) { note(e.message, true); } });
+  };
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { await ask('Could not change this', e.message, 'OK', false, null); } $('toggle').disabled = false; };
   async function restoreDefaults() {
     if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex, Stremio, Jellyfin and Emby, and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
-    queue = queue.then(async () => {
+    later(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
   }
@@ -855,9 +845,9 @@
   $('checkUpd').onclick = async () => {
     $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('pageUpd').classList.add('hidden'); $('updNotes').textContent = '';
     try {
-      await queue; // a just-edited update source is saved first
+      await queue; // a change still being saved goes first
       const u = await api('update-check', {});
-      if (!u.configured) $('updText').textContent = 'Enter an update source in Advanced > Maintenance first.';
+      if (!u.configured) $('updText').textContent = 'No update source is set (updateRepo in the settings file).';
       else if (u.error) $('updText').textContent = u.error;
       else if (u.newer) showUpdate(u, true);
       else $('updText').textContent = 'You are up to date (' + u.current + ').';
@@ -883,20 +873,19 @@
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
   $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose', '_blank', 'noopener');
-  // the changelog shows once for each new version (a new install too), and the button shows it any time
-  function showNews(v) {
-    showChangelog(false);
-    queue = queue.then(async () => { try { model = await api('save', { app: { seenVersion: v } }); } catch (_) {} });
-  }
-  $('changelogBtn').onclick = () => showChangelog(true);
+  $('ver').onclick = () => showChangelog(true);
   $('statsReset').onclick = async () => {
     if (!await ask('Reset your stats?', 'The counts start again from today.', 'Reset', true)) return;
     try { paintStats(await api('stats-reset', {})); } catch (e) { note(e.message, true); }
   };
   $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord stops showing what you watch.', 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
-  api('state').then((m) => { fill(m); paint(m.status); if (m.app.seenVersion !== m.version) showNews(m.version); showUpdate(m.update, false); })
-    .catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
+  api('state').then((m) => {
+    fill(m); paint(m.status);
+    // the changelog shows once for each new version (a new install too); the version button shows it any time
+    if (m.app.seenVersion !== m.version) { showChangelog(false); later(async () => { try { model = await api('save', { app: { seenVersion: m.version } }); } catch (_) {} }); }
+    showUpdate(m.update, false);
+  }).catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
   setInterval(poll, 1000); setInterval(pollLog, 3000);
 })();
 </script>
