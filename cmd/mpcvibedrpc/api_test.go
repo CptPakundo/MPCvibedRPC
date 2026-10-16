@@ -12,13 +12,20 @@ import (
 // Every endpoint the settings page calls exists.
 func TestEveryWindowCallHasAHandler(t *testing.T) {
 	h := (&app{}).handlers()
-	calls := regexp.MustCompile(`(?:api|act)\('([a-z-]+)'`).FindAllStringSubmatch(string(assets.UI), -1)
-	if len(calls) < 20 {
-		t.Fatalf("found only %d calls in the page", len(calls))
+	page := string(assets.UI)
+	names := []string{"start", "stop"} // chosen by the Show on Discord button
+	for _, c := range regexp.MustCompile(`(?:api|act)\('([a-z-]+)'`).FindAllStringSubmatch(page, -1) {
+		names = append(names, c[1])
 	}
-	for _, c := range calls {
-		if _, ok := h[c[1]]; !ok {
-			t.Errorf("the page calls /api/%s, which has no handler", c[1])
+	for _, c := range regexp.MustCompile(`signInBox\('([a-z]+)'`).FindAllStringSubmatch(page, -1) {
+		names = append(names, c[1], c[1]+"-signin", c[1]+"-cancel", c[1]+"-signout")
+	}
+	if len(names) < 30 {
+		t.Fatalf("found only %d calls in the page", len(names))
+	}
+	for _, n := range names {
+		if _, ok := h[n]; !ok {
+			t.Errorf("the page calls /api/%s, which has no handler", n)
 		}
 	}
 }
