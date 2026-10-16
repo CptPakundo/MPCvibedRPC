@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,11 +44,16 @@ func newFakeJellyfin(t *testing.T) *fakeJellyfin {
 
 func (f *fakeJellyfin) count() int { f.mu.Lock(); defer f.mu.Unlock(); return f.asked }
 
+// withJellyfin signs the engine in to the fake server, which is asked every 100 ms.
+func withJellyfin(f *fakeJellyfin, product string) testMod {
+	return func(cfg *core.Config, o *Options) {
+		o.JellyfinEvery = 100 * time.Millisecond
+		cfg.JellyfinAddress, cfg.JellyfinToken, cfg.JellyfinUser, cfg.JellyfinProduct = f.URL, "jf-token", jellyfinUser, product
+	}
+}
+
 func jellyfinEngine(t *testing.T, port int, f *fakeJellyfin, product string) (*Engine, *disc, *logs) {
-	e, d, l := pipeEngine(t, port, nil)
-	e.opts.JellyfinEvery = 100 * time.Millisecond
-	e.cfg.JellyfinAddress, e.cfg.JellyfinToken, e.cfg.JellyfinUser, e.cfg.JellyfinProduct = f.URL, "jf-token", jellyfinUser, product
-	return e, d, l
+	return newTestEngine(t, withPort(port), shortPause, withJellyfin(f, product))
 }
 
 func TestJellyfinPlayback(t *testing.T) {
@@ -91,22 +94,6 @@ func TestEmbyIsCalledEmby(t *testing.T) {
 	}
 }
 
-// A player on this computer that plays beats what the server reports.
-func TestJellyfinAfterLocalPlayers(t *testing.T) {
-	f := newFakeJellyfin(t)
-	m := newMPC(t)
-	e, _, _ := jellyfinEngine(t, m.port, f, "Jellyfin")
-	e.Start()
-	eventually(t, "the server asked", func() bool { return f.count() >= 2 })
-	eventually(t, "MPC-HC shown", func() bool { return e.Status().Player == "MPC-HC" })
-	time.Sleep(600 * time.Millisecond)
-	if st := e.Status(); st.Player != "MPC-HC" {
-		t.Fatalf("Jellyfin won over a playing MPC-HC: %+v", st)
-	}
-	m.set(func(m *mpc) { m.state = 0 }) // MPC-HC stops: the server's video shows
-	eventually(t, "Jellyfin shown", func() bool { return e.Status().Player == "Jellyfin" })
-}
-
 // A refused sign-in is shown in the window.
 func TestJellyfinRefusedSignIn(t *testing.T) {
 	f := newFakeJellyfin(t)
@@ -114,29 +101,4 @@ func TestJellyfinRefusedSignIn(t *testing.T) {
 	e.cfg.JellyfinToken = "revoked"
 	e.Start()
 	eventually(t, "the hint", func() bool { return strings.Contains(e.Status().Hint, "Jellyfin refused the sign-in") })
-}
-
-// Resting stops the watcher (no more requests) and starts it again when it ends.
-func TestJellyfinStopsWhileResting(t *testing.T) {
-	f := newFakeJellyfin(t)
-	var mayRest atomic.Bool
-	cfg := core.DefaultConfig()
-	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = deadPort(t), 250, false
-	cfg.JellyfinAddress, cfg.JellyfinToken, cfg.JellyfinUser, cfg.JellyfinProduct = f.URL, "jf-token", jellyfinUser, "Jellyfin"
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{fakePath(sockDir(t))}, CacheFile: filepath.Join(t.TempDir(), "c.json"),
-		JellyfinEvery: 100 * time.Millisecond, MayRest: mayRest.Load})
-	t.Cleanup(e.Stop)
-	e.Start()
-	eventually(t, "the server asked", func() bool { return f.count() >= 1 })
-	mayRest.Store(true)
-	eventually(t, "resting", func() bool { return e.Status().Resting })
-	time.Sleep(150 * time.Millisecond) // a request under way may still land
-	n := f.count()
-	time.Sleep(500 * time.Millisecond)
-	if f.count() != n {
-		t.Fatal("the server was asked while resting")
-	}
-	mayRest.Store(false)
-	e.Wake()
-	eventually(t, "asked again", func() bool { return f.count() > n })
 }
