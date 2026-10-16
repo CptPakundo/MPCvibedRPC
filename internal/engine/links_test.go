@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,19 +20,16 @@ func linkSetup(t *testing.T, edit func(*core.Config)) (*Engine, *disc, *logs) {
 		fmt.Fprint(w, `{"metas":[{"name":"Sample Movie","releaseInfo":"2020","poster":"https://img.example/poster.jpg","imdb_id":"tt0000001"}]}`)
 	}))
 	t.Cleanup(cat.Close)
-	m, d := newMPC(t), newDisc(t)
+	m := newMPC(t)
 	m.file, m.filepath = "Sample.Movie.2020.1080p.mkv", `C:\Movies\Sample.Movie.2020.1080p.mkv`
-	cfg := core.DefaultConfig()
-	cfg.Port, cfg.PollInterval = m.port, 250
-	cfg.ArtworkSources, cfg.AnimeSources, cfg.CinemetaBase = []string{"cinemeta"}, []string{}, cat.URL
-	cfg.RichInfo, cfg.EpisodeTitles = false, false
-	if edit != nil {
-		edit(&cfg)
-	}
-	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
-	t.Cleanup(e.Stop)
-	return e, d, l
+	return newTestEngine(t, withPort(m.port), func(cfg *core.Config, _ *Options) {
+		cfg.ShowArtwork = true // the default; the lookups here go to the fake catalog
+		cfg.ArtworkSources, cfg.AnimeSources, cfg.CinemetaBase = []string{"cinemeta"}, []string{}, cat.URL
+		cfg.RichInfo, cfg.EpisodeTitles = false, false
+		if edit != nil {
+			edit(cfg)
+		}
+	})
 }
 
 func lastActivity(d *disc) map[string]any {

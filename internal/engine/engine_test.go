@@ -168,15 +168,42 @@ func noPipes(core.Config) []PlayerPipe { return nil }
 // noMPRIS keeps video players on this computer's D-Bus (Linux) out of the tests.
 func noMPRIS(time.Duration) []*core.Info { return nil }
 
-func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
-	m, d := newMPC(t), newDisc(t)
+// testMod adjusts the settings and options of a test engine before it is made.
+type testMod func(*core.Config, *Options)
+
+// newTestEngine makes an engine for a test: it talks to a fake Discord, logs into the returned capture, asks every
+// 250 ms, looks nothing up, sees no player on this computer (see noPipes and noMPRIS), keeps its cache in a temporary
+// folder and is stopped when the test ends. mods change that before the engine is made.
+func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
+	d := newDisc(t)
 	cfg := core.DefaultConfig()
-	cfg.Port = m.port
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
+	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
+	for _, mod := range mods {
+		mod(&cfg, &opts)
+	}
+	e := New(cfg, opts)
 	t.Cleanup(e.Stop)
+	return e, d, l
+}
+
+// withPort sets the port of the MPC web interface that is asked.
+func withPort(port int) testMod { return func(cfg *core.Config, _ *Options) { cfg.Port = port } }
+
+// withPipes sets the IPC endpoints that are asked after the web interface.
+func withPipes(pipes []PlayerPipe) testMod {
+	return func(_ *core.Config, o *Options) { o.Pipes = func(core.Config) []PlayerPipe { return pipes } }
+}
+
+// shortPause makes one "minute" of the pause limit last 300 ms.
+func shortPause(_ *core.Config, o *Options) { o.PauseUnit = 300 * time.Millisecond }
+
+// setup is a test engine that follows a fake MPC-HC and a fake Discord.
+func setup(t *testing.T) (*Engine, *mpc, *disc, *logs) {
+	m := newMPC(t)
+	e, d, l := newTestEngine(t, withPort(m.port), shortPause)
 	return e, m, d, l
 }
 
@@ -380,11 +407,22 @@ func pauseSetup(t *testing.T, minutes int) (*Engine, *mpc, *disc) {
 	return e, m, d
 }
 
-func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
-	e, m, d := pauseSetup(t, 1)
+// pause pauses the video and waits for the status to show the pause.
+func pause(t *testing.T, m *mpc, d *disc) {
 	n := len(d.list())
 	m.set(func(m *mpc) { m.state = 1 })
 	eventually(t, "paused update", func() bool { return len(d.list()) > n })
+}
+
+// pauseUntilCleared pauses the video and waits until the status is taken down because of it.
+func pauseUntilCleared(t *testing.T, e *Engine, m *mpc, d *disc) {
+	m.set(func(m *mpc) { m.state = 1 })
+	eventually(t, "cleared", func() bool { return isClear(d) && e.Status().PauseCleared })
+}
+
+func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
+	e, m, d := pauseSetup(t, 1)
+	pause(t, m, d)
 	if isClear(d) {
 		t.Fatal("the pause itself must still show the status")
 	}
@@ -393,7 +431,7 @@ func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
 		t.Fatalf("status while cleared: %+v", s)
 	}
 	// nothing more is sent while nothing changes
-	n = len(d.list())
+	n := len(d.list())
 	time.Sleep(900 * time.Millisecond)
 	if len(d.list()) != n {
 		t.Fatalf("expected silence while paused and cleared, got %d new messages", len(d.list())-n)
@@ -408,8 +446,7 @@ func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
 
 func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
 	e, m, d := pauseSetup(t, 1)
-	m.set(func(m *mpc) { m.state = 1 })
-	eventually(t, "cleared", func() bool { return isClear(d) && e.Status().PauseCleared })
+	pauseUntilCleared(t, e, m, d)
 	n := len(d.list())
 	m.set(func(m *mpc) { m.pos += 120000 }) // the user moves around while paused: they are still there
 	eventually(t, "status back after a seek", func() bool { return len(d.list()) > n && !isClear(d) })
@@ -422,10 +459,8 @@ func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
 
 func TestPauseClearZeroMeansNever(t *testing.T) {
 	e, m, d := pauseSetup(t, 0)
+	pause(t, m, d)
 	n := len(d.list())
-	m.set(func(m *mpc) { m.state = 1 })
-	eventually(t, "paused update", func() bool { return len(d.list()) > n })
-	n = len(d.list())
 	time.Sleep(1200 * time.Millisecond) // several "minutes" of the shortened unit
 	if len(d.list()) != n || isClear(d) || e.Status().PauseCleared {
 		t.Fatal("with the limit at 0 a paused video must keep its status")
@@ -434,8 +469,7 @@ func TestPauseClearZeroMeansNever(t *testing.T) {
 
 func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
 	e, m, d := pauseSetup(t, 1)
-	m.set(func(m *mpc) { m.state = 1 })
-	eventually(t, "cleared", func() bool { return isClear(d) })
+	pauseUntilCleared(t, e, m, d)
 	cfg := e.Config()
 	cfg.PauseClearMinutes = 0 // switched off while hidden: the status returns
 	e.ApplySettings(cfg)
@@ -446,12 +480,9 @@ func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
 }
 
 func TestClearArtworkCache(t *testing.T) {
-	m, d := newMPC(t), newDisc(t)
-	cfg := core.DefaultConfig()
-	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
+	m := newMPC(t)
 	cache := filepath.Join(t.TempDir(), "c.json")
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{d.path}, CacheFile: cache})
-	t.Cleanup(e.Stop)
+	e, d, _ := newTestEngine(t, withPort(m.port), func(_ *core.Config, o *Options) { o.CacheFile = cache })
 
 	// stopped: the file on disk is removed
 	if err := os.WriteFile(cache, []byte(`{"a":null}`), 0o644); err != nil {
@@ -557,13 +588,12 @@ func (l *lookupCounter) count() int { l.mu.Lock(); defer l.mu.Unlock(); return l
 
 // privacySetup is setup() with artwork lookups switched on and watched, so a test can prove none were made.
 func privacySetup(t *testing.T, edit func(*core.Config)) (*Engine, *mpc, *disc, *logs, *lookupCounter) {
-	m, d := newMPC(t), newDisc(t)
-	cfg := core.DefaultConfig()
-	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, true
-	edit(&cfg)
-	l, lc := &logs{}, &lookupCounter{}
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, HTTPClient: &http.Client{Transport: lc}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
-	t.Cleanup(e.Stop)
+	m, lc := newMPC(t), &lookupCounter{}
+	e, d, l := newTestEngine(t, withPort(m.port), func(cfg *core.Config, o *Options) {
+		cfg.ShowArtwork = true
+		edit(cfg)
+		o.HTTPClient = &http.Client{Transport: lc}
+	})
 	return e, m, d, l, lc
 }
 

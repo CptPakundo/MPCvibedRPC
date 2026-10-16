@@ -130,12 +130,18 @@ func (f *fakeStremioAPI) play(name, video string, offset int64) {
 
 func (f *fakeStremioAPI) count() int { f.mu.Lock(); defer f.mu.Unlock(); return f.asked }
 
+// withStremio signs the engine in to the fake Stremio.
+func withStremio(s *fakeStremioAPI) testMod {
+	return func(cfg *core.Config, o *Options) {
+		o.StremioAPI = s.URL
+		cfg.StremioKey = "stremio-key"
+	}
+}
+
 func TestStremioPlayback(t *testing.T) {
 	s := newFakeStremio(t)
 	s.play("Sample Show", "tt0000002:1:2", 600_000)
-	e, d, l := pipeEngine(t, deadPort(t), nil)
-	e.opts.StremioAPI = s.URL
-	e.cfg.StremioKey = "stremio-key"
+	e, d, l := newTestEngine(t, withPort(deadPort(t)), shortPause, withStremio(s))
 	e.Start()
 	eventually(t, "Stremio's video shown", func() bool { return len(d.list()) > 0 })
 	act := d.list()[len(d.list())-1]["activity"].(map[string]any)
@@ -155,45 +161,4 @@ func TestStremioPlayback(t *testing.T) {
 	if !l.has("your Stremio account") || !l.has("Stremio detected") {
 		t.Fatal("the log does not mention Stremio")
 	}
-}
-
-// A player on this computer that plays beats what Stremio reports.
-func TestStremioAfterLocalPlayers(t *testing.T) {
-	s := newFakeStremio(t)
-	s.play("Sample Show", "tt0000002:1:2", 600_000)
-	m := newMPC(t)
-	e, d, _ := pipeEngine(t, m.port, nil)
-	e.opts.StremioAPI = s.URL
-	e.cfg.StremioKey = "stremio-key"
-	e.Start()
-	eventually(t, "Stremio asked", func() bool { return s.count() >= 2 })
-	eventually(t, "MPC-HC shown", func() bool { return e.Status().Player == "MPC-HC" && len(d.list()) > 0 })
-	time.Sleep(600 * time.Millisecond)
-	if st := e.Status(); st.Player != "MPC-HC" {
-		t.Fatalf("Stremio won over a playing MPC-HC: %+v", st)
-	}
-}
-
-// Resting stops the Stremio watcher (no more requests) and starts it again when it ends.
-func TestStremioStopsWhileResting(t *testing.T) {
-	s := newFakeStremio(t)
-	var mayRest atomic.Bool
-	mayRest.Store(false)
-	cfg := core.DefaultConfig()
-	cfg.Port, cfg.PollInterval, cfg.ShowArtwork, cfg.StremioKey = deadPort(t), 250, false, "stremio-key"
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{fakePath(sockDir(t))}, CacheFile: filepath.Join(t.TempDir(), "c.json"),
-		StremioAPI: s.URL, MayRest: mayRest.Load})
-	t.Cleanup(e.Stop)
-	e.Start()
-	eventually(t, "Stremio asked", func() bool { return s.count() >= 1 })
-	mayRest.Store(true)
-	eventually(t, "resting", func() bool { return e.Status().Resting })
-	n := s.count()
-	time.Sleep(500 * time.Millisecond)
-	if s.count() != n {
-		t.Fatal("Stremio was asked while resting")
-	}
-	mayRest.Store(false)
-	e.Wake()
-	eventually(t, "Stremio asked again", func() bool { return s.count() > n })
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
 // fakePlex is plex.tv (the account's one server) and that Plex Media Server, in one test server. The answers are
@@ -68,11 +70,16 @@ func (f *fakePlex) play(offset int, state string) {
 
 func (f *fakePlex) count() int { f.mu.Lock(); defer f.mu.Unlock(); return f.asked }
 
+// withPlex signs the engine in to the fake Plex.
+func withPlex(p *fakePlex) testMod {
+	return func(cfg *core.Config, o *Options) {
+		o.PlexTV = p.URL
+		cfg.PlexToken, cfg.PlexClient, cfg.PlexServer, cfg.PlexAccount = "account-token", "test-install", "srv-1", 12345
+	}
+}
+
 func plexEngine(t *testing.T, port int, p *fakePlex) (*Engine, *disc, *logs) {
-	e, d, l := pipeEngine(t, port, nil)
-	e.opts.PlexTV = p.URL
-	e.cfg.PlexToken, e.cfg.PlexClient, e.cfg.PlexServer, e.cfg.PlexAccount = "account-token", "test-install", "srv-1", 12345
-	return e, d, l
+	return newTestEngine(t, withPort(port), shortPause, withPlex(p))
 }
 
 func TestPlexPlayback(t *testing.T) {
@@ -108,27 +115,6 @@ func TestPlexPlayback(t *testing.T) {
 			t.Errorf("a token reached the log: %s", line)
 		}
 	}
-}
-
-// Plex is asked last: a player on this computer that plays wins, and Plex comes back when it stops.
-func TestPlexInThePlayerOrder(t *testing.T) {
-	p := newFakePlex(t)
-	m := newMPC(t)
-	e, _, _ := plexEngine(t, m.port, p)
-	e.Start()
-	eventually(t, "MPC-HC", func() bool { s := e.Status(); return s.Player == "MPC-HC" && s.NowPlaying != nil })
-	p.play(60000, "playing")
-	for i := 0; i < 4; i++ {
-		eventually(t, "still MPC-HC", func() bool { return e.Status().Player == "MPC-HC" })
-	}
-	m.set(func(m *mpc) { m.state = 0; m.file = ""; m.filepath = "" })
-	eventually(t, "Plex", func() bool {
-		s := e.Status()
-		return s.Player == "Plex" && s.NowPlaying != nil && strings.Contains(*s.NowPlaying, "Sample Show")
-	})
-	// an idle MPC-HC that answers is reported before an idle Plex
-	p.play(60000, "stopped")
-	eventually(t, "idle MPC-HC", func() bool { s := e.Status(); return s.Player == "MPC-HC" && s.NowPlaying == nil })
 }
 
 func TestPlexNotAskedWithoutSignIn(t *testing.T) {

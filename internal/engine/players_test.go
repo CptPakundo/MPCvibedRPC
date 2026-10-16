@@ -8,13 +8,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
 // fakeMpv is an mpv-style IPC endpoint (named pipe on Windows, Unix socket elsewhere) answering get_property.
@@ -98,16 +95,7 @@ func deadPort(t *testing.T) int {
 }
 
 func pipeEngine(t *testing.T, port int, pipes []PlayerPipe) (*Engine, *disc, *logs) {
-	d := newDisc(t)
-	cfg := core.DefaultConfig()
-	cfg.Port = port
-	cfg.PollInterval = 250
-	cfg.ShowArtwork = false
-	l := &logs{}
-	e := New(cfg, Options{Pipes: func(core.Config) []PlayerPipe { return pipes }, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path},
-		CacheFile: filepath.Join(t.TempDir(), "c.json"), PauseUnit: 300 * time.Millisecond})
-	t.Cleanup(e.Stop)
-	return e, d, l
+	return newTestEngine(t, withPort(port), withPipes(pipes), shortPause)
 }
 
 func lastDetails(d *disc) string {
