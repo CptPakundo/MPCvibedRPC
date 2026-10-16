@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
@@ -14,29 +11,24 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/store"
 )
 
-// jellyfinKeys are the settings the Jellyfin / Emby sign-in writes (jellyfinDevice, this install's id towards the
-// server, outlives a sign-out).
-var jellyfinKeys = []string{"jellyfinAddress", "jellyfinToken", "jellyfinUser", "jellyfinUserName", "jellyfinServerName", "jellyfinProduct", "jellyfinDevice"}
+// jellyfinSignIn are the settings the Jellyfin / Emby sign-in writes and a sign-out forgets; jellyfinDevice, this
+// install's id towards the server, is kept beside them.
+var jellyfinSignIn = []string{"jellyfinAddress", "jellyfinToken", "jellyfinUser", "jellyfinUserName", "jellyfinServerName", "jellyfinProduct"}
 
 // jellyfinAccount drives the Jellyfin / Emby sign-in: the user types their server's address, then approves a Quick
 // Connect code in a Jellyfin app they are signed in to, or (Emby, or Quick Connect off) types their user name and
-// password. Only the server's token is kept, never the password.
+// password. Only the server's token is kept, never the password. While a code waits, approval.shown is the code.
 type jellyfinAccount struct {
+	approval
 	st    *store.Store
 	eng   *engine.Engine
 	log   func(level, msg string)
 	every time.Duration // how often a Quick Connect code is checked (0 = every two seconds)
 
-	saving sync.Mutex // held while a finished sign-in is saved, so a sign-out cannot slip in between
-
-	mu       sync.Mutex
-	waiting  bool   // a Quick Connect code waits for the user's approval
-	code     string // that code
-	password bool   // the server wants a user name and password (no Quick Connect)
+	// guarded by approval.mu
+	password bool // the server wants a user name and password (no Quick Connect)
 	found    *jellyfin.Server
 	address  string // the address the sign-in is for (as found: Emby may need /emby)
-	problem  string // why the last sign-in did not work
-	cancel   context.CancelFunc
 }
 
 // state is what the window shows. The token never leaves the program.
@@ -45,7 +37,7 @@ func (j *jellyfinAccount) state() map[string]any {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	s := map[string]any{"signedIn": cfg.JellyfinToken != "", "user": cfg.JellyfinUserName, "server": cfg.JellyfinServerName,
-		"product": cfg.JellyfinProduct, "address": cfg.JellyfinAddress, "waiting": j.waiting, "code": j.code,
+		"product": cfg.JellyfinProduct, "address": cfg.JellyfinAddress, "waiting": j.waiting, "code": j.shown,
 		"password": j.password, "problem": j.problem}
 	if j.found != nil && cfg.JellyfinToken == "" {
 		s["server"], s["product"], s["address"] = j.found.Name, j.found.Product, j.address
@@ -53,21 +45,8 @@ func (j *jellyfinAccount) state() map[string]any {
 	return s
 }
 
-// device is this install's id towards the server, made once.
-func (j *jellyfinAccount) device() (string, error) {
-	if id := j.st.Config().JellyfinDevice; id != "" {
-		return id, nil
-	}
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	id := hex.EncodeToString(b)
-	return id, j.st.SetHidden([]string{"jellyfinDevice"}, map[string]any{"jellyfinDevice": id})
-}
-
 func (j *jellyfinAccount) client(base string) (*jellyfin.Client, error) {
-	id, err := j.device()
+	id, err := installID(j.st, "jellyfinDevice", j.st.Config().JellyfinDevice)
 	if err != nil {
 		return nil, err
 	}
@@ -96,12 +75,9 @@ func (j *jellyfinAccount) signIn(address string) (map[string]any, error) {
 		return nil, fmt.Errorf("Could not reach a server at that address (%s). Check the address, and that the server is running.", jellyfin.Reason(err))
 	}
 	j.mu.Lock()
-	j.found, j.address, j.problem, j.password = srv, c.Base, "", false
+	j.found, j.address, j.problem, j.password = srv, c.Base, "", srv.Product == "Emby"
 	j.mu.Unlock()
 	if srv.Product == "Emby" {
-		j.mu.Lock()
-		j.password = true
-		j.mu.Unlock()
 		return j.state(), nil
 	}
 	p, err := c.StartQuickConnect(ctx)
@@ -114,86 +90,39 @@ func (j *jellyfinAccount) signIn(address string) (map[string]any, error) {
 		}
 		return j.state(), nil
 	}
-	wctx, wcancel := context.WithTimeout(context.Background(), 10*time.Minute) // Jellyfin forgets a code after 10 minutes
-	j.mu.Lock()
-	if j.cancel != nil {
-		j.cancel() // a second press of Sign in while the first was still finding the server
-	}
-	j.cancel, j.waiting, j.code = wcancel, true, p.Code
-	j.mu.Unlock()
-	go j.wait(wctx, c, p)
+	wctx, wcancel := j.begin(10*time.Minute, p.Code) // Jellyfin forgets a code after 10 minutes
+	incomplete := 0
+	go j.poll(wctx, wcancel, j.every, j.log, "The Quick Connect code was not approved in time. Press Sign in to try again.",
+		func() (bool, string) { return j.check(wctx, c, p, &incomplete) })
 	j.log("INFO", "Waiting for the Jellyfin Quick Connect code to be approved.")
 	return j.state(), nil
 }
 
-func (j *jellyfinAccount) finish(ctx context.Context, problem string) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	if ctx.Err() == context.Canceled {
-		return // cancelled, or replaced by a newer sign-in that now owns the state
+// check asks the server whether the Quick Connect code was approved; once it is, the sign-in is saved.
+func (j *jellyfinAccount) check(ctx context.Context, c *jellyfin.Client, p *jellyfin.Pending, incomplete *int) (done bool, problem string) {
+	a, err := c.CheckQuickConnect(ctx, p)
+	if errors.Is(err, jellyfin.ErrExpired) {
+		return true, "The Quick Connect code expired. Press Sign in to try again."
 	}
-	j.waiting, j.code, j.problem = false, "", problem
-	if problem != "" {
-		j.log("WARN", problem)
+	if errors.Is(err, jellyfin.ErrIncomplete) {
+		if *incomplete++; *incomplete >= 3 {
+			return true, "Sign-in failed: " + err.Error() + ". Press Sign in to try again."
+		}
+		return false, ""
 	}
-}
-
-// wait checks the Quick Connect code until it is approved, expires or the sign-in is cancelled.
-func (j *jellyfinAccount) wait(ctx context.Context, c *jellyfin.Client, p *jellyfin.Pending) {
-	every := j.every
-	if every <= 0 {
-		every = 2 * time.Second
+	if err != nil || a == nil {
+		return false, "" // not approved yet (or the server did not answer this time)
 	}
-	t := time.NewTicker(every)
-	defer t.Stop()
-	incomplete := 0
-	for {
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				j.finish(ctx, "The Quick Connect code was not approved in time. Press Sign in to try again.")
-			}
-			return
-		case <-t.C:
-		}
-		a, err := c.CheckQuickConnect(ctx, p)
-		if errors.Is(err, jellyfin.ErrExpired) {
-			j.finish(ctx, "The Quick Connect code expired. Press Sign in to try again.")
-			return
-		}
-		if errors.Is(err, jellyfin.ErrIncomplete) {
-			if incomplete++; incomplete >= 3 {
-				j.finish(ctx, "Sign-in failed: "+err.Error()+". Press Sign in to try again.")
-				return
-			}
-			continue
-		}
-		if err != nil || a == nil {
-			continue // not approved yet (or the server did not answer this time)
-		}
-		j.saving.Lock()
-		if ctx.Err() != nil {
-			j.saving.Unlock()
-			return // cancelled: signed out, or replaced by a newer sign-in
-		}
+	saved, err := j.save(ctx, func() error {
 		j.mu.Lock()
 		srv := j.found
 		j.mu.Unlock()
-		err = j.save(c, srv, a)
-		j.saving.Unlock()
-		if err != nil {
-			j.finish(ctx, "Could not save the sign-in: "+err.Error())
-			return
-		}
-		j.finish(ctx, "")
-		j.mu.Lock()
-		if j.cancel != nil {
-			j.cancel() // ends the time limit of this sign-in
-			j.cancel = nil
-		}
-		j.mu.Unlock()
-		return
+		return j.keep(c, srv, a)
+	})
+	if saved && err != nil {
+		return true, "Could not save the sign-in: " + err.Error()
 	}
+	return true, ""
 }
 
 // signInPassword signs in with a user name and password at the address found by signIn (or a new one).
@@ -204,11 +133,7 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	// Only a Quick Connect that is waiting ends here: stopWaiting would also forget the server found and the password
 	// form, and after a wrong password the box would fall back to the address form.
 	j.mu.Lock()
-	if j.cancel != nil {
-		j.cancel()
-		j.cancel = nil
-	}
-	j.waiting, j.code = false, ""
+	j.end()
 	j.mu.Unlock()
 	base, err := jellyfin.Address(address)
 	if err != nil {
@@ -230,19 +155,18 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	} else if err != nil {
 		return nil, fmt.Errorf("Could not sign in (%s).", jellyfin.Reason(err))
 	}
-	if err := j.save(c, srv, a); err != nil {
+	if err := j.keep(c, srv, a); err != nil {
 		return nil, errors.New("Could not save the sign-in: " + err.Error())
 	}
-	j.mu.Lock()
-	j.problem = ""
-	j.mu.Unlock()
+	j.clearProblem()
 	return j.state(), nil
 }
 
-// save keeps the sign-in and starts following the server.
-func (j *jellyfinAccount) save(c *jellyfin.Client, srv *jellyfin.Server, a *jellyfin.Auth) error {
-	err := j.st.SetHidden(jellyfinKeys, map[string]any{"jellyfinAddress": c.Base, "jellyfinToken": a.Token, "jellyfinUser": a.UserID,
-		"jellyfinUserName": a.UserName, "jellyfinServerName": srv.Name, "jellyfinProduct": srv.Product, "jellyfinDevice": c.DeviceID})
+// keep saves the sign-in and starts following the server.
+func (j *jellyfinAccount) keep(c *jellyfin.Client, srv *jellyfin.Server, a *jellyfin.Auth) error {
+	err := j.st.SetHidden(append(jellyfinSignIn, "jellyfinDevice"), map[string]any{"jellyfinAddress": c.Base, "jellyfinToken": a.Token,
+		"jellyfinUser": a.UserID, "jellyfinUserName": a.UserName, "jellyfinServerName": srv.Name, "jellyfinProduct": srv.Product,
+		"jellyfinDevice": c.DeviceID})
 	if err != nil {
 		return err
 	}
@@ -259,11 +183,8 @@ func (j *jellyfinAccount) stopWaiting() {
 	j.saving.Lock()
 	defer j.saving.Unlock()
 	j.mu.Lock()
-	if j.cancel != nil {
-		j.cancel()
-		j.cancel = nil
-	}
-	j.waiting, j.code, j.password, j.found, j.address = false, "", false, nil, ""
+	j.end()
+	j.password, j.found, j.address = false, nil, ""
 	j.mu.Unlock()
 }
 
@@ -285,13 +206,10 @@ func (j *jellyfinAccount) revoke() {
 // signOut ends the session on the server (when it answers) and forgets the sign-in.
 func (j *jellyfinAccount) signOut() error {
 	j.stopWaiting()
-	j.mu.Lock()
-	j.problem = ""
-	j.mu.Unlock()
+	j.clearProblem()
 	product := j.st.Config().JellyfinProduct
 	j.revoke()
-	keys := jellyfinKeys[:len(jellyfinKeys)-1] // jellyfinDevice stays: the next sign-in is the same device on the server
-	if err := j.st.SetHidden(keys, map[string]any{}); err != nil {
+	if err := j.st.SetHidden(jellyfinSignIn, map[string]any{}); err != nil {
 		return err
 	}
 	applySettings(j.st, j.eng)
