@@ -525,4 +525,3 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 	}
 	return nil
 }
-
