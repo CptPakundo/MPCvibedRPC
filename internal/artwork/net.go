@@ -138,7 +138,7 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 	}
 	var body io.Reader
 	if in.Body != "" {
-		body = stringsReader(in.Body)
+		body = strings.NewReader(in.Body)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, body)
 	if err != nil {

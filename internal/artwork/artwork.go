@@ -411,7 +411,14 @@ func seenOf(results []*provResult) []string {
 	return out
 }
 
-func labelOf(media *core.Media) string { return media.Label }
+// logHit logs the artwork found for media, with the media's label (the season or code) when withLabel is set.
+func (a *Artwork) logHit(media *core.Media, withLabel bool, hit *core.Art) {
+	label := ""
+	if withLabel {
+		label = " " + media.Label
+	}
+	a.log("INFO", `Artwork for "`+media.Title+`"`+label+`: `+describe(hit)+`.`)
+}
 
 // searchResult is the outcome of a search: a hit, or "none" with the names seen.
 type searchResult struct {
@@ -461,7 +468,7 @@ func (a *Artwork) searchSeason(media *core.Media, query string, contain []string
 			hit.SeasonName, hit.Split = m.SeasonName, true
 			hit.Shift = shift
 			hit.EntryEps = c.Eps
-			a.log("INFO", `Artwork for "`+media.Title+`" `+labelOf(media)+`: `+describe(hit)+`.`)
+			a.logHit(media, true, hit)
 			return searchResult{hit: hit}
 		}
 	}
@@ -486,14 +493,14 @@ func (a *Artwork) searchSeason(media *core.Media, query string, contain []string
 				hit.SeasonName = se.Name
 			}
 			hit.SeasonNo = se.Number
-			a.log("INFO", `Artwork for "`+media.Title+`" `+labelOf(media)+`: `+describe(&hit)+`.`)
+			a.logHit(media, true, &hit)
 			return searchResult{hit: &hit}
 		}
 	}
 	// (c) the show as a whole
 	for _, r := range results {
 		if r.typ == "series" && r.hit != nil {
-			a.log("INFO", `Artwork for "`+media.Title+`": `+describe(r.hit)+`.`)
+			a.logHit(media, false, r.hit)
 			return searchResult{hit: r.hit}
 		}
 	}
@@ -533,7 +540,7 @@ func (a *Artwork) searchWith(media *core.Media, query string, contain []string) 
 			for _, typ := range types {
 				r := run(ani, typ).wait()
 				if r.hit != nil {
-					a.log("INFO", `Artwork for "`+media.Title+`": `+describe(r.hit)+`.`)
+					a.logHit(media, false, r.hit)
 					return searchResult{hit: r.hit}
 				}
 				seen = append(seen, seenOf([]*provResult{r})...)
@@ -568,7 +575,7 @@ func (a *Artwork) searchWith(media *core.Media, query string, contain []string) 
 				}
 				for _, r := range all {
 					if r.hit != nil && r.hit.ViaRank {
-						a.log("INFO", `Artwork for "`+media.Title+`": `+describe(r.hit)+`.`)
+						a.logHit(media, false, r.hit)
 						return searchResult{hit: r.hit}
 					}
 				}
@@ -577,7 +584,7 @@ func (a *Artwork) searchWith(media *core.Media, query string, contain []string) 
 		for i := range jobs { // ...best priority wins
 			r := jobs[i].wait()
 			if r.hit != nil {
-				a.log("INFO", `Artwork for "`+media.Title+`": `+describe(r.hit)+`.`)
+				a.logHit(media, false, r.hit)
 				return searchResult{hit: r.hit}
 			}
 			seen = append(seen, seenOf([]*provResult{r})...)

@@ -36,7 +36,6 @@ type picked struct {
 	absolute bool
 }
 
-func nan() float64 { return math.NaN() }
 
 func epSeasonIs(x EpItem, s int) bool { return x.Season == float64(s) }
 
@@ -220,6 +219,21 @@ func (c epCtx) yearFor(media *core.Media) int {
 	return c.year
 }
 
+// seasonFor is the season the entry-numbered providers (Bulbapedia, Kitsu, MyAnimeList) report: the file's own, unless
+// the entry is split off from the show, and 1 without one.
+func (c epCtx) seasonFor(media *core.Media) int {
+	if !c.split && media.Season != core.NA {
+		return media.Season
+	}
+	return 1
+}
+
+// laterSeason: the file names a season after the first of an unsplit show, which those providers list under an entry
+// of its own.
+func (c epCtx) laterSeason(media *core.Media) bool {
+	return !c.split && media.Season != core.NA && media.Season > 1
+}
+
 type epProvider struct {
 	label  string
 	byCode bool
@@ -259,11 +273,79 @@ func (r *Resolver) clearCaches() {
 
 func (r *Resolver) enc(s string) string { return encURI(plain(s)) }
 
+// bulbaList is the episode list of one Bulbapedia page (production code -> title), fetched at most every six hours.
+func (r *Resolver) bulbaList(page string) (*bulbaPage, error) {
+	r.mu.Lock()
+	pg := r.bulba[page]
+	r.mu.Unlock()
+	if pg != nil && !pg.until.Before(time.Now()) {
+		return pg, nil
+	}
+	cfg := r.cfg
+	headers := map[string]string{"User-Agent": userAgent, "Accept": "application/json, text/plain"}
+	api := cfg.BulbapediaBase + "/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&titles=" + encURI(page)
+	status, text, err := r.a.net.fetchText(api, headers, 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status > 299 {
+		status, text, err = r.a.net.fetchText(cfg.BulbapediaBase+"/w/index.php?title="+encURI(page)+"&action=raw", headers, 10*time.Second)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if status < 200 || status > 299 {
+		return nil, &FetchError{Name: "Error", Msg: "HTTP " + strconv.Itoa(status), Status: status}
+	}
+	if j, perr := parseJSON(text); perr == nil {
+		text = wikiContent(j)
+	}
+	titles := parseEpisodeList(text)
+	if len(titles) == 0 {
+		// an error page (a rate limit, a moved page) must not stand for the list for six hours
+		return nil, &FetchError{Name: "Error", Msg: "no episode list on the page"}
+	}
+	pg = &bulbaPage{until: time.Now().Add(6 * time.Hour), titles: titles}
+	r.mu.Lock()
+	r.bulba[page] = pg
+	r.mu.Unlock()
+	return pg, nil
+}
+
+// wikiContent is the wikitext of the first page of a MediaWiki query answer (the current or the legacy layout of the
+// revision), "" when there is none.
+func wikiContent(j any) string {
+	pages := get(j, "query", "pages")
+	var rev any
+	if arr, ok := pages.([]any); ok {
+		if len(arr) > 0 {
+			rev = arr[0]
+		}
+	} else if pages != nil {
+		rev = pages
+	}
+	var slot any
+	if revs := asArr(get(rev, "revisions")); len(revs) > 0 {
+		slot = revs[0]
+	}
+	if !truthy(slot) {
+		return ""
+	}
+	c := ""
+	if truthy(get(slot, "slots", "main")) {
+		c = str(firstTruthy(get(slot, "slots", "main", "content"), get(slot, "slots", "main", "*")))
+	}
+	if c == "" {
+		c = str(firstTruthy(get(slot, "content"), get(slot, "*")))
+	}
+	return c
+}
+
 func epNumF(v any) float64 {
 	if f, ok := numOK(v); ok {
 		return f
 	}
-	return nan()
+	return math.NaN()
 }
 
 func (r *Resolver) buildProviders() map[string]*epProvider {
@@ -288,7 +370,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				q := params{}
 				headers := tmdbAuth(cfg, &q)
 				q.set("query", ctx.query)
-				j, err := a.net.getJSON("https://api.themoviedb.org/3/search/tv?"+q.String(), reqInit{Headers: headers})
+				j, err := a.net.getJSON(tmdbBase+"/search/tv?"+q.String(), reqInit{Headers: headers})
 				if err != nil {
 					return nil, err
 				}
@@ -303,9 +385,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if id == "" {
 				return nil, nil
 			}
-			q := params{}
-			headers := tmdbAuth(cfg, &q)
-			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+id+"/season/"+strconv.Itoa(season)+"?"+q.String(), reqInit{Headers: headers})
+			j, err := a.tmdbGet("/tv/"+id+"/season/"+strconv.Itoa(season), nil)
 			if err != nil {
 				return nil, err
 			}
@@ -386,74 +466,15 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				ns = "0" + ns
 			}
 			code := prefix + ns
-			r.mu.Lock()
-			pg := r.bulba[page]
-			r.mu.Unlock()
-			if pg == nil || pg.until.Before(time.Now()) {
-				headers := map[string]string{"User-Agent": userAgent, "Accept": "application/json, text/plain"}
-				api := cfg.BulbapediaBase + "/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&titles=" + encURI(page)
-				status, text, err := a.net.fetchText(api, headers, 10*time.Second)
-				if err != nil {
-					return nil, err
-				}
-				if status < 200 || status > 299 {
-					status, text, err = a.net.fetchText(cfg.BulbapediaBase+"/w/index.php?title="+encURI(page)+"&action=raw", headers, 10*time.Second)
-					if err != nil {
-						return nil, err
-					}
-				}
-				if status < 200 || status > 299 {
-					return nil, &FetchError{Name: "Error", Msg: "HTTP " + strconv.Itoa(status), Status: status}
-				}
-				if j, perr := parseJSON(text); perr == nil {
-					pages := get(j, "query", "pages")
-					var rev any
-					if arr, ok := pages.([]any); ok {
-						if len(arr) > 0 {
-							rev = arr[0]
-						}
-					} else if pages != nil {
-						rev = pages
-					}
-					var slot any
-					if revs := asArr(get(rev, "revisions")); len(revs) > 0 {
-						slot = revs[0]
-					}
-					c := ""
-					if truthy(slot) {
-						switch {
-						case truthy(get(slot, "slots", "main")):
-							c = str(firstTruthy(get(slot, "slots", "main", "content"), get(slot, "slots", "main", "*")))
-							if c == "" {
-								c = str(firstTruthy(get(slot, "content"), get(slot, "*")))
-							}
-						default:
-							c = str(firstTruthy(get(slot, "content"), get(slot, "*")))
-						}
-					}
-					text = c
-				}
-				titles := parseEpisodeList(text)
-				if len(titles) == 0 {
-					// an error page (a rate limit, a moved page) must not stand for the list for six hours
-					return nil, &FetchError{Name: "Error", Msg: "no episode list on the page"}
-				}
-				pg = &bulbaPage{until: time.Now().Add(6 * time.Hour), titles: titles}
-				r.mu.Lock()
-				r.bulba[page] = pg
-				r.mu.Unlock()
+			pg, err := r.bulbaList(page)
+			if err != nil {
+				return nil, err
 			}
 			name, ok := pg.titles[code]
 			if !ok {
 				return nil, nil
 			}
-			season := 1
-			if ctx.split {
-				season = 1
-			} else if media.Season != core.NA {
-				season = media.Season
-			}
-			return []EpItem{{Season: float64(season), Number: float64(media.Episode), Name: name}}, nil
+			return []EpItem{{Season: float64(ctx.seasonFor(media)), Number: float64(media.Episode), Name: name}}, nil
 		}}
 
 	// Anime entries found on Kitsu: that entry's own episode list (numbering as the entry counts it).
@@ -462,7 +483,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if ids.Kitsu == "" || media.Episode == core.NA {
 				return nil, nil
 			}
-			if !ctx.split && media.Season != core.NA && media.Season > 1 {
+			if ctx.laterSeason(media) {
 				return nil, nil
 			}
 			j, err := a.net.getJSON(cfg.KitsuBase+"/anime/"+ids.Kitsu+"/episodes?filter[number]="+strconv.Itoa(media.Episode)+"&page[limit]=2",
@@ -470,10 +491,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if err != nil {
 				return nil, err
 			}
-			season := 1
-			if !ctx.split && media.Season != core.NA {
-				season = media.Season
-			}
+			season := ctx.seasonFor(media)
 			var out []EpItem
 			for _, d := range asArr(get(j, "data")) {
 				x := get(d, "attributes")
@@ -499,7 +517,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if !ctx.anime || media.Episode == core.NA || media.Episode < 1 {
 				return nil, nil
 			}
-			if !ctx.split && media.Season != core.NA && media.Season > 1 {
+			if ctx.laterSeason(media) {
 				return nil, nil
 			}
 			year := ctx.yearFor(media)
@@ -521,11 +539,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 					for _, x := range asArr(get(m, "titles")) {
 						titles = append(titles, nonEmptyTitles(get(x, "title"))...)
 					}
-					y := yearNum(get(m, "year"))
-					if y == 0 {
-						y = yearNum(get(m, "aired", "prop", "from", "year"))
-					}
-					cands = append(cands, &Cand{Titles: titles, Year: y, ID: str(get(m, "mal_id"))})
+					cands = append(cands, &Cand{Titles: titles, Year: jikanYear(m),ID: str(get(m, "mal_id"))})
 				}
 				if c := pickMatch(cands, ctx.query, year, false, PickOpts{ExactOnly: true}); c != nil {
 					id = c.ID
@@ -542,13 +556,10 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if err != nil {
 				return nil, err
 			}
-			season := 1
-			if !ctx.split && media.Season != core.NA {
-				season = media.Season
-			}
+			season := ctx.seasonFor(media)
 			var out []EpItem
 			for _, e := range asArr(get(j, "data")) {
-				out = append(out, EpItem{Season: float64(season), Number: epNumF(get(e, "mal_id")), Name: str(orV(get(e, "title"), "")), Entry: true})
+				out = append(out, EpItem{Season: float64(season), Number: epNumF(get(e, "mal_id")), Name: str(firstTruthy(get(e, "title"), "")), Entry: true})
 			}
 			return out, nil
 		}}
