@@ -1026,15 +1026,13 @@ func (a *Artwork) missed(key string) bool {
 	return a.misses[key].After(time.Now())
 }
 
-func ratingStr(f float64) string { return numStr(f) }
-
 func infoSummary(inf *core.ArtInfo) string {
 	var parts []string
 	if len(inf.Genres) > 0 {
 		parts = append(parts, strings.Join(inf.Genres, "/"))
 	}
 	if inf.Rating != 0 {
-		parts = append(parts, "★"+ratingStr(inf.Rating))
+		parts = append(parts, "★"+numStr(inf.Rating))
 	}
 	if inf.Director != "" {
 		parts = append(parts, inf.Director)
@@ -1044,13 +1042,24 @@ func infoSummary(inf *core.ArtInfo) string {
 
 func hasInfoData(i *core.ArtInfo) bool { return i != nil && (len(i.Genres) > 0 || i.Rating != 0) }
 
-// Lookup finds the artwork for the playing title. It waits at most artworkWaitMs for the network; if the answer
-// is not there by then it returns nil and OnResolved fires when it arrives.
-func (a *Artwork) Lookup(media *core.Media) *core.Art {
+// lookupJob holds what one Lookup of one title works out before it asks anything: the cache keys, the optional
+// override and the predicates that decide what a cached entry still lacks.
+type lookupJob struct {
+	a           *Artwork
+	media       *core.Media
+	query       string
+	overrideArt *core.Art
+	wantEp      bool
+	fullKey     string // the in-flight key: epKey when the episode title is wanted, else key
+	key         string // poster/season info, per show+season
+	epKey       string // the episode's own title, per episode
+	infoKey     string
+	aniKey      string
+}
+
+// newLookupJob works out the keys, the alias query and the override of one title.
+func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 	cfg := a.cfg
-	if !cfg.ShowArtwork || media == nil || media.Title == "" || media.Junk {
-		return nil
-	}
 	nt := normTitle(media.Title)
 	query := media.Title
 	if v := a.aliases[nt]; v != "" {
@@ -1103,79 +1112,107 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	if wantEp {
 		fullKey = epKey
 	}
-	// The episode's number inside the matched catalog entry depends on the episode, so it is worked out per call.
-	inEntry := func(b *core.Art) int {
-		if b != nil && b.Split && media.Code != "" && media.Episode != core.NA {
-			return media.Episode - b.Shift
-		}
-		return core.NA
-	}
-	merge := func(base *core.Art, ep *core.ArtEpisode) *core.Art {
-		if base == nil && ep == nil {
-			return nil
-		}
-		out := core.NewArt()
-		if base != nil {
-			*out = *base
-		}
-		if ep != nil {
-			out.Episode = ep
-		}
-		if n := inEntry(base); n != core.NA {
-			out.EpInEntry = n
-		}
-		return out
-	}
-	// A cached entry only serves episodes that fall inside it (AB065 fits the first entry, AB139 needs the entry that continues the code).
-	fits := func(b *core.Art) bool {
-		n := inEntry(b)
-		return n == core.NA || (n >= 1 && (b.EntryEps == 0 || n <= b.EntryEps))
-	}
+	return &lookupJob{a: a, media: media, query: query, overrideArt: overrideArt, wantEp: wantEp,
+		fullKey: fullKey, key: key, epKey: epKey, infoKey: "info|" + key, aniKey: "ani|" + key}
+}
 
-	infoKey := "info|" + key
-	infoIDOf := func(b *core.Art) string {
-		if b == nil || !cfg.RichInfo || b.Info != nil {
-			return ""
-		}
-		if b.IDs != nil && b.IDs.Imdb != "" {
-			return b.IDs.Imdb
-		}
-		return imdbIDFrom(b.URL)
+// inEntry is the episode's number inside the matched catalog entry; it depends on the episode, so it is worked out
+// per call.
+func (j *lookupJob) inEntry(b *core.Art) int {
+	if b != nil && b.Split && j.media.Code != "" && j.media.Episode != core.NA {
+		return j.media.Episode - b.Shift
 	}
-	canInfo := func(b *core.Art) bool { return b != nil && cfg.RichInfo && b.Info == nil && b.Source != "override" }
-	needInfo := func(b *core.Art) bool { return canInfo(b) && !a.missed(infoKey) }
-	aniKey := "ani|" + key
-	needAlt := func(b *core.Art) bool {
-		return b != nil && cfg.AnimeTitles != "file" && b.Source != "AniList" && b.Source != "override" && b.Alt == nil && !b.AltChecked &&
-			b.Info != nil && slices.Contains(b.Info.Genres, "Animation") && !a.missed(aniKey)
+	return core.NA
+}
+
+func (j *lookupJob) merge(base *core.Art, ep *core.ArtEpisode) *core.Art {
+	if base == nil && ep == nil {
+		return nil
 	}
+	out := core.NewArt()
+	if base != nil {
+		*out = *base
+	}
+	if ep != nil {
+		out.Episode = ep
+	}
+	if n := j.inEntry(base); n != core.NA {
+		out.EpInEntry = n
+	}
+	return out
+}
+
+// fits: a cached entry only serves episodes that fall inside it (AB065 fits the first entry, AB139 needs the entry
+// that continues the code).
+func (j *lookupJob) fits(b *core.Art) bool {
+	n := j.inEntry(b)
+	return n == core.NA || (n >= 1 && (b.EntryEps == 0 || n <= b.EntryEps))
+}
+
+func (j *lookupJob) infoIDOf(b *core.Art) string {
+	if b == nil || !j.a.cfg.RichInfo || b.Info != nil {
+		return ""
+	}
+	if b.IDs != nil && b.IDs.Imdb != "" {
+		return b.IDs.Imdb
+	}
+	return imdbIDFrom(b.URL)
+}
+
+// needInfo and needAlt say what a cached entry still lacks; the caller holds a.mu.
+func (j *lookupJob) needInfo(b *core.Art) bool {
+	cfg := j.a.cfg
+	return b != nil && cfg.RichInfo && b.Info == nil && b.Source != "override" && !j.a.missed(j.infoKey)
+}
+
+func (j *lookupJob) needAlt(b *core.Art) bool {
+	cfg := j.a.cfg
+	return b != nil && cfg.AnimeTitles != "file" && b.Source != "AniList" && b.Source != "override" && b.Alt == nil && !b.AltChecked &&
+		b.Info != nil && slices.Contains(b.Info.Genres, "Animation") && !j.a.missed(j.aniKey)
+}
+
+// miss remembers that key found nothing, for d.
+func (j *lookupJob) miss(key string, d time.Duration) {
+	j.a.mu.Lock()
+	j.a.misses[key] = time.Now().Add(d)
+	j.a.mu.Unlock()
+}
+
+// Lookup finds the artwork for the playing title. It waits at most artworkWaitMs for the network; if the answer
+// is not there by then it returns nil and OnResolved fires when it arrives.
+func (a *Artwork) Lookup(media *core.Media) *core.Art {
+	cfg := a.cfg
+	if !cfg.ShowArtwork || media == nil || media.Title == "" || media.Junk {
+		return nil
+	}
+	j := a.newLookupJob(media)
 
 	a.mu.Lock()
 	var baseHave *core.Art
-	if overrideArt != nil {
-		baseHave = overrideArt
-	} else if b := a.getBase(key); b != nil && fits(b) {
+	if j.overrideArt != nil {
+		baseHave = j.overrideArt
+	} else if b := a.getBase(j.key); b != nil && j.fits(b) {
 		baseHave = b
 	}
-	epEntry, epPresent := a.getEp(epKey)
-	if baseHave != nil && !needInfo(baseHave) && !needAlt(baseHave) && (!wantEp || epPresent) {
+	epEntry, epPresent := a.getEp(j.epKey)
+	if baseHave != nil && !j.needInfo(baseHave) && !j.needAlt(baseHave) && (!j.wantEp || epPresent) {
 		var ep *core.ArtEpisode
-		if wantEp {
+		if j.wantEp {
 			ep = epEntry.ep
 		}
-		res := merge(baseHave, ep)
+		res := j.merge(baseHave, ep)
 		a.mu.Unlock()
 		return res
 	}
-	if baseHave == nil && a.missed(key) && (!wantEp || a.missed(epKey)) {
+	if baseHave == nil && a.missed(j.key) && (!j.wantEp || a.missed(j.epKey)) {
 		a.mu.Unlock()
 		return nil
 	}
-	f := a.inflight[fullKey]
+	f := a.inflight[j.fullKey]
 	if f == nil {
 		f = &lookupFlight{done: make(chan struct{})}
-		a.inflight[fullKey] = f
-		go a.runLookup(f, fullKey, key, epKey, wantEp, media, query, overrideArt, inEntry, merge, fits, infoIDOf, needInfo, needAlt, infoKey, aniKey)
+		a.inflight[j.fullKey] = f
+		go j.run(f)
 	}
 	a.mu.Unlock()
 
@@ -1195,14 +1232,15 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 		return f.res
 	default:
 	}
-	a.late[fullKey] = true
+	a.late[j.fullKey] = true
 	a.mu.Unlock()
 	return nil
 }
 
-func (a *Artwork) runLookup(f *lookupFlight, fullKey, key, epKey string, wantEp bool, media *core.Media, query string, overrideArt *core.Art,
-	inEntry func(*core.Art) int, merge func(*core.Art, *core.ArtEpisode) *core.Art, fits func(*core.Art) bool,
-	infoIDOf func(*core.Art) string, needInfo, needAlt func(*core.Art) bool, infoKey, aniKey string) {
+// run does the lookup, publishes the result to everyone waiting on f and, when the caller had already given up,
+// calls OnResolved.
+func (j *lookupJob) run(f *lookupFlight) {
+	a := j.a
 	var result *core.Art
 	func() {
 		defer func() {
@@ -1211,14 +1249,14 @@ func (a *Artwork) runLookup(f *lookupFlight, fullKey, key, epKey string, wantEp 
 				a.log("WARN", "A cover lookup failed unexpectedly.") // no title: it could be private
 			}
 		}()
-		result = a.lookupBody(fullKey, key, epKey, wantEp, media, query, overrideArt, inEntry, merge, fits, infoIDOf, needInfo, needAlt, infoKey, aniKey)
+		result = j.body()
 	}()
 	a.mu.Lock()
-	delete(a.inflight, fullKey)
+	delete(a.inflight, j.fullKey)
 	f.res = result
 	close(f.done)
-	cb := result != nil && a.late[fullKey]
-	delete(a.late, fullKey) // whatever the outcome: the next lookup of this title starts clean
+	cb := result != nil && a.late[j.fullKey]
+	delete(a.late, j.fullKey) // whatever the outcome: the next lookup of this title starts clean
 	a.mu.Unlock()
 	if cb && !a.closed.Load() {
 		func() {
@@ -1232,179 +1270,215 @@ func (a *Artwork) runLookup(f *lookupFlight, fullKey, key, epKey string, wantEp 
 	}
 }
 
-func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *core.Media, query string, overrideArt *core.Art,
-	inEntry func(*core.Art) int, merge func(*core.Art, *core.ArtEpisode) *core.Art, fits func(*core.Art) bool,
-	infoIDOf func(*core.Art) string, needInfo, needAlt func(*core.Art) bool, infoKey, aniKey string) *core.Art {
+// body runs the lookup steps in order: the base art, the rich info and the alternative names on it, the episode.
+func (j *lookupJob) body() *core.Art {
+	a := j.a
+	base := j.baseArt()
+	if base != nil && j.overrideArt == nil {
+		j.richInfo(base)
+		j.altNames(base)
+		a.mu.Lock()
+		a.put(j.key, &diskEntry{art: base})
+		a.mu.Unlock()
+	}
+	var ep *core.ArtEpisode
+	if j.wantEp {
+		ep = j.episode(base)
+	}
+	a.save()
+	return j.merge(base, ep)
+}
 
+// baseArt is the show's art: the override, the cached entry or a fresh search. Unless it is the override it is a
+// private copy that body publishes again.
+func (j *lookupJob) baseArt() *core.Art {
+	a := j.a
 	var base *core.Art
 	a.mu.Lock()
-	if overrideArt != nil {
-		base = overrideArt
-	} else if b := a.getBase(key); b != nil && fits(b) {
+	if j.overrideArt != nil {
+		base = j.overrideArt
+	} else if b := a.getBase(j.key); b != nil && j.fits(b) {
 		cp := *b
 		base = &cp
 	}
-	missKey := a.missed(key)
+	missKey := a.missed(j.key)
 	a.mu.Unlock()
 
 	if base == nil && !missKey {
 		down := a.unavail.Load()
-		base = a.search(media)
+		base = a.search(j.media)
 		a.mu.Lock()
 		if base != nil {
-			a.put(key, &diskEntry{art: base})
+			a.put(j.key, &diskEntry{art: base})
 		} else if a.unavail.Load() != down {
-			a.misses[key] = time.Now().Add(2 * time.Minute) // a service was down or offline: not a real "not found"
+			a.misses[j.key] = time.Now().Add(2 * time.Minute) // a service was down or offline: not a real "not found"
 		} else {
-			a.misses[key] = time.Now().Add(30 * time.Minute)
+			a.misses[j.key] = time.Now().Add(30 * time.Minute)
 		}
 		a.mu.Unlock()
 	}
-	if base != nil && overrideArt == nil {
+	if base != nil && j.overrideArt == nil {
 		cp := *base
-		base = &cp // private copy; published again below
+		base = &cp // private copy; published again by body
 	}
-	locked := func(f func()) { a.mu.Lock(); f(); a.mu.Unlock() }
-	needInfoL := func(b *core.Art) bool { a.mu.Lock(); defer a.mu.Unlock(); return needInfo(b) }
-	needAltL := func(b *core.Art) bool { a.mu.Lock(); defer a.mu.Unlock(); return needAlt(b) }
+	return base
+}
 
-	if base != nil && overrideArt == nil && needInfoL(base) && base.Source == "AniList" && hasInfoData(base.AniInfo) {
+// richInfo adds genres and a rating to base, from AniList's own data or from Cinemeta through an IMDb id.
+func (j *lookupJob) richInfo(base *core.Art) {
+	a, media := j.a, j.media
+	a.mu.Lock()
+	need := j.needInfo(base)
+	a.mu.Unlock()
+	if !need {
+		return
+	}
+	if base.Source == "AniList" && hasInfoData(base.AniInfo) {
 		base.Info = base.AniInfo // AniList answered with genres and a score already: no second catalog needed
 		a.log("INFO", `Info for "`+media.Title+`" from AniList: `+infoSummary(base.Info)+`.`)
-	} else if base != nil && overrideArt == nil && needInfoL(base) && a.cfg.SourceOn("cinemeta") {
-		why := "no data"
-		var found *imdbFound
-		if infoIDOf(base) == "" {
-			found, _ = a.findImdbId(base, media) // AniList/TVmaze hits carry no IMDb id
+		return
+	}
+	if !a.cfg.SourceOn("cinemeta") {
+		return
+	}
+	why := "no data"
+	var found *imdbFound
+	if j.infoIDOf(base) == "" {
+		found, _ = a.findImdbId(base, media) // AniList/TVmaze hits carry no IMDb id
+	}
+	imdbID := j.infoIDOf(base)
+	if imdbID == "" && found != nil {
+		imdbID = found.id
+	}
+	if imdbID == "" {
+		why = "no IMDb id found"
+	}
+	if found != nil {
+		ids := core.ArtIDs{}
+		if base.IDs != nil {
+			ids = *base.IDs
 		}
-		imdbID := infoIDOf(base)
-		if imdbID == "" && found != nil {
-			imdbID = found.id
-		}
-		if imdbID == "" {
-			why = "no IMDb id found"
-		}
+		ids.Imdb = found.id
+		base.IDs = &ids
+	}
+	var inf *core.ArtInfo
+	if imdbID != "" {
+		typ := "series"
 		if found != nil {
-			ids := core.ArtIDs{}
-			if base.IDs != nil {
-				ids = *base.IDs
-			}
-			ids.Imdb = found.id
-			base.IDs = &ids
+			typ = found.typ
+		} else if base.Type == "movie" {
+			typ = "movie"
 		}
-		var inf *core.ArtInfo
-		if imdbID != "" {
-			typ := "series"
-			if found != nil {
-				typ = found.typ
-			} else if base.Type == "movie" {
-				typ = "movie"
-			}
-			var err error
-			inf, err = a.fetchInfo(typ, imdbID)
-			if err != nil {
-				why = err.Error()
-				if why == "" {
-					why = "error"
-				}
-				inf = nil
-			}
-		}
-		if inf != nil {
-			base.Info = inf
-			s := infoSummary(inf)
-			if s == "" {
-				s = "none"
-			}
-			a.log("INFO", `Info for "`+media.Title+`": `+s+`.`)
-		} else if hasInfoData(base.AniInfo) {
-			base.Info = base.AniInfo // IMDb/Cinemeta didn't answer: AniList's own data will do
-			a.log("WARN", `No IMDb info for "`+media.Title+`" (`+why+`); using AniList's genres and score.`)
-		} else {
-			locked(func() { a.misses[infoKey] = time.Now().Add(5 * time.Minute) })
-			a.log("WARN", `No genres/rating for "`+media.Title+`" (`+why+`); will retry in 5 minutes. Set richInfo: false to hide this line.`)
-		}
-	}
-	if base != nil && overrideArt == nil && needAltL(base) && a.cfg.SourceOn("anilist") {
-		alt, err := a.findAniList(base)
+		var err error
+		inf, err = a.fetchInfo(typ, imdbID)
 		if err != nil {
-			locked(func() { a.misses[aniKey] = time.Now().Add(5 * time.Minute) })
-		} else {
-			if alt != nil {
-				base.Alt = alt
-				a.log("INFO", `AniList names for "`+base.Name+`": `+joinNonEmpty(" / ", alt.English, alt.Romaji)+`.`)
-			} else {
-				base.AltChecked = true // checked, no AniList entry
+			why = err.Error()
+			if why == "" {
+				why = "error"
 			}
+			inf = nil
 		}
 	}
-	if base != nil && overrideArt == nil {
-		a.mu.Lock()
-		a.put(key, &diskEntry{art: base})
-		a.mu.Unlock()
+	if inf != nil {
+		base.Info = inf
+		s := infoSummary(inf)
+		if s == "" {
+			s = "none"
+		}
+		a.log("INFO", `Info for "`+media.Title+`": `+s+`.`)
+	} else if hasInfoData(base.AniInfo) {
+		base.Info = base.AniInfo // IMDb/Cinemeta didn't answer: AniList's own data will do
+		a.log("WARN", `No IMDb info for "`+media.Title+`" (`+why+`); using AniList's genres and score.`)
+	} else {
+		j.miss(j.infoKey, 5*time.Minute)
+		a.log("WARN", `No genres/rating for "`+media.Title+`" (`+why+`); will retry in 5 minutes. Set richInfo: false to hide this line.`)
 	}
+}
 
-	var ep *core.ArtEpisode
-	if wantEp {
-		a.mu.Lock()
-		cached, present := a.getEp(epKey)
-		missEp := a.missed(epKey)
-		a.mu.Unlock()
-		if present {
-			ep = cached.ep
-		} else if !missEp {
-			failed := false // a source did not answer (rather than not having the episode)
-			var epMedia *core.Media
-			if media.IsEpisode {
-				epMedia = media
-				if n := inEntry(base); n != core.NA && n != media.Episode {
-					cp := *media
-					cp.Episode, cp.CodeEpisode = n, media.Episode
-					epMedia = &cp
-				}
-			} else if base != nil && base.Type == "series" {
-				cp := *media
-				cp.IsEpisode, cp.Episode = true, media.Index
-				epMedia = &cp
-			}
-			if epMedia != nil {
-				ep = a.res.Find(epMedia, base, query, func(k, msg string) { failed = true; a.warnOnce(k, msg) })
-			}
-			a.mu.Lock()
-			if epMedia == nil && base != nil {
-				a.put(epKey, &diskEntry{isEp: true}) // a movie: the list number is not an episode
-			}
-			if ep != nil {
-				a.put(epKey, &diskEntry{isEp: true, ep: ep})
-			} else if epMedia != nil {
-				wait := 30 * time.Minute
-				if failed {
-					wait = 2 * time.Minute // a service was down or slow: ask again soon
-				}
-				a.misses[epKey] = time.Now().Add(wait)
-			}
-			a.mu.Unlock()
-			if ep != nil {
-				num := func(n int) string {
-					if n == core.NA {
-						return "NaN"
-					}
-					return strconv.Itoa(n)
-				}
-				id := "S" + pad2(ep.Season) + "E" + pad2(ep.Number)
-				if ep.Absolute {
-					id = "#" + num(ep.Number)
-				}
-				via := ""
-				if ep.Via != "" {
-					via = ` (looked up as "` + ep.Via + `")`
-				}
-				a.log("INFO", `Episode: "`+media.Title+`" `+id+` = "`+ep.Title+`" via `+ep.Source+via+`.`)
-			}
-		}
+// altNames adds AniList's English and romaji names to base when it is an anime that has none yet.
+func (j *lookupJob) altNames(base *core.Art) {
+	a := j.a
+	a.mu.Lock()
+	need := j.needAlt(base)
+	a.mu.Unlock()
+	if !need || !a.cfg.SourceOn("anilist") {
+		return
 	}
-	a.save()
-	return merge(base, ep)
+	alt, err := a.findAniList(base)
+	if err != nil {
+		j.miss(j.aniKey, 5*time.Minute)
+	} else if alt != nil {
+		base.Alt = alt
+		a.log("INFO", `AniList names for "`+base.Name+`": `+joinNonEmpty(" / ", alt.English, alt.Romaji)+`.`)
+	} else {
+		base.AltChecked = true // checked, no AniList entry
+	}
+}
+
+// episode is the episode's own title: the cached one or a fresh lookup. A source that did not answer is asked
+// again sooner than one that had no such episode.
+func (j *lookupJob) episode(base *core.Art) *core.ArtEpisode {
+	a, media := j.a, j.media
+	a.mu.Lock()
+	cached, present := a.getEp(j.epKey)
+	missEp := a.missed(j.epKey)
+	a.mu.Unlock()
+	if present {
+		return cached.ep
+	}
+	if missEp {
+		return nil
+	}
+	failed := false // a source did not answer (rather than not having the episode)
+	var epMedia *core.Media
+	if media.IsEpisode {
+		epMedia = media
+		if n := j.inEntry(base); n != core.NA && n != media.Episode {
+			cp := *media
+			cp.Episode, cp.CodeEpisode = n, media.Episode
+			epMedia = &cp
+		}
+	} else if base != nil && base.Type == "series" {
+		cp := *media
+		cp.IsEpisode, cp.Episode = true, media.Index
+		epMedia = &cp
+	}
+	var ep *core.ArtEpisode
+	if epMedia != nil {
+		ep = a.res.Find(epMedia, base, j.query, func(k, msg string) { failed = true; a.warnOnce(k, msg) })
+	}
+	a.mu.Lock()
+	if epMedia == nil && base != nil {
+		a.put(j.epKey, &diskEntry{isEp: true}) // a movie: the list number is not an episode
+	}
+	if ep != nil {
+		a.put(j.epKey, &diskEntry{isEp: true, ep: ep})
+	} else if epMedia != nil {
+		wait := 30 * time.Minute
+		if failed {
+			wait = 2 * time.Minute // a service was down or slow: ask again soon
+		}
+		a.misses[j.epKey] = time.Now().Add(wait)
+	}
+	a.mu.Unlock()
+	if ep != nil {
+		num := func(n int) string {
+			if n == core.NA {
+				return "NaN"
+			}
+			return strconv.Itoa(n)
+		}
+		id := "S" + pad2(ep.Season) + "E" + pad2(ep.Number)
+		if ep.Absolute {
+			id = "#" + num(ep.Number)
+		}
+		via := ""
+		if ep.Via != "" {
+			via = ` (looked up as "` + ep.Via + `")`
+		}
+		a.log("INFO", `Episode: "`+media.Title+`" `+id+` = "`+ep.Title+`" via `+ep.Source+via+`.`)
+	}
+	return ep
 }
 
 func pad2(n int) string {
