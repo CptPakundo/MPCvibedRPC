@@ -74,6 +74,14 @@ func (p *Provider) handles(t string) bool {
 	return false
 }
 
+const tmdbBase = "https://api.themoviedb.org/3"
+
+// tmdbGet asks TMDB for path with the query q and the API key (a v3 key goes into the query, a v4 token into a header).
+func (a *Artwork) tmdbGet(path string, q params) (any, error) {
+	headers := tmdbAuth(a.cfg, &q)
+	return a.net.getJSON(tmdbBase+path+"?"+q.String(), reqInit{Headers: headers})
+}
+
 func tmdbAuth(cfg *core.Config, q *params) map[string]string {
 	h := map[string]string{}
 	if u16len(cfg.TmdbAPIKey) > 40 {
@@ -115,6 +123,17 @@ func yearNum(v any) int {
 	return 0
 }
 
+// jikanYear is the year a MyAnimeList entry started: its own, else the first air date's.
+func jikanYear(m any) int {
+	if y := yearNum(get(m, "year")); y != 0 {
+		return y
+	}
+	return yearNum(get(m, "aired", "prop", "from", "year"))
+}
+
+// wrongKind reports a catalog entry of the other kind than the one searched for (movie against series).
+func wrongKind(typ string, isMovie bool) bool { return (typ == "movie") != isMovie }
+
 func buildProviders() map[string]*Provider {
 	P := map[string]*Provider{}
 
@@ -131,8 +150,7 @@ func buildProviders() map[string]*Provider {
 			if kind == "movie" && truthy2(media.Year) {
 				q.set("year", strconv.Itoa(media.Year))
 			}
-			headers := tmdbAuth(a.cfg, &q)
-			j, err := a.net.getJSON("https://api.themoviedb.org/3/search/"+kind+"?"+q.String(), reqInit{Headers: headers})
+			j, err := a.tmdbGet("/search/"+kind, q)
 			if err != nil {
 				return nil, err
 			}
@@ -155,9 +173,7 @@ func buildProviders() map[string]*Provider {
 			if media.Season == core.NA || cand.Kind != "tv" {
 				return nil, nil
 			}
-			q := params{}
-			headers := tmdbAuth(a.cfg, &q)
-			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+cand.Ref+"/season/"+strconv.Itoa(media.Season)+"?"+q.String(), reqInit{Headers: headers})
+			j, err := a.tmdbGet("/tv/"+cand.Ref+"/season/"+strconv.Itoa(media.Season), nil)
 			if err != nil {
 				return nil, err
 			}
@@ -314,7 +330,7 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, m := range asArr(get(j, "data", "Page", "media")) {
-				if (typ == "movie") != (get(m, "format") == "MOVIE") {
+				if wrongKind(typ, get(m, "format") == "MOVIE") {
 					continue
 				}
 				titles := nonEmptyTitles(get(m, "title", "romaji"), get(m, "title", "english"), get(m, "title", "native"))
@@ -347,7 +363,7 @@ func buildProviders() map[string]*Provider {
 				if !truthy(attrs) {
 					attrs = &OMap{M: map[string]any{}}
 				}
-				if (typ == "movie") != (get(attrs, "subtype") == "movie") {
+				if wrongKind(typ, get(attrs, "subtype") == "movie") {
 					continue
 				}
 				t := get(attrs, "titles")
@@ -382,10 +398,10 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, m := range asArr(get(j, "data")) {
-				if (typ == "movie") != (get(m, "type") == "Movie") {
+				if wrongKind(typ, get(m, "type") == "Movie") {
 					continue
 				}
-				dur := str(orV(get(m, "duration"), ""))
+				dur := str(firstTruthy(get(m, "duration"), ""))
 				mins := 0
 				if h := reHr.Exec(dur); h != nil {
 					n, _ := strconv.Atoi(h.Str(1))
@@ -400,10 +416,7 @@ func buildProviders() map[string]*Provider {
 					titles = append(titles, nonEmptyTitles(get(x, "title"))...)
 				}
 				titles = append(titles, nonEmptyTitles(asArr(get(m, "title_synonyms"))...)...)
-				year := yearNum(get(m, "year"))
-				if year == 0 {
-					year = yearNum(get(m, "aired", "prop", "from", "year"))
-				}
+				year := jikanYear(m)
 				score := num(get(m, "score"))
 				info := &core.ArtInfo{Genres: []string{}}
 				for _, g := range asArr(get(m, "genres")) {
@@ -482,12 +495,6 @@ func num0(v any) float64 {
 	return 0
 }
 
-func orV(v any, d any) any {
-	if truthy(v) {
-		return v
-	}
-	return d
-}
 
 func firstTruthy(vs ...any) any {
 	for _, v := range vs {

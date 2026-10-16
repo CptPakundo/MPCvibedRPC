@@ -102,14 +102,7 @@ func parseSeasonMark(rem []string) SeasonMark {
 
 type initials struct{ initials, joined, all string }
 
-func firstUnit(w string) string {
-	for _, r := range w {
-		return string(r)
-	}
-	return ""
-}
 
-func upperJS(s string) string { return strings.ToUpper(s) }
 
 func initialsOf(rem []string) initials {
 	var ws, all []string
@@ -124,11 +117,11 @@ func initialsOf(rem []string) initials {
 	first := func(l []string) string {
 		var b strings.Builder
 		for _, w := range l {
-			b.WriteString(firstUnit(w))
+			b.WriteString(firstRune(w))
 		}
-		return upperJS(b.String())
+		return strings.ToUpper(b.String())
 	}
-	return initials{first(ws), upperJS(strings.Join(ws, "")), first(all)}
+	return initials{first(ws), strings.ToUpper(strings.Join(ws, "")), first(all)}
 }
 
 func codeMatches(rem []string, prefix string) bool {

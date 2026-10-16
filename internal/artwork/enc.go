@@ -72,4 +72,3 @@ func jsonString(v any) string {
 	return strings.TrimSuffix(buf.String(), "\n")
 }
 
-func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }
