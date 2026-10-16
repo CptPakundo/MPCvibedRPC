@@ -28,19 +28,16 @@ func DataDir() string {
 	if v := os.Getenv("MPCRPC_HOME"); v != "" {
 		return v
 	}
-	return dataDirNamed("MPCvibedRPC")
-}
-
-func dataDirNamed(name string) string {
+	const name = "MPCvibedRPC"
 	home, _ := os.UserHomeDir()
-	if isWindows {
+	switch runtime.GOOS {
+	case "windows":
 		base := os.Getenv("LOCALAPPDATA")
 		if base == "" {
 			base = filepath.Join(home, "AppData", "Local")
 		}
 		return filepath.Join(base, name)
-	}
-	if runtime.GOOS == "darwin" {
+	case "darwin":
 		return filepath.Join(home, "Library", "Application Support", name)
 	}
 	base := os.Getenv("XDG_DATA_HOME")
@@ -66,15 +63,40 @@ const DefaultUpdateRepo = "CptPakundo/MPCvibedRPC"
 
 var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "updateRepo", "openWindow", "welcomeSeen", "seenVersion"}
 
+// defaultApp is the program's own settings before anything is saved.
+var defaultApp = App{StartPresence: true, CheckUpdates: true, UpdateRepo: DefaultUpdateRepo, OpenWindow: true}
+
+// appDefaults is defaultApp as a config.json block (seenVersion is left out: it is written only once a changelog was
+// shown).
 func appDefaults() *jsonx.Obj {
 	o := jsonx.NewObj()
-	o.Set("autoStart", false)
-	o.Set("startPresence", true)
-	o.Set("checkUpdates", true)
-	o.Set("updateRepo", DefaultUpdateRepo)
-	o.Set("openWindow", true)
-	o.Set("welcomeSeen", false)
+	o.Set("autoStart", defaultApp.AutoStart)
+	o.Set("startPresence", defaultApp.StartPresence)
+	o.Set("checkUpdates", defaultApp.CheckUpdates)
+	o.Set("updateRepo", defaultApp.UpdateRepo)
+	o.Set("openWindow", defaultApp.OpenWindow)
+	o.Set("welcomeSeen", defaultApp.WelcomeSeen)
 	return o
+}
+
+// boolOr reads a boolean setting from the app block, or def when it is missing or not a boolean.
+func boolOr(o *jsonx.Obj, key string, def bool) bool {
+	if o != nil {
+		if b, ok := o.M[key].(bool); ok {
+			return b
+		}
+	}
+	return def
+}
+
+// strOr reads a text setting from the app block, or def when it is missing or not text.
+func strOr(o *jsonx.Obj, key, def string) string {
+	if o != nil {
+		if s, ok := o.M[key].(string); ok {
+			return s
+		}
+	}
+	return def
 }
 
 // Store reads and writes config.json.
@@ -152,7 +174,7 @@ func (s *Store) write(o *jsonx.Obj) error {
 		if err = os.Rename(tmp, s.File); err == nil {
 			return nil
 		}
-		if !isWindows {
+		if runtime.GOOS != "windows" {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -210,31 +232,16 @@ func (s *Store) App() App {
 	o := s.read()
 	s.mu.Unlock()
 	cur, _ := o.M["app"].(*jsonx.Obj)
-	a := App{AutoStart: false, StartPresence: true, CheckUpdates: true, UpdateRepo: DefaultUpdateRepo, OpenWindow: true}
-	if cur != nil {
-		if b, ok := cur.M["autoStart"].(bool); ok {
-			a.AutoStart = b
-		}
-		if b, ok := cur.M["startPresence"].(bool); ok {
-			a.StartPresence = b
-		}
-		if b, ok := cur.M["checkUpdates"].(bool); ok {
-			a.CheckUpdates = b
-		}
-		if b, ok := cur.M["openWindow"].(bool); ok {
-			a.OpenWindow = b
-		}
-		if b, ok := cur.M["welcomeSeen"].(bool); ok {
-			a.WelcomeSeen = b
-		}
-		if v, ok := cur.M["updateRepo"].(string); ok {
-			a.UpdateRepo = v
-		}
-		if v, ok := cur.M["seenVersion"].(string); ok {
-			a.SeenVersion = v
-		}
+	d := defaultApp
+	return App{
+		AutoStart:     boolOr(cur, "autoStart", d.AutoStart),
+		StartPresence: boolOr(cur, "startPresence", d.StartPresence),
+		CheckUpdates:  boolOr(cur, "checkUpdates", d.CheckUpdates),
+		UpdateRepo:    strOr(cur, "updateRepo", d.UpdateRepo),
+		WelcomeSeen:   boolOr(cur, "welcomeSeen", d.WelcomeSeen),
+		OpenWindow:    boolOr(cur, "openWindow", d.OpenWindow),
+		SeenVersion:   strOr(cur, "seenVersion", d.SeenVersion),
 	}
-	return a
 }
 
 // Values are the settings as the window shows them (maps as "name = value" text).

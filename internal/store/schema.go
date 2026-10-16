@@ -104,9 +104,6 @@ func (f Field) ShownOn(goos string) bool {
 	if len(f.OS) == 0 {
 		return true
 	}
-	if goos != "windows" && goos != "darwin" {
-		goos = "linux"
-	}
 	for _, o := range f.OS {
 		if o == goos {
 			return true

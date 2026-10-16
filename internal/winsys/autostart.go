@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -32,4 +33,29 @@ func runNameFor(home string) string {
 	}
 	sum := sha256.Sum256([]byte(home))
 	return runNameBase + "-" + hex.EncodeToString(sum[:4])
+}
+
+// runKey is the registry key whose values start programs at login.
+const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+
+// GetAutoStart reports whether the registry's Run entry (macOS: the LaunchAgent; Linux: the autostart entry) is there
+// and names a program file with the same name as this one (it does not compare the full path).
+func GetAutoStart(exe string) bool {
+	if !IsWindows {
+		return getLoginItem(exe)
+	}
+	r := run("reg", "query", runKey, "/v", runName())
+	return r.ok && strings.Contains(strings.ToLower(r.stdout), strings.ToLower(filepath.Base(exe)))
+}
+
+// SetAutoStart adds or removes the registry entry (or the login item).
+func SetAutoStart(enabled bool, exe string) bool {
+	if !IsWindows {
+		return setLoginItem(enabled, exe)
+	}
+	if enabled {
+		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", runCommand(exe, os.Getenv("MPCRPC_HOME")), "/f").ok
+	}
+	run("reg", "delete", runKey, "/v", runName(), "/f")
+	return true
 }

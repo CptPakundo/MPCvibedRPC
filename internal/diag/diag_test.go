@@ -100,62 +100,65 @@ func TestReportDefaultsAreQuiet(t *testing.T) {
 	}
 }
 
-func TestReportLeaksNothingAboutPlex(t *testing.T) {
-	cfg := core.DefaultConfig()
-	cfg.PlexToken, cfg.PlexAccount, cfg.PlexUser, cfg.PlexClient = "SECRETTOKEN", 987654321, "SecretUser", "secretclientid"
-	cfg.PlexServer, cfg.PlexServerName, cfg.PlexAddress = "secretmachineid", "Secret Server", "http://192.168.1.20:32400"
-	got := Report(Input{Version: "1", System: "x", Config: cfg, App: store.App{UpdateRepo: store.DefaultUpdateRepo}, Log: []string{
-		`[2026-01-01T00:00:00.000Z] INFO Following the Plex server "Secret Server".`,
-		`[2026-01-01T00:00:00.000Z] WARN Could not reach the Plex server "Secret Server". Is it running, and can this computer reach it?`,
-	}})
-	for _, leak := range []string{"SECRET", "Secret", "secret", "987654321", "192.168"} {
-		if strings.Contains(got, leak) {
-			t.Errorf("report leaks %q:\n%s", leak, got)
-		}
-	}
-	for _, want := range []string{"Plex: signed in, fixed server address", "plexToken = (set)", "plexAddress = (set)", "Following the Plex server"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("report is missing %q:\n%s", want, got)
-		}
-	}
-	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Plex: off (not signed in)") {
-		t.Errorf("report without Plex:\n%s", got)
-	}
-}
-
-func TestReportLeaksNothingAboutStremio(t *testing.T) {
-	cfg := core.DefaultConfig()
-	cfg.StremioKey = "SECRETSTREMIOKEY"
-	got := Report(Input{Version: "1", System: "x", Config: cfg})
-	if strings.Contains(got, "SECRETSTREMIOKEY") {
-		t.Errorf("the key leaks:\n%s", got)
-	}
-	for _, want := range []string{"Stremio: signed in", "stremioKey = (set)"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("missing %q in\n%s", want, got)
-		}
-	}
-	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Stremio: off (not signed in)") {
-		t.Errorf("report without Stremio:\n%s", got)
-	}
-}
-
-func TestReportLeaksNothingAboutJellyfin(t *testing.T) {
-	cfg := core.DefaultConfig()
-	cfg.JellyfinToken, cfg.JellyfinAddress, cfg.JellyfinUser, cfg.JellyfinUserName = "SECRETTOKEN", "http://media.example:8096", "USERID", "SAMPLEUSER"
-	cfg.JellyfinServerName, cfg.JellyfinDevice, cfg.JellyfinProduct = "SAMPLESERVER", "DEVICEID", "Jellyfin"
-	got := Report(Input{Version: "1", System: "x", Config: cfg})
-	for _, secret := range []string{"SECRETTOKEN", "media.example", "USERID", "SAMPLEUSER", "SAMPLESERVER", "DEVICEID"} {
-		if strings.Contains(got, secret) {
-			t.Errorf("%s leaks:\n%s", secret, got)
-		}
-	}
-	for _, want := range []string{"Jellyfin / Emby: signed in to a Jellyfin server", "jellyfinToken = (set)"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("missing %q in\n%s", want, got)
-		}
-	}
-	if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, "Jellyfin / Emby: off (not signed in)") {
-		t.Errorf("report without Jellyfin:\n%s", got)
+func TestReportLeaksNothingAboutSignIns(t *testing.T) {
+	logLine := func(level, msg string) string { return "[2026-01-01T00:00:00.000Z] " + level + " " + msg }
+	for _, c := range []struct {
+		name   string
+		set    func(*core.Config)
+		log    []string
+		leaks  []string // must not appear anywhere in the report
+		wants  []string // must appear
+		signed string   // the line a report without this sign-in has
+	}{
+		{
+			name: "Plex",
+			set: func(cfg *core.Config) {
+				cfg.PlexToken, cfg.PlexAccount, cfg.PlexUser, cfg.PlexClient = "SECRETTOKEN", 987654321, "SecretUser", "secretclientid"
+				cfg.PlexServer, cfg.PlexServerName, cfg.PlexAddress = "secretmachineid", "Secret Server", "http://192.168.1.20:32400"
+			},
+			log: []string{
+				logLine("INFO", `Following the Plex server "Secret Server".`),
+				logLine("WARN", `Could not reach the Plex server "Secret Server". Is it running, and can this computer reach it?`),
+			},
+			leaks:  []string{"SECRET", "Secret", "secret", "987654321", "192.168"},
+			wants:  []string{"Plex: signed in, fixed server address", "plexToken = (set)", "plexAddress = (set)", "Following the Plex server"},
+			signed: "Plex: off (not signed in)",
+		},
+		{
+			name:   "Stremio",
+			set:    func(cfg *core.Config) { cfg.StremioKey = "SECRETSTREMIOKEY" },
+			leaks:  []string{"SECRETSTREMIOKEY"},
+			wants:  []string{"Stremio: signed in", "stremioKey = (set)"},
+			signed: "Stremio: off (not signed in)",
+		},
+		{
+			name: "Jellyfin",
+			set: func(cfg *core.Config) {
+				cfg.JellyfinToken, cfg.JellyfinAddress, cfg.JellyfinUser, cfg.JellyfinUserName = "SECRETTOKEN", "http://media.example:8096", "USERID", "SAMPLEUSER"
+				cfg.JellyfinServerName, cfg.JellyfinDevice, cfg.JellyfinProduct = "SAMPLESERVER", "DEVICEID", "Jellyfin"
+			},
+			leaks:  []string{"SECRETTOKEN", "media.example", "USERID", "SAMPLEUSER", "SAMPLESERVER", "DEVICEID"},
+			wants:  []string{"Jellyfin / Emby: signed in to a Jellyfin server", "jellyfinToken = (set)"},
+			signed: "Jellyfin / Emby: off (not signed in)",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := core.DefaultConfig()
+			c.set(&cfg)
+			got := Report(Input{Version: "1", System: "x", Config: cfg, App: store.App{UpdateRepo: store.DefaultUpdateRepo}, Log: c.log})
+			for _, leak := range c.leaks {
+				if strings.Contains(got, leak) {
+					t.Errorf("report leaks %q:\n%s", leak, got)
+				}
+			}
+			for _, want := range c.wants {
+				if !strings.Contains(got, want) {
+					t.Errorf("report is missing %q:\n%s", want, got)
+				}
+			}
+			if got := Report(Input{Version: "1", System: "x", Config: core.DefaultConfig()}); !strings.Contains(got, c.signed) {
+				t.Errorf("report without the sign-in:\n%s", got)
+			}
+		})
 	}
 }

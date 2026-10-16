@@ -7,11 +7,13 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"unicode/utf16"
 )
@@ -115,7 +117,7 @@ func coff(leaves []leaf) []byte {
 		}
 		byType[l.typ] = append(byType[l.typ], l)
 	}
-	sortU32(types)
+	slices.Sort(types)
 
 	// layout: root dir | per-type dirs | per-name dirs | data entries | data
 	rootSize := 16 + 8*len(types)
@@ -157,7 +159,7 @@ func coff(leaves []leaf) []byte {
 	for _, t := range types {
 		dir(len(byType[t]))
 		ls := byType[t]
-		sortLeaves(ls)
+		slices.SortStableFunc(ls, func(a, b leaf) int { return cmp.Compare(a.name, b.name) })
 		for _, l := range ls {
 			binary.Write(raw, le, [2]uint32{l.name, 0x80000000 | uint32(nameDirOff[[2]uint32{t, l.name}])})
 		}
@@ -227,22 +229,6 @@ func coff(leaves []leaf) []byte {
 	}{uint32(raw.Len()), uint16(len(relocAt)), 0, 0, 0, 0, [3]byte{}})
 	binary.Write(out, le, uint32(4)) // empty string table
 	return out.Bytes()
-}
-
-func sortU32(a []uint32) {
-	for i := 1; i < len(a); i++ {
-		for j := i; j > 0 && a[j] < a[j-1]; j-- {
-			a[j], a[j-1] = a[j-1], a[j]
-		}
-	}
-}
-
-func sortLeaves(a []leaf) {
-	for i := 1; i < len(a); i++ {
-		for j := i; j > 0 && a[j].name < a[j-1].name; j-- {
-			a[j], a[j-1] = a[j-1], a[j]
-		}
-	}
 }
 
 // ---- VERSIONINFO -------------------------------------------------------------------

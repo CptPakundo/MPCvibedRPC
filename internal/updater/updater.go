@@ -54,11 +54,7 @@ func checkWeb(client *http.Client, repo, current string) (*Info, error) {
 	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	req, err := newReq(ctx, WebBase+"/"+repo+"/releases/latest", "")
-	if err != nil {
-		return nil, err
-	}
-	res, err := noRedirect.Do(req)
+	res, err := get(ctx, &noRedirect, WebBase+"/"+repo+"/releases/latest", "")
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +64,7 @@ func checkWeb(client *http.Client, repo, current string) (*Info, error) {
 		return nil, fmt.Errorf("no release found on the website (HTTP %d)", res.StatusCode)
 	}
 	tag := m[1]
-	latest := strings.TrimLeft(tag, "vV")
+	latest := trimV(tag)
 	info := &Info{Configured: true, Current: current, Latest: latest, Newer: Compare(current, latest) < 0,
 		Page: WebBase + "/" + repo + "/releases/tag/" + tag}
 	if Asset != "" {
@@ -79,8 +75,8 @@ func checkWeb(client *http.Client, repo, current string) (*Info, error) {
 	return info, nil
 }
 
-// MinSize is the smallest believable program (guards against saving an error page as the program).
-var MinSize int64 = 1024 * 1024
+// minSize is the smallest believable program (guards against saving an error page as the program).
+const minSize = 1024 * 1024
 
 // Magic is how a program file of this system starts ("MZ" on Windows, "\x7fELF" on Linux); Download insists on it.
 var Magic = map[string]string{"windows": "MZ", "linux": "\x7fELF"}[runtime.GOOS]
@@ -108,11 +104,7 @@ type version struct {
 var reVersion = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?`)
 
 func parseVersion(v string) *version {
-	v = strings.TrimSpace(v)
-	if len(v) > 0 && (v[0] == 'v' || v[0] == 'V') {
-		v = v[1:]
-	}
-	m := reVersion.FindStringSubmatch(v)
+	m := reVersion.FindStringSubmatch(trimV(strings.TrimSpace(v)))
 	if m == nil {
 		return nil
 	}
@@ -152,7 +144,8 @@ func Compare(a, b string) int {
 
 var reRepo = regexp.MustCompile(`^[\w.-]+/[\w.-]+$`)
 
-func newReq(ctx context.Context, url string, accept string) (*http.Request, error) {
+// get sends a GET request for url with the program's user agent (and the Accept header when given).
+func get(ctx context.Context, client *http.Client, url, accept string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -161,7 +154,15 @@ func newReq(ctx context.Context, url string, accept string) (*http.Request, erro
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
-	return req, nil
+	return client.Do(req)
+}
+
+// trimV drops the "v" of a tag such as "v1.2.0".
+func trimV(s string) string {
+	if len(s) > 0 && (s[0] == 'v' || s[0] == 'V') {
+		return s[1:]
+	}
+	return s
 }
 
 // Check asks GitHub for the latest release of repo ("owner/repo").
@@ -174,11 +175,7 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	req, err := newReq(ctx, APIBase+"/repos/"+repo+"/releases/latest", "application/vnd.github+json")
-	if err != nil {
-		return nil, err
-	}
-	res, err := client.Do(req)
+	res, err := get(ctx, client, APIBase+"/repos/"+repo+"/releases/latest", "application/vnd.github+json")
 	if err != nil {
 		return nil, err
 	}
@@ -213,10 +210,7 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	if err := json.NewDecoder(io.LimitReader(res.Body, 8<<20)).Decode(&rel); err != nil {
 		return nil, err
 	}
-	latest := rel.TagName
-	if len(latest) > 0 && (latest[0] == 'v' || latest[0] == 'V') {
-		latest = latest[1:]
-	}
+	latest := trimV(rel.TagName)
 	info := &Info{Configured: true, Current: current, Latest: latest, Newer: Compare(current, latest) < 0, Page: rel.HTMLURL}
 	notes := []rune(whatsNew(rel.Body))
 	if len(notes) > 1500 {
@@ -251,11 +245,7 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	req, err := newReq(ctx, info.URL, "")
-	if err != nil {
-		return "", err
-	}
-	res, err := client.Do(req)
+	res, err := get(ctx, client, info.URL, "")
 	if err != nil {
 		return "", err
 	}
@@ -267,7 +257,7 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if int64(len(buf)) < MinSize || !bytes.HasPrefix(buf, []byte(Magic)) {
+	if len(buf) < minSize || !bytes.HasPrefix(buf, []byte(Magic)) {
 		if runtime.GOOS == "linux" {
 			return "", errors.New("The downloaded file does not look like a Linux program.")
 		}
@@ -276,11 +266,7 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if info.ShaURL == "" {
 		return "", errors.New("The release has no checksum file, so the download was not installed. Get it from the release page.")
 	}
-	sreq, err := newReq(ctx, info.ShaURL, "")
-	if err != nil {
-		return "", err
-	}
-	sres, err := client.Do(sreq)
+	sres, err := get(ctx, client, info.ShaURL, "")
 	if err != nil {
 		return "", err
 	}

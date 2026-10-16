@@ -3,7 +3,7 @@
 //
 //	go run ./tools/mkico -out internal/assets/icon.ico
 //	go run ./tools/mkico -icns MPCvibedRPC.icns     (the macOS app icon, made when the app is packaged)
-//	go run ./tools/mkico -png docs/images/icon.png    (a 256-pixel logo for the README and the download page)
+//	go run ./tools/mkico -png docs/images/icon.png    (a 256-pixel logo for the README)
 package main
 
 import (

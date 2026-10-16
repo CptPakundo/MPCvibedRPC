@@ -49,7 +49,7 @@ func TestStoreAgainstJS(t *testing.T) {
 		if string(c.Start) != "null" {
 			var v any
 			json.Unmarshal(c.Start, &v)
-			// the JS wrote it with JSON.stringify(start, null, 2); do the same through jsonx to keep key order
+			// the start file is written as JSON.stringify(start, null, 2) does, through jsonx, to keep key order
 			pv, _ := jsonx.Parse(string(c.Start))
 			os.WriteFile(filepath.Join(dir, "config.json"), []byte(jsonx.Stringify(pv, 2)), 0o644)
 		}
@@ -101,10 +101,7 @@ func TestStoreAgainstJS(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
-	s, err := New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	s := openStore(t, t.TempDir())
 	patch, _ := jsonx.Parse(`{"settings":{"titleAsName":false},"app":{"autoStart":true,"startPresence":false}}`)
 	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
 		t.Fatal(err)
@@ -126,34 +123,47 @@ func TestReset(t *testing.T) {
 	}
 }
 
-func TestOpenWindowSetting(t *testing.T) {
-	s, err := New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !s.App().OpenWindow {
-		t.Fatal("the window should open by default")
-	}
-	patch, _ := jsonx.Parse(`{"app":{"openWindow":false}}`)
-	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
-		t.Fatal(err)
-	}
-	if s.App().OpenWindow {
-		t.Fatal("openWindow=false was not saved")
-	}
-	if err := s.Reset(); err != nil {
-		t.Fatal(err)
-	}
-	if !s.App().OpenWindow {
-		t.Fatal("a reset should bring the default back")
+// A switch of the program's own settings starts at its default, is saved by an update and is back at the default after
+// Restore defaults.
+func TestAppSwitchDefaultSaveReset(t *testing.T) {
+	for _, c := range []struct {
+		name, key string
+		def       bool
+		get       func(App) bool
+	}{
+		{"openWindow", "openWindow", true, func(a App) bool { return a.OpenWindow }},
+		{"welcomeSeen", "welcomeSeen", false, func(a App) bool { return a.WelcomeSeen }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := openStore(t, t.TempDir())
+			if c.get(s.App()) != c.def {
+				t.Fatalf("%s should start as %v", c.key, c.def)
+			}
+			patch, _ := jsonx.Parse(fmt.Sprintf(`{"app":{%q:%v}}`, c.key, !c.def))
+			if err := s.Update(patch.(*jsonx.Obj)); err != nil {
+				t.Fatal(err)
+			}
+			if c.get(s.App()) == c.def {
+				t.Fatalf("%s=%v was not saved", c.key, !c.def)
+			}
+			if c.key == "welcomeSeen" {
+				// the other program settings are untouched by it
+				if a := s.App(); !a.StartPresence || !a.OpenWindow || !a.CheckUpdates || a.AutoStart {
+					t.Errorf("other app settings changed: %+v", a)
+				}
+			}
+			if err := s.Reset(); err != nil {
+				t.Fatal(err)
+			}
+			if c.get(s.App()) != c.def {
+				t.Fatalf("Restore defaults should bring %s back to %v", c.key, c.def)
+			}
+		})
 	}
 }
 
 func TestUpdateRepoSetting(t *testing.T) {
-	s, err := New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	s := openStore(t, t.TempDir())
 	if got := s.App().UpdateRepo; got != DefaultUpdateRepo {
 		t.Fatalf("default update source = %q", got)
 	}
@@ -339,7 +349,7 @@ func TestPrivacySettingsRoundTripAndHeadings(t *testing.T) {
 	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
 		t.Fatal(err)
 	}
-	c := New2(t, dir).Config()
+	c := openStore(t, dir).Config()
 	if !c.HideTitle || !reflect.DeepEqual(c.HideFiles, []string{"Private", "*.xyz"}) {
 		t.Errorf("after reload: %+v %v", c.HideTitle, c.HideFiles)
 	}
@@ -365,40 +375,13 @@ func TestPrivacySettingsRoundTripAndHeadings(t *testing.T) {
 }
 
 // New2 reopens the store in the same folder (a fresh instance reading the saved file).
-func New2(t *testing.T, dir string) *Store {
+func openStore(t *testing.T, dir string) *Store {
 	t.Helper()
 	s, err := New(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return s
-}
-
-func TestWelcomeSeenSetting(t *testing.T) {
-	s, err := New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.App().WelcomeSeen {
-		t.Fatal("a new install has not seen the welcome yet")
-	}
-	patch, _ := jsonx.Parse(`{"app":{"welcomeSeen":true}}`)
-	if err := s.Update(patch.(*jsonx.Obj)); err != nil {
-		t.Fatal(err)
-	}
-	if !s.App().WelcomeSeen {
-		t.Fatal("welcomeSeen was not saved")
-	}
-	// the other program settings are untouched by it
-	if a := s.App(); !a.StartPresence || !a.OpenWindow || !a.CheckUpdates || a.AutoStart {
-		t.Errorf("other app settings changed: %+v", a)
-	}
-	if err := s.Reset(); err != nil {
-		t.Fatal(err)
-	}
-	if s.App().WelcomeSeen {
-		t.Fatal("Restore defaults brings the welcome back")
-	}
 }
 
 func TestSectionsForEachSystem(t *testing.T) {
@@ -411,15 +394,15 @@ func TestSectionsForEachSystem(t *testing.T) {
 		}
 		return m
 	}
-	win, mac, linux, bsd := keys("windows"), keys("darwin"), keys("linux"), keys("freebsd")
+	win, mac, linux := keys("windows"), keys("darwin"), keys("linux")
 	if win["iinaPipe"] || win["mpris"] {
 		t.Error("Windows shows no IINA or MPRIS setting")
 	}
 	if !mac["iinaPipe"] || mac["mpris"] {
 		t.Error("macOS shows the IINA setting only")
 	}
-	if !linux["mpris"] || linux["iinaPipe"] || !bsd["mpris"] {
-		t.Error("Linux and the other D-Bus systems show the MPRIS setting only")
+	if !linux["mpris"] || linux["iinaPipe"] {
+		t.Error("Linux shows the MPRIS setting only")
 	}
 	// everything else is shown everywhere
 	for _, f := range AllFields() {
@@ -434,12 +417,12 @@ func TestSectionsForEachSystem(t *testing.T) {
 }
 
 func TestPlexSignInIsSavedButNeverShownOrTyped(t *testing.T) {
-	s := New2(t, t.TempDir())
+	s := openStore(t, t.TempDir())
 	keys := []string{"plexToken", "plexAccount", "plexUser", "plexServer", "notASetting"}
 	if err := s.SetHidden(keys, map[string]any{"plexToken": "sample-token", "plexAccount": int64(12345), "plexUser": "SampleUser", "plexServer": "srv-1", "notASetting": "x"}); err != nil {
 		t.Fatal(err)
 	}
-	c := New2(t, s.Dir).Config()
+	c := openStore(t, s.Dir).Config()
 	if c.PlexToken != "sample-token" || c.PlexAccount != 12345 || c.PlexUser != "SampleUser" || c.PlexServer != "srv-1" {
 		t.Fatalf("saved %+v", c)
 	}
@@ -471,7 +454,7 @@ func TestPlexSignInIsSavedButNeverShownOrTyped(t *testing.T) {
 }
 
 func TestSeenVersionIsOnlyWrittenOnceSet(t *testing.T) {
-	s := New2(t, t.TempDir())
+	s := openStore(t, t.TempDir())
 	p, _ := jsonx.Parse(`{"app":{"checkUpdates":false}}`)
 	if err := s.Update(p.(*jsonx.Obj)); err != nil {
 		t.Fatal(err)
@@ -483,17 +466,14 @@ func TestSeenVersionIsOnlyWrittenOnceSet(t *testing.T) {
 	if err := s.Update(p.(*jsonx.Obj)); err != nil {
 		t.Fatal(err)
 	}
-	if a := New2(t, s.Dir).App(); a.SeenVersion != "0.9.10" || a.CheckUpdates {
+	if a := openStore(t, s.Dir).App(); a.SeenVersion != "0.9.10" || a.CheckUpdates {
 		t.Errorf("%+v", a)
 	}
 }
 
 // SetSettings takes plain Go values, as the setup button hands them over (a port is an int).
 func TestSetSettingsTakesPlainValues(t *testing.T) {
-	st, err := New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := openStore(t, t.TempDir())
 	if err := st.SetSettings(map[string]any{"vlcPassword": "sample-pass", "vlcPort": 8081, "hideTitle": true}); err != nil {
 		t.Fatal(err)
 	}
