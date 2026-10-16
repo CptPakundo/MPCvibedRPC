@@ -59,7 +59,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 ## Where things are
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc` | the program: single instance, wiring, log, flags (`--background`, `--after-update`, `--home <folder>` (a data folder of its own, like `MPCRPC_HOME`), `--version`; on macOS `--serve`, the copy that keeps running after the app is opened) |
+| `cmd/mpcvibedrpc` | the program: `main.go` (flags, single instance), `app.go` (start and quit), `api.go` (what the window calls), `update.go`, `tray.go`, the sign-ins (`accounts.go`, `plex.go`, `stremio.go`, `jellyfin.go`), `logger.go`. Flags (`--background`, `--after-update`, `--home <folder>` (a data folder of its own, like `MPCRPC_HOME`), `--version`; on macOS `--serve`, the copy that keeps running after the app is opened) |
 | `internal/engine` | polls the player, looks up artwork, sends presence; start/stop/apply settings live |
 | `internal/core` | settings defaults, filename parsing, the Discord activity itself |
 | `internal/artwork`, `internal/jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics, which the title-matching rules rely on |
@@ -70,6 +70,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
 | `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
+| `internal/remote` | what the Plex, Stremio and Jellyfin readers share (problem text, network-error wording, the OS name) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/diag` | **Copy diagnostics**: the report, with folder paths, addresses, server names and sign-ins left out |

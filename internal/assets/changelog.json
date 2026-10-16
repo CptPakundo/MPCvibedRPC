@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.24", "date": "2026-10-17", "items": [
+    "🗂️ A tidier window: settings in grouped cards, Updates inside General, and a one-line status card while nothing is shown.",
+    "🔢 Click the version number at the top to see the changelog.",
+    "🧹 Cleaner code underneath with the same behaviour: sign-ins, player search and cover lookup are simpler to follow."
+  ]},
   {"version": "0.9.23", "date": "2026-10-11", "items": [
     "▶️ A paused player no longer hides another one that is playing.",
     "🎵 Songs played in a video player show as \"Listening to\" instead of \"Watching\", and aren't looked up as movies.",

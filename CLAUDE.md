@@ -10,7 +10,7 @@ ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex*
 **Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
 their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server; all sign-ins are on the
 Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
-shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Updates, Help).
+shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
 on Discord, Hide what I'm watching (`hideTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
 "presence".
@@ -51,8 +51,8 @@ friend of the owner on a real Mac.
 ## Layout
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc/main.go` | wiring, single instance, local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `clear-cache`, `update-*`, `plex*`, `stremio*`, `jellyfin*`, `quit`, ...), update checks, tray, quit order |
-| `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles) |
+| `cmd/mpcvibedrpc` | `main.go` (flags, single instance, `var version`), `app.go` (the `app` type: start-up and quit order), `api.go` (the local API handlers: `state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `update-*`, `quit`, ...), `update.go` (checks, install), `tray.go` (icon, tooltip), `accounts.go` (the `approval` helper the Plex, Stremio and Jellyfin sign-ins share, and their common endpoints) with `plex.go`, `stremio.go`, `jellyfin.go`, `logger.go` |
+| `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles); split by job: `engine.go` (types, Start/Stop, Status), `players.go` (`fetchPlayer` and its `picker`), `remote.go` (the Plex, Stremio and Jellyfin watchers as one list, resting), `discord.go`, `tick.go` |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
@@ -60,11 +60,12 @@ friend of the owner on a real Mac.
 | `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
+| `internal/remote` | what the Plex, Stremio and Jellyfin readers share: the problem text, nil-safe log and clock types, the OS name, network-error wording, the same-origin redirect check (their titles are written like file names by `core/names.go`) |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store`, `internal/jsonx` | `config.json`, the settings window layout (`schema.go`), validation; a JSON reader/writer that keeps the file's key order and unknown keys and prints numbers like JavaScript |
 | `internal/server`, `internal/assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP) and the whole page (`ui.html`), the changelog (`changelog.json`) |
-| `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
+| `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`); by topic: `run.go`, `mpcsetup.go` (`EnableMpcWebInterface`), `window.go` (browser, open URL/folder), `autostart.go`, `tray.go` (`TrayOptions`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
 | `internal/diag` | "Copy diagnostics": titles and file names kept (a wrong title is traced back to its file name); folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list left out |
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
@@ -145,7 +146,7 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
   `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. A pull request from this repository
-  is tested by its branch's push run (the `pull_request` run skips itself; only forks use it), and a newer push cancels
+  is tested by its branch's push run (the `pull_request` run skips itself; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
   a run still going on the same branch. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
   app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),

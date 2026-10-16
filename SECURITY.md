@@ -3,7 +3,7 @@
 This program has not been audited, so please treat it accordingly. It runs on your own
 computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC or IINA, or on Linux a video player over
 D-Bus) locally, and only contacts the online services listed in its **Privacy** tab, and GitHub to look for updates
-(switch off on the **Updates** tab). Once you sign in to Plex, it also
+(switch off under **General > Updates**). Once you sign in to Plex, it also
 contacts plex.tv (to sign in and to find your servers) and your Plex server, which it only reads from. Once you sign in
 to Stremio, it contacts Stremio's servers (link.stremio.com to sign in, api.strem.io to read your library and to sign
 out). Once you enter a Jellyfin or Emby server's address and sign in (Accounts tab), it contacts only that server (to sign in, to read
