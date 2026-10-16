@@ -40,11 +40,6 @@ type FetchError struct {
 
 func (e *FetchError) Error() string { return e.Msg }
 
-// MockError lets a test transport raise an error with a given name (see FetchError).
-type MockError struct{ Name, Msg string }
-
-func (e *MockError) Error() string { return e.Msg }
-
 // unavailable reports whether a request failed because the service was down, slow, unreachable or paused by the
 // breaker, rather than answering.
 func unavailable(err error) bool {
@@ -162,9 +157,9 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 }
 
 func classify(ctx context.Context, err error) error {
-	var me *MockError
-	if errors.As(err, &me) {
-		return &FetchError{Name: me.Name, Msg: me.Msg}
+	var fe *FetchError
+	if errors.As(err, &fe) { // a transport that already names its error (a test transport)
+		return fe
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 		return &FetchError{Name: "TimeoutError", Msg: "The operation was aborted due to timeout"}

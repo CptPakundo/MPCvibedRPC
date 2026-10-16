@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -44,7 +45,7 @@ func (f *fakeAnimeCatalogs) RoundTrip(req *http.Request) (*http.Response, error)
 	body := "[]"
 	switch {
 	case req.URL.Host == "api.jikan.moe" && !jikanUp:
-		return nil, &MockError{Name: "TimeoutError", Msg: "The operation was aborted due to timeout"}
+		return nil, &FetchError{Name: "TimeoutError", Msg: "The operation was aborted due to timeout"}
 	case req.URL.Host == "api.jikan.moe" && path == "/v4/anime" && q == "Sample Saga":
 		body = `{"data":[{"mal_id":901,"title":"Sample Saga","type":"TV","year":2015,"titles":[{"type":"Default","title":"Sample Saga"}]},
 			{"mal_id":21,"title":"Sample Saga","title_english":"Sample Saga","type":"TV","year":null,"aired":{"prop":{"from":{"year":1999}}}},
@@ -57,11 +58,11 @@ func (f *fakeAnimeCatalogs) RoundTrip(req *http.Request) (*http.Response, error)
 			if num > 150 {
 				break
 			}
-			title := `"MAL episode ` + core.Itoa(num) + `"`
+			title := `"MAL episode ` + strconv.Itoa(num) + `"`
 			if num == 150 {
 				title = "null" // not aired yet
 			}
-			eps = append(eps, `{"mal_id":`+core.Itoa(num)+`,"title":`+title+`}`)
+			eps = append(eps, `{"mal_id":`+strconv.Itoa(num)+`,"title":`+title+`}`)
 		}
 		body = `{"pagination":{"last_visible_page":2},"data":[` + strings.Join(eps, ",") + `]}`
 	case req.URL.Host == "api.tvmaze.com" && path == "/search/shows" && q == "Sample Saga":
@@ -70,13 +71,13 @@ func (f *fakeAnimeCatalogs) RoundTrip(req *http.Request) (*http.Response, error)
 	case req.URL.Host == "api.tvmaze.com" && path == "/shows/5001/episodes":
 		var eps []string
 		for e := 1; e <= 8; e++ {
-			eps = append(eps, `{"season":1,"number":`+core.Itoa(e)+`,"type":"regular","name":"Live-action episode `+core.Itoa(e)+`"}`)
+			eps = append(eps, `{"season":1,"number":`+strconv.Itoa(e)+`,"type":"regular","name":"Live-action episode `+strconv.Itoa(e)+`"}`)
 		}
 		body = "[" + strings.Join(eps, ",") + "]"
 	case req.URL.Host == "api.tvmaze.com" && path == "/shows/1505/episodes":
 		var eps []string
 		for n := 1; n <= 150; n++ { // seasons by year, 50 a year
-			eps = append(eps, `{"season":`+core.Itoa(1998+(n-1)/50+1)+`,"number":`+core.Itoa((n-1)%50+1)+`,"type":"regular","name":"TVmaze episode `+core.Itoa(n)+`"}`)
+			eps = append(eps, `{"season":`+strconv.Itoa(1998+(n-1)/50+1)+`,"number":`+strconv.Itoa((n-1)%50+1)+`,"type":"regular","name":"TVmaze episode `+strconv.Itoa(n)+`"}`)
 		}
 		body = "[" + strings.Join(eps, ",") + "]"
 	case req.URL.Host == "v3-cinemeta.strem.io" && strings.HasPrefix(path, "/catalog/series/top/search="):
@@ -91,9 +92,9 @@ func (f *fakeAnimeCatalogs) RoundTrip(req *http.Request) (*http.Response, error)
 					name = "Special" // a special filed as a regular episode
 				} else {
 					n++
-					name = "Cinemeta episode " + core.Itoa(n)
+					name = "Cinemeta episode " + strconv.Itoa(n)
 				}
-				v = append(v, `{"season":`+core.Itoa(s)+`,"episode":`+core.Itoa(e)+`,"name":"`+name+`"}`)
+				v = append(v, `{"season":`+strconv.Itoa(s)+`,"episode":`+strconv.Itoa(e)+`,"name":"`+name+`"}`)
 			}
 		}
 		body = `{"meta":{"videos":[` + strings.Join(v, ",") + `]}}`

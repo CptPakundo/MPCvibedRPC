@@ -4,6 +4,7 @@ package artwork
 import (
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf16"
 
@@ -24,7 +25,6 @@ var (
 	reOrdNum     = re(`\b(\d{1,2})(?:st|nd|rd|th)\b`, "g")
 	reOrdWord    = re(`\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b`, "g")
 	reNonAN      = re(`[^\p{L}\p{N}]+`, "gu")
-	reDiacr      = re(`[\u0300-\u036f]`, "g")
 	reDigits     = re(`\d+`, "g")
 	reColonSplit = re(`:|\s[-–]\s`, "")
 	reHasSub     = re(`^[^:]*:|\s[-–]\s`, "")
@@ -43,12 +43,12 @@ func normTitle(s string) string {
 	t = reAmpPlus.ReplaceStr(t, " and ")
 	t = reArticle.ReplaceStr(t, "")
 	t = reOrdNum.ReplaceStr(t, "$1")
-	t = reOrdWord.Replace(t, func(m *jsre.Match) string { return itoa(ordinals[m.Str(0)]) })
+	t = reOrdWord.Replace(t, func(m *jsre.Match) string { return strconv.Itoa(ordinals[m.Str(0)]) })
 	return reNonAN.ReplaceStr(t, "")
 }
 
 // plain: Latin diacritics only (é -> e). Leaves Hebrew points and Japanese dakuten alone.
-func plain(s string) string { return jsre.NFC(reDiacr.ReplaceStr(jsre.NFD(s), "")) }
+func plain(s string) string { return jsre.NFC(jsre.StripAccents(s)) }
 
 func words(s string) []string {
 	var out []string
@@ -526,4 +526,3 @@ func pickMatch(cands []*Cand, title string, year int, strictYear bool, o PickOpt
 	return nil
 }
 
-func itoa(n int) string { return core.Itoa(n) }

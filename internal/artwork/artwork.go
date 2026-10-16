@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -262,13 +264,13 @@ func (a *Artwork) providerOrder(media *core.Media) []*Provider {
 		}
 		var group []string
 		for _, n := range src {
-			if core.Contains(order, n) {
+			if slices.Contains(order, n) {
 				group = append(group, n)
 			}
 		}
 		rest := []string{}
 		for _, n := range order {
-			if !core.Contains(group, n) {
+			if !slices.Contains(group, n) {
 				rest = append(rest, n)
 			}
 		}
@@ -383,7 +385,7 @@ func (a *Artwork) runProvider(p *Provider, typ, query string, media *core.Media,
 func describe(h *core.Art) string {
 	s := h.Name
 	if h.Year != core.NA && h.Year != 0 {
-		s += " (" + core.Itoa(h.Year) + ")"
+		s += " (" + strconv.Itoa(h.Year) + ")"
 	}
 	if h.SeasonName != "" {
 		s += " - " + h.SeasonName
@@ -1072,14 +1074,14 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	}
 	yearS, seasonS := "", ""
 	if truthy2(media.Year) {
-		yearS = core.Itoa(media.Year)
+		yearS = strconv.Itoa(media.Year)
 	}
 	if media.Season != core.NA {
-		seasonS = core.Itoa(media.Season)
+		seasonS = strconv.Itoa(media.Season)
 	}
 	dur := ""
 	if !truthy2(media.Year) && !media.IsEpisode && media.DurationMin != 0 {
-		dur = "|d" + core.Itoa(int(jsRound(float64(media.DurationMin)/10)))
+		dur = "|d" + strconv.Itoa(int(jsRound(float64(media.DurationMin)/10)))
 	}
 	key := keyVersion + kind + "|" + nt + "|" + yearS + "|" + normTitle(a.aliases[nt]) + "|" + seasonS + "|" + media.CodePrefix + dur
 	// A leading list number ("02. Show Name") is the episode number if the title turns out to be a series.
@@ -1090,7 +1092,7 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	wantEp := cfg.EpisodeTitles && epNo != core.NA && media.EpTitle == ""
 	epNoS := "null"
 	if epNo != core.NA {
-		epNoS = core.Itoa(epNo)
+		epNoS = strconv.Itoa(epNo)
 	}
 	suffix := "i"
 	if media.IsEpisode {
@@ -1145,7 +1147,7 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	aniKey := "ani|" + key
 	needAlt := func(b *core.Art) bool {
 		return b != nil && cfg.AnimeTitles != "file" && b.Source != "AniList" && b.Source != "override" && b.Alt == nil && !b.AltChecked &&
-			b.Info != nil && core.Contains(b.Info.Genres, "Animation") && !a.missed(aniKey)
+			b.Info != nil && slices.Contains(b.Info.Genres, "Animation") && !a.missed(aniKey)
 	}
 
 	a.mu.Lock()
@@ -1387,7 +1389,7 @@ func (a *Artwork) lookupBody(fullKey, key, epKey string, wantEp bool, media *cor
 					if n == core.NA {
 						return "NaN"
 					}
-					return core.Itoa(n)
+					return strconv.Itoa(n)
 				}
 				id := "S" + pad2(ep.Season) + "E" + pad2(ep.Number)
 				if ep.Absolute {
@@ -1409,7 +1411,7 @@ func pad2(n int) string {
 	if n == core.NA {
 		return "NaN"
 	}
-	s := core.Itoa(n)
+	s := strconv.Itoa(n)
 	if len(s) < 2 {
 		s = "0" + s
 	}

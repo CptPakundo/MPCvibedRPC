@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -64,7 +65,7 @@ func (f *fakeTVmaze) RoundTrip(req *http.Request) (*http.Response, error) {
 		var eps []string
 		for s, n := range []int{25, 25, 16} {
 			for e := 1; e <= n; e++ {
-				eps = append(eps, `{"season":`+core.Itoa(s+1)+`,"number":`+core.Itoa(e)+`,"type":"regular","name":"Sample Episode S`+core.Itoa(s+1)+`E`+core.Itoa(e)+`"}`)
+				eps = append(eps, `{"season":`+strconv.Itoa(s+1)+`,"number":`+strconv.Itoa(e)+`,"type":"regular","name":"Sample Episode S`+strconv.Itoa(s+1)+`E`+strconv.Itoa(e)+`"}`)
 			}
 		}
 		body = "[" + strings.Join(eps, ",") + "]"

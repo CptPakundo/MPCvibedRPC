@@ -2,7 +2,9 @@ package artwork
 
 import (
 	"math"
+	"slices"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -303,7 +305,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			}
 			q := params{}
 			headers := tmdbAuth(cfg, &q)
-			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+id+"/season/"+core.Itoa(season)+"?"+q.String(), reqInit{Headers: headers})
+			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+id+"/season/"+strconv.Itoa(season)+"?"+q.String(), reqInit{Headers: headers})
 			if err != nil {
 				return nil, err
 			}
@@ -379,7 +381,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if media.CodeEpisode != core.NA {
 				n = media.CodeEpisode
 			}
-			ns := core.Itoa(n)
+			ns := strconv.Itoa(n)
 			for len(ns) < 3 {
 				ns = "0" + ns
 			}
@@ -401,7 +403,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 					}
 				}
 				if status < 200 || status > 299 {
-					return nil, &FetchError{Name: "Error", Msg: "HTTP " + core.Itoa(status), Status: status}
+					return nil, &FetchError{Name: "Error", Msg: "HTTP " + strconv.Itoa(status), Status: status}
 				}
 				if j, perr := parseJSON(text); perr == nil {
 					pages := get(j, "query", "pages")
@@ -463,7 +465,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if !ctx.split && media.Season != core.NA && media.Season > 1 {
 				return nil, nil
 			}
-			j, err := a.net.getJSON(cfg.KitsuBase+"/anime/"+ids.Kitsu+"/episodes?filter[number]="+core.Itoa(media.Episode)+"&page[limit]=2",
+			j, err := a.net.getJSON(cfg.KitsuBase+"/anime/"+ids.Kitsu+"/episodes?filter[number]="+strconv.Itoa(media.Episode)+"&page[limit]=2",
 				reqInit{Headers: map[string]string{"Accept": "application/vnd.api+json"}, NoRetryOnTimeout: true})
 			if err != nil {
 				return nil, err
@@ -501,7 +503,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				return nil, nil
 			}
 			year := ctx.yearFor(media)
-			key := core.Lower(plain(ctx.query)) + "|" + core.Itoa(year)
+			key := core.Lower(plain(ctx.query)) + "|" + strconv.Itoa(year)
 			r.mu.Lock()
 			id, known := r.mal[key]
 			r.mu.Unlock()
@@ -536,7 +538,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				return nil, nil
 			}
 			page := (media.Episode-1)/100 + 1 // a hundred episodes a page
-			j, err := a.net.getJSON(cfg.JikanBase+"/anime/"+id+"/episodes?page="+core.Itoa(page), reqInit{NoRetryOnTimeout: true})
+			j, err := a.net.getJSON(cfg.JikanBase+"/anime/"+id+"/episodes?page="+strconv.Itoa(page), reqInit{NoRetryOnTimeout: true})
 			if err != nil {
 				return nil, err
 			}
@@ -639,7 +641,7 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 	anime := isAnime(media, hit)
 	srcs := r.sources(anime)
 	isPokemon := func() bool { return rePokemon.Test(reNonAZ.ReplaceStr(plain(media.Title), "")) }
-	if media.Code != "" && core.Contains(srcs, "bulbapedia") {
+	if media.Code != "" && slices.Contains(srcs, "bulbapedia") {
 		list, err := r.provs["bulbapedia"].list(r, media, ids, epCtx{split: hit != nil && hit.Split, seasonNo: core.NA})
 		if err != nil {
 			warn("Bulbapedia", "Bulbapedia episode lookup failed ("+err.Error()+"); no episode title for this one.")

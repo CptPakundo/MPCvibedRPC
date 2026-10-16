@@ -101,37 +101,20 @@ func splitFilter(s, sep string) []string {
 	return out
 }
 
-// fields is s.split(/\s+/).filter(Boolean) using JavaScript's whitespace set.
-func fields(s string) []string {
-	return strings.FieldsFunc(s, func(r rune) bool {
-		switch r {
-		case '\t', '\n', '\v', '\f', '\r', ' ', 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff:
-			return true
-		}
-		return r >= 0x2000 && r <= 0x200a
-	})
+// isJSSpace reports whether r is JavaScript whitespace.
+func isJSSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ', 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff:
+		return true
+	}
+	return r >= 0x2000 && r <= 0x200a
 }
+
+// fields is s.split(/\s+/).filter(Boolean) using JavaScript's whitespace set.
+func fields(s string) []string { return strings.FieldsFunc(s, isJSSpace) }
 
 // trim is String.prototype.trim (JavaScript whitespace).
-func trim(s string) string {
-	isWS := func(r rune) bool {
-		switch r {
-		case '\t', '\n', '\v', '\f', '\r', ' ', 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff:
-			return true
-		}
-		return r >= 0x2000 && r <= 0x200a
-	}
-	return strings.TrimFunc(s, isWS)
-}
-
-func contains(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
-}
+func trim(s string) string { return strings.TrimFunc(s, isJSSpace) }
 
 var nonAlnum = re(`[^\p{L}\p{N}]+`, "gu")
 

@@ -1,6 +1,7 @@
 package artwork
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -128,7 +129,7 @@ func buildProviders() map[string]*Provider {
 			}
 			q := params{{"query", query}}
 			if kind == "movie" && truthy2(media.Year) {
-				q.set("year", core.Itoa(media.Year))
+				q.set("year", strconv.Itoa(media.Year))
 			}
 			headers := tmdbAuth(a.cfg, &q)
 			j, err := a.net.getJSON("https://api.themoviedb.org/3/search/"+kind+"?"+q.String(), reqInit{Headers: headers})
@@ -156,7 +157,7 @@ func buildProviders() map[string]*Provider {
 			}
 			q := params{}
 			headers := tmdbAuth(a.cfg, &q)
-			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+cand.Ref+"/season/"+core.Itoa(media.Season)+"?"+q.String(), reqInit{Headers: headers})
+			j, err := a.net.getJSON("https://api.themoviedb.org/3/tv/"+cand.Ref+"/season/"+strconv.Itoa(media.Season)+"?"+q.String(), reqInit{Headers: headers})
 			if err != nil {
 				return nil, err
 			}
@@ -207,7 +208,7 @@ func buildProviders() map[string]*Provider {
 			var list []*Cand
 			for _, d := range asArr(get(j, "d")) {
 				qid := str(get(d, "qid"))
-				if !core.Contains(want, qid) || get(d, "qid") == nil {
+				if !slices.Contains(want, qid) || get(d, "qid") == nil {
 					continue
 				}
 				c := &Cand{Titles: nonEmptyTitles(get(d, "l")), Year: yearNum(get(d, "y")), URL: imdbURL(str(get(d, "id"))), URLLabel: "IMDb"}
