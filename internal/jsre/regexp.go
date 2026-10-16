@@ -1,8 +1,9 @@
 // Package jsre is a small regular-expression engine with JavaScript semantics.
 //
-// Go's regexp (RE2) has no lookahead, lookbehind or backreferences, which the filename parser relies on, so this
-// package re-implements the JavaScript flavour: backtracking, greedy/lazy quantifiers, lookaround, \p{L}-style
-// properties (L, Lu, Ll, N, M), flags g i m s u y. Text is handled as []rune, so indexes are code points.
+// Go's regexp (RE2) has no lookahead or lookbehind, which the filename parser relies on, so this package
+// re-implements the JavaScript flavour that parser needs: backtracking, greedy/lazy and counted quantifiers,
+// lookahead and lookbehind, \p{L}-style properties (L, Lu, N, M), flags g i u. Anything else (backreferences,
+// named groups, the m and s flags, ...) is rejected by Compile. Text is handled as []rune, so indexes are code points.
 package jsre
 
 import (
@@ -30,7 +31,6 @@ const (
 	nAlt
 	nLook // lookahead/lookbehind
 	nQuant
-	nBackref
 	nEmpty
 )
 
@@ -45,7 +45,7 @@ type node struct {
 	items    []classItem
 	neg      bool // class negation / negative lookaround
 	subs     []*node
-	idx      int // capture index / backref number
+	idx      int // capture index
 	behind   bool
 	min, max int // max < 0: unbounded
 	greedy   bool
@@ -56,12 +56,10 @@ type node struct {
 // ---- parser --------------------------------------------------------------------------------------
 
 type parser struct {
-	src   []rune
-	pos   int
-	ncap  int
-	unic  bool
-	icase bool
-	names map[string]int
+	src  []rune
+	pos  int
+	ncap int
+	unic bool
 }
 
 func (p *parser) more() bool { return p.pos < len(p.src) }
@@ -160,58 +158,28 @@ func (p *parser) parseTerm() (*node, error) {
 			if !p.eat(')') {
 				return nil, fmt.Errorf("unterminated group")
 			}
-			n := &node{kind: nLook, subs: []*node{sub}, neg: neg, behind: behind}
-			if !behind { // Annex B: a lookahead may carry a quantifier
-				return p.parseQuantifier(n, capBefore)
-			}
-			return n, nil
+			return &node{kind: nLook, subs: []*node{sub}, neg: neg, behind: behind}, nil
 		}
+		if p.lookingAt("(?<") {
+			return nil, fmt.Errorf("unsupported named group")
+		}
+		kind, idx := nGroup, 0
 		if p.lookingAt("(?:") {
 			p.pos += 3
-			sub, err := p.parseDisjunction()
-			if err != nil {
-				return nil, err
-			}
-			if !p.eat(')') {
-				return nil, fmt.Errorf("unterminated group")
-			}
-			atom = &node{kind: nNonCap, subs: []*node{sub}}
-		} else if p.lookingAt("(?<") {
-			// named group (?<name>...)
-			p.pos += 3
-			start := p.pos
-			for p.more() && p.peek() != '>' {
-				p.pos++
-			}
-			name := string(p.src[start:p.pos])
-			p.pos++
-			p.ncap++
-			idx := p.ncap
-			if p.names == nil {
-				p.names = map[string]int{}
-			}
-			p.names[name] = idx
-			sub, err := p.parseDisjunction()
-			if err != nil {
-				return nil, err
-			}
-			if !p.eat(')') {
-				return nil, fmt.Errorf("unterminated group")
-			}
-			atom = &node{kind: nGroup, idx: idx, subs: []*node{sub}}
+			kind = nNonCap
 		} else {
 			p.pos++
 			p.ncap++
-			idx := p.ncap
-			sub, err := p.parseDisjunction()
-			if err != nil {
-				return nil, err
-			}
-			if !p.eat(')') {
-				return nil, fmt.Errorf("unterminated group")
-			}
-			atom = &node{kind: nGroup, idx: idx, subs: []*node{sub}}
+			idx = p.ncap
 		}
+		sub, err := p.parseDisjunction()
+		if err != nil {
+			return nil, err
+		}
+		if !p.eat(')') {
+			return nil, fmt.Errorf("unterminated group")
+		}
+		atom = &node{kind: kind, idx: idx, subs: []*node{sub}}
 	case '.':
 		p.pos++
 		atom = &node{kind: nAny}
@@ -325,7 +293,7 @@ func (p *parser) hexDigits(n int) (rune, bool) {
 	return rune(v), true
 }
 
-// parseEscapeChar handles the escapes that denote a single character; ok=false when it is a class escape.
+// parseCharEscape handles the escapes that denote a single character; ok=false when it is a class escape.
 func (p *parser) parseCharEscape(inClass bool) (rune, bool, error) {
 	// p.pos is at the char after the backslash
 	if !p.more() {
@@ -354,12 +322,7 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool, error) {
 			return '\b', true, nil
 		}
 	case 'c':
-		if p.more() && ((p.peek() >= 'a' && p.peek() <= 'z') || (p.peek() >= 'A' && p.peek() <= 'Z')) {
-			v := p.peek() % 32
-			p.pos++
-			return rune(v), true, nil
-		}
-		return '\\', true, nil
+		return 0, false, fmt.Errorf("unsupported control escape \\c")
 	case 'x':
 		if v, ok := p.hexDigits(2); ok {
 			return v, true, nil
@@ -367,30 +330,11 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool, error) {
 		return 'x', true, nil
 	case 'u':
 		if p.unic && p.more() && p.peek() == '{' {
-			save := p.pos
-			p.pos++
-			v := 0
-			n := 0
-			for p.more() && hexVal(p.peek()) >= 0 {
-				v = v*16 + hexVal(p.peek())
-				p.pos++
-				n++
-			}
-			if n > 0 && p.eat('}') {
-				return rune(v), true, nil
-			}
-			p.pos = save
-			return 'u', true, nil
+			return 0, false, fmt.Errorf("unsupported escape \\u{...}")
 		}
 		if v, ok := p.hexDigits(4); ok {
-			// surrogate pair 😀 in unicode mode
-			if v >= 0xD800 && v <= 0xDBFF && p.lookingAt("\\u") {
-				save := p.pos
-				p.pos += 2
-				if lo, ok2 := p.hexDigits(4); ok2 && lo >= 0xDC00 && lo <= 0xDFFF {
-					return 0x10000 + (v-0xD800)<<10 + (lo - 0xDC00), true, nil
-				}
-				p.pos = save
+			if v >= 0xD800 && v <= 0xDFFF {
+				return 0, false, fmt.Errorf("unsupported surrogate escape")
 			}
 			return v, true, nil
 		}
@@ -416,43 +360,17 @@ func isWord(r rune) bool {
 func isLineTerm(r rune) bool { return r == '\n' || r == '\r' || r == 0x2028 || r == 0x2029 }
 
 func propPred(name string) (func(rune) bool, error) {
-	name = strings.TrimPrefix(name, "General_Category=")
-	name = strings.TrimPrefix(name, "gc=")
 	var tab *unicode.RangeTable
 	switch name {
-	case "L", "Letter":
+	case "L":
 		tab = unicode.L
-	case "Lu", "Uppercase_Letter":
+	case "Lu":
 		tab = unicode.Lu
-	case "Ll", "Lowercase_Letter":
-		tab = unicode.Ll
-	case "Lt":
-		tab = unicode.Lt
-	case "Lm":
-		tab = unicode.Lm
-	case "Lo":
-		tab = unicode.Lo
-	case "N", "Number":
+	case "N":
 		tab = unicode.N
-	case "Nd":
-		tab = unicode.Nd
-	case "M", "Mark":
+	case "M":
 		tab = unicode.M
-	case "Mn":
-		tab = unicode.Mn
-	case "P", "Punctuation":
-		tab = unicode.P
-	case "S", "Symbol":
-		tab = unicode.S
-	case "Z", "Separator":
-		tab = unicode.Z
 	default:
-		if strings.HasPrefix(name, "Script=") || strings.HasPrefix(name, "sc=") || strings.HasPrefix(name, "Script_Extensions=") {
-			s := name[strings.Index(name, "=")+1:]
-			if t, ok := unicode.Scripts[s]; ok {
-				return func(r rune) bool { return unicode.Is(t, r) }, nil
-			}
-		}
 		return nil, fmt.Errorf("unsupported property \\p{%s}", name)
 	}
 	return func(r rune) bool { return unicode.Is(tab, r) }, nil
@@ -506,27 +424,10 @@ func (p *parser) parseAtomEscape() (*node, error) {
 	}
 	c := p.peek()
 	if c >= '1' && c <= '9' {
-		save := p.pos
-		n, _ := p.parseInt()
-		if n <= 99 { // resolved against the final group count in compile; Annex B octal fallback ignored
-			return &node{kind: nBackref, idx: n}, nil
-		}
-		p.pos = save
+		return nil, fmt.Errorf("unsupported backreference")
 	}
-	if c == 'k' && p.names != nil {
-		p.pos++
-		if p.eat('<') {
-			start := p.pos
-			for p.more() && p.peek() != '>' {
-				p.pos++
-			}
-			name := string(p.src[start:p.pos])
-			p.pos++
-			if idx, ok := p.names[name]; ok {
-				return &node{kind: nBackref, idx: idx}, nil
-			}
-		}
-		return nil, fmt.Errorf("bad named reference")
+	if c == 'k' && p.pos+1 < len(p.src) && p.src[p.pos+1] == '<' {
+		return nil, fmt.Errorf("unsupported named reference")
 	}
 	r, isChar, err := p.parseCharEscape(false)
 	if err != nil {
@@ -620,10 +521,7 @@ type Regexp struct {
 	Flags  string
 	Global bool
 	icase  bool
-	multi  bool
-	dotAll bool
-	sticky bool
-	unic   bool
+	sticky bool // set only on the copy Split searches with
 	ncap   int
 	root   matcher
 }
@@ -640,29 +538,24 @@ type matcher func(s *state, i int, k func(int) bool) bool
 // rather than hanging on catastrophic backtracking.
 const stepLimit = 5_000_000
 
-// Compile parses a pattern with JavaScript flags ("g", "i", "m", "s", "u", "y") and returns the compiled regexp.
+// Compile parses a pattern with JavaScript flags ("g", "i", "u") and returns the compiled regexp. Other flags and
+// pattern features the package does not implement give an "unsupported" error.
 func Compile(pattern, flags string) (*Regexp, error) {
 	re := &Regexp{Source: pattern, Flags: flags}
+	unic := false
 	for _, f := range flags {
 		switch f {
 		case 'g':
 			re.Global = true
 		case 'i':
 			re.icase = true
-		case 'm':
-			re.multi = true
-		case 's':
-			re.dotAll = true
 		case 'u':
-			re.unic = true
-		case 'y':
-			re.sticky = true
+			unic = true
 		default:
-			return nil, fmt.Errorf("invalid flag %q", f)
+			return nil, fmt.Errorf("unsupported flag %q", f)
 		}
 	}
-	p := &parser{src: []rune(pattern), unic: re.unic, icase: re.icase}
-	// A \k<name> that refers to a group defined later in the pattern is not resolved (no pattern in use needs it).
+	p := &parser{src: []rune(pattern), unic: unic}
 	root, err := p.parseDisjunction()
 	if err != nil {
 		return nil, fmt.Errorf("invalid regular expression /%s/: %v", pattern, err)
@@ -740,9 +633,6 @@ func (re *Regexp) single(n *node) func(rune) bool {
 		}
 		return func(r rune) bool { return r == c }
 	case nAny:
-		if re.dotAll {
-			return func(r rune) bool { return true }
-		}
 		return func(r rune) bool { return !isLineTerm(r) }
 	case nClass:
 		return func(r rune) bool { return re.classMatch(n, r) }
@@ -766,14 +656,14 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 		return func(s *state, i int, k func(int) bool) bool { return k(i) }
 	case nStart:
 		return func(s *state, i int, k func(int) bool) bool {
-			if i == 0 || (re.multi && isLineTerm(s.in[i-1])) {
+			if i == 0 {
 				return k(i)
 			}
 			return false
 		}
 	case nEnd:
 		return func(s *state, i int, k func(int) bool) bool {
-			if i == len(s.in) || (re.multi && isLineTerm(s.in[i])) {
+			if i == len(s.in) {
 				return k(i)
 			}
 			return false
@@ -868,24 +758,6 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 			}
 			copy(s.caps, saved)
 			return false
-		}
-	case nBackref:
-		idx := n.idx
-		return func(s *state, i int, k func(int) bool) bool {
-			if idx > re.ncap || s.caps[2*idx] < 0 {
-				return k(i)
-			}
-			sub := s.in[s.caps[2*idx]:s.caps[2*idx+1]]
-			if i+len(sub) > len(s.in) {
-				return false
-			}
-			for x, r := range sub {
-				o := s.in[i+x]
-				if o != r && !(re.icase && canon(o) == canon(r)) {
-					return false
-				}
-			}
-			return k(i + len(sub))
 		}
 	case nQuant:
 		return re.compileQuant(n, backward)

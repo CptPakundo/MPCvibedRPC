@@ -104,6 +104,18 @@ type ArtIDs struct {
 	Imdb, Tvmaze, Tmdb, Kitsu string
 }
 
+// UnmarshalJSON reads each id from a JSON string or number (null and other types give "").
+func (i *ArtIDs) UnmarshalJSON(b []byte) error {
+	var j struct {
+		Imdb, Tvmaze, Tmdb, Kitsu flexID
+	}
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+	*i = ArtIDs{Imdb: string(j.Imdb), Tvmaze: string(j.Tvmaze), Tmdb: string(j.Tmdb), Kitsu: string(j.Kitsu)}
+	return nil
+}
+
 // Art is what the artwork lookup knows about the playing title.
 type Art struct {
 	Type       string // "movie" | "series"
@@ -186,20 +198,8 @@ type artJSON struct {
 	ViaRank    bool            `json:"viaRank"`
 	Shift      float64         `json:"shift"`
 	EntryEps   float64         `json:"entryEps"`
-	IDs        *struct {
-		Imdb   flexID `json:"imdb"`
-		Tvmaze flexID `json:"tvmaze"`
-		Tmdb   flexID `json:"tmdb"`
-		Kitsu  flexID `json:"kitsu"`
-	} `json:"ids"`
-	Episode *struct {
-		Title    string   `json:"title"`
-		Season   *float64 `json:"season"`
-		Number   *float64 `json:"number"`
-		Absolute bool     `json:"absolute"`
-		Source   string   `json:"source"`
-		Via      string   `json:"via"`
-	} `json:"episode"`
+	IDs        *ArtIDs         `json:"ids"`
+	Episode    *ArtEpisode     `json:"episode"`
 }
 
 // UnmarshalJSON reads the JSON shape of the recorded reference data and of the saved answers in the artwork cache
@@ -222,13 +222,7 @@ func (a *Art) UnmarshalJSON(b []byte) error {
 			}
 		}
 	}
-	if j.IDs != nil {
-		a.IDs = &ArtIDs{Imdb: string(j.IDs.Imdb), Tvmaze: string(j.IDs.Tvmaze), Tmdb: string(j.IDs.Tmdb), Kitsu: string(j.IDs.Kitsu)}
-	}
-	if j.Episode != nil {
-		a.Episode = &ArtEpisode{Title: j.Episode.Title, Season: optInt(j.Episode.Season), Number: optInt(j.Episode.Number),
-			Absolute: j.Episode.Absolute, Source: j.Episode.Source, Via: j.Episode.Via}
-	}
+	a.IDs, a.Episode = j.IDs, j.Episode
 	return nil
 }
 
