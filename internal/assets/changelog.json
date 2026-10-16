@@ -1,4 +1,7 @@
 [
+  {"version": "0.9.25", "date": "2026-10-17", "items": [
+    "🧹 Quitting and updating always clean up after themselves, even while another program is reading the app's files."
+  ]},
   {"version": "0.9.24", "date": "2026-10-17", "items": [
     "🗂️ A tidier window: settings in grouped cards, Updates inside General, and a one-line status card while nothing is shown.",
     "🔢 Click the version number at the top to see the changelog.",
