@@ -9,8 +9,9 @@ import (
 	"strings"
 )
 
-// The macOS and Linux versions of the parts above. They live in an ordinary file (not one for a single system) so that
-// their logic is tested everywhere; only the helper programs they start are missing on Windows.
+// The macOS and Linux versions of what run.go, mpcsetup.go and window.go do on Windows: the running players, the
+// system description, the browser and the player setup. They live in an ordinary file (not one for a single system) so
+// that their logic is tested everywhere; only the helper programs they start are missing on Windows.
 
 var iinaPlayer = player{name: "IINA", procs: []string{"iina"}}
 

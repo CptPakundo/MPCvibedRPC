@@ -231,20 +231,6 @@ func openNativeWindow(url string) bool {
 // closeNativeWindow closes that window (when the program quits).
 func closeNativeWindow() { C.macCloseWindow() }
 
-// TrayOptions describes the menu bar icon.
-type TrayOptions struct {
-	Icon     []byte
-	Dir      string
-	Tooltip  func() string
-	Running  func() bool
-	OnOpen   func()
-	OnToggle func()
-	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
-	OnHide   func()      // switches "Hide what I'm watching" over
-	OnQuit   func()
-	Log      func(level, msg string)
-}
-
 // Tray is the menu bar icon.
 type Tray struct {
 	o    TrayOptions

@@ -9,24 +9,25 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 // Watcher asks one server's session list what the user plays there, every few seconds. Run it in a goroutine; Now is
 // safe to call at any time.
 type Watcher struct {
-	Client  *Client
-	Token   string // the sign-in
-	UserID  string // whose playback counts (an administrator sees everyone's sessions)
-	Product string // Jellyfin or Emby, for messages
-	Every   time.Duration
-	Log     func(level, msg string)
+	remote.Base // Problem: why the server cannot be followed (for the window)
+	Client      *Client
+	Token       string // the sign-in
+	UserID      string // whose playback counts (an administrator sees everyone's sessions)
+	Product     string // Jellyfin or Emby, for messages
+	Every       time.Duration
+	Log         remote.LogFunc
 
-	mu      sync.Mutex
-	conn    bool   // the last request was answered
-	problem string // why the server cannot be followed (for the window)
-	play    *playback
-	now     func() time.Time
-	retry   time.Duration // the first wait after a failure (tests shorten it)
+	mu    sync.Mutex
+	conn  bool // the last request was answered
+	play  *playback
+	now   remote.Clock
+	retry time.Duration // the first wait after a failure (tests shorten it)
 }
 
 type playback struct {
@@ -49,41 +50,11 @@ type session struct {
 	} `json:"PlayState"`
 }
 
-func (w *Watcher) log(level, msg string) {
-	if w.Log != nil {
-		w.Log(level, msg)
-	}
-}
-
-func (w *Watcher) clock() time.Time {
-	if w.now != nil {
-		return w.now()
-	}
-	return time.Now()
-}
-
 func (w *Watcher) product() string {
 	if w.Product != "" {
 		return w.Product
 	}
 	return "Jellyfin"
-}
-
-// Problem says why the server cannot be followed right now ("" when all is well).
-func (w *Watcher) Problem() string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.problem
-}
-
-func (w *Watcher) setProblem(p string) {
-	w.mu.Lock()
-	changed := p != w.problem
-	w.problem = p
-	w.mu.Unlock()
-	if changed && p != "" {
-		w.log("WARN", p)
-	}
 }
 
 // Now is what the user plays on the server: nil while the server does not answer, an Info with State -1 when nothing
@@ -101,7 +72,7 @@ func (w *Watcher) Now() *core.Info {
 	pos, state := p.offset, 1
 	if !p.paused {
 		state = 2
-		pos += int(w.clock().Sub(p.at) / time.Millisecond) // players report every few seconds; the time runs on between
+		pos += int(w.now.Now().Sub(p.at) / time.Millisecond) // players report every few seconds; the time runs on between
 	}
 	dur := p.item.Duration()
 	if dur > 0 && pos > dur {
@@ -132,9 +103,9 @@ func (w *Watcher) Run(ctx context.Context) {
 			w.conn, w.play = false, nil
 			w.mu.Unlock()
 			if errors.Is(err, ErrToken) {
-				w.setProblem(w.product() + " refused the sign-in. Sign in again (Accounts > Jellyfin / Emby).")
+				w.SetProblem(w.product()+" refused the sign-in. Sign in again (Accounts > Jellyfin / Emby).", w.Log)
 			} else {
-				w.setProblem(fmt.Sprintf("Could not reach your %s server (%v). Is it running, and can this computer reach it?", w.product(), Reason(err)))
+				w.SetProblem(fmt.Sprintf("Could not reach your %s server (%v). Is it running, and can this computer reach it?", w.product(), Reason(err)), w.Log)
 			}
 			next, ok = wait, false
 			if wait < 2*time.Minute {
@@ -142,12 +113,12 @@ func (w *Watcher) Run(ctx context.Context) {
 			}
 		} else {
 			if !ok && !seen {
-				w.log("INFO", "Following your "+w.product()+" server.")
+				w.Log.Print("INFO", "Following your "+w.product()+" server.")
 			} else if !ok {
-				w.log("INFO", "Your "+w.product()+" server answers again.")
+				w.Log.Print("INFO", "Your "+w.product()+" server answers again.")
 			}
 			seen = true
-			w.setProblem("")
+			w.SetProblem("", w.Log)
 			ok, wait = true, first
 		}
 		select {
@@ -177,7 +148,7 @@ func (w *Watcher) poll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	now := w.clock()
+	now := w.now.Now()
 	var best *session
 	bestAt := time.Time{}
 	for i := range list {

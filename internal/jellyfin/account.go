@@ -7,17 +7,16 @@ package jellyfin
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"time"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 var (
@@ -65,7 +64,7 @@ func sameServer(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("too many redirects")
 	}
-	if req.URL.Host != via[0].URL.Host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
+	if !remote.SameOrigin(req, via) {
 		return errors.New("the server sent the request to another address")
 	}
 	return nil
@@ -99,7 +98,7 @@ func Address(s string) (string, error) {
 // Authorization header ("MediaBrowser" scheme); Emby reads X-Emby-Authorization ("Emby" scheme) and X-Emby-Token.
 func (c *Client) auth(req *http.Request, token string) {
 	q := func(s string) string { return `"` + strings.NewReplacer(`"`, "", ",", " ").Replace(s) + `"` }
-	parts := `Client=` + q("MPCvibedRPC") + `, Device=` + q("MPCvibedRPC on "+osName()) + `, DeviceId=` + q(c.DeviceID) + `, Version=` + q(c.Version)
+	parts := `Client=` + q("MPCvibedRPC") + `, Device=` + q("MPCvibedRPC on "+remote.OSName()) + `, DeviceId=` + q(c.DeviceID) + `, Version=` + q(c.Version)
 	if token != "" {
 		parts += `, Token=` + q(token)
 		req.Header.Set("X-Emby-Token", token)
@@ -107,16 +106,6 @@ func (c *Client) auth(req *http.Request, token string) {
 	req.Header.Set("Authorization", "MediaBrowser "+parts)
 	req.Header.Set("X-Emby-Authorization", "Emby "+parts)
 	req.Header.Set("Accept", "application/json")
-}
-
-func osName() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "Windows"
-	case "darwin":
-		return "macOS"
-	}
-	return "Linux"
 }
 
 // do sends a request and decodes the JSON answer into v (when v is not nil). It also returns the server's clock, from
@@ -302,7 +291,6 @@ func (c *Client) SignOut(ctx context.Context, token string) error {
 // Reason says briefly why a request failed, without the server's address (which the log and the diagnostics must not
 // hold).
 func Reason(err error) string {
-	var ne net.Error
 	var he *httpError
 	switch {
 	case err == nil:
@@ -311,10 +299,9 @@ func Reason(err error) string {
 		return err.Error()
 	case errors.As(err, &he), errors.Is(err, errUnexpected), errors.Is(err, errNoSignIn):
 		return err.Error()
-	case errors.As(err, new(*tls.CertificateVerificationError)):
-		return "the server's certificate is not trusted (use its http:// address, or give it a valid certificate)"
-	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
-		return "no answer in time"
 	}
-	return "no connection"
+	if s := remote.NetReason(err); s != "" {
+		return s
+	}
+	return remote.NoConnection
 }

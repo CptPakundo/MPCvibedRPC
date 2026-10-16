@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 // PushEvery is how often Stremio's player updates the library entry of what it plays (stremio-core's
@@ -22,18 +23,18 @@ const PushEvery = 90 * time.Second
 // update that finds the video where it was is a start or a resume. When the regular updates stop coming, the video
 // stopped (or was paused) without Stremio saying so. Run it in a goroutine; Now is safe to call at any time.
 type Watcher struct {
-	Client *Client
-	Key    string        // the account's key
-	Every  time.Duration // how often the library is asked (0 = every 20 seconds)
-	Log    func(level, msg string)
+	remote.Base // Problem: why Stremio cannot be followed (for the window)
+	Client      *Client
+	Key         string        // the account's key
+	Every       time.Duration // how often the library is asked (0 = every 20 seconds)
+	Log         remote.LogFunc
 
-	mu      sync.Mutex
-	ok      bool             // the library answered at least once
-	problem string           // why Stremio cannot be followed (for the window)
-	mtimes  map[string]int64 // when each entry last changed, as last seen (ms)
-	known   map[string]entry // the entries fetched since the watcher started
-	cur     *entry           // what plays (nil = nothing)
-	now     func() time.Time
+	mu     sync.Mutex
+	ok     bool             // the library answered at least once
+	mtimes map[string]int64 // when each entry last changed, as last seen (ms)
+	known  map[string]entry // the entries fetched since the watcher started
+	cur    *entry           // what plays (nil = nothing)
+	now    remote.Clock
 }
 
 // entry is one fetched library entry and when its update was seen.
@@ -43,41 +44,11 @@ type entry struct {
 	seen  time.Time // when it was seen here
 }
 
-func (w *Watcher) log(level, msg string) {
-	if w.Log != nil {
-		w.Log(level, msg)
-	}
-}
-
-func (w *Watcher) clock() time.Time {
-	if w.now != nil {
-		return w.now()
-	}
-	return time.Now()
-}
-
 func (w *Watcher) every() time.Duration {
 	if w.Every > 0 {
 		return w.Every
 	}
 	return 20 * time.Second
-}
-
-// Problem says why Stremio cannot be followed right now ("" when all is well).
-func (w *Watcher) Problem() string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.problem
-}
-
-func (w *Watcher) setProblem(p string) {
-	w.mu.Lock()
-	changed := p != w.problem
-	w.problem = p
-	w.mu.Unlock()
-	if changed && p != "" {
-		w.log("WARN", p)
-	}
 }
 
 // stale is how long after its last update a playing video is given up (a regular update is late).
@@ -91,7 +62,7 @@ func (w *Watcher) Now() *core.Info {
 	if !w.ok {
 		return nil
 	}
-	now := w.clock()
+	now := w.now.Now()
 	if w.cur != nil && now.Sub(w.cur.seen) > w.stale() {
 		w.cur = nil // the regular updates stopped
 	}
@@ -123,16 +94,16 @@ func (w *Watcher) Run(ctx context.Context) {
 		next := w.every()
 		switch {
 		case errors.Is(err, ErrKey):
-			w.setProblem("Stremio refused the sign-in. Sign in to Stremio again (Accounts > Stremio).")
+			w.SetProblem("Stremio refused the sign-in. Sign in to Stremio again (Accounts > Stremio).", w.Log)
 			next = 2 * time.Minute
 		case err != nil:
-			w.setProblem(fmt.Sprintf("Could not reach Stremio's library (%v).", err))
+			w.SetProblem(fmt.Sprintf("Could not reach Stremio's library (%v).", err), w.Log)
 			if wait < 2*time.Minute {
 				wait *= 2
 			}
 			next = wait
 		default:
-			w.setProblem("")
+			w.SetProblem("", w.Log)
 			wait = w.every()
 		}
 		select {
@@ -151,7 +122,7 @@ func (w *Watcher) poll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	now := w.clock()
+	now := w.now.Now()
 	w.mu.Lock()
 	first := w.mtimes == nil
 	var changed []string
@@ -240,16 +211,10 @@ func playing(prev entry, had bool, it Item, mtime int64) bool {
 // video is true for entries that are watched (live channels and the like count; "other" is not synced anyway).
 func (it *Item) video() bool { return it.Type != "other" && it.Name != "" }
 
-// clean keeps a title from looking like a folder path to the file-name parser.
-func clean(s string) string {
-	s = strings.NewReplacer("/", "-", `\`, "-", "\r", " ", "\n", " ").Replace(s)
-	return strings.TrimSpace(s)
-}
-
 // FileName writes the entry the way a well-named file would be called ("Sample Show - S01E02", "Sample Movie"), so the
 // same parsing and catalog lookups apply as for a file.
 func (it *Item) FileName() string {
-	name := clean(it.Name)
+	name := core.CleanTitle(it.Name)
 	if it.Type != "series" && it.Type != "anime" {
 		return name
 	}

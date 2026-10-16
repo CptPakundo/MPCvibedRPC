@@ -63,53 +63,46 @@ type Info struct {
 	Rate     float64
 }
 
-func TestQueryPlayingFile(t *testing.T) {
-	got := query(t, map[string]any{
-		"path": `D:\Videos\Sample Show\Season 1\Sample.Show.S01E02.mkv`, "filename": "Sample.Show.S01E02.mkv",
-		"pause": false, "time-pos": 65.25, "duration": 1499.8, "speed": 1.5, "idle-active": false,
-		"media-title": "Sample.Show.S01E02.mkv", "working-directory": `C:\Users\x`,
-	})
-	want := &Info{"Sample.Show.S01E02.mkv", []string{"Season 1", "Sample Show", "Videos"}, `D:\Videos\Sample Show\Season 1`, 2, 65250, 1499800, 1.5}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %+v\nwant %+v", got, want)
-	}
-}
-
-func TestQueryPausedRelativePath(t *testing.T) {
-	got := query(t, map[string]any{
-		"path": "Sample Movie (2001).mkv", "filename": "Sample Movie (2001).mkv", "pause": true,
-		"time-pos": 10.0, "duration": 600.0, "speed": 1.0, "idle-active": false, "working-directory": "/home/user/Movies",
-	})
-	if got.State != 1 || got.FullDir != "/home/user/Movies" || got.File != "Sample Movie (2001).mkv" || got.Position != 10000 {
-		t.Errorf("got %+v", got)
-	}
-}
-
-func TestQueryIdleAndMissingProperties(t *testing.T) {
-	got := query(t, map[string]any{"idle-active": true, "pause": false})
-	if got.State != -1 || got.File != "" {
-		t.Errorf("idle: %+v", got)
-	}
-	// nothing at all known (an old or limited player): treated as idle, not as an error
-	if got := query(t, map[string]any{}); got.State != -1 {
-		t.Errorf("empty: %+v", got)
-	}
-}
-
-func TestQueryStreamUsesTitleAndNoFolder(t *testing.T) {
-	got := query(t, map[string]any{
-		"path": "https://example.com/watch?v=abc", "filename": "watch?v=abc", "media-title": "Sample Stream Title",
-		"pause": false, "time-pos": 1.0, "speed": 1.0, "idle-active": false,
-	})
-	if got.File != "Sample Stream Title" || got.FullDir != "" || len(got.Dir) != 0 || got.Duration != 0 {
-		t.Errorf("got %+v", got)
-	}
-}
-
-func TestQueryBadSpeedFallsBackToOne(t *testing.T) {
-	got := query(t, map[string]any{"path": "/v/a.mkv", "pause": false, "speed": 0.0, "idle-active": false})
-	if got.Rate != 1 || got.File != "a.mkv" {
-		t.Errorf("got %+v", got)
+// The properties a player answers with, and what Query makes of them.
+func TestQueryProperties(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		values map[string]any
+		ok     func(*Info) bool
+	}{
+		{"playing file", map[string]any{
+			"path": `D:\Videos\Sample Show\Season 1\Sample.Show.S01E02.mkv`, "filename": "Sample.Show.S01E02.mkv",
+			"pause": false, "time-pos": 65.25, "duration": 1499.8, "speed": 1.5, "idle-active": false,
+			"media-title": "Sample.Show.S01E02.mkv", "working-directory": `C:\Users\x`,
+		}, func(got *Info) bool {
+			return reflect.DeepEqual(got, &Info{"Sample.Show.S01E02.mkv", []string{"Season 1", "Sample Show", "Videos"}, `D:\Videos\Sample Show\Season 1`, 2, 65250, 1499800, 1.5})
+		}},
+		{"paused, relative path", map[string]any{
+			"path": "Sample Movie (2001).mkv", "filename": "Sample Movie (2001).mkv", "pause": true,
+			"time-pos": 10.0, "duration": 600.0, "speed": 1.0, "idle-active": false, "working-directory": "/home/user/Movies",
+		}, func(got *Info) bool {
+			return got.State == 1 && got.FullDir == "/home/user/Movies" && got.File == "Sample Movie (2001).mkv" && got.Position == 10000
+		}},
+		{"idle", map[string]any{"idle-active": true, "pause": false}, func(got *Info) bool {
+			return got.State == -1 && got.File == ""
+		}},
+		// nothing at all known (an old or limited player): treated as idle, not as an error
+		{"nothing known", map[string]any{}, func(got *Info) bool { return got.State == -1 }},
+		{"stream uses its title and no folder", map[string]any{
+			"path": "https://example.com/watch?v=abc", "filename": "watch?v=abc", "media-title": "Sample Stream Title",
+			"pause": false, "time-pos": 1.0, "speed": 1.0, "idle-active": false,
+		}, func(got *Info) bool {
+			return got.File == "Sample Stream Title" && got.FullDir == "" && len(got.Dir) == 0 && got.Duration == 0
+		}},
+		{"bad speed falls back to one", map[string]any{"path": "/v/a.mkv", "pause": false, "speed": 0.0, "idle-active": false}, func(got *Info) bool {
+			return got.Rate == 1 && got.File == "a.mkv"
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := query(t, c.values); !c.ok(got) {
+				t.Errorf("got %+v", got)
+			}
+		})
 	}
 }
 

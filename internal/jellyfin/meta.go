@@ -1,9 +1,10 @@
 package jellyfin
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
 // Item is what the server says about what a session plays (the parts used).
@@ -40,44 +41,23 @@ var (
 	reCode = regexp.MustCompile(`(?i)\bs\d{1,2}\s*e\d{1,4}\b`)
 )
 
-// clean keeps a title from looking like a folder path to the file-name parser.
-func clean(s string) string {
-	s = strings.NewReplacer("/", "-", `\`, "-", "\r", " ", "\n", " ").Replace(s)
-	return strings.TrimSpace(s)
-}
-
 // FileName writes the item the way a well-named file would be called ("Sample Show - S01E02 - Title",
 // "Sample Movie (2020)"), so the same parsing and catalog lookups apply as for a file.
 func (it *Item) FileName() string {
-	title := clean(it.Name)
+	title := core.CleanTitle(it.Name)
 	switch it.Type {
 	case "Episode":
-		show := clean(it.SeriesName)
+		show := core.CleanTitle(it.SeriesName)
 		if show == "" {
 			return title
 		}
-		ep := title
-		low, lowShow := strings.ToLower(ep), strings.ToLower(show)
-		if rePlaceholder.MatchString(ep) || reCode.MatchString(ep) || low == lowShow || strings.HasPrefix(low, lowShow+" -") {
-			ep = "" // the server had no title and used the numbering or the file name: let the catalog find the real one
+		low, lowShow := strings.ToLower(title), strings.ToLower(show)
+		if rePlaceholder.MatchString(title) || reCode.MatchString(title) || low == lowShow || strings.HasPrefix(low, lowShow+" -") {
+			title = "" // the server had no title and used the numbering or the file name: let the catalog find the real one
 		}
-		code := ""
-		if it.ParentIndexNumber != nil && it.IndexNumber != nil {
-			code = fmt.Sprintf("S%02dE%02d", *it.ParentIndexNumber, *it.IndexNumber)
-		} else if it.IndexNumber != nil {
-			code = fmt.Sprintf("E%02d", *it.IndexNumber)
-		}
-		parts := []string{show}
-		for _, p := range []string{code, ep} {
-			if p != "" {
-				parts = append(parts, p)
-			}
-		}
-		return strings.Join(parts, " - ")
+		return core.EpisodeName(show, title, it.ParentIndexNumber, it.IndexNumber)
 	case "Movie":
-		if it.ProductionYear > 0 && title != "" && !strings.Contains(title, fmt.Sprintf("(%d)", it.ProductionYear)) {
-			return fmt.Sprintf("%s (%d)", title, it.ProductionYear)
-		}
+		return core.MovieName(title, it.ProductionYear)
 	}
 	return title
 }

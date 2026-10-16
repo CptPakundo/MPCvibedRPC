@@ -60,76 +60,94 @@ func readFile(t *testing.T, f string) string {
 	return string(b)
 }
 
-func TestEnableVlcHTTPFresh(t *testing.T) {
-	f := filepath.Join(t.TempDir(), "vlc", "vlcrc") // VLC never saved its settings: no file, no folder yet
-	r := enableVlcHTTP(f, "", 8080, "")
-	if !r.OK || r.Edited != f || r.Port != 8080 || len(r.Password) != 24 || !strings.Contains(r.Message, "for this PC only") {
-		t.Fatalf("got %+v", r)
-	}
-	text := readFile(t, f)
-	for k, want := range map[string]string{"extraintf": "http", "http-password": r.Password, "http-host": "127.0.0.1"} {
-		if v, _ := VlcrcValue(text, k); v != want {
-			t.Errorf("%s = %q, want %q", k, v, want)
-		}
-	}
-	if _, set := VlcrcValue(text, "http-port"); set {
-		t.Error("VLC's default port needs no line")
-	}
-	if !vlcReady(text) {
-		t.Error("should be ready now")
-	}
-	// pressing the button again changes nothing and reports the same password
-	again := enableVlcHTTP(f, text, 8080, "")
-	if again.Edited != "" || again.Password != r.Password || !strings.Contains(again.Message, "already on") {
-		t.Errorf("second run: %+v", again)
-	}
-}
-
-func TestEnableVlcHTTPKeepsTheUsersChoices(t *testing.T) {
-	f := filepath.Join(t.TempDir(), "vlcrc")
-	// the user had the remote-control interface, a password, a port and a network address of their own
-	text := vlcrcDefault + "extraintf=rc\nhttp-password=mine\nhttp-port=9090\nhttp-host=192.168.1.5\n"
-	r := enableVlcHTTP(f, text, 8080, "ignored")
-	if !r.OK || r.Password != "mine" || r.Port != 9090 || strings.Contains(r.Message, "this PC only") {
-		t.Fatalf("got %+v", r)
-	}
-	out := readFile(t, f)
-	if v, _ := VlcrcValue(out, "extraintf"); v != "rc:http" {
-		t.Errorf("extraintf = %q", v)
-	}
-	if v, _ := VlcrcValue(out, "http-host"); v != "192.168.1.5" {
-		t.Errorf("http-host = %q", v)
-	}
-	if !strings.HasPrefix(out, "\ufeff") {
-		t.Error("the byte-order mark must stay")
-	}
-}
-
-func TestEnableVlcHTTPUsesOurSettings(t *testing.T) {
-	f := filepath.Join(t.TempDir(), "vlcrc")
-	r := enableVlcHTTP(f, vlcrcDefault, 18080, "typed")
-	out := readFile(t, f)
-	if r.Password != "typed" || r.Port != 18080 {
-		t.Errorf("got %+v", r)
-	}
-	if v, _ := VlcrcValue(out, "http-port"); v != "18080" {
-		t.Errorf("http-port = %q", v)
-	}
-	if !strings.Contains(out, "#http-port=8080\nhttp-port=18080\n") {
-		t.Errorf("the port goes next to VLC's default line:\n%s", out)
-	}
-}
-
-// A web interface that is on but has no password is closed by VLC: a password is added, nothing else is touched.
-func TestEnableVlcHTTPOnWithoutPassword(t *testing.T) {
-	f := filepath.Join(t.TempDir(), "vlcrc")
-	r := enableVlcHTTP(f, "extraintf=http\n", 8080, "")
-	out := readFile(t, f)
-	if !r.OK || r.Password == "" || strings.Contains(r.Message, "this PC only") {
-		t.Errorf("got %+v", r)
-	}
-	if _, set := VlcrcValue(out, "http-host"); set {
-		t.Error("a web interface the user had on keeps its address")
+func TestEnableVlcHTTP(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		file     []string // the vlcrc's path under the test folder
+		text     string   // what the vlcrc holds now
+		port     int
+		password string
+		check    func(t *testing.T, f string, r vlcResult)
+	}{
+		{
+			// VLC never saved its settings: no file, no folder yet
+			name: "fresh", file: []string{"vlc", "vlcrc"}, text: "", port: 8080,
+			check: func(t *testing.T, f string, r vlcResult) {
+				if !r.OK || r.Edited != f || r.Port != 8080 || len(r.Password) != 24 || !strings.Contains(r.Message, "for this PC only") {
+					t.Fatalf("got %+v", r)
+				}
+				text := readFile(t, f)
+				for k, want := range map[string]string{"extraintf": "http", "http-password": r.Password, "http-host": "127.0.0.1"} {
+					if v, _ := VlcrcValue(text, k); v != want {
+						t.Errorf("%s = %q, want %q", k, v, want)
+					}
+				}
+				if _, set := VlcrcValue(text, "http-port"); set {
+					t.Error("VLC's default port needs no line")
+				}
+				if !vlcReady(text) {
+					t.Error("should be ready now")
+				}
+				// pressing the button again changes nothing and reports the same password
+				again := enableVlcHTTP(f, text, 8080, "")
+				if again.Edited != "" || again.Password != r.Password || !strings.Contains(again.Message, "already on") {
+					t.Errorf("second run: %+v", again)
+				}
+			},
+		},
+		{
+			// the user had the remote-control interface, a password, a port and a network address of their own
+			name: "keeps the user's choices", file: []string{"vlcrc"},
+			text: vlcrcDefault + "extraintf=rc\nhttp-password=mine\nhttp-port=9090\nhttp-host=192.168.1.5\n", port: 8080, password: "ignored",
+			check: func(t *testing.T, f string, r vlcResult) {
+				if !r.OK || r.Password != "mine" || r.Port != 9090 || strings.Contains(r.Message, "this PC only") {
+					t.Fatalf("got %+v", r)
+				}
+				out := readFile(t, f)
+				if v, _ := VlcrcValue(out, "extraintf"); v != "rc:http" {
+					t.Errorf("extraintf = %q", v)
+				}
+				if v, _ := VlcrcValue(out, "http-host"); v != "192.168.1.5" {
+					t.Errorf("http-host = %q", v)
+				}
+				if !strings.HasPrefix(out, "\ufeff") {
+					t.Error("the byte-order mark must stay")
+				}
+			},
+		},
+		{
+			name: "uses our settings", file: []string{"vlcrc"}, text: vlcrcDefault, port: 18080, password: "typed",
+			check: func(t *testing.T, f string, r vlcResult) {
+				out := readFile(t, f)
+				if r.Password != "typed" || r.Port != 18080 {
+					t.Errorf("got %+v", r)
+				}
+				if v, _ := VlcrcValue(out, "http-port"); v != "18080" {
+					t.Errorf("http-port = %q", v)
+				}
+				if !strings.Contains(out, "#http-port=8080\nhttp-port=18080\n") {
+					t.Errorf("the port goes next to VLC's default line:\n%s", out)
+				}
+			},
+		},
+		{
+			// a web interface that is on but has no password is closed by VLC: a password is added, nothing else is touched
+			name: "on without a password", file: []string{"vlcrc"}, text: "extraintf=http\n", port: 8080,
+			check: func(t *testing.T, f string, r vlcResult) {
+				out := readFile(t, f)
+				if !r.OK || r.Password == "" || strings.Contains(r.Message, "this PC only") {
+					t.Errorf("got %+v", r)
+				}
+				if _, set := VlcrcValue(out, "http-host"); set {
+					t.Error("a web interface the user had on keeps its address")
+				}
+			},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := filepath.Join(append([]string{t.TempDir()}, c.file...)...)
+			c.check(t, f, enableVlcHTTP(f, c.text, c.port, c.password))
+		})
 	}
 }
 

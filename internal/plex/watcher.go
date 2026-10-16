@@ -3,7 +3,6 @@ package plex
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 // How long a player may stay silent before what it played is forgotten (players report every few seconds while they
@@ -28,22 +28,22 @@ const (
 // Watcher follows one server's play notifications (Server-Sent Events from /:/eventsource/notifications) and knows
 // what the user is playing there. Run it in a goroutine; Now is safe to call at any time.
 type Watcher struct {
-	Client  *Client
-	Token   string // the account's token
-	Account int64  // the account's id: on a server the user owns, only their own playback counts
-	Server  string // the chosen server's machine identifier ("" = the account's only server, or its first own one)
-	Address string // a fixed address for the server ("" = the addresses plex.tv lists)
-	Log     func(level, msg string)
+	remote.Base // Problem: why the server cannot be followed (for the window)
+	Client      *Client
+	Token       string // the account's token
+	Account     int64  // the account's id: on a server the user owns, only their own playback counts
+	Server      string // the chosen server's machine identifier ("" = the account's only server, or its first own one)
+	Address     string // a fixed address for the server ("" = the addresses plex.tv lists)
+	Log         remote.LogFunc
 
 	mu       sync.Mutex
-	conn     bool   // the event stream is open
-	problem  string // why the server cannot be followed (for the window)
+	conn     bool // the event stream is open
 	players  map[string]*playback
 	items    map[string]*Item // metadata by ratingKey
 	owned    bool
 	base     string
 	srvToken string
-	now      func() time.Time
+	now      remote.Clock
 	retry    time.Duration // the first wait before reconnecting (tests shorten it)
 }
 
@@ -65,36 +65,6 @@ type notification struct {
 	State            string `json:"state"`
 }
 
-func (w *Watcher) log(level, msg string) {
-	if w.Log != nil {
-		w.Log(level, msg)
-	}
-}
-
-func (w *Watcher) clock() time.Time {
-	if w.now != nil {
-		return w.now()
-	}
-	return time.Now()
-}
-
-// Problem says why Plex cannot be followed right now ("" when all is well).
-func (w *Watcher) Problem() string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.problem
-}
-
-func (w *Watcher) setProblem(p string) {
-	w.mu.Lock()
-	changed := p != w.problem
-	w.problem = p
-	w.mu.Unlock()
-	if changed && p != "" {
-		w.log("WARN", p)
-	}
-}
-
 // Now is what the user plays on the server: nil while the server is not followed, an Info with State -1 when nothing
 // of theirs is playing, else the video (one playing beats one paused; the most recent report wins).
 func (w *Watcher) Now() *core.Info {
@@ -103,7 +73,7 @@ func (w *Watcher) Now() *core.Info {
 	if !w.conn {
 		return nil
 	}
-	now := w.clock()
+	now := w.now.Now()
 	var best *playback
 	for id, p := range w.players {
 		if now.Sub(p.at) > sessionTimeout {
@@ -157,9 +127,9 @@ func (w *Watcher) Run(ctx context.Context) {
 			return
 		}
 		if errors.Is(err, ErrToken) {
-			w.setProblem("Plex refused the sign-in. Sign in to Plex again (Accounts > Plex).")
+			w.SetProblem("Plex refused the sign-in. Sign in to Plex again (Accounts > Plex).", w.Log)
 		} else if err != nil {
-			w.setProblem(err.Error())
+			w.SetProblem(err.Error(), w.Log)
 		}
 		if time.Since(started) > 2*time.Minute {
 			wait = first // it had been working: try again soon
@@ -226,14 +196,11 @@ func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, er
 // reason says briefly why a request failed, without the server's address (which the window and the log must not
 // hold): a failed connection is a *url.Error that carries it.
 func reason(err error) string {
-	var ne net.Error
-	switch {
-	case errors.As(err, new(*tls.CertificateVerificationError)):
-		return "the server's certificate is not trusted (use its http:// address, or give it a valid certificate)"
-	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
-		return "no answer in time"
-	case errors.As(err, &ne):
-		return "no connection"
+	if s := remote.NetReason(err); s != "" {
+		return s
+	}
+	if errors.As(err, new(net.Error)) {
+		return remote.NoConnection
 	}
 	return err.Error()
 }
@@ -296,10 +263,10 @@ func (w *Watcher) follow(ctx context.Context) error {
 	if w.items == nil {
 		w.items = map[string]*Item{}
 	}
-	w.problem = ""
 	w.mu.Unlock()
+	w.SetProblem("", w.Log)
 	if first {
-		w.log("INFO", "Following the Plex server"+quoted(s.Name)+".")
+		w.Log.Print("INFO", "Following the Plex server"+quoted(s.Name)+".")
 	}
 
 	// a stream that goes quiet (the server pings every few seconds) is reopened
@@ -395,7 +362,7 @@ func (w *Watcher) take(ctx context.Context, n notification) {
 		p = &playback{ratingKey: rk}
 		w.players[id] = p
 	}
-	p.state, p.offset, p.at = n.State, n.ViewOffset, w.clock()
+	p.state, p.offset, p.at = n.State, n.ViewOffset, w.now.Now()
 	item := w.items[rk]
 	needItem := item == nil
 	needOwner := w.owned && p.mine == 0

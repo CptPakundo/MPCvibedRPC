@@ -11,8 +11,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 // Product is how the program introduces itself to Plex (it is shown in the account's list of authorized devices).
@@ -63,21 +64,11 @@ var defaultHTTP = &http.Client{CheckRedirect: func(req *http.Request, via []*htt
 	if len(via) >= 10 {
 		return errors.New("too many redirects")
 	}
-	if req.URL.Host != via[0].URL.Host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
+	if !remote.SameOrigin(req, via) {
 		req.Header.Del("X-Plex-Token")
 	}
 	return nil
 }}
-
-func platform() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "Windows"
-	case "darwin":
-		return "macOS"
-	}
-	return "Linux"
-}
 
 // header sets what Plex expects from every app. The token goes in a header, never in the address.
 func (c *Client) header(req *http.Request, token string) {
@@ -85,7 +76,7 @@ func (c *Client) header(req *http.Request, token string) {
 	req.Header.Set("X-Plex-Product", Product)
 	req.Header.Set("X-Plex-Version", c.Version)
 	req.Header.Set("X-Plex-Client-Identifier", c.ClientID)
-	req.Header.Set("X-Plex-Platform", platform())
+	req.Header.Set("X-Plex-Platform", remote.OSName())
 	req.Header.Set("X-Plex-Device-Name", Product)
 	if token != "" {
 		req.Header.Set("X-Plex-Token", token)
