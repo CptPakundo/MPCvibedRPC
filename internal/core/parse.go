@@ -192,12 +192,14 @@ var smallWords = map[string]bool{"a": true, "an": true, "and": true, "as": true,
 
 var (
 	reBareLead  = re(`^[(\[{]+|[)\]}]+$`, "g")
-	reSOH       = re("\u0001", "g")
 	reHyphenEnd = re(`-[A-Za-z0-9]+$`, "")
 	reYear      = re(`^(?:19|20)\d{2}$`, "")
 )
 
-func bare(t string) string { return reSOH.ReplaceStr(reBareLead.ReplaceStr(t, ""), ".") }
+// soh marks a dot that protect keeps from becoming a space (5.1, S.W.A.T.); tidy and bare turn it back into ".".
+const soh = "\u0001"
+
+func bare(t string) string { return strings.ReplaceAll(reBareLead.ReplaceStr(t, ""), soh, ".") }
 
 func isStrong(t string) bool {
 	b := bare(t)
@@ -210,41 +212,51 @@ func isStrong(t string) bool {
 
 func isYear(t string) bool { return reYear.Test(bare(t)) }
 
+// fixedRule rewrites every match of re to the literal text out.
+type fixedRule struct {
+	re  *jsre.Regexp
+	out string
+}
+
 var (
-	rpUnderscore = re(`_`, "g")
-	rpBluray     = re(`\bblu[ .-]?ray\b`, "gi")
-	rpWebdl      = re(`\bweb[ .-]?dl\b`, "gi")
-	rpWebrip     = re(`\bweb[ .-]?rip\b`, "gi")
-	rpBdrip      = re(`\bbd[ .-]?rip\b`, "gi")
-	rpBrrip      = re(`\bbr[ .-]?rip\b`, "gi")
-	rpDaily      = re(`(?<!\d)((?:19|20)\d\d)[.-](0[1-9]|1[0-2])[.-](0[1-9]|[12]\d|3[01])(?!\d)`, "g")
-	rpDts        = re(`\bdts[ .-]?(hd|x|es)\b`, "gi")
-	rpDolby      = re(`\bdolby[ .-]?vision\b`, "gi")
-	rpDual       = re(`\bdual[ .-]?audio\b`, "gi")
-	rpH26x       = re(`\b([hx])[ .]?(26[45])\b`, "gi")
-	rpDigitDot   = re(`(?<!\d)(\d)\.(\d)(?!\d)`, "g")
-	rpAcronym    = re(`(?<![A-Za-z])((?:[A-Za-z]\.)+[A-Za-z])(\.|(?![A-Za-z0-9]))`, "g")
-	rpDot        = re(`\.(?!\s)`, "g")
-	rpDotAny     = re(`\.`, "g")
+	rpReleaseSpelling = []fixedRule{
+		{re(`\bblu[ .-]?ray\b`, "gi"), "BluRay"},
+		{re(`\bweb[ .-]?dl\b`, "gi"), "WEB-DL"},
+		{re(`\bweb[ .-]?rip\b`, "gi"), "WEBRip"},
+		{re(`\bbd[ .-]?rip\b`, "gi"), "BDRip"},
+		{re(`\bbr[ .-]?rip\b`, "gi"), "BRRip"},
+	}
+	rpDaily         = re(`(?<!\d)((?:19|20)\d\d)[.-](0[1-9]|1[0-2])[.-](0[1-9]|[12]\d|3[01])(?!\d)`, "g")
+	rpDts           = re(`\bdts[ .-]?(hd|x|es)\b`, "gi")
+	rpAudioSpelling = []fixedRule{
+		{re(`\bdolby[ .-]?vision\b`, "gi"), "DoVi"},
+		{re(`\bdual[ .-]?audio\b`, "gi"), "DualAudio"},
+	}
+	rpH26x     = re(`\b([hx])[ .]?(26[45])\b`, "gi")
+	rpDigitDot = re(`(?<!\d)(\d)\.(\d)(?!\d)`, "g")
+	rpAcronym  = re(`(?<![A-Za-z])((?:[A-Za-z]\.)+[A-Za-z])(\.|(?![A-Za-z0-9]))`, "g")
+	rpDot      = re(`\.(?!\s)`, "g")
 )
 
+func applyFixed(s string, rules []fixedRule) string {
+	for _, r := range rules {
+		s = r.re.ReplaceStr(s, r.out)
+	}
+	return s
+}
+
 func protect(s string) string {
-	s = rpUnderscore.ReplaceStr(s, " ")
-	s = rpBluray.ReplaceStr(s, "BluRay")
-	s = rpWebdl.ReplaceStr(s, "WEB-DL")
-	s = rpWebrip.ReplaceStr(s, "WEBRip")
-	s = rpBdrip.ReplaceStr(s, "BDRip")
-	s = rpBrrip.ReplaceStr(s, "BRRip")
+	s = strings.ReplaceAll(s, "_", " ")
+	s = applyFixed(s, rpReleaseSpelling)
 	s = rpDaily.ReplaceStr(s, "$1-$2-$3") // daily shows: 2024.05.01
 	s = rpDts.ReplaceStr(s, "DTS-$1")
-	s = rpDolby.ReplaceStr(s, "DoVi")
-	s = rpDual.ReplaceStr(s, "DualAudio")
+	s = applyFixed(s, rpAudioSpelling)
 	s = rpH26x.ReplaceStr(s, "$1$2")
-	s = rpDigitDot.ReplaceStr(s, "$1\u0001$2")            // keep 5.1 / 7.1 intact
+	s = rpDigitDot.ReplaceStr(s, "$1"+soh+"$2")           // keep 5.1 / 7.1 intact
 	s = rpAcronym.Replace(s, func(m *jsre.Match) string { // S.W.A.T. / S.H.I.E.L.D. stay acronyms
-		out := rpDotAny.ReplaceStr(m.Str(1), "\u0001")
+		out := strings.ReplaceAll(m.Str(1), ".", soh)
 		if m.Str(2) != "" {
-			out += "\u0001 "
+			out += soh + " "
 		}
 		return out
 	})
@@ -270,7 +282,6 @@ func titleCase(str string) string {
 }
 
 var (
-	tdSOH    = re("\u0001", "g")
 	tdWS     = re(`\s+`, "g")
 	tdHyphen = re(`(?<=\p{L})-\s+(?=\p{Lu})`, "gu")
 	tdSpaceQ = re(`\s+([?!])`, "g")
@@ -278,12 +289,15 @@ var (
 )
 
 func tidy(s string) string {
-	s = tdSOH.ReplaceStr(s, ".")
+	s = strings.ReplaceAll(s, soh, ".")
 	s = tdWS.ReplaceStr(s, " ")
 	s = tdHyphen.ReplaceStr(s, ": ") // "Show- Subtitle": a ":" the file system wouldn't allow
 	s = tdSpaceQ.ReplaceStr(s, "$1") // "Title ?"
 	return tdEdges.ReplaceStr(s, "")
 }
+
+// cleanTitle joins title words into one tidy, title-cased string.
+func cleanTitle(tokens []string) string { return titleCase(tidy(strings.Join(tokens, " "))) }
 
 // Production-style episode codes such as AB001, CD012, EF150, OVA01.
 // (Not season markers like S14, E03/EP03, or things like CD2 / VOL12 / DVD5.)
@@ -392,15 +406,14 @@ func padStart3(s string) string {
 // Scene names without spaces or dots ("h-mongol1080-x264", "title-1080p-x264-grp"): hyphens separate words, and a
 // resolution glued to the title ("mongol1080") is split off. A 1-2 letter first word is then a group tag.
 var (
-	glued       = re(`^(.*[A-Za-z]{3,})(480|576|720|1080|1440|2160)(?=-|$)`, "")
-	sceneSpace  = re(`[\s._]`, "")
-	sceneShort  = re(`^[A-Za-z]{1,2}$`, "")
-	reVersion   = re(`^v\d{1,2}$`, "i")
-	reHyphenAll = re(`-`, "g")
+	glued      = re(`^(.*[A-Za-z]{3,})(480|576|720|1080|1440|2160)(?=-|$)`, "")
+	sceneSpace = re(`[\s._]`, "")
+	sceneShort = re(`^[A-Za-z]{1,2}$`, "")
+	reVersion  = re(`^v\d{1,2}$`, "i")
 )
 
 func sceneNormalize(base string) string {
-	hy := len(reHyphenAll.FindAll(base))
+	hy := strings.Count(base, "-")
 	if sceneSpace.Test(base) || hy < 1 {
 		return base
 	}
@@ -516,7 +529,9 @@ func tailDigit(after []string) string {
 	return ""
 }
 
-func parseSmart(base string, cfg *Config) *Media {
+// smartTokens protects the dots that belong to the name, drops bracketed release tags and splits what is left into
+// words.
+func smartTokens(base string, cfg *Config) []string {
 	s := protect(sceneNormalize(base))
 	s = psBracket.Replace(s, func(m *jsre.Match) string {
 		inner := m.Str(2)
@@ -544,11 +559,12 @@ func parseSmart(base string, cfg *Config) *Media {
 	s = psOpenBracket.ReplaceStr(s, " ") // a tag cut off before its closing bracket: "[DarkDream"
 	s = trim(tdWS.ReplaceStr(s, " "))
 
-	tokens := splitFilter(s, " ")
-	if len(tokens) == 0 {
-		return nil
-	}
+	return splitFilter(s, " ")
+}
 
+// technicalCut returns the tokens without scene tags and the index where the technical tags ("1080p", "x264", ...)
+// begin; the title and episode information sit before it.
+func technicalCut(tokens []string) ([]string, int) {
 	cut := len(tokens)
 	for i := 1; i < len(tokens); i++ {
 		if isStrong(tokens[i]) {
@@ -568,72 +584,89 @@ func parseSmart(base string, cfg *Config) *Media {
 			cut--
 		}
 	}
+	return tokens, cut
+}
 
+func parseSmart(base string, cfg *Config) *Media {
+	tokens := smartTokens(base, cfg)
+	if len(tokens) == 0 {
+		return nil
+	}
+	tokens, cut := technicalCut(tokens)
 	if ep := findEpisode(tokens, cut); ep != nil {
-		titleTokens := append([]string(nil), tokens[:ep.idx]...)
-		after := append([]string(nil), tokens[ep.idx+ep.length:cut]...)
-		season := ep.season
-		year := NA
+		return episodeMedia(tokens, cut, ep)
+	}
+	return movieMedia(tokens, cut)
+}
 
-		for len(titleTokens) > 0 && titleTokens[len(titleTokens)-1] == "-" {
-			titleTokens = titleTokens[:len(titleTokens)-1]
-		}
-		if len(titleTokens) > 1 && isYear(titleTokens[len(titleTokens)-1]) {
-			year = atoi(bare(titleTokens[len(titleTokens)-1]))
-			titleTokens = titleTokens[:len(titleTokens)-1]
-		}
-		if !has(season) && len(titleTokens) >= 2 {
-			sw := titleTokens[len(titleTokens)-2:]
-			if psSeasonWord.Test(bare(sw[0])) && psSeasonNum.Test(bare(sw[1])) {
-				season = atoi(bare(sw[1]))
-				titleTokens = titleTokens[:len(titleTokens)-2]
-			}
-		}
-		yi := -1
-		for k, t := range after {
-			if isYear(t) {
-				yi = k
-				break
-			}
-		}
-		if yi >= 0 {
-			if !has(year) {
-				year = atoi(bare(after[yi]))
-			}
-			after = append(after[:yi:yi], after[yi+1:]...)
-		}
+// episodeMedia builds the Media of a name with an episode marker at ep.
+func episodeMedia(tokens []string, cut int, ep *epMatch) *Media {
+	titleTokens := append([]string(nil), tokens[:ep.idx]...)
+	after := append([]string(nil), tokens[ep.idx+ep.length:cut]...)
+	season := ep.season
+	year := NA
 
-		parts := ep.parts
-		if has(season) && !has(ep.season) { // "Season 2" words found before an E05-style marker
-			if ep.code {
-				parts = append([]string{"S" + pad2n(season)}, parts...)
-			} else {
-				parts = []string{"S" + pad2n(season) + "E" + pad2n(ep.episode)}
-			}
+	for len(titleTokens) > 0 && titleTokens[len(titleTokens)-1] == "-" {
+		titleTokens = titleTokens[:len(titleTokens)-1]
+	}
+	if len(titleTokens) > 1 && isYear(titleTokens[len(titleTokens)-1]) {
+		year = atoi(bare(titleTokens[len(titleTokens)-1]))
+		titleTokens = titleTokens[:len(titleTokens)-1]
+	}
+	if !has(season) && len(titleTokens) >= 2 {
+		sw := titleTokens[len(titleTokens)-2:]
+		if psSeasonWord.Test(bare(sw[0])) && psSeasonNum.Test(bare(sw[1])) {
+			season = atoi(bare(sw[1]))
+			titleTokens = titleTokens[:len(titleTokens)-2]
 		}
-		td := tailDigit(after)
-		var kept []string
-		for k, t := range after {
-			if !psAfterJunk.Test(bare(t)) || (k == len(after)-1 && td != "") {
-				kept = append(kept, t)
-			}
+	}
+	yi := -1
+	for k, t := range after {
+		if isYear(t) {
+			yi = k
+			break
 		}
-		o := newMedia()
-		o.Title = titleCase(tidy(strings.Join(stripVersion(titleTokens), " ")))
-		o.Year = year
-		o.Season = season
-		o.Episode = ep.episode
-		o.Parts = parts
-		o.EpTitle = psSiteTitle.ReplaceStr(titleCase(tidy(strings.Join(kept, " "))), "")
-		o.IsEpisode = true
-		o.AnimeHint = ep.anime
-		o.Code = ep.codeText
-		if td != "" {
-			o.EpTitleBase = titleCase(tidy(strings.Join(after[:len(after)-1], " ")))
+	}
+	if yi >= 0 {
+		if !has(year) {
+			year = atoi(bare(after[yi]))
 		}
-		return o.finish()
+		after = append(after[:yi:yi], after[yi+1:]...)
 	}
 
+	parts := ep.parts
+	if has(season) && !has(ep.season) { // "Season 2" words found before an E05-style marker
+		if ep.code {
+			parts = append([]string{"S" + pad2n(season)}, parts...)
+		} else {
+			parts = []string{"S" + pad2n(season) + "E" + pad2n(ep.episode)}
+		}
+	}
+	td := tailDigit(after)
+	var kept []string
+	for k, t := range after {
+		if !psAfterJunk.Test(bare(t)) || (k == len(after)-1 && td != "") {
+			kept = append(kept, t)
+		}
+	}
+	o := newMedia()
+	o.Title = cleanTitle(stripVersion(titleTokens))
+	o.Year = year
+	o.Season = season
+	o.Episode = ep.episode
+	o.Parts = parts
+	o.EpTitle = psSiteTitle.ReplaceStr(cleanTitle(kept), "")
+	o.IsEpisode = true
+	o.AnimeHint = ep.anime
+	o.Code = ep.codeText
+	if td != "" {
+		o.EpTitleBase = cleanTitle(after[:len(after)-1])
+	}
+	return o.finish()
+}
+
+// movieMedia builds the Media of a name without an episode marker.
+func movieMedia(tokens []string, cut int) *Media {
 	titleTokens := append([]string(nil), tokens[:cut]...)
 	year := NA
 	if cut < len(tokens) {
@@ -663,7 +696,7 @@ func parseSmart(base string, cfg *Config) *Media {
 		}
 	}
 	o := newMedia()
-	o.Title = titleCase(tidy(strings.Join(stripVersion(titleTokens), " ")))
+	o.Title = cleanTitle(stripVersion(titleTokens))
 	o.Year = year
 	return o.finish()
 }
@@ -678,10 +711,10 @@ func basicName(base string, cfg *Config) string {
 		name = bnBracket.ReplaceStr(name, "")
 	}
 	if cfg.ReplaceUnderscore {
-		name = rpUnderscore.ReplaceStr(name, " ")
+		name = strings.ReplaceAll(name, "_", " ")
 	}
 	if cfg.ReplaceDots {
-		name = rpDotAny.ReplaceStr(name, " ")
+		name = strings.ReplaceAll(name, ".", " ")
 	}
 	return trim(tdWS.ReplaceStr(name, " "))
 }
@@ -767,7 +800,6 @@ var (
 	pmJunkA     = re(`^(?:img|vid|dsc|dscn|pxl|mvi|mov|vts|video|untitled|sample|new video|clip|screen ?(?:recording|shot)|wa\d|signal|capture)\b[\s_-]*[\d\s_-]*(?:at\b.*)?$`, "i")
 	pmJunkB     = re(`^\d{4}[-_.]\d{2}[-_.]\d{2}\b`, "")
 	pmJunkC     = re(`^[\d\s._-]+$`, "")
-	pmLeadZero  = re(`^0`, "")
 )
 
 // ParseMedia works out what is playing from a filename (and, when useFolderName is on, its folders).
@@ -824,7 +856,7 @@ func ParseMedia(file string, cfg *Config, dirs []string) *Media {
 	} else {
 		media.Index = index
 	}
-	if has(media.Index) && media.Title != "" && !pmLeadZero.Test(itoa(index)) {
+	if has(media.Index) && media.Title != "" && !strings.HasPrefix(itoa(index), "0") {
 		media.IndexTitle = itoa(index) + " " + media.Title
 	}
 	media.FromFolder = fromFolder

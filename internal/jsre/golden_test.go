@@ -27,7 +27,7 @@ type goldenFile struct {
 
 func utf16Index(in []rune, runeIdx int) int { return len(utf16.Encode(in[:runeIdx])) }
 
-// Every pattern the reference implementation uses must behave exactly like JavaScript's own RegExp.
+// Every recorded pattern must behave exactly like JavaScript's own RegExp.
 func TestAgainstJavaScript(t *testing.T) {
 	f, err := os.Open("testdata/golden.json.gz")
 	if err != nil {
