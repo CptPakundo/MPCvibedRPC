@@ -41,7 +41,9 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
 The updater checks a checksum from the same release, so anyone able to publish a release could ship to every install.
 - Steps: a release manifest signed with an Ed25519 key that the owner keeps offline, whose public key is built into the
   program; GitHub's immutable releases; CI actions pinned by commit and write permissions only where needed; a CI job
-  that rebuilds the Windows and Linux files from the tag and compares them byte for byte.
+  that rebuilds the Windows and Linux files from the tag and compares them byte for byte. Done in 0.9.34: the pins,
+  read-only workflows by default, and the rebuild (`tools/ci/reproduce.sh`; a release is only published when every
+  program file matches). Left: the signed manifest (needs the owner's key) and immutable releases (open decision 3).
 - Not planned: checking GitHub's build attestations inside the program (much security code, a moving format, narrow
   benefit). The attestations stay available to check by hand.
 
