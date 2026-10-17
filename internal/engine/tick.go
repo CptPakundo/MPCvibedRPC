@@ -43,6 +43,7 @@ type built struct {
 	music      bool
 	noEpTitle  bool // an episode whose title was wanted but did not come
 	fromFolder bool // the show's name came from the file's folder
+	why        []string // "Why this title?" (see Status.Why)
 }
 
 // buildActivity makes the activity for what plays: titles are parsed and looked up (art may be nil) unless the title
@@ -89,6 +90,7 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork) buil
 			(b.found == nil || b.found.Episode == nil)
 		b.display = media.Display
 		b.fromFolder = media.FromFolder
+		b.why = append(readAs(info, media), art.Explain(media, b.found)...)
 	}
 	return b
 }
@@ -234,6 +236,7 @@ func (e *Engine) tick(r *run) {
 		e.recheckAt = time.Time{}
 	}
 	e.nowPlaying = &d
+	e.why = b.why
 	e.paused = info.State == 1
 	e.preview = core.PreviewOf(sent, &cfg) // what Discord actually got (the basic fallback carries less)
 	e.mu.Unlock()

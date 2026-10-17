@@ -71,8 +71,10 @@ release by hand, and winget needs one pull request per version. Frequent release
 
 ### 7. Depth in the core, not breadth
 - Fewer, sturdier catalog services rather than more.
-- "Why this title?" in Copy diagnostics.
-- A title-language choice for anime (the services already return every variant).
+- "Why this title?" in Copy diagnostics. Done in 0.9.34: the file name, what was read from it, which catalog matched
+  (or the closest results) and where the episode title came from.
+- A title-language choice for anime (the services already return every variant). Exists for AniList matches
+  (`animeTitles`: auto, English, romaji or the file's spelling).
 - React to player events where players offer them (mpv, Kodi, Linux MPRIS), so pause and seek show at once.
 - macOS stays "best effort": the owner has no Mac, CI and testers are the test bed.
 - Later, if asked for: a native Windows ARM64 build, translatable window texts, a Linux tray icon.
@@ -91,7 +93,8 @@ Each of these sank or burdened a similar tool, or breaks a principle:
   AI-generated apps and its sandbox), unless real demand appears.
 
 ## Open decisions (the owner's)
-1. Release rhythm: monthly stable releases with pre-releases in between?
+1. Release rhythm: monthly stable releases with pre-releases in between? Partly settled (2026-10-17): fewer, larger
+   releases that each bundle several changes; urgent fixes can still ship alone. Pre-releases are not decided.
 2. Register a project-owned Discord application.
 3. Turn on immutable releases (a repository setting).
 4. Keep an offline signing key and sign each stable release (one manual step each).

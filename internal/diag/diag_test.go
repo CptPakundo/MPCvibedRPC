@@ -162,3 +162,25 @@ func TestReportLeaksNothingAboutSignIns(t *testing.T) {
 		})
 	}
 }
+
+// "Why this title" is printed while something plays, redacted like the log.
+func TestReportExplainsTheTitle(t *testing.T) {
+	np := "Sample Show · S01E02"
+	in := Input{Config: core.DefaultConfig(), Status: engine.Status{Running: true, NowPlaying: &np, Why: []string{
+		`MPC-HC: "Sample.Show.S01E02.mkv"`, `Read as: title "Sample Show", season 1, episode 2.`,
+		`Matched by TVmaze: "Sample Show" (a show).`, `failed at C:\Users\Someone\x: denied`,
+	}}}
+	got := Report(in)
+	for _, want := range []string{"Why this title", `  MPC-HC: "Sample.Show.S01E02.mkv"`, `Matched by TVmaze: "Sample Show" (a show).`, "failed at <path>"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report is missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Someone") {
+		t.Errorf("report leaks a path:\n%s", got)
+	}
+	in.Status.Why = nil
+	if strings.Contains(Report(in), "Why this title") {
+		t.Error("the section should be left out when there is nothing to explain")
+	}
+}
