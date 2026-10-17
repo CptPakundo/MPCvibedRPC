@@ -231,15 +231,135 @@ func TestWatcher(t *testing.T) {
 	if file, st, _ := state(w); file != "Sample Show - S01E03" || st != 2 {
 		t.Fatalf("next episode: %s %d", file, st)
 	}
-	// then Stremio is closed without a word: the regular updates stop and the status goes after a while
-	clk.t = clk.t.Add(2 * time.Minute)
+	// then Stremio is closed without a word: the regular updates stop and the status goes after a while (the
+	// player's interval is not known yet, so a 180-second one is waited for)
+	clk.t = clk.t.Add(3 * time.Minute)
 	w.mustPoll(t)
 	if _, st, _ := state(w); st != 2 {
 		t.Fatalf("given up too early (state %d)", st)
 	}
-	clk.t = clk.t.Add(40 * time.Second)
+	clk.t = clk.t.Add(60 * time.Second)
 	if _, st, _ := state(w); st != -1 {
 		t.Fatalf("not given up after the updates stopped (state %d)", st)
+	}
+}
+
+// player plays an entry like stremio-core: a regular update once every seconds have passed since the last regular
+// one, extra updates on pause and resume (they do not move that timer), the library asked every 20 s.
+type player struct {
+	t        *testing.T
+	f        *fakeStremio
+	w        *Watcher
+	clk      *clockAt
+	every    time.Duration
+	offset   int64     // where the video is (ms)
+	playing  bool      //
+	lastPush time.Time // the last regular update
+	at       time.Time // the clock when offset was last moved
+}
+
+func newPlayer(t *testing.T, every time.Duration) *player {
+	f, w, clk := watcher(t)
+	p := &player{t: t, f: f, w: w, clk: clk, every: every, offset: 60_000, playing: true, lastPush: clk.t, at: clk.t}
+	p.put() // the start
+	w.mustPoll(t)
+	return p
+}
+
+func (p *player) put() {
+	p.f.put("tt0000002", "Sample Show", "series", "tt0000002:1:2", p.offset, 3_000_000, p.clk.t.UnixMilli())
+}
+
+// run lets d pass second by second, polling every 20 s.
+func (p *player) run(d time.Duration) {
+	for end := p.clk.t.Add(d); p.clk.t.Before(end); {
+		p.clk.t = p.clk.t.Add(time.Second)
+		if p.playing {
+			p.offset += 1000
+			if p.clk.t.Sub(p.lastPush) >= p.every {
+				p.lastPush = p.clk.t
+				p.put()
+			}
+		}
+		if p.clk.t.Sub(p.at)%(20*time.Second) == 0 {
+			p.w.mustPoll(p.t)
+		}
+	}
+}
+
+func (p *player) pause(paused bool) { p.playing = !paused; p.put() }
+
+func (p *player) want(st int, what string) {
+	p.t.Helper()
+	if _, got, _ := state(p.w); got != st {
+		p.t.Fatalf("%s: state %d, want %d", what, got, st)
+	}
+}
+
+// A player that updates every 180 s (stremio-core 0.65.1 and later) stays shown between its updates, and a short
+// pause is seen once the interval is known, without the next regular update being taken for another pause.
+func TestWatcher180SecondPlayer(t *testing.T) {
+	p := newPlayer(t, PushLong)
+	p.want(2, "the start")
+	p.run(175 * time.Second)
+	p.want(2, "175 s after the start, before the first regular update") // the old 90-second rule gave up at 145 s
+	p.run(5*time.Second + 180*time.Second)
+	p.want(2, "after two regular updates")
+	if p.w.push != PushLong {
+		t.Fatalf("interval = %v, want 180 s", p.w.push)
+	}
+	p.run(170 * time.Second)
+	p.want(2, "170 s after a regular update")
+	p.run(10*time.Second + 100*time.Second)
+	p.pause(true) // 100 s into the interval: a 90-second rule took this for a regular update
+	p.run(20 * time.Second)
+	p.want(-1, "paused")
+	p.pause(false)
+	p.run(20 * time.Second)
+	p.want(2, "resumed")
+	p.run(60 * time.Second) // the regular update comes 180 s after the last regular one, 60 s after the resume
+	p.want(2, "the regular update after a resume")
+	// stopped without a word: given up after the interval and a little more
+	p.playing = false
+	p.run(200 * time.Second) // 220 s after the last update
+	p.want(2, "too early")
+	p.run(40 * time.Second)
+	p.want(-1, "the updates stopped")
+}
+
+// A player that updates every 90 s (before stremio-core 0.65.1) works as before, and the first regular update after a
+// short pause (the timer runs on through pauses) is not taken for another pause.
+func TestWatcher90SecondPlayer(t *testing.T) {
+	p := newPlayer(t, PushShort)
+	p.run(10 * time.Minute)
+	p.want(2, "ten minutes of regular updates")
+	if p.w.push == PushLong {
+		t.Fatal("took a 90-second player for a 180-second one")
+	}
+	p.run(40 * time.Second) // 10 s after a regular update
+	p.pause(true)
+	p.run(20 * time.Second)
+	p.want(-1, "paused")
+	p.pause(false)
+	p.run(20 * time.Second)
+	p.want(2, "resumed")
+	p.run(40 * time.Second)
+	p.want(2, "the regular update after a resume")
+}
+
+// A 180-second interval learned on one device is unlearned when a 90-second player plays: its first regular update is
+// taken for a pause, and the next one shows it kept playing.
+func TestWatcherRelearnsTheInterval(t *testing.T) {
+	p := newPlayer(t, PushLong)
+	p.run(370 * time.Second)
+	if p.w.push != PushLong {
+		t.Fatalf("interval = %v, want 180 s", p.w.push)
+	}
+	p.every = PushShort
+	p.run(200 * time.Second)
+	p.want(2, "a 90-second player")
+	if p.w.push != PushShort {
+		t.Fatalf("interval = %v, want 90 s", p.w.push)
 	}
 }
 

@@ -147,9 +147,10 @@ Stremio (sign-in on the Accounts tab): the program signs in the way Stremio's TV
 key in `config.json`; **Sign out** ends that session on Stremio's side and removes it, and so does **Restore defaults**.
 It only reads. Stremio has no live "now playing" for other apps, so the program reads the account's library instead:
 every 20 seconds it asks which entries changed, and fetches only those. Stremio's player updates the entry of what you
-watch when it starts, pauses, resumes and stops, and every 90 seconds while it plays. An update that finds the video
-where it was is a start or a resume; one that comes early with the video moved on is a pause or a stop, and the status
-is taken down; when the 90-second updates stop coming, the video stopped without a word. Series episodes come from the
+watch when it starts, pauses, resumes and stops, and every 180 seconds while it plays (90 seconds in older Stremio
+apps; the program learns which from the updates). An update that finds the video where it was is a start or a resume;
+one that comes before the next regular update is due, with the video moved on, is a pause or a stop, and the status is
+taken down; when the regular updates stop coming, the video stopped without a word. Series episodes come from the
 entry's video ("Sample Show - S01E02"), and cover art is looked up the same way as for files. Entries of type "other"
 (which Stremio does not save to the account) are never shown. Stremio is tried against a stand-in for its servers built
 from Stremio's own open-source core (`stremio-core`); a real Stremio account has not been tried yet.

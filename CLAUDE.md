@@ -102,9 +102,11 @@ Stremio (`internal/stremio`): "Sign in to Stremio" gets the account's key throug
 create` and `read`, the TV apps' sign-in; only an https stremio.com page is ever opened); sign-out and Restore defaults
 call `api.strem.io/api/logout`. Stremio has no "now playing" API: the watcher polls `datastoreMeta` (every library
 entry's mtime) every 20 s and fetches changed entries with `datastoreGet`. Stremio's player (stremio-core) pushes the
-entry on load, pause, resume and stop, and every 90 s while it plays (`PUSH_TO_LIBRARY_EVERY`); an early push with the
-time moved on is a pause or stop (status taken down), one with the time unchanged is a start or resume, and no push
-for ~2.5 min means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
+entry on load, pause, resume and stop, and while it plays once `PUSH_TO_LIBRARY_EVERY` has passed since the last
+regular push (90 s up to core 0.65.0, 180 s since 0.65.1; the extra pushes do not move that timer). A push with the
+time moved on before the next regular one is due is a pause or stop (status taken down), one with the time unchanged
+is a start or resume; the watcher learns each player's interval from its pushes (`judge`), and no push for the
+interval plus ~55 s (180 s unless 90 s was learned) means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
 
 Jellyfin and Emby (`internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin.go`): the user types the server's address on the
 Accounts tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick

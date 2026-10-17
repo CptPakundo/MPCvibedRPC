@@ -168,7 +168,7 @@ func (c *Client) SignOut(ctx context.Context, key string) error {
 }
 
 // Item is one entry of the account's library (only the parts used). Stremio's player updates the entry of what it
-// plays: on start, pause and stop, and every 90 seconds while it plays.
+// plays: on start, pause and stop, and every 90 or 180 seconds while it plays (see PushShort).
 type Item struct {
 	ID      string `json:"_id"`
 	Name    string `json:"name"`

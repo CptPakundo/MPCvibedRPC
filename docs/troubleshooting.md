@@ -54,10 +54,10 @@ listed in [All settings](config.md).
 
 ## Stremio
 
-- Stremio's player saves where you are in your library when you start, pause or stop, and every 90 seconds while it
-  plays. The program reads that, so a video shows up within about 20 seconds, and pausing takes the status down (the
-  library doesn't tell a pause from a stop). If Stremio is closed without a word, the status goes after about two and
-  a half minutes.
+- Stremio's player saves where you are in your library when you start, pause or stop, and every 180 seconds while it
+  plays (90 seconds in older Stremio apps). The program reads that, so a video shows up within about 20 seconds, and
+  pausing takes the status down (the library doesn't tell a pause from a stop). If Stremio is closed without a word,
+  the status goes after about four minutes.
 - Only videos with a catalog entry are in the library; local files and add-ons without one aren't shown.
 - Newer Stremio apps can show a Discord status of their own. Turn that off in Stremio's settings, or you may see two.
 - Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are welcome.
