@@ -32,8 +32,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/run-annotated.sh "go vet" go vet ./...
         shell: bash
@@ -63,14 +63,18 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      # the files as the repository has them (LF), and no cgo: the same input and build as the Linux rebuild
+      # in release.yml (reproduce)
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
       - name: Build
         shell: pwsh
         run: |
+          $env:CGO_ENABLED = '0'
           New-Item -ItemType Directory dist | Out-Null
           go run ./tools/mkrsrc -version $env:VERSION -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
           go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$env:VERSION" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
@@ -81,10 +85,30 @@ jobs:
       - name: Smoke test
         shell: pwsh
         run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $env:VERSION -NextVersion $env:NEXT
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MPCvibedRPC-windows
           path: dist/MPCvibedRPC.exe
+
+  # The exe again, built on Linux from the same files: it must be the same, byte for byte, so anyone can rebuild a
+  # release and check it (release.yml does that for every release before it is published).
+  reproduce:
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: '1.27.2', cache: false }
+      - run: ./tools/ci/version.sh
+        shell: bash
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: MPCvibedRPC-windows
+          path: windows
+      - name: Rebuild and compare
+        shell: bash
+        run: ./tools/ci/reproduce.sh "$VERSION" rebuilt && ./tools/ci/reproduce.sh compare windows/MPCvibedRPC.exe rebuilt/MPCvibedRPC.exe
 
   # The Linux programs and the macOS app, built as a release builds them, then started for real in throwaway folders.
   unix:
@@ -96,8 +120,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
@@ -131,12 +155,12 @@ jobs:
           test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
       - name: Screenshot of the settings window and menu bar (macOS)
         if: always() && runner.os == 'macOS'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-screenshot
           path: ${{ runner.temp }}/macos-window*.png
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
           path: dist/*
@@ -152,8 +176,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - name: Install players (Linux)
         timeout-minutes: 10 # a slow package mirror once hung here
@@ -184,8 +208,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - name: Live tests (PotPlayer, Kodi)
         timeout-minutes: 20
@@ -198,8 +222,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
@@ -221,8 +245,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.27.2', cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
