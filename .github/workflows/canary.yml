@@ -1,8 +1,9 @@
 # Once a week, the whole CI (tests, smoke tests and the live jobs, which install the newest PotPlayer, Kodi, IINA and
-# mpv on macOS, and the latest Plex, Jellyfin and Emby images) plus a check of every keyless catalog service, so an
+# mpv on macOS, and the latest Plex, Jellyfin and Emby images), VLC and Celluloid from Flathub (their makers' newest
+# releases, not Ubuntu's older packages), plus a check of every keyless catalog service, so an
 # outside change shows up within a week rather than when a user reports it. A failure opens an issue (label "canary");
-# the next run that passes closes it. A pull request that changes the canary runs the catalog check and a dry run of
-# the report.
+# the next run that passes closes it. A pull request that changes the canary runs the catalog check, the Flathub players
+# and a dry run of the report.
 name: canary
 on:
   schedule:
@@ -14,7 +15,7 @@ on:
         type: boolean
         default: false
   pull_request:
-    paths: ['.github/workflows/canary.yml', 'tools/ci/canary-report.sh', 'internal/artwork/live_test.go']
+    paths: ['.github/workflows/canary.yml', 'tools/ci/canary-report.sh', 'internal/artwork/live_test.go', 'tools/ci/live-flathub.sh']
 permissions:
   contents: read
 concurrency:
@@ -36,8 +37,30 @@ jobs:
         run: MPCRPC_LIVE_CATALOGS=1 ./tools/ci/run-annotated.sh "live catalogs" ./tools/ci/must-pass.sh TestLiveCatalogs go test -count=1 -run TestLiveCatalogs -v ./internal/artwork
         shell: bash
 
+  # VLC and Celluloid as their makers release them (Flathub), with the live engine test and a pause from their events.
+  players-flathub:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: '1.27.2', cache: false }
+      - name: Install the players from Flathub
+        timeout-minutes: 25
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends flatpak ffmpeg xvfb dbus dbus-x11 > /dev/null
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.videolan.VLC io.github.celluloid_player.Celluloid > /dev/null
+          flatpak list --user --app --columns=application,version
+      - name: Live tests
+        shell: bash
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live Flathub players" dbus-run-session -- ./tools/ci/live-flathub.sh
+          test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live Flathub players::the script stopped before the end"; exit 1; }
+
   report:
-    needs: [ci, catalogs]
+    needs: [ci, catalogs, players-flathub]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
