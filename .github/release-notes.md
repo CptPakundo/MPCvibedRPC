@@ -1,12 +1,16 @@
-## MPCvibedRPC 0.9.37
+## MPCvibedRPC 0.9.38
 
-**More file names are recognised as episodes.**
+**Specials named in words, fixed for real catalogs, and double episodes.**
 
 ### What's new
-- **Episode codes in square brackets.** `Sample Show [S01E02].mkv` (or `[1x02]`) lost its episode number, because
-  square brackets usually hold release tags. Now the episode is read, so its name is looked up like any other.
-- **More episode forms.** `Sample Show S2E5` is shown as `S02E05`, a double episode written `E05-E06` (or
-  `s01e05-e06`) is read as one file covering both, and `Sample Show Ep. 5` with a dot is an episode too.
+- **Specials named in words, now with real catalogs.** 0.9.36 taught the program that `Sample Show - Special 01`
+  is the show's special (season 0). A check against the real Cinemeta found two cases it still missed: with a year
+  in brackets (`Sample Show (2010) - Special 01`) the special's words were dropped as an edition note, and when a
+  catalog answers the whole name with the show itself, the show's cover came without the special's name. Both now
+  show the special's name. The weekly check looks one real special up this way, so a change at the catalog is noticed.
+- **Double episodes.** `Sample Show - S01E05 - S01E06` showed "S01E06" as the episode's title; it is now
+  `S01E05E06`.
+- **Security check.** CI's Go vulnerability check is updated to govulncheck 1.9.0.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
