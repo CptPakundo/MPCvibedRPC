@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The live engine test (internal/engine/live_test.go) against Linux players as their makers release them, from
-# Flathub, rather than the older ones Ubuntu packages (live-players.sh): VLC and Celluloid through MPRIS, each with
-# the test's own fake Discord, and a pause that must show at once. The weekly canary runs it, inside a session bus
+# Flathub, rather than the older ones Ubuntu packages (live-players.sh): mpv over its IPC socket, VLC and Celluloid
+# through MPRIS, each with the test's own fake Discord, and a pause that must show at once. The weekly canary runs it, inside a session bus
 # of its own:   dbus-run-session -- tools/ci/live-flathub.sh
 set -euo pipefail
 videos="$HOME/Videos" # VLC may read it; Celluloid is given it below (its sandbox opens only what it is given)
@@ -20,6 +20,7 @@ live() {
     MPCRPC_LIVE_MPV_PIPE=/nonexistent/none MPCRPC_LIVE_EVENTS=mpris ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { flatpak kill "$app" 2> /dev/null || true; app=""; sleep 2; }
+wait_socket() { for _ in $(seq 1 240); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
 wait_bus() { for _ in $(seq 1 240); do dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames | grep -qE "\"$1" && return 0; sleep 0.25; done; echo "$1 is not on the bus"; return 1; }
 
 # wait_playing NAME-PATTERN: the player's MPRIS PlaybackStatus must become Playing (else it shows what it says)
@@ -34,6 +35,16 @@ wait_playing() {
   echo "$name does not play (PlaybackStatus: ${status:-none})"
   return 1
 }
+
+# mpv: its sandbox is given the video and a folder for the socket, which the test reaches from outside
+sockdir="$HOME/mpv-ipc"
+mkdir -p "$sockdir"
+app=io.mpv.Mpv
+xvfb-run -a flatpak run --filesystem="$videos:ro" --filesystem="$sockdir" "$app" --no-config --vo=null --ao=null \
+  --loop-file=inf --input-ipc-server="$sockdir/mpvsocket" "$video" > /dev/null 2>&1 &
+wait_socket "$sockdir/mpvsocket"
+live mpv MPCRPC_LIVE_MPV_PIPE="$sockdir/mpvsocket" MPCRPC_LIVE_EVENTS=pipe
+stop_last
 
 app=org.videolan.VLC
 xvfb-run -a flatpak run --command=vlc "$app" --intf dummy --extraintf dbus --no-video --aout dummy --loop "$video" > /dev/null 2>&1 &
