@@ -156,6 +156,23 @@ func TestLiveCatalogs(t *testing.T) {
 		if !found {
 			t.Errorf("Cinemeta: no usable special S00E01 for %q", special.title)
 		}
+		// a special named in words goes through the whole lookup: the name as a title first, then the show's season 0
+		named := "The Twilight Zone (1959) - Special 01.mkv"
+		scfg := cfg
+		scfg.ArtworkSources, scfg.EpisodeSources, scfg.RichInfo, scfg.ArtworkWaitMs = []string{"cinemeta"}, []string{"cinemeta"}, false, 30000
+		var art *core.Art
+		ask(t, func(*Artwork) error {
+			a := New(&scfg, Options{Log: func(level, msg string) { t.Logf("%s: %s", level, msg) }})
+			if art = a.Lookup(core.ParseMedia(named, &scfg, nil)); art == nil && a.unavail.Load() > 0 {
+				return &FetchError{Name: "TimeoutError", Msg: "Cinemeta did not answer"}
+			}
+			return nil
+		})
+		if art == nil || !art.Special || art.Episode == nil || !usable(art.Episode.Title) {
+			t.Errorf("Cinemeta: %q not found as the show's special: %+v", named, art)
+		} else {
+			t.Logf("Cinemeta: %q is %q, %q", named, art.Name, art.Episode.Title)
+		}
 	})
 	t.Run("imdb", func(t *testing.T) {
 		search(t, "imdb", "movie", liveMovie)

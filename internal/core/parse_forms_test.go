@@ -27,6 +27,14 @@ func TestParseEpisodeForms(t *testing.T) {
 			t.Errorf("%s: title %q, season %d, episode %d, display %q", c.file, m.Title, m.Season, m.Episode, m.Display)
 		}
 	}
+	// A special's words after a year in brackets stay in the title (for the lookup's NamedSpecial); an edition note
+	// does not.
+	if m := ParseMedia("Sample Show (2010) - Special 01.mkv", &cfg, nil); m.Title != "Sample Show - Special 01" || m.Year != 2010 || NamedSpecial(m) == nil {
+		t.Errorf("special after a year: title %q, year %d", m.Title, m.Year)
+	}
+	if m := ParseMedia("Sample Movie (1982) Final Cut.mkv", &cfg, nil); m.Title != "Sample Movie" || m.Year != 1982 {
+		t.Errorf("edition after a year: title %q, year %d", m.Title, m.Year)
+	}
 	// Square brackets that are not an episode stay tags.
 	if m := ParseMedia("[Group] Sample Movie (2020) [1080p].mkv", &cfg, nil); m.IsEpisode || m.Title != "Sample Movie" {
 		t.Errorf("tags: %+v", m)
