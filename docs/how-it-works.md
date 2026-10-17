@@ -103,7 +103,10 @@ names come from, and how each player is read.
   is used for and where requests go; a switched-off service is never contacted. One switch turns all lookups off (fully
   offline). **Clear my status when paused for N minutes** takes the status down after a long pause (30 minutes by default; 0 = never) and brings
   it back when you play again or seek. **Clear cover cache** forgets everything that was looked up. There is no analytics or
-  tracking, and file paths are never sent.
+  tracking, and file paths are never sent. **Recent connections** lists every address outside this computer the
+  program sent a web request to since it started (players and the window on this computer are not counted), with how
+  often and when last; it is kept in memory only, and never says what was asked. Every address the code can reach is
+  in [SECURITY.md](../SECURITY.md#where-it-connects).
 - **Your stats** (General tab): how many videos were shown on Discord, how many were found in a catalog, how long they
   played and with which player. Numbers only, never titles, kept in `stats.json` on this computer; nothing is sent
   anywhere. **Reset stats** starts over. (The download count at the top of this page is GitHub's public count of release

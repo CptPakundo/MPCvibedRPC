@@ -72,6 +72,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
 | `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share (problem text, network-error wording, the OS name) |
+| `internal/conns` | **Recent connections** on the Privacy tab: requests to other computers counted by host |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/diag` | **Copy diagnostics**: the report, with folder paths, addresses, server names and sign-ins left out |
