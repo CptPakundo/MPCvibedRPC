@@ -1,14 +1,20 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
+	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
+	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 )
 
@@ -34,7 +40,7 @@ func TestLivePlayer(t *testing.T) {
 		port = atoiOr(p, port)
 	}
 	e, d, l := pipeEngine(t, port, nil)
-	e.opts.Pipes, e.opts.MPRIS, e.opts.PotPlayer = nil, nil, nil // the real ones: MPC-QT's, mpv's, IINA's (macOS), MPRIS (Linux), PotPlayer (Windows)
+	e.opts.Pipes, e.opts.MPRIS, e.opts.PotPlayer, e.opts.KodiEvents = nil, nil, nil, "" // the real ones: MPC-QT's, mpv's, IINA's (macOS), MPRIS (Linux), PotPlayer (Windows)
 	if p := os.Getenv("MPCRPC_LIVE_MPV_PIPE"); p != "" {
 		e.cfg.MpvPipe = p
 	}
@@ -95,38 +101,22 @@ func TestLivePlayer(t *testing.T) {
 	if !l.has(`(` + want + `: "`) {
 		t.Error("the log should name what the player played")
 	}
-	if os.Getenv("MPCRPC_LIVE_EVENTS") == "1" && (want == "mpv" || want == "IINA") {
-		livePauseEvent(t, e, d, want)
+	if how := os.Getenv("MPCRPC_LIVE_EVENTS"); how != "" {
+		livePauseEvent(t, e, d, want, how)
 	}
 }
 
-// livePauseEvent pauses the real player through its own pipe and wants the pause shown at once, from the player's
-// event, while the regular checks are a minute apart. It changes the player's state, so it is opt-in
-// (MPCRPC_LIVE_EVENTS=1; CI sets it for its throwaway players), and it resumes the player afterwards.
-func livePauseEvent(t *testing.T, e *Engine, d *disc, name string) {
+// livePauseEvent pauses the real player and wants the pause shown at once, from the player's own event, while the
+// regular checks are a minute apart. how says how the player is paused: "pipe" (mpv, IINA: their IPC), "kodi" (its
+// JSON-RPC, as user kodi with MPCRPC_LIVE_KODI_PASSWORD) or "mpris" (D-Bus). It changes the player's state, so it is
+// opt-in (MPCRPC_LIVE_EVENTS; CI sets it for its throwaway players), and it resumes the player afterwards.
+func livePauseEvent(t *testing.T, e *Engine, d *disc, name, how string) {
 	e.Stop()
 	e.cfg.PollInterval = 60000
 	e.Start()
 	eventually(t, "connected again", func() bool { return e.Status().Discord == "connected" })
 	time.Sleep(time.Second) // the event connection is made at the start
-	var path string
-	for _, p := range PlayerPipes(e.cfg) {
-		if p.Name == name {
-			path = p.Path
-		}
-	}
-	set := func(paused bool) {
-		c, err := pipe.Dial(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer c.Close()
-		b, _ := json.Marshal(map[string]any{"command": []any{"set_property", "pause", paused}})
-		if _, err := c.Write(append(b, '\n')); err != nil {
-			t.Fatal(err)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	set := livePauser(t, e.cfg, name, how)
 	n := len(d.list())
 	start := time.Now()
 	set(true)
@@ -150,4 +140,72 @@ func atoiOr(s string, def int) int {
 		n = n*10 + int(c-'0')
 	}
 	return n
+}
+
+// livePauser returns a function that pauses (true) or resumes (false) the real player, the way how names.
+func livePauser(t *testing.T, cfg core.Config, name, how string) func(paused bool) {
+	switch how {
+	case "pipe":
+		var path string
+		for _, p := range PlayerPipes(cfg) {
+			if p.Name == name {
+				path = p.Path
+			}
+		}
+		return func(paused bool) {
+			c, err := pipe.Dial(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			b, _ := json.Marshal(map[string]any{"command": []any{"set_property", "pause", paused}})
+			if _, err := c.Write(append(b, '\n')); err != nil {
+				t.Fatal(err)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	case "kodi":
+		return func(paused bool) {
+			b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "Player.PlayPause", "params": map[string]any{"playerid": 1, "play": !paused}})
+			req, err := http.NewRequest("POST", kodi.Base(cfg.KodiAddress)+"/jsonrpc", bytes.NewReader(b))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.SetBasicAuth("kodi", cfg.KodiPassword)
+			req.Header.Set("Content-Type", "application/json")
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body.Close()
+		}
+	case "mpris":
+		return func(paused bool) {
+			c, err := dbus.Dial(dbus.SessionAddress(), 2*time.Second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			got, err := c.Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames", 2*time.Second, "")
+			if err != nil || len(got) == 0 {
+				t.Fatal("no bus names: ", err)
+			}
+			names, _ := got[0].([]any)
+			member := "Play"
+			if paused {
+				member = "Pause"
+			}
+			for _, n := range names {
+				if s, _ := n.(string); mpris.PlayerName(s) == name {
+					if _, err := c.Call(s, "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player", member, 2*time.Second, ""); err != nil {
+						t.Fatal(err)
+					}
+					return
+				}
+			}
+			t.Fatalf("%s is not on the bus", name)
+		}
+	}
+	t.Fatalf("MPCRPC_LIVE_EVENTS=%q: want pipe, kodi or mpris", how)
+	return nil
 }

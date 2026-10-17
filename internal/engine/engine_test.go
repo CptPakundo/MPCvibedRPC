@@ -183,7 +183,7 @@ func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
+	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, KodiEvents: "none", Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
 	for _, mod := range mods {
 		mod(&cfg, &opts)
 	}

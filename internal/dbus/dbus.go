@@ -145,6 +145,23 @@ func (c *Conn) login(timeout time.Duration) error {
 // Close ends the connection.
 func (c *Conn) Close() error { return c.c.Close() }
 
+// Watch asks the bus for the signals that match rule (AddMatch, such as "type='signal',path='/a/b'") and calls on for
+// each one until the connection ends. The connection is then used for nothing else.
+func (c *Conn) Watch(rule string, timeout time.Duration, on func(*Message)) error {
+	if _, err := c.Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch", timeout, "s", rule); err != nil {
+		return err
+	}
+	for {
+		m, err := ReadMessage(c.r)
+		if err != nil {
+			return err
+		}
+		if m.Type == TypeSignal {
+			on(m)
+		}
+	}
+}
+
 // Error is an error reply.
 type Error struct {
 	Name    string

@@ -60,7 +60,7 @@ file_json="$(printf '%s' "$win_video" | sed 's/\\/\\\\/g')"
 rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Player.Open\",\"params\":{\"item\":{\"file\":\"$file_json\"}}}"
 echo
 sleep 8
-live Kodi MPCRPC_LIVE_KODI_PASSWORD=ci-secret
+live Kodi MPCRPC_LIVE_KODI_PASSWORD=ci-secret MPCRPC_LIVE_EVENTS=kodi # also: a pause shows at once, from Kodi's notification
 taskkill //F //IM kodi.exe > /dev/null || true
 echo "::endgroup::"
 

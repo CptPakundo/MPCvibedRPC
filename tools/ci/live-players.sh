@@ -28,7 +28,7 @@ wait_bus() { for _ in $(seq 1 80); do dbus-send --session --print-reply --dest=o
 mpv --no-config --vo=null --ao=null --loop-file=inf --input-ipc-server="$tmp/mpvsocket" "$video" > /dev/null 2>&1 &
 pid=$!
 wait_socket "$tmp/mpvsocket"
-live mpv MPCRPC_LIVE_EVENTS=1 # also: a pause shows at once, from mpv's event
+live mpv MPCRPC_LIVE_EVENTS=pipe # also: a pause shows at once, from mpv's event
 stop_last
 
 if [ "$os" = Linux ]; then
@@ -37,19 +37,19 @@ if [ "$os" = Linux ]; then
   cvlc --intf dummy --extraintf dbus --no-video --aout dummy --loop "$video" > /dev/null 2>&1 &
   pid=$!
   wait_bus org.mpris.MediaPlayer2.vlc
-  live VLC "$none"
+  live VLC "$none" MPCRPC_LIVE_EVENTS=mpris
   stop_last
 
   mpv --vo=null --ao=null --loop-file=inf "$video" > /dev/null 2>&1 & # the mpv-mpris script is loaded from /etc/mpv/scripts
   pid=$!
   wait_bus org.mpris.MediaPlayer2.mpv
-  live mpv "$none"
+  live mpv "$none" MPCRPC_LIVE_EVENTS=mpris
   stop_last
 
   xvfb-run -a celluloid --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
   pid=$!
   wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid"
-  live Celluloid "$none"
+  live Celluloid "$none" MPCRPC_LIVE_EVENTS=mpris
   stop_last
   pkill -x celluloid || true # xvfb-run does not pass the signal on
 else
@@ -94,7 +94,7 @@ else
   open -a /Applications/IINA.app "$video" &
   pid=$!
   wait_socket "$tmp/iina-mpvsocket" || { pgrep -lf IINA || echo "IINA is not running"; ls -la "$tmp"; exit 1; }
-  live IINA MPCRPC_LIVE_EVENTS=1
+  live IINA MPCRPC_LIVE_EVENTS=pipe
   pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
 echo "live player tests passed"
