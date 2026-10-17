@@ -19,7 +19,24 @@ type fakeMpv struct {
 	path   string
 	mu     sync.Mutex
 	values map[string]any
+	subs   []io.Writer // connections that asked to observe a property (they get events)
+	wmu    sync.Mutex  // one write at a time on a connection
 }
+
+// event sends an mpv event line (such as {"event":"seek"}) to every connection that observes a property.
+func (f *fakeMpv) event(line string) {
+	f.mu.Lock()
+	subs := append([]io.Writer(nil), f.subs...)
+	f.mu.Unlock()
+	f.wmu.Lock()
+	defer f.wmu.Unlock()
+	for _, w := range subs {
+		w.Write([]byte(line + "\n"))
+	}
+}
+
+// watchers is how many connections observe a property.
+func (f *fakeMpv) watchers() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.subs) }
 
 func newFakeMpv(t *testing.T, values map[string]any) *fakeMpv {
 	f := &fakeMpv{path: fakePath(sockDir(t)), values: values}
@@ -69,6 +86,17 @@ func (f *fakeMpv) serve(c io.ReadWriteCloser) {
 		if json.Unmarshal(line, &req) != nil || len(req.Command) < 2 {
 			continue
 		}
+		if req.Command[0] == "observe_property" { // mpv answers with the current value at once
+			f.mu.Lock()
+			f.subs = append(f.subs, c)
+			v := f.values["pause"]
+			f.mu.Unlock()
+			b, _ := json.Marshal(map[string]any{"event": "property-change", "id": 1, "name": "pause", "data": v})
+			f.wmu.Lock()
+			c.Write(append(b, '\n'))
+			f.wmu.Unlock()
+			continue
+		}
 		f.mu.Lock()
 		v, ok := f.values[fmt.Sprint(req.Command[1])]
 		f.mu.Unlock()
@@ -77,7 +105,10 @@ func (f *fakeMpv) serve(c io.ReadWriteCloser) {
 			out = map[string]any{"request_id": req.ID, "error": "property unavailable"}
 		}
 		b, _ := json.Marshal(out)
-		if _, err := c.Write(append(b, '\n')); err != nil {
+		f.wmu.Lock()
+		_, err = c.Write(append(b, '\n'))
+		f.wmu.Unlock()
+		if err != nil {
 			return
 		}
 	}

@@ -28,7 +28,7 @@ wait_bus() { for _ in $(seq 1 80); do dbus-send --session --print-reply --dest=o
 mpv --no-config --vo=null --ao=null --loop-file=inf --input-ipc-server="$tmp/mpvsocket" "$video" > /dev/null 2>&1 &
 pid=$!
 wait_socket "$tmp/mpvsocket"
-live mpv
+live mpv MPCRPC_LIVE_EVENTS=1 # also: a pause shows at once, from mpv's event
 stop_last
 
 if [ "$os" = Linux ]; then
@@ -94,7 +94,7 @@ else
   open -a /Applications/IINA.app "$video" &
   pid=$!
   wait_socket "$tmp/iina-mpvsocket" || { pgrep -lf IINA || echo "IINA is not running"; ls -la "$tmp"; exit 1; }
-  live IINA
+  live IINA MPCRPC_LIVE_EVENTS=1
   pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
 echo "live player tests passed"

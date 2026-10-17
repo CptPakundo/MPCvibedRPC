@@ -111,6 +111,7 @@ type Engine struct {
 	stopRemote context.CancelFunc // ends the remotes (they stop while resting)
 	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
 	wake       chan struct{}      // makes the loop check at once (the window opened)
+	nudges     nudger             // early checks after mpv or IINA reported a change (events.go)
 	nowPlaying *string
 	why        []string // how the title shown was read and found (Status.Why; only while nowPlaying is set)
 	preview    *core.Preview
@@ -215,6 +216,7 @@ func (e *Engine) start() {
 	e.mu.Unlock()
 	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
 	go e.loop(r, pollInterval(cfg))
+	go e.watchPlayers(r)
 }
 
 // Stop clears the presence (waiting at most 1.5 s for Discord) and disconnects.

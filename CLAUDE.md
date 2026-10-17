@@ -95,7 +95,10 @@ that answers is reported.** A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is
 with its file name (`core.MusicMedia`), never looked up and not counted in the stats. MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
-folder is where Discord, IINA and MPC-QT put their sockets. MPRIS only reads players on the allowlist in
+folder is where Discord, IINA and MPC-QT put their sockets. mpv and IINA are also watched (`engine/events.go`,
+`mpvipc.Watch`: one more connection that observes `pause` and listens for seek and file events); an event wakes the
+loop early (`nudge`: 250 ms later, at most every 4 s), and the check still reads what plays. MPC-QT's pipe is only
+asked. MPRIS only reads players on the allowlist in
 `internal/mpris` (music players and browsers offer MPRIS too and must never show as "Watching").
 
 Plex (`internal/plex`): "Sign in to Plex" gets a token through a plex.tv PIN the user approves in their browser
