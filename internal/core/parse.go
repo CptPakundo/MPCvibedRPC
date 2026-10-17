@@ -937,11 +937,12 @@ func FolderEpisode(media *Media, files []string) int {
 }
 
 var nsWords = re(`^(?:[-–]\s*)?(?:specials?|sp|ova|oav|oad|ona)\s*\d{1,3}$`, "i")
-var nsTail = re(`^(.*?\p{L}.*?)(?:\s+(?:s|season\s*)\d{1,2})?\s*(?:[-–]\s*)?\b(?:specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
+var nsTail = re(`^(.*?\p{L}.*?)(?:\s+(?:s|season\s*)\d{1,2})?\s*(?:[-–]\s*)?\b(specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
 
 // NamedSpecial reads a title such as "Sample Show - Special 03", "Sample Show OVA 2" or "Sample Show - SP2" as the
-// show's special (S00E03), or returns nil. The parser keeps such names whole, since AniList lists OVAs as titles of
-// their own; the lookup tries this reading only when the whole name finds nothing.
+// show's special (S00E03, looked up in season 0), or returns nil. Its Label keeps the file's own words ("Special 3",
+// "OVA 2"): a show that is itself an OVA series numbers its episodes so, and the TV databases' season 0 may not
+// agree. The parser keeps such names whole, since AniList lists OVAs as titles of their own.
 func NamedSpecial(m *Media) *Media {
 	if m == nil || m.IsEpisode {
 		return nil
@@ -950,15 +951,19 @@ func NamedSpecial(m *Media) *Media {
 	if s == nil {
 		return nil
 	}
-	n := atoi(s.Str(2))
+	n := atoi(s.Str(3))
 	show := tidy(s.Str(1))
 	if n < 1 || u16len(show) < 2 {
 		return nil
 	}
+	word := strings.ToUpper(s.Str(2))
+	if !strings.HasPrefix(word, "O") {
+		word = "Special" // Special, Specials, SP
+	}
 	cp := *m
 	cp.Title, cp.IsEpisode, cp.Season, cp.Episode = show, true, 0, n
 	cp.Parts = []string{"S00E" + pad2n(n)}
-	cp.Label = cp.Parts[0]
+	cp.Label = word + " " + itoa(n)
 	cp.Display = show + " - " + cp.Label
 	cp.Index, cp.IndexTitle, cp.Year = NA, "", m.Year
 	return &cp

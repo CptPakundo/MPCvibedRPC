@@ -1198,6 +1198,17 @@ func (j *lookupJob) merge(base *core.Art, ep *core.ArtEpisode) *core.Art {
 	return out
 }
 
+// asSpecial marks a cached show as found through a named special when it is that special's show: entries cached
+// before Art.Special existed get the special's name too. It never changes b itself.
+func (j *lookupJob) asSpecial(b *core.Art) *core.Art {
+	if b == nil || b.Special || j.special == nil || b.Type != "series" || normTitle(b.Name) != normTitle(j.special.Title) {
+		return b
+	}
+	cp := *b
+	cp.Special = true
+	return &cp
+}
+
 // fits: a cached entry only serves episodes that fall inside it (AB065 fits the first entry, AB139 needs the entry
 // that continues the code).
 func (j *lookupJob) fits(b *core.Art) bool {
@@ -1248,7 +1259,7 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	if j.overrideArt != nil {
 		baseHave = j.overrideArt
 	} else if b := a.getBase(j.key); b != nil && j.fits(b) {
-		baseHave = b
+		baseHave = j.asSpecial(b)
 	}
 	epEntry, epPresent := a.getEp(j.epKey)
 	if baseHave != nil && !j.needInfo(baseHave) && !j.needAlt(baseHave) && (!j.wantEp || epPresent) {
@@ -1354,7 +1365,7 @@ func (j *lookupJob) baseArt() *core.Art {
 	if j.overrideArt != nil {
 		base = j.overrideArt
 	} else if b := a.getBase(j.key); b != nil && j.fits(b) {
-		cp := *b
+		cp := *j.asSpecial(b)
 		base = &cp
 	}
 	missKey := a.missed(j.key)

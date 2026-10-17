@@ -8,6 +8,10 @@
   in brackets (`Sample Show (2010) - Special 01`) the special's words were dropped as an edition note, and when a
   catalog answers the whole name with the show itself, the show's cover came without the special's name. Both now
   show the special's name. The weekly check looks one real special up this way, so a change at the catalog is noticed.
+- **Specials keep their own label.** Such a special now shows the file's own words (`OVA 3`, `Special 1`) on the
+  cover and, when no catalog knows its name, as its second line, instead of `Season 0, Episode 3`. Shows that are
+  themselves OVA series number their episodes that way, and the TV databases' season 0 may not agree. A show cached
+  for such a file by an earlier version gets the special's name too.
 - **Double episodes.** `Sample Show - S01E05 - S01E06` showed "S01E06" as the episode's title; it is now
   `S01E05E06`.
 - **Security check.** CI's Go vulnerability check is updated to govulncheck 1.9.0.

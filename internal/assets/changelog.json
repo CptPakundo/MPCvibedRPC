@@ -1,6 +1,7 @@
 [
   {"version": "0.9.38", "date": "2026-10-18", "items": [
     "🎁 Specials named in words now also get their name after a year, as in Sample Show (2010) - Special 01.",
+    "🏷️ Such a special shows the file's own words (OVA 3, Special 1) instead of Season 0, Episode 3.",
     "🔢 A double episode written S01E05 - S01E06 is shown as S01E05E06."
   ]},
   {"version": "0.9.37", "date": "2026-10-18", "items": [
