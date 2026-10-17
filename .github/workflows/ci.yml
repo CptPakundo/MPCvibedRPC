@@ -33,12 +33,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/run-annotated.sh "go vet" go vet ./...
         shell: bash
       - name: gofmt
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run gofmt -w on the files above.'; exit 1; }
+        shell: bash
+      - name: govulncheck
+        if: runner.os == 'Linux'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
         shell: bash
       - name: Test (with the race detector)
         if: runner.os == 'Linux'
@@ -60,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
       - name: Build
@@ -93,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
       - name: Build (Linux)
@@ -149,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - name: Install players (Linux)
         timeout-minutes: 10 # a slow package mirror once hung here
         if: runner.os == 'Linux'
@@ -181,7 +185,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - name: Live tests (PotPlayer, Kodi)
         timeout-minutes: 20
         run: |
@@ -195,7 +199,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
         run: |
@@ -218,7 +222,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
         run: |

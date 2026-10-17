@@ -4,7 +4,7 @@ How MPCvibedRPC is built, tested and released. For using it, see the [README](..
 
 ## Building
 The program is written in Go and uses only the standard library: one small file (about 8 MB, about 17 MB of memory while
-running and about 3 MB while resting), no runtime, nothing to install. Building needs [Go 1.24+](https://go.dev/dl/) and no internet beyond that.
+running and about 3 MB while resting), no runtime, nothing to install. Building needs [Go 1.27+](https://go.dev/dl/) and no internet beyond that.
 
     go run ./tools/mkrsrc -version X.Y.Z -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
     go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc

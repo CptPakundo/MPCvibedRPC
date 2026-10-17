@@ -51,7 +51,7 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
 2. Play something. If your player isn't found yet, press **Set up the player connection** in the window.
 3. Optional: **Start with Windows** (General tab) starts it quietly in the tray when you log in.
 
-**macOS 11 or later** (Apple silicon and Intel)
+**macOS 13 or later** (Apple silicon and Intel)
 1. Download **MPCvibedRPC-macos.zip**, open it and move the app to Applications.
 2. The app isn't notarized by Apple, so the first time it won't open: go to *System Settings > Privacy & Security* and
    choose **Open Anyway**.

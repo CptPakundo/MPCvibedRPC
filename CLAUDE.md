@@ -148,7 +148,8 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 ```
 - The workflows carry no version: `tools/ci/version.sh` reads it from `cmd/mpcvibedrpc/main.go` (VERSION, and NEXT for
   the smoke test's update) and, on a tag, fails when the tag does not match.
-- CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, and the tests with `-race`; Windows and macOS run
+- CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, `govulncheck` (pinned; a Go security fix
+  means bumping the exact Go patch in every `setup-go`), and the tests with `-race`; Windows and macOS run
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
   `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. A pull request from this repository
   is tested by its branch's push run (the `pull_request` run skips itself; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
