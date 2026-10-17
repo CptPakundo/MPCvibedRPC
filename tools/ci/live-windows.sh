@@ -8,7 +8,10 @@ work="$RUNNER_TEMP/live-windows"
 mkdir -p "$work"
 
 echo "::group::install"
-choco install -y --no-progress potplayer kodi ffmpeg > "$work/choco.log" || { cat "$work/choco.log"; exit 1; }
+choco install -y --no-progress kodi ffmpeg > "$work/choco.log" || { cat "$work/choco.log"; exit 1; }
+# PotPlayer replaces the installer at its fixed download address, so the package's recorded checksum goes stale; on
+# this throwaway runner it is installed without that check.
+choco install -y --no-progress --ignore-checksums potplayer >> "$work/choco.log" || { cat "$work/choco.log"; exit 1; }
 tail -5 "$work/choco.log"
 echo "::endgroup::"
 
