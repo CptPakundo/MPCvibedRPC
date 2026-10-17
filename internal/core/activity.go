@@ -191,6 +191,12 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		cp.Label = "E" + pad2n(media.Index)
 		media = &cp
 	}
+	// "Sample Show - Special 03" found as Sample Show's special: shown as S00E03 of the show.
+	if art != nil && art.Special && art.Type == "series" {
+		if sp := NamedSpecial(media); sp != nil {
+			media = sp
+		}
+	}
 
 	playing := info.State == 2
 	rate := info.Rate

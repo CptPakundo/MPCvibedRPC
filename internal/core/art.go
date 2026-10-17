@@ -138,6 +138,7 @@ type Art struct {
 	ViaRank    bool
 	Shift      int
 	EntryEps   int
+	Special    bool // found as the show of a named special ("Sample Show - Special 03"): see NamedSpecial
 }
 
 // NewArt returns an Art with the "unknown" numbers preset.
@@ -198,7 +199,8 @@ type artJSON struct {
 	ViaRank    bool            `json:"viaRank"`
 	Shift      float64         `json:"shift"`
 	EntryEps   float64         `json:"entryEps"`
-	IDs        *ArtIDs         `json:"ids"`
+	Special    bool            `json:"special"`
+	IDs       *ArtIDs         `json:"ids"`
 	Episode    *ArtEpisode     `json:"episode"`
 }
 
@@ -211,7 +213,7 @@ func (a *Art) UnmarshalJSON(b []byte) error {
 	}
 	*a = Art{Type: j.Type, Name: j.Name, Source: j.Source, Split: j.Split, SeasonName: j.SeasonName, SeasonNo: optInt(j.SeasonNo),
 		Poster: j.Poster, URL: j.URL, URLLabel: j.URLLabel, Year: optInt(j.Year), Info: j.Info, AniInfo: j.AniInfo,
-		EpInEntry: optInt(j.EpInEntry), ViaRank: j.ViaRank, Shift: int(j.Shift), EntryEps: int(j.EntryEps)}
+		EpInEntry: optInt(j.EpInEntry), ViaRank: j.ViaRank, Shift: int(j.Shift), EntryEps: int(j.EntryEps), Special: j.Special}
 	if len(j.Alt) > 0 {
 		if string(j.Alt) == "null" {
 			a.AltChecked = true
@@ -249,6 +251,9 @@ func (a Art) MarshalJSON() ([]byte, error) {
 	}
 	if a.ViaRank {
 		m["viaRank"] = true
+	}
+	if a.Special {
+		m["special"] = true
 	}
 	if a.Alt != nil {
 		m["alt"] = a.Alt
