@@ -107,7 +107,9 @@ func (w *Watcher) Now() *core.Info {
 	if dur > 0 && pos > dur {
 		pos = dur
 	}
-	return core.NewInfo(best.item.Name(), "", "", state, pos, dur, 1)
+	in := core.NewInfo(best.item.Name(), "", "", state, pos, dur, 1)
+	in.Where = best.item.Where()
+	return in
 }
 
 // Run follows the server until ctx ends, reconnecting after a pause when the connection drops.
@@ -397,7 +399,8 @@ func (w *Watcher) item(ctx context.Context, rk string) *Item {
 	w.mu.Unlock()
 	var r struct {
 		MediaContainer struct {
-			Metadata []Item `json:"Metadata"`
+			LibrarySectionTitle string `json:"librarySectionTitle"`
+			Metadata            []Item `json:"Metadata"`
 		} `json:"MediaContainer"`
 	}
 	c, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -406,6 +409,9 @@ func (w *Watcher) item(ctx context.Context, rk string) *Item {
 		return nil
 	}
 	it := r.MediaContainer.Metadata[0]
+	if it.LibrarySectionTitle == "" {
+		it.LibrarySectionTitle = r.MediaContainer.LibrarySectionTitle
+	}
 	w.mu.Lock()
 	if len(w.items) > 200 {
 		w.items = map[string]*Item{}

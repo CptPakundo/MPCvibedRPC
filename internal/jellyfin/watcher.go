@@ -78,7 +78,11 @@ func (w *Watcher) Now() *core.Info {
 	if dur > 0 && pos > dur {
 		pos = dur
 	}
-	return core.NewInfo(p.item.FileName(), "", "", state, pos, dur, 1)
+	in := core.NewInfo(p.item.FileName(), "", "", state, pos, dur, 1)
+	if p.item.Path != "" {
+		in.Where = []string{p.item.Path}
+	}
+	return in
 }
 
 // Run asks the server until ctx ends, waiting longer after each failure.

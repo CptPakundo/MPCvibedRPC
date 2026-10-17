@@ -35,7 +35,7 @@ shown here.
 | `showRemainingTime` | `false` | Only used when `activityType` is `'playing'`. |
 | `episodeInDetails` | `false` | `true` repeats the season and episode number in the title line too (Discord already shows a badge when the card is expanded). |
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
-| `linkButton` | `true` | Link to the title's page (IMDb, AniList, ...): adds a "View on IMDb" style button and makes the second line and the cover clickable (visible to others on your profile). If Discord refuses the line and cover links, they are left out from then on. |
+| `linkButton` | `true` | Link to the title's page (IMDb, AniList, ...): adds a "View on IMDb" style button and makes both text lines and the cover clickable (others can click them on your profile; Discord doesn't let you click your own). If Discord refuses these links, they are left out from then on. |
 
 ## Privacy
 
@@ -44,7 +44,7 @@ These are all on the **Privacy** tab of the settings window.
 | Setting | Default | What it does |
 |---|---|---|
 | `hideTitle` | `false` | Show only "Watching a video" with the progress bar: no title, cover, episode or buttons, and nothing is looked up online. The log does not record the title either. Also a tick item, **Hide what I'm watching**, in the Windows tray menu and the macOS menu bar menu (not on Linux, which has no tray). |
-| `hideFiles` | `[]` | Files that are never shown. Each entry is matched without regard to case; `/` and `\` are alike. A plain entry hides a file whose whole path (folders and name) contains it, for example `Private` or `D:\Videos\Private`. An entry with `*` (any run of characters) or `?` (one character) must match the whole file name or the whole path, for example `*.xyz`. A hidden file shows no status at all and is not looked up. At most 100 entries of 300 characters. Plex, Stremio, Jellyfin and Emby have no file paths: there an entry is matched against the title as "Show - S01E02 - Episode" or "Movie (2020)". |
+| `hideFiles` | `[]` | Files that are never shown. Each entry is matched without regard to case; `/` and `\` are alike. A plain entry hides a file whose whole path (folders and name) contains it, for example `Private` or `D:\Videos\Private`. An entry with `*` (any run of characters) or `?` (one character) must match the whole file name or the whole path, for example `*.xyz`. A hidden file shows no status at all and is not looked up. At most 100 entries of 300 characters. For Plex, Stremio, Jellyfin and Emby an entry is also matched against the title as "Show - S01E02 - Episode" or "Movie (2020)", and for Plex, Jellyfin and Emby against the file's path on the server (when the server gives it) and the Plex library's name: `Kids` hides a whole library called Kids. These are only matched, never shown or logged. |
 | `showArtwork` | `true` | Look up cover art and titles online. `false` stays completely offline (it also turns off episode-title lookups). |
 | `disabledSources` | `[]` | Online services that must never be contacted, whatever the source lists below say. Ids: `tmdb`, `imdb`, `cinemeta`, `tvmaze`, `anilist`, `kitsu`, `jikan` (MyAnimeList), `wikipedia`, `bulbapedia`. The window shows a switch for each; the stored list holds the ones that are off. |
 | `pauseClearMinutes` | `30` | Take the status down after the video has been paused this many minutes (0 = never). It comes back when you play again, seek, or turn this off. |

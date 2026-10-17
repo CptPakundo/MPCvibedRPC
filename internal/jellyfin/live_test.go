@@ -93,6 +93,7 @@ func TestLiveJellyfin(t *testing.T) {
 		}
 		if in := w.Now(); in != nil && in.State == 2 && strings.Contains(in.File, title) {
 			t.Logf("playing: %q at %d of %d ms", in.File, in.Position, in.Duration)
+			t.Logf("the server gives the file path (for the Never show list): %v", len(in.Where) > 0)
 			if in.Duration <= 0 || in.Position <= 0 {
 				t.Fatalf("position and length: %+v", in)
 			}

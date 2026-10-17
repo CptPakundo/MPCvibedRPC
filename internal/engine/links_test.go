@@ -55,6 +55,9 @@ func TestTitleAndCoverLinkToTheCatalogPage(t *testing.T) {
 	if a["details_url"] != page || as["large_url"] != page {
 		t.Fatalf("the details line and the cover should open the catalog page: %v", a)
 	}
+	if a["state_url"] != nil {
+		t.Fatalf("no state line, so no state link: %v", a)
+	}
 	if b, _ := a["buttons"].([]any); len(b) != 1 {
 		t.Fatalf("the button stays: %v", a)
 	}
@@ -69,7 +72,7 @@ func TestNoLinksWithTheButtonSwitchOff(t *testing.T) {
 		return as != nil && as["large_image"] == "https://img.example/poster.jpg"
 	})
 	a := lastActivity(d)
-	if a["details_url"] != nil || a["assets"].(map[string]any)["large_url"] != nil || a["buttons"] != nil {
+	if a["details_url"] != nil || a["state_url"] != nil || a["assets"].(map[string]any)["large_url"] != nil || a["buttons"] != nil {
 		t.Fatalf("no links of any kind: %v", a)
 	}
 }
@@ -103,7 +106,7 @@ func TestRefusedLinksAreLeftOut(t *testing.T) {
 	eventually(t, "sent without links", func() bool {
 		a := lastActivity(d)
 		as, _ := a["assets"].(map[string]any)
-		return a != nil && a["details_url"] == nil && as != nil && as["large_image"] == "https://img.example/poster.jpg"
+		return a != nil && a["details_url"] == nil && a["state_url"] == nil && as != nil && as["large_image"] == "https://img.example/poster.jpg"
 	})
 	a := lastActivity(d)
 	if a["type"] != float64(3) || a["assets"].(map[string]any)["large_url"] != nil || l.has("Falling back to basic mode") {

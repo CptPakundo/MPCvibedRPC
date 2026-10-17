@@ -94,7 +94,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
   (the update check, which you can switch off) are contacted.
 - To find covers, the **title** (never the file path) is sent to the catalog services you allow. The **Privacy** tab has
   a switch for each one, plus one switch to stay fully offline.
-- **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders or names completely.
+- **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders, names or a whole Plex library completely.
 - Music played in a video player shows as "Listening to" and is never looked up in the movie and TV catalogs.
 - Your status clears itself after a long pause (30 minutes, adjustable).
 - **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
@@ -105,11 +105,12 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 
 ## ❓ Help
 
-**Nothing shows on Discord?** Check these three things first:
+**Nothing shows on Discord?** Check these first:
 
 1. The Discord desktop app (not the browser) is running.
 2. *User Settings > Activity Privacy > "Share my activity"* is turned on.
-3. The status line at the top of the window says what is missing, for example "No player found".
+3. Discord runs normally, not as administrator.
+4. The status line at the top of the window says what is missing, for example "No player found".
 
 **Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the
 recent log. It names what you played, so a wrong title can be traced; folder paths, sign-ins and keys are left out.

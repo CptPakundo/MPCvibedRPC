@@ -10,6 +10,16 @@ listed in [All settings](config.md).
 - IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
 - "Discord on standby" is normal until something plays. If it stays on "Waiting for Discord" while a video plays, use
   the Discord desktop app (not the browser) and check that "Share my activity" is on.
+- "Discord refused the connection": Discord runs as administrator and this program doesn't, so Windows keeps them apart.
+  Close Discord and start it normally (not with "Run as administrator", and without that setting in its shortcut).
+- More than one Discord (Stable, PTB, Canary) open: the status goes to the one that started first, which may be signed
+  in to another account. Close the ones you don't use.
+- You can't click your own "View on ..." button or links on your profile; that's how Discord works. Others can.
+- "Watching Media Player Classic" instead of the title: turn on **Look > Show the title as the activity name**. The name
+  after "Watching" is the Discord application's name unless that switch puts the title there.
+- mpv-based players (mpv.net, for example) can be read like mpv when they open the same connection: add
+  `input-ipc-server=mpvsocket` to that player's own `mpv.conf` (not tested with each of them). Players that drive MPC-HC,
+  mpv or VLC, such as Syncplay, work as those players do. Streaming websites in a browser are not read.
 - VLC: the window says when VLC refuses the password, or another program uses its port (8080). Change the port in VLC
   and in **Advanced > VLC web interface port**.
 - Linux: a player that isn't found probably doesn't offer MPRIS, or isn't on the list yet (music players and browsers
@@ -89,6 +99,9 @@ download. When an update is available, a line at the top of the window says so, 
 an update the window shows what's new once; the version number at the top of the window shows every version.
 
 ## Is the download safe?
+
+The program isn't code-signed, so Windows may say "Windows protected your PC" the first time (More info > Run anyway),
+and an antivirus program may flag a new version for a while. Check the file as below before you allow it.
 
 Each release file has a `.sha256` checksum next to it, and GitHub keeps a signed record that it was built from this
 repository. With the [GitHub CLI](https://cli.github.com/): `gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC`.

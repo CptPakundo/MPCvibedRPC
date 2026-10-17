@@ -18,6 +18,9 @@ type Info struct {
 	Duration int // ms
 	Rate     float64
 	Player   string // which player answered (set by the engine)
+	// Where is where a server keeps the item (Plex: its library name and file path; Jellyfin, Emby: the file path, when
+	// the server gives it). The Never show list matches each like a file path; they are never shown, logged or sent.
+	Where []string
 }
 
 var (
