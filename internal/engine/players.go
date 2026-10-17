@@ -13,6 +13,7 @@ import (
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
+	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
@@ -226,6 +227,9 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 				}
 			})
 		}
+		if cfg.KodiPassword != "" {
+			sources = append(sources, func(offer func(*core.Info) bool) { offer(e.fetchKodi(ctx, cfg)) })
+		}
 		sources = append(sources, e.remoteSource(ctx))
 		offer := func(in *core.Info) bool {
 			if !pk.offer(in) {
@@ -279,6 +283,9 @@ func lookingOn(cfg core.Config) string {
 	if runtime.GOOS == "windows" {
 		places = append(places, "PotPlayer")
 	}
+	if cfg.KodiPassword != "" {
+		places = append(places, "Kodi's web server")
+	}
 	if cfg.PlexToken != "" {
 		places = append(places, "your Plex server")
 	}
@@ -297,4 +304,31 @@ func orJellyfin(product string) string {
 		return "Jellyfin"
 	}
 	return product
+}
+
+// fetchKodi asks Kodi's web server; a problem (a refused password, another program at the address) is logged once
+// and shown in the window.
+func (e *Engine) fetchKodi(ctx context.Context, cfg core.Config) *core.Info {
+	ctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+	defer cancel()
+	in, err := e.kodi.Query(ctx, cfg.KodiAddress, cfg.KodiUser, cfg.KodiPassword)
+	problem := ""
+	switch {
+	case errors.Is(err, kodi.ErrPassword):
+		problem = "Kodi refused the user name or password. They have to match the ones in Kodi (Settings > Services > Control)."
+	case errors.Is(err, kodi.ErrNotKodi):
+		problem = "The Kodi address answers, but not as Kodi. Check the address and port (Advanced > Players > Kodi web server address)."
+	}
+	e.mu.Lock()
+	changed := problem != e.kodiProblem
+	e.kodiProblem = problem
+	e.mu.Unlock()
+	if changed && problem != "" {
+		e.log("WARN", problem)
+	}
+	if err != nil {
+		return nil
+	}
+	in.Player = "Kodi"
+	return in
 }

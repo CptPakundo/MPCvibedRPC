@@ -75,7 +75,7 @@ func asMap(v any) map[string]any {
 
 // privateKeys are the settings whose value is never shown, only that it is set: keys, sign-ins, accounts and servers.
 var privateKeys = map[string]bool{
-	"tmdbApiKey": true, "vlcPassword": true, "stremioKey": true,
+	"tmdbApiKey": true, "vlcPassword": true, "kodiPassword": true, "kodiAddress": true, "stremioKey": true,
 	"plexToken": true, "plexAccount": true, "plexUser": true, "plexServer": true, "plexServerName": true, "plexClient": true, "plexAddress": true,
 	"jellyfinAddress": true, "jellyfinToken": true, "jellyfinUser": true, "jellyfinUserName": true, "jellyfinServerName": true, "jellyfinDevice": true,
 }
