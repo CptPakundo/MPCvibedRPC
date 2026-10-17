@@ -18,6 +18,9 @@ func TestParseEpisodeForms(t *testing.T) {
 		{"Sample Show E05-E06.mkv", "Sample Show", NA, 5, "Sample Show - E05E06"},
 		{"Sample Show Ep. 5.mkv", "Sample Show", NA, 5, "Sample Show - E05"},
 		{"Sample Show S01E123.mkv", "Sample Show", 1, 123, "Sample Show - S01E123"},
+		{"Sample Show - S01E05 - S01E06.mkv", "Sample Show", 1, 5, "Sample Show - S01E05E06"},
+		{"Sample Show - S01E05 - S01E06 - Two Parts.mkv", "Sample Show", 1, 5, "Sample Show - S01E05E06 - Two Parts"},
+		{"Sample Show - S01E05 - S02E01.mkv", "Sample Show", 1, 5, "Sample Show - S01E05 - S02E01"}, // not one double episode
 	} {
 		m := ParseMedia(c.file, &cfg, nil)
 		if !m.IsEpisode || m.Title != c.title || m.Season != c.season || m.Episode != c.ep || m.Display != c.display {
