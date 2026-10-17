@@ -1,4 +1,10 @@
 [
+  {"version": "0.9.31", "date": "2026-10-17", "items": [
+    "⏱️ Stremio: a video keeps showing with Stremio's newer apps, which save your place every 3 minutes instead of 90 seconds.",
+    "🧭 MyAnimeList (through Jikan) is no longer asked: its public service closed. AniList and Kitsu still cover anime.",
+    "🙏 The Help tab has credits for TMDB and TVmaze, and the welcome card finds Discord's renamed Games & Apps settings.",
+    "🍎 macOS 13 or later is needed now (Discord itself needs it), and a server on your home network can be allowed on macOS 15."
+  ]},
   {"version": "0.9.30", "date": "2026-10-17", "items": [
     "🎬 PotPlayer (Windows) and Kodi (any system, also on another device) are supported.",
     "🖼️ Each player shows with its own logo on Discord instead of Media Player Classic's or none.",
