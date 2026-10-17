@@ -136,6 +136,26 @@ func TestLiveCatalogs(t *testing.T) {
 		}
 		sc := search(t, "cinemeta", "series", liveSeries)
 		firstEpisode(t, "cinemeta", liveSeries, core.ArtIDs{Imdb: imdbIDFrom(sc.URL)}, epCtx{})
+		// specials are season 0 there (S00E01), the only keyless source of their names
+		special := liveTitle{"The Twilight Zone (1959) - S00E01.mkv", liveSeries.title, liveSeries.year}
+		media := core.ParseMedia(special.file, &cfg, nil)
+		var list []EpItem
+		ask(t, func(a *Artwork) (err error) {
+			if list, err = a.res.provs["cinemeta"].list(a.res, media, core.ArtIDs{Imdb: imdbIDFrom(sc.URL)}, epCtx{query: special.title, seasonNo: media.Season}); err != nil {
+				err = fmt.Errorf("Cinemeta specials: %w", err)
+			}
+			return err
+		})
+		found := false
+		for _, e := range list {
+			if e.Season == 0 && e.Number == 1 && usable(e.Name) {
+				found = true
+				t.Logf("Cinemeta: special S00E01 of %q is %q", special.title, e.Name)
+			}
+		}
+		if !found {
+			t.Errorf("Cinemeta: no usable special S00E01 for %q", special.title)
+		}
 	})
 	t.Run("imdb", func(t *testing.T) {
 		search(t, "imdb", "movie", liveMovie)
