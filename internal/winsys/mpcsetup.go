@@ -127,6 +127,9 @@ func (p player) belongs(exe string) bool {
 // kind. Only VLC is ever closed, and only when its settings have to change.
 var otherPlayers = []player{mpcQTPlayer, mpvPlayer, vlcPlayer}
 
+// readOnlyPlayers need no setup and are only named in diagnostics.
+var readOnlyPlayers = []player{{name: "PotPlayer", procs: []string{"potplayermini64", "potplayermini", "potplayer64", "potplayer"}}}
+
 var (
 	mpcQTPlayer = player{name: "MPC-QT", procs: []string{"mpc-qt"}, installDirs: []string{"MPC-QT"}, userIniDir: "mpc-qt"}
 	mpvPlayer   = player{name: "mpv", procs: []string{"mpv"}}

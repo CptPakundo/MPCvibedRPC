@@ -28,7 +28,7 @@ func TestRestWhileDiscordIsClosed(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{path}, CacheFile: filepath.Join(t.TempDir(), "c.json"),
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, Log: l.add, DiscordPaths: []string{path}, CacheFile: filepath.Join(t.TempDir(), "c.json"),
 		MayRest: mayRest.Load, OnRest: func() { rested.Add(1) }})
 	t.Cleanup(e.Stop)
 	e.Start()
@@ -71,7 +71,7 @@ func TestNoRestWithoutMayRest(t *testing.T) {
 	m := newMPC(t)
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, DiscordPaths: []string{fakePath(sockDir(t))}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, DiscordPaths: []string{fakePath(sockDir(t))}, CacheFile: filepath.Join(t.TempDir(), "c.json")})
 	t.Cleanup(e.Stop)
 	e.Start()
 	eventually(t, "the player asked", func() bool { return m.count() >= 2 })

@@ -16,6 +16,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
 	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPCvibedRPC/internal/potplayer"
 	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
 )
 
@@ -211,6 +212,20 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 				}
 			})
 		}
+		if runtime.GOOS == "windows" || e.opts.PotPlayer != nil { // PotPlayer is Windows only; tests stand in for it anywhere
+			sources = append(sources, func(offer func(*core.Info) bool) {
+				query := potplayer.Query
+				if e.opts.PotPlayer != nil {
+					query = e.opts.PotPlayer
+				}
+				for _, in := range query() {
+					in.Player = "PotPlayer"
+					if offer(in) {
+						return
+					}
+				}
+			})
+		}
 		sources = append(sources, e.remoteSource(ctx))
 		offer := func(in *core.Info) bool {
 			if !pk.offer(in) {
@@ -260,6 +275,9 @@ func lookingOn(cfg core.Config) string {
 	}
 	if HasMPRIS && cfg.Mpris {
 		places = append(places, "the video players on D-Bus (MPRIS)")
+	}
+	if runtime.GOOS == "windows" {
+		places = append(places, "PotPlayer")
 	}
 	if cfg.PlexToken != "" {
 		places = append(places, "your Plex server")

@@ -168,11 +168,14 @@ func noPipes(core.Config) []PlayerPipe { return nil }
 // noMPRIS keeps video players on this computer's D-Bus (Linux) out of the tests.
 func noMPRIS(time.Duration) []*core.Info { return nil }
 
+// noPotPlayer keeps a PotPlayer that happens to run on this computer out of the tests.
+func noPotPlayer() []*core.Info { return nil }
+
 // testMod adjusts the settings and options of a test engine before it is made.
 type testMod func(*core.Config, *Options)
 
 // newTestEngine makes an engine for a test: it talks to a fake Discord, logs into the returned capture, asks every
-// 250 ms, looks nothing up, sees no player on this computer (see noPipes and noMPRIS), keeps its cache in a temporary
+// 250 ms, looks nothing up, sees no player on this computer (see noPipes, noMPRIS and noPotPlayer), keeps its cache in a temporary
 // folder and is stopped when the test ends. mods change that before the engine is made.
 func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
 	d := newDisc(t)
@@ -180,7 +183,7 @@ func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
 	cfg.PollInterval = 250
 	cfg.ShowArtwork = false
 	l := &logs{}
-	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
+	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
 	for _, mod := range mods {
 		mod(&cfg, &opts)
 	}
@@ -320,7 +323,7 @@ func TestDiscordLateAndReconnect(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
 	l := &logs{}
-	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, Log: l.add, DiscordPaths: []string{path}})
+	e := New(cfg, Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, Log: l.add, DiscordPaths: []string{path}})
 	defer e.Stop()
 	e.Start()
 	eventually(t, "waiting warning", func() bool { return l.has("Could not reach Discord") })
