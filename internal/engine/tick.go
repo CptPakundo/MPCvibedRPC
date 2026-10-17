@@ -122,7 +122,7 @@ func (e *Engine) tick(r *run) {
 		e.mu.Lock()
 	}
 	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2)
-	hidden := active && core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles)
+	hidden := active && (core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles) || hiddenWhere(info.Where, cfg.HideFiles))
 
 	if !active || hidden {
 		var clear *discord.Client
@@ -287,3 +287,13 @@ func pollInterval(cfg core.Config) time.Duration {
 // recheckAfter is when an episode shown without its title is looked up again, in minutes after it was shown (or after
 // the previous try): a catalog that did not answer gets another chance while the episode plays.
 var recheckAfter = []float64{2.5, 5, 15}
+
+// hiddenWhere reports whether the Never show list matches where a server keeps the item (see core.Info.Where).
+func hiddenWhere(where, entries []string) bool {
+	for _, w := range where {
+		if core.MatchesHideList(w, "", entries) {
+			return true
+		}
+	}
+	return false
+}

@@ -28,6 +28,10 @@ const (
 	opPong      = 4
 )
 
+// ErrRefused is Login's answer when Discord's connection is there but may not be opened: on Windows, Discord running as
+// administrator while this program is not.
+var ErrRefused = errors.New("Discord refused the connection: it is probably running as administrator. Start Discord normally, not as administrator")
+
 // Error is an ERROR event answered by Discord.
 type Error struct {
 	Code    int
@@ -118,11 +122,17 @@ func (c *Client) Login(clientID string, timeout time.Duration) error {
 		timeout = 6 * time.Second
 	}
 	var conn io.ReadWriteCloser
+	refused := false
 	for _, p := range c.paths {
-		if cn, err := pipe.Dial(p); err == nil {
+		cn, err := pipe.Dial(p)
+		if err == nil {
 			conn = cn
 			break
 		}
+		refused = refused || errors.Is(err, os.ErrPermission)
+	}
+	if conn == nil && refused {
+		return ErrRefused
 	}
 	if conn == nil {
 		return errors.New("Discord is not running (no IPC socket found)")

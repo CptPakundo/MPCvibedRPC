@@ -35,7 +35,8 @@ func newFakeJellyfin(t *testing.T) *fakeJellyfin {
 		}
 		fmt.Fprintf(w, `[{"PlayState":{"PositionTicks":6000000000,"IsPaused":%t},"Id":"s1","UserId":%q,"Client":"Jellyfin Web",
 			"LastPlaybackCheckIn":%q,"NowPlayingItem":{"Name":"The Sample","Id":"i1","Type":"Episode","MediaType":"Video",
-			"SeriesName":"Sample Show","ParentIndexNumber":1,"IndexNumber":2,"RunTimeTicks":14400000000}}]`,
+			"SeriesName":"Sample Show","ParentIndexNumber":1,"IndexNumber":2,"RunTimeTicks":14400000000,
+			"Path":"/media/kids/Sample Show/Season 1/Sample Show - S01E02.mkv"}}]`,
 			f.paused, jellyfinUser, time.Now().UTC().Format("2006-01-02T15:04:05.0000000Z"))
 	}))
 	t.Cleanup(f.Server.Close)

@@ -71,6 +71,8 @@ type Status struct {
 	// Resting is true while Discord is not running and nothing is asked (see Options.MayRest; never while the
 	// window is open).
 	Resting bool `json:"resting,omitempty"`
+	// DiscordProblem says why Discord cannot be reached when the reason is known (it refused the connection).
+	DiscordProblem string `json:"discordProblem,omitempty"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -108,6 +110,8 @@ type Engine struct {
 	paused     bool
 	lastError  *string
 	since      *int64
+
+	discRefused bool // the last attempt to reach Discord was refused (Discord running as administrator)
 
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
@@ -186,7 +190,7 @@ func (e *Engine) start() {
 	e.cur = r
 	e.basicMode, e.noLinks, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, false, nil, false, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
-	e.vlcProblem = ""
+	e.vlcProblem, e.discRefused = "", false
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -308,6 +312,9 @@ func (e *Engine) Status() Status {
 			s.Discord = "waiting"
 		default:
 			s.Discord = "standby"
+		}
+		if e.discRefused && !e.ready {
+			s.DiscordProblem = "Discord refused the connection. It is probably running as administrator: start it normally."
 		}
 		s.Paused = e.paused
 		s.MPC = e.mpcUp

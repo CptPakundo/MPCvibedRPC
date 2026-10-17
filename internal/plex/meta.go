@@ -15,6 +15,25 @@ type Item struct {
 	Index            *int   `json:"index"`            // its number in the season
 	Year             int    `json:"year"`
 	Duration         int    `json:"duration"` // ms
+	// where the server keeps it (for the Never show list only)
+	LibrarySectionTitle string `json:"librarySectionTitle"`
+	Media               []struct {
+		Part []struct {
+			File string `json:"file"`
+		} `json:"Part"`
+	} `json:"Media"`
+}
+
+// Where is where the server keeps the item: its library name and its file path, for the Never show list.
+func (it *Item) Where() []string {
+	var w []string
+	if it.LibrarySectionTitle != "" {
+		w = append(w, it.LibrarySectionTitle)
+	}
+	if len(it.Media) > 0 && len(it.Media[0].Part) > 0 && it.Media[0].Part[0].File != "" {
+		w = append(w, it.Media[0].Part[0].File)
+	}
+	return w
 }
 
 // IsVideo tells video apart from music, photos and the like, which are never shown as "Watching".

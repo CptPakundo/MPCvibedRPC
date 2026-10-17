@@ -39,7 +39,7 @@ func newFakePlex(t *testing.T) *fakePlex {
 		case r.URL.Path == "/identity":
 			fmt.Fprint(w, `{"MediaContainer":{"size":0,"apiVersion":"1.2.3","claimed":true,"machineIdentifier":"srv-1","version":"1.43.4.10903-e5521bd8c"}}`)
 		case r.URL.Path == "/library/metadata/4":
-			fmt.Fprint(w, `{"MediaContainer":{"size":1,"librarySectionTitle":"TV","Metadata":[{"ratingKey":"4","key":"/library/metadata/4","type":"episode","title":"The Pilot","grandparentTitle":"Sample Show","parentTitle":"Season 1","index":2,"parentIndex":1,"duration":300023}]}}`)
+			fmt.Fprint(w, `{"MediaContainer":{"size":1,"librarySectionTitle":"TV","Metadata":[{"ratingKey":"4","key":"/library/metadata/4","type":"episode","title":"The Pilot","grandparentTitle":"Sample Show","parentTitle":"Season 1","index":2,"parentIndex":1,"duration":300023,"Media":[{"Part":[{"file":"/data/shows/Sample Show/Season 1/Sample Show - S01E02.mkv"}]}]}]}}`)
 		case r.URL.Path == "/:/eventsource/notifications":
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.WriteHeader(200)

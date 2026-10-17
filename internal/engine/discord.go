@@ -33,6 +33,7 @@ func (e *Engine) connectDiscord(r *run) {
 		if err != nil {
 			if e.cur == r {
 				e.connecting = false
+				e.discRefused = errors.Is(err, discord.ErrRefused)
 			}
 			warn := !e.warnedDisc && e.cur == r
 			if warn {
@@ -54,6 +55,7 @@ func (e *Engine) connectDiscord(r *run) {
 		e.ready = true
 		e.connecting = false
 		e.warnedDisc = false
+		e.discRefused = false
 		e.prev = nil
 		e.mu.Unlock()
 		e.log("INFO", "Connected to Discord.")

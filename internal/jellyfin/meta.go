@@ -18,6 +18,7 @@ type Item struct {
 	IndexNumber       *int   `json:"IndexNumber"`       // its number in the season
 	ProductionYear    int    `json:"ProductionYear"`
 	RunTimeTicks      int64  `json:"RunTimeTicks"` // 100 ns
+	Path              string `json:"Path"`         // the file on the server, when it says (for the Never show list only)
 }
 
 // IsVideo tells video apart from music, audiobooks and photos, which are never shown as "Watching".

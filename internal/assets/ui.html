@@ -29,6 +29,8 @@
   header h1 { font-size: 17px; margin: 0; font-weight: 650; }
   #ver { margin-left: auto; background: none; border: 0; padding: 3px 6px; color: var(--muted); font-size: 12px; }
   #ver:hover { color: var(--accent); text-decoration: underline; }
+  button.link { background: none; border: 0; padding: 0; margin-top: 6px; color: var(--muted); font-size: 12px; }
+  button.link:hover { color: var(--accent); text-decoration: underline; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; box-shadow: var(--shadow); }
   .row { display: flex; align-items: center; gap: 10px; }
   .row > .grow { flex: 1; min-width: 0; }
@@ -159,6 +161,7 @@
         <button id="toggle" class="primary">Show on Discord</button>
       </div>
       <div class="now hidden" id="now"></div>
+      <div class="help bad hidden" id="discordProblem"></div>
       <div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
     </section>
 
@@ -174,6 +177,7 @@
           <div class="pv-button hidden" id="pvButton"></div>
         </div>
       </div>
+      <button class="link" id="fixMatch">Wrong title or cover?</button>
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
@@ -698,6 +702,7 @@
     bar.classList.toggle('hidden', !timed);
     if (timed) { const total = (p.end - p.start) / 1000; const done = Math.min(total, Math.max(0, (Date.now() - p.start) / 1000)); $('pvElapsed').textContent = mmss(done); $('pvTotal').textContent = mmss(total); $('pvFill').style.width = (100 * done / total).toFixed(1) + '%'; }
     const btn = $('pvButton'); btn.textContent = p.button || ''; btn.classList.toggle('hidden', !p.button);
+    $('fixMatch').classList.toggle('hidden', !!p.listening); // songs are not looked up
   }
 
   function paint(s) {
@@ -732,6 +737,7 @@
     // a short line for screen readers, changed only when the state changes (the status itself changes every second)
     const live = s.running ? d.textContent + '. ' + p.textContent + '.' : 'Not showing on Discord.';
     if ($('liveStatus').textContent !== live) $('liveStatus').textContent = live;
+    const dp = $('discordProblem'); dp.textContent = s.discordProblem || ''; dp.classList.toggle('hidden', !s.discordProblem);
     $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
     const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
     if (s.update && s.update.newer && s.update.latest !== updShown && $('installUpd').disabled === false) showUpdate(s.update, false);
@@ -874,6 +880,12 @@
   };
   $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose', '_blank', 'noopener');
   $('ver').onclick = () => showChangelog(true);
+  // the preview's "Wrong title or cover?": the place where a match is fixed (another name to search under, a pinned cover)
+  $('fixMatch').onclick = () => {
+    showTab('titles');
+    const h = [...document.querySelectorAll('#p-titles h3.grp')].find((x) => x.textContent === 'Fix a match');
+    if (h) h.scrollIntoView({ block: 'start' });
+  };
   $('statsReset').onclick = async () => {
     if (!await ask('Reset your stats?', 'The counts start again from today.', 'Reset', true)) return;
     try { paintStats(await api('stats-reset', {})); } catch (e) { note(e.message, true); }

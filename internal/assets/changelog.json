@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.26", "date": "2026-10-17", "items": [
+    "🙈 Never show these files can hide a whole Plex library, or a folder on your Plex, Jellyfin or Emby server.",
+    "🛡️ When Discord runs as administrator, the window says so instead of just waiting for Discord.",
+    "🔗 Both text lines on Discord now open the title's page, and \"Wrong title or cover?\" leads to the fix."
+  ]},
   {"version": "0.9.25", "date": "2026-10-17", "items": [
     "🧹 Quitting and updating always clean up after themselves, even while another program is reading the app's files."
   ]},

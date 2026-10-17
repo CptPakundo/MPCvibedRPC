@@ -51,7 +51,7 @@ var Sections = []Section{
 		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
-		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the second line and the cover clickable. Visible to others on your profile.`},
+		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the text lines and the cover clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
 		{Key: "episodeInDetails", Type: "bool", Label: "Also show S01E02 in the title line", Help: "Discord already shows a season and episode badge."},
 	}},
 	{ID: "titles", Title: "Titles and artwork", Fields: []Field{
@@ -69,7 +69,7 @@ var Sections = []Section{
 	{ID: "privacy", Title: "Privacy", Fields: []Field{
 		{Type: "heading", Label: "What other people see on Discord"},
 		{Key: "hideTitle", Type: "bool", Label: "Hide what I'm watching", Help: "Shows only \"Watching a video\" with the progress bar. No title, cover or buttons, and nothing is looked up online."},
-		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up. For Plex, Stremio, Jellyfin and Emby the entry is matched against the title."},
+		{Key: "hideFiles", Type: "lines", Label: "Never show these files", Help: "One entry per line. A file is hidden when its path contains the entry (any case), for example a folder name such as Private. Use * and ? as wildcards, for example *.xyz. A hidden file shows no status at all and is not looked up. For Plex, Jellyfin and Emby it is also matched against the file's path on the server and the Plex library's name, so an entry such as Kids hides a whole library; for Stremio, against the title."},
 		{Key: "pauseClearMinutes", Type: "int", Label: "Clear my status when paused for (minutes)", Help: "0 keeps it until you resume (default 30). It comes back when you play again.", Min: ip(0), Max: ip(1440)},
 		{Type: "heading", Label: "What online services see"},
 		{Key: "showArtwork", Type: "bool", Label: "Look up cover art and titles online", Help: "Turn off to stay completely offline: nothing about what you watch is sent anywhere."},

@@ -1,14 +1,26 @@
-## MPCvibedRPC 0.9.25
+## MPCvibedRPC 0.9.26
 
-**A small fix: quitting and updating always clean up after themselves.**
+**Hide a whole Plex library, a clear word when Discord runs as administrator, and clickable text lines.**
 
-- When the program quits or installs an update, it removes the small file that tells a second copy where the running
-  one is (`ipc.json` in the settings folder). On Windows, that removal could fail if another program was reading the
-  file at that moment, and the file was left behind. The next start handled that fine, but now the program tries
-  again for up to a second, so the file is always cleaned up.
+### Privacy
+- **Never show these files** now also hides by where a server keeps a video. For Plex it matches the library's name,
+  so one entry such as `Kids` hides a whole library. For Plex, Jellyfin and Emby it also matches the file's path on
+  the server, when the server gives it: `Private` hides that folder, just as it does for files on this computer.
+  These names and paths are only compared. They are never shown, written to the log or sent anywhere.
 
-Everything else is as in 0.9.24: settings in grouped cards, Updates inside General, and the version number at the top
-opens the changelog.
+### Discord
+- When Discord runs as administrator and this program doesn't, Windows keeps the two apart. The window now says so
+  ("Discord refused the connection ... start it normally") instead of only "Waiting for Discord".
+- With **Link to the title's page** on, both text lines on your Discord status open the title's page, not just the
+  first. Others can click them; Discord doesn't let you click your own, and the switch's help now says so.
+
+### Window
+- **Wrong title or cover?** under the "How it looks on Discord" preview takes you to Titles & art > Fix a match.
+
+### Help
+- Troubleshooting covers more of the usual reasons a status doesn't show: Discord run as administrator, several
+  Discord apps open at once, your own buttons not being clickable, and "Watching Media Player Classic" instead of the
+  title. It also covers mpv-based players and Windows' "Windows protected your PC" warning for this unsigned program.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
