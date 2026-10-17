@@ -15,6 +15,11 @@ case "${1:-}" in
     echo "$b  $3"
     if [ "$a" != "$b" ]; then
       echo "::error title=not reproducible::$2 and $3 differ ($(cmp "$2" "$3" | head -1 || true))"
+      echo "build settings that differ:"
+      diff <(go version -m "$2" | tail -n +2) <(go version -m "$3" | tail -n +2) || true
+      echo "differing bytes: $(cmp -l "$2" "$3" | wc -l); sizes $(wc -c < "$2") and $(wc -c < "$3")"
+      at=$(cmp "$2" "$3" | sed -E 's/.* byte ([0-9]+).*/\1/' || true)
+      [ -z "$at" ] || { start=$(( at > 64 ? at - 64 : 0 )); xxd -s "$start" -l 160 "$2"; echo; xxd -s "$start" -l 160 "$3"; }
       exit 1
     fi
     echo "same"
@@ -33,10 +38,10 @@ case "${1:-}" in
     export CGO_ENABLED=0
     syso=cmd/mpcvibedrpc/rsrc_windows_amd64.syso
     go run ./tools/mkrsrc -version "$v" -out "$syso"
-    GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o "$out/MPCvibedRPC.exe" ./cmd/mpcvibedrpc
+    GOOS=windows GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$v" -o "$out/MPCvibedRPC.exe" ./cmd/mpcvibedrpc
     rm -f "$syso"
     for arch in amd64 arm64; do
-      GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$v" -o "$out/MPCvibedRPC-linux-$arch" ./cmd/mpcvibedrpc
+      GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$v" -o "$out/MPCvibedRPC-linux-$arch" ./cmd/mpcvibedrpc
     done
     ls -l "$out"
     ;;

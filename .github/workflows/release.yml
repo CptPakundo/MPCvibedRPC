@@ -34,7 +34,7 @@ jobs:
           mkdir -p dist
           if [ "$RUNNER_OS" = Linux ]; then
             for arch in amd64 arm64; do
-              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$v" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$v" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
             done
             PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$v"
           else
@@ -78,9 +78,9 @@ jobs:
           $v, $next = $env:VERSION, $env:NEXT
           New-Item -ItemType Directory dist | Out-Null
           go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$v" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$v" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
           go run ./tools/mkrsrc -version $next -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$next" -o dist/next.exe ./cmd/mpcvibedrpc
+          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$next" -o dist/next.exe ./cmd/mpcvibedrpc
           ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $v -NextVersion $next
           Remove-Item dist/next.exe
           Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
