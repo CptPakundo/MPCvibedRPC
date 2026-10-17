@@ -58,7 +58,7 @@ friend of the owner on a real Mac.
 |---|---|
 | `cmd/mpcvibedrpc` | `main.go` (flags, single instance, `var version`), `app.go` (the `app` type: start-up and quit order), `api.go` (the local API handlers: `state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `update-*`, `quit`, ...), `update.go` (checks, install), `tray.go` (icon, tooltip), `accounts.go` (the `approval` helper the Plex, Stremio and Jellyfin sign-ins share, and their common endpoints) with `plex.go`, `stremio.go`, `jellyfin.go`, `logger.go` |
 | `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles); split by job: `engine.go` (types, Start/Stop, Status), `players.go` (`fetchPlayer` and its `picker`), `remote.go` (the Plex, Stremio and Jellyfin watchers as one list, resting), `discord.go`, `tick.go` |
-| `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`) |
+| `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`), every other outside address (`hosts.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
@@ -238,6 +238,17 @@ then every place that lists players: `ui.html` (welcome card, "No player is answ
 Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (tagline, What you get, Getting started, the Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/troubleshooting.md`, `docs/development.md` (Where things are),
 `docs/config.md`, the help texts in `store/schema.go` (`port`, `mpris`, `iinaPipe`), `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
 the header comment in `main.go`, the engine's "Looking for a player on ..." log line, `diag` and the repo description/topics.
+
+**New catalog service:** an entry in `core.Sources` (id, label, use, host: it gets its switch on the Privacy tab), a
+`<Name>Base` field with its default in `core.Config` (tests point it at a fake), its id in the default
+`artworkSources` and/or `episodeSources` (a default change needs the owner), the `Provider` in
+`artwork/providers.go` and/or the `epProvider` in `artwork/episodes.go`, its line in `blockedHostFilter`
+(`artwork/disabled.go`), a subtest in `internal/artwork/live_test.go` (the canary), its row in `SECURITY.md`, the
+credit its terms ask for (Help tab credits, `THIRD-PARTY-NOTICES.md`) and `docs/config.md`.
+
+**New outside address:** any host the code names (a service, a link, an image) goes in `core.Hosts` (or
+`core.Sources`) and in `SECURITY.md` > Where it connects; `TestEveryHostIsListed` scans the code and the page and
+fails otherwise.
 
 **UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. The window
 follows "less is more": short help texts, one term per thing, rarely used actions under Advanced > Maintenance. Keep the README,

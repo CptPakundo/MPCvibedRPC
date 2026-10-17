@@ -89,7 +89,8 @@ The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) shows each t
 read from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each
 catalog returned. Under
 **Titles & art > Fix a match** you can search under another name or pin your own cover image. A free TMDB key
-(**Titles & art > More**) improves some matches.
+(**Titles & art > More**) improves some matches. A show found only by TVmaze can take about a minute to get its cover
+the first time: TVmaze answers a search slowly until it has it cached.
 
 ## Where are my settings? How do I remove it?
 

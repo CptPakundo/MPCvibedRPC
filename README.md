@@ -106,7 +106,8 @@ after you confirm. Exactly what each player needs, and how it is read, is in
   analytics, no tracking. The download count above is GitHub's public count of release downloads.
 - With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads. The same
   goes for Stremio and Stremio's servers, and for Jellyfin / Emby and your own server.
-- Release files come with checksums and a signed build record. See [SECURITY.md](SECURITY.md) to verify a download.
+- [SECURITY.md](SECURITY.md) lists every address the program connects to, and how to verify a download (release files
+  come with checksums and a signed build record).
 
 ## ❓ Help
 
@@ -129,7 +130,8 @@ More problems, by player and service, plus updates and uninstalling: [Troublesho
 - [How it works](docs/how-it-works.md): title cleanup, cover lookups, and each player in detail.
 - [All settings](docs/config.md), with their defaults.
 - [Troubleshooting](docs/troubleshooting.md): each player and service, updates, uninstalling.
-- [Security](SECURITY.md): how to verify a download, and how to report a security problem.
+- [Security](SECURITY.md): every address the program connects to, how to verify a download, and how to report a
+  security problem.
 - [Contributing](CONTRIBUTING.md): bug reports, building and testing.
 - [Development](docs/development.md): building, testing and releasing.
 - [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.

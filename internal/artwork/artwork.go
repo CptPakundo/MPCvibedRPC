@@ -55,6 +55,7 @@ type Artwork struct {
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
 	misses    map[string]time.Time
+	soft      map[string]bool // misses set by softMiss
 	inflight  map[string]*lookupFlight
 	late      map[string]bool
 	warned    map[string]bool
@@ -80,9 +81,10 @@ func New(cfg *core.Config, opts Options) *Artwork {
 		opts.OnResolved = func(*core.Art) {}
 	}
 	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(),
-		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
+		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, soft: map[string]bool{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
 		warned: map[string]bool{}, runtimes: map[string]int{}, aliases: mapByTitle(cfg.ArtworkAliases), overrides: mapByTitle(cfg.ArtworkOverrides)}
 	a.net.blocked = blockedHostFilter(cfg)
+	a.net.onLate = a.lateAnswer
 	a.res = newResolver(a)
 	a.load()
 	return a
@@ -238,6 +240,7 @@ func (a *Artwork) ClearCache() {
 	a.mu.Lock()
 	a.disk = map[string]*diskEntry{}
 	a.misses = map[string]time.Time{}
+	a.soft = map[string]bool{}
 	a.runtimes = map[string]int{}
 	a.mu.Unlock()
 	a.res.clearCaches()
@@ -1033,6 +1036,24 @@ func (a *Artwork) missed(key string) bool {
 	return a.misses[key].After(time.Now())
 }
 
+// softMiss remembers for two minutes that key found nothing because a service was down or slow. A slow answer
+// that arrives later (Net.onLate) clears these, so the next tick asks again at once. a.mu must be held.
+func (a *Artwork) softMiss(key string) {
+	a.misses[key] = time.Now().Add(2 * time.Minute)
+	a.soft[key] = true
+}
+
+// lateAnswer runs when a slow catalog answer was cached in the background: titles that missed for want of it are
+// asked again on the next tick.
+func (a *Artwork) lateAnswer() {
+	a.mu.Lock()
+	for k := range a.soft {
+		delete(a.misses, k)
+	}
+	clear(a.soft)
+	a.mu.Unlock()
+}
+
 func infoSummary(inf *core.ArtInfo) string {
 	var parts []string
 	if len(inf.Genres) > 0 {
@@ -1318,9 +1339,10 @@ func (j *lookupJob) baseArt() *core.Art {
 		if base != nil {
 			a.put(j.key, &diskEntry{art: base})
 		} else if a.unavail.Load() != down {
-			a.misses[j.key] = time.Now().Add(2 * time.Minute) // a service was down or offline: not a real "not found"
+			a.softMiss(j.key) // a service was down or offline: not a real "not found"
 		} else {
 			a.misses[j.key] = time.Now().Add(30 * time.Minute)
+			delete(a.soft, j.key)
 		}
 		a.mu.Unlock()
 	}
@@ -1461,11 +1483,12 @@ func (j *lookupJob) episode(base *core.Art) *core.ArtEpisode {
 	if ep != nil {
 		a.put(j.epKey, &diskEntry{isEp: true, ep: ep})
 	} else if epMedia != nil {
-		wait := 30 * time.Minute
 		if failed {
-			wait = 2 * time.Minute // a service was down or slow: ask again soon
+			a.softMiss(j.epKey) // a service was down or slow: ask again soon
+		} else {
+			a.misses[j.epKey] = time.Now().Add(30 * time.Minute)
+			delete(a.soft, j.epKey)
 		}
-		a.misses[j.epKey] = time.Now().Add(wait)
 	}
 	a.mu.Unlock()
 	if ep != nil {

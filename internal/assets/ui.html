@@ -80,7 +80,7 @@
   .help.bad { color: var(--bad); }
   .actions { margin-top: 8px; flex-wrap: wrap; }
   .leaves { margin: 6px 0 0; padding-left: 20px; }
-  .leaves li { margin: 3px 0; }
+  .leaves li { margin: 3px 0; } .leaves a { color: var(--accent); }
   .sources .src { padding: 8px 0; border-top: 1px solid var(--line); }
   .sources .src .help { margin-top: 1px; }
   .sources.off { opacity: .5; }
@@ -487,6 +487,11 @@
       el('div', { className: 'row actions' }, btn, msg));
   }
   function leavesBox() {
+    const all = el('li', {}, document.createTextNode('Every address the program reaches is listed in '),
+      el('a', { href: 'https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md#where-it-connects', target: '_blank', rel: 'noopener', textContent: 'SECURITY.md' }),
+      document.createTextNode('.'));
+    // MPC-HC is Windows-only; its web interface answers every web page (no password, any origin)
+    const mpc = osText() ? [] : ["MPC-HC's web interface has no password, and web pages you open can read it and control the player while it is on. Switch it off in MPC-HC when you stop using this program."];
     return el('div', { className: 'field' }, el('ul', { className: 'help leaves' }, ...[
       'Discord: your status. That is the point of the program.',
       'GitHub: asked about new versions while Check for updates is on.',
@@ -497,7 +502,8 @@
       "The preview at the top loads the cover image from the service that hosts it, or the player's logo from GitHub. Discord loads them the same way for your status.",
       'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.',
       'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
-    ].map((t) => el('li', { textContent: t }))));
+      ...mpc,
+    ].map((t) => el('li', { textContent: t })), all));
   }
 
   // A sign-in on the Accounts tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
