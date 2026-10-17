@@ -1,47 +1,45 @@
-## MPCvibedRPC 0.9.30
+## MPCvibedRPC 0.9.31
 
-**PotPlayer and Kodi, each player's own logo on Discord, hiding a whole Plex library, and a clear word when Discord
-runs as administrator.**
+**Fixes for changes made by others: Stremio's newer apps, the closed MyAnimeList service, Discord's renamed settings,
+and a newer Go for every build.**
 
-### New players
-- **PotPlayer** (Windows): found by itself, nothing to set up. It is read through the window messages PotPlayer offers
-  for remote control: play state, position, length, speed and the playing file's path, so the Never show list can
-  match its folders as for any other player.
-- **Kodi** (Windows, macOS, Linux, or a Kodi on another device such as a TV box): turn on *Settings > Services >
-  Control > Allow remote control via HTTP* in Kodi with a user name and password, and enter them under **Advanced >
-  Players** (the address too, for a Kodi elsewhere). Episodes and movies from Kodi's library are named from Kodi's own
-  information. On Linux, Kodi is also found through MPRIS without this.
-- Both were tried with the real players on GitHub's Windows test machines: PotPlayer and Kodi installed fresh, a
-  test video playing in each.
+### Stremio
+- Stremio's newer apps save your place in the library every 3 minutes instead of every 90 seconds. With them, a
+  playing video dropped off Discord for half a minute every three minutes, and a pause was often missed. The program now learns which of the two your
+  Stremio app uses, so a video stays shown with both, and a pause still takes it down.
+- Also fixed: the first regular update after a short pause was taken for another pause, so the status went away for
+  a while although the video played on.
+- If Stremio is closed without a word, the status now goes after about four minutes.
 
-### On Discord
-- **Each player's own logo.** mpv, VLC, IINA, PotPlayer, Kodi, SMPlayer, Plex, Stremio, Jellyfin and Emby show their
-  logo as the small icon next to the cover, and as the picture when no cover is found. That spot used to show
-  Media Player Classic's logo, or nothing. MPC-HC, MPC-BE and MPC-QT look as before. Discord loads the logos from this
-  project's GitHub page; nothing about you is sent.
-- With **Link to the title's page** on, both text lines open the title's page, not only the first. Others can click
-  them; Discord doesn't let you click your own, and the switch's help now says so.
+### Covers and episode titles
+- MyAnimeList's public service (Jikan) closed on 2026-10-01, so it is no longer asked. Anime are still found through
+  AniList and Kitsu. The switch on the Privacy tab stays, for a Jikan server you run yourself (see
+  [All settings](https://github.com/CptPakundo/MPCvibedRPC/blob/master/docs/config.md)). If you edited
+  `artworkSources`, `animeSources` or `episodeSources` in `config.json` by hand, remove `jikan` from them.
+- The Help tab and THIRD-PARTY-NOTICES.md credit TMDB (with its logo, as its terms ask) and TVmaze.
 
-### Privacy
-- **Never show these files** also hides by where a server keeps a video. For Plex it matches the library's name, so
-  one entry such as `Kids` hides a whole library. For Plex, Jellyfin and Emby it also matches the file's path on the
-  server: `Private` hides that folder, as it does for files on this computer. Real Jellyfin and Emby servers were
-  checked to send that path. These names and paths are only compared, never shown, logged or sent anywhere.
+### Discord
+- Discord renamed its *Activity Settings* section to *Games & Apps*. The welcome card, the README and the
+  troubleshooting page name both, so *User Settings > Activity Privacy > "Share my activity"* is found in old and new
+  Discord versions.
 
-### Help
-- When Discord runs as administrator and this program doesn't, Windows keeps the two apart. The window now says
-  "Discord refused the connection ... start it normally" instead of only "Waiting for Discord".
-- **Wrong title or cover?** under the preview takes you to Titles & art > Fix a match.
-- Troubleshooting covers more of the usual reasons a status doesn't show: Discord run as administrator, several
-  Discord apps open at once, your own buttons not being clickable, "Watching Media Player Classic" instead of the
-  title, mpv-based players, and Windows' warning for this unsigned program.
+### macOS
+- **macOS 13 or later** is needed now. The program is built with Go 1.27, which needs macOS 13, and Discord itself no
+  longer runs on macOS 11 or 12.
+- On macOS 15 and later, macOS asks before an app reaches your home network. The app now says why it wants to, so a
+  Plex, Jellyfin, Emby or Kodi server there can be allowed (System Settings > Privacy & Security > Local Network).
+
+### Under the hood
+- Built with Go 1.27.2 instead of Go 1.24, which no longer gets security fixes. Every change is now also checked for
+  known Go security issues.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
   have. Your settings are kept.
-- **macOS:** download **`MPCvibedRPC-macos.zip`** and move the app to Applications (the first time, System Settings >
-  Privacy & Security > **Open Anyway**).
+- **macOS 13 or later:** download **`MPCvibedRPC-macos.zip`** and move the app to Applications (the first time,
+  System Settings > Privacy & Security > **Open Anyway**).
 - **Linux:** download **`MPCvibedRPC-linux-amd64`** (or `-arm64`), `chmod +x` it and run it.
 
-Every system needs the Discord desktop app with User Settings > Activity Privacy > "Share my activity" on. To check a
-download, see [SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md).
+Every system needs the Discord desktop app with User Settings > Activity Privacy > "Share my activity" on (Activity
+Privacy is in the Games & Apps section, called Activity Settings in older Discord versions). To check a download, see
+[SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md).
