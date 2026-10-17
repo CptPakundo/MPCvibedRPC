@@ -25,7 +25,7 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
 - Done when no outside change goes unnoticed for more than a week.
 - Steps: a weekly scheduled CI run of the live player and server tests against the latest releases; a small check per
   catalog service (one known title, the answer's shape); the Go vulnerability check (done in 0.9.31); each failure
-  opens an issue. The weekly run, the catalog check and the issue are done (`canary.yml`, after 0.9.31). Left: the
+  opens an issue. The weekly run, the catalog check and the issue are done (`canary.yml`, 0.9.32). Left: the
   Linux players come from Ubuntu's packages, not the newest upstream releases.
 
 ### 2. Own the foundations
