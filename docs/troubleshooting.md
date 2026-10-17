@@ -39,7 +39,10 @@ listed in [All settings](config.md).
 - Kodi: turn on *Settings > Services > Control > Allow remote control via HTTP* in Kodi, with a user name and password,
   and enter the same under **Advanced > Players** (the address too, for a Kodi on another device). The window says when
   Kodi refuses the password, or when something else answers at the address. Kodi's web server uses port 8080, like
-  VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this.
+  VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this. A pause in
+  Kodi shows at once when Kodi's *Allow remote control from applications on this system* is on (the default; *on
+  other systems* for a Kodi on another device): its notifications come on port 9090. Without it, the pause shows at
+  the next check, within 5 seconds.
 - Both are tested with the real players on GitHub's Windows test machines (a fresh install, a test video playing),
   not yet on a real desktop. Kodi on macOS, on Linux and on another device was only tried against a stand-in.
 

@@ -79,7 +79,7 @@ friend of the owner on a real Mac.
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one), `version.sh`, `live-players.sh` (real players on CI), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one), `version.sh`, `live-players.sh` (real players on CI), `live-flathub.sh` (VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
@@ -95,10 +95,12 @@ that answers is reported.** A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is
 with its file name (`core.MusicMedia`), never looked up and not counted in the stats. MPC-HC must keep behaving exactly as before whenever
 anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
-folder is where Discord, IINA and MPC-QT put their sockets. mpv and IINA are also watched (`engine/events.go`,
-`mpvipc.Watch`: one more connection that observes `pause` and listens for seek and file events); an event wakes the
-loop early (`nudge`: 250 ms later, at most every 4 s), and the check still reads what plays. MPC-QT's pipe is only
-asked. MPRIS only reads players on the allowlist in
+folder is where Discord, IINA and MPC-QT put their sockets. Players that report changes are also watched
+(`engine/events.go`): mpv and IINA (`mpvipc.Watch`: one more IPC connection that observes `pause` and listens for seek
+and file events), MPRIS players (`mpris.Watch`: D-Bus `PropertiesChanged` and `Seeked` signals) and Kodi
+(`kodi.Watch`: its JSON-RPC over TCP on port 9090, on by default in Kodi). An event wakes the loop early (`nudge`:
+250 ms later, at most every 4 s), and the check still reads what plays; tests set `Options.KodiEvents` and
+`Options.MPRISBus` so no real Kodi or bus is reached. MPC-QT's pipe is only asked. MPRIS only reads players on the allowlist in
 `internal/mpris` (music players and browsers offer MPRIS too and must never show as "Watching").
 
 Plex (`internal/plex`): "Sign in to Plex" gets a token through a plex.tv PIN the user approves in their browser
@@ -176,7 +178,7 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   PotPlayer and Kodi from Chocolatey (PotPlayer without its stale package checksum), a generated video in each, the live
   engine test, and `TestLivePotPlayer` (the real PotPlayer sends the file's path). The weekly canary
   (`.github/workflows/canary.yml`, Mondays) runs all of `ci.yml` (`workflow_call`) against the newest players and
-  server images, plus `TestLiveCatalogs` (`internal/artwork/live_test.go`, opt-in `MPCRPC_LIVE_CATALOGS=1`: one
+  server images, VLC and Celluloid from Flathub (`live-flathub.sh`: their newest releases), plus `TestLiveCatalogs` (`internal/artwork/live_test.go`, opt-in `MPCRPC_LIVE_CATALOGS=1`: one
   long-known title per keyless catalog, through the program's own search and episode code; it needs real titles, kept
   in that file); `tools/ci/canary-report.sh` opens an issue labelled `canary` on a failure and closes it once a run
   passes (only on the schedule or a by-hand run with `report` ticked; a pull request that changes the canary does a dry

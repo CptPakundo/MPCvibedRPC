@@ -25,8 +25,9 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
 - Done when no outside change goes unnoticed for more than a week.
 - Steps: a weekly scheduled CI run of the live player and server tests against the latest releases; a small check per
   catalog service (one known title, the answer's shape); the Go vulnerability check (done in 0.9.31); each failure
-  opens an issue. The weekly run, the catalog check and the issue are done (`canary.yml`, 0.9.32). Left: the
-  Linux players come from Ubuntu's packages, not the newest upstream releases.
+  opens an issue. The weekly run, the catalog check and the issue are done (`canary.yml`, 0.9.32), and since 0.9.35
+  VLC and Celluloid are also tried as Flathub ships them (their makers' newest releases, `live-flathub.sh`); mpv
+  on Linux still comes from Ubuntu's package (Flathub's mpv is not tried yet).
 
 ### 2. Own the foundations
 - **Discord application**: the default application ID belongs to the project this one started from, which has been
@@ -35,7 +36,10 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
 - **Go toolchain**: move to the newest Go release every February and August; the supported operating systems follow
   Go's (done for Go 1.27 in 0.9.31: macOS 13 or later).
 - **Plex sign-in**: Plex is moving to short-lived tokens (7 days, Ed25519 device keys). Old tokens still work and no end
-  date is announced. Prepare the new sign-in with the standard library, and ship it when Plex requires it.
+  date is announced. Prepare the new sign-in with the standard library, and ship it when Plex requires it. Prepared
+  in 0.9.35: `plexJwt` (off by default) signs in with a key of the install's own and renews the 7-day token;
+  tested only against a fake plex.tv built from developer.plex.tv. Left: a real sign-in (needs the owner's OK), then
+  turning it on by default.
 
 ### 3. Updates you can trust without a personal signature
 The updater checks a checksum from the same release, so anyone able to publish a release could ship to every install.
@@ -78,12 +82,14 @@ release by hand, and winget needs one pull request per version. Frequent release
 - Sturdier catalog services, without losing coverage. The many catalogs are there on purpose (the owner's
   intent, 2026-10-18): every show, film, special or the like should be found. Never drop a catalog that finds titles
   the others miss; make each one more reliable, and fill gaps (such as specials) where a catalog has the data.
+  Specials (S00E01) get their names from Cinemeta's season 0 since 0.9.35, without a TMDB key.
 - "Why this title?" in Copy diagnostics. Done in 0.9.34: the file name, what was read from it, which catalog matched
   (or the closest results) and where the episode title came from.
 - A title-language choice for anime (the services already return every variant). Exists for AniList matches
   (`animeTitles`: auto, English, romaji or the file's spelling).
 - React to player events where players offer them (mpv, Kodi, Linux MPRIS), so pause and seek show at once. mpv
-  and IINA since 0.9.34 (`engine/events.go`); left: Kodi's notifications and MPRIS's PropertiesChanged signals.
+  and IINA since 0.9.34, Kodi (its notifications on port 9090) and MPRIS players (D-Bus signals) since 0.9.35
+  (`engine/events.go`).
 - macOS stays "best effort": the owner has no Mac, CI and testers are the test bed.
 - Later, if asked for: a native Windows ARM64 build, translatable window texts, a Linux tray icon.
 

@@ -2,7 +2,8 @@
 
 This program has not been audited, so please treat it accordingly. It runs on your own
 computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer or IINA, or on Linux a video player
-over D-Bus) locally, and to Kodi at the address you enter once you set its password (this computer by default).
+over D-Bus) locally, and to Kodi at the address you enter once you set its password (this computer by default): its
+web server, and port 9090 there for its notifications.
 Every other address it reaches is in the list below; a test fails when the code names one that is not. The
 **Privacy** tab's **Recent connections** shows which of them it actually asked since it started, how often and when.
 
