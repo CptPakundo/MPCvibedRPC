@@ -173,6 +173,21 @@ jobs:
           PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players" $bus ./tools/ci/live-players.sh
           test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players::the script stopped before the end"; exit 1; }
         shell: bash
+  # The engine against real PotPlayer and Kodi on Windows (installed from Chocolatey; the test's own fake Discord).
+  players-windows:
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.24', cache: false }
+      - name: Live tests (PotPlayer, Kodi)
+        timeout-minutes: 20
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players (Windows)" ./tools/ci/live-windows.sh
+          test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players (Windows)::the script stopped before the end"; exit 1; }
+        shell: bash
   plex:
     needs: test
     runs-on: ubuntu-latest
