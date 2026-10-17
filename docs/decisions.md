@@ -16,6 +16,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   video should not show for hours, while a short break should not make it vanish.
 - **Music is shown as "Listening to"** with its file name, never looked up and not counted. *Why:* the catalogs are for
   films and shows; sending song names to them would be wrong answers and needless data.
+- **Many catalogs, on purpose.** Titles are looked up in several services (TMDB with your key, IMDb, Cinemeta,
+  TVmaze, AniList, Kitsu, Wikipedia, Bulbapedia), each with its own switch. *Why:* every show, film, special or the
+  like should be found, and no single catalog has them all; a slow or closed service must not leave a title without
+  its cover. A catalog is only removed when it stops answering for good.
 - **New behaviour that changes things for existing users is off by default** unless decided otherwise. *Why:* an update
   should not surprise anyone.
 

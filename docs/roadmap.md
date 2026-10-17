@@ -75,7 +75,9 @@ release by hand, and winget needs one pull request per version. Frequent release
 - Size limits: no dependencies, short functions.
 
 ### 7. Depth in the core, not breadth
-- Fewer, sturdier catalog services rather than more.
+- Sturdier catalog services, without losing coverage. The many catalogs are there on purpose (the owner's
+  intent, 2026-10-18): every show, film, special or the like should be found. Never drop a catalog that finds titles
+  the others miss; make each one more reliable, and fill gaps (such as specials) where a catalog has the data.
 - "Why this title?" in Copy diagnostics. Done in 0.9.34: the file name, what was read from it, which catalog matched
   (or the closest results) and where the episode title came from.
 - A title-language choice for anime (the services already return every variant). Exists for AniList matches

@@ -587,6 +587,9 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 			if err != nil {
 				return nil, err
 			}
+			// Cinemeta lists specials as season 0, numbered as the TV databases and media servers number them (S00E01):
+			// used for a file that names season 0, never counted for one without a season
+			specials := media.Season == 0
 			var out []EpItem
 			for _, v := range asArr(get(j, "meta", "videos")) {
 				num := get(v, "episode")
@@ -594,7 +597,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 					num = get(v, "number")
 				}
 				s, ok := numOK(get(v, "season"))
-				if !ok || s < 1 || num == nil {
+				if !ok || num == nil || s < 0 || (s == 0 && !specials) {
 					continue
 				}
 				out = append(out, EpItem{Season: s, Number: epNumF(num), Name: str(firstTruthy(get(v, "name"), get(v, "title")))})
