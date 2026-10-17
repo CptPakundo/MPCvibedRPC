@@ -16,10 +16,10 @@ names come from, and how each player is read.
   `Show Name Ep03 (2010).mkv`, `Show.Name.S05E14.720p.HDTV.x264-GRP.mkv` or
   `[Group] Show Name - 05 [1080p].mkv`.
 - **Cover art, from several sources.** The title parsed from the filename is looked up on
-  every source in `artworkSources` at once (eight by default; TMDB only with a key), and the highest-priority one with a trustworthy match wins:
-  TMDB (only if you add a free API key), IMDb's own search, Cinemeta, TVmaze, AniList, Kitsu and
-  MyAnimeList (anime; AniList, then Kitsu, then MyAnimeList are asked first for fansub-style
-  filenames, everything else goes IMDb-first) and, as a last resort, Wikipedia (Hebrew titles use
+  every source in `artworkSources` at once (seven by default; TMDB only with a key), and the highest-priority one with a trustworthy match wins:
+  TMDB (only if you add a free API key), IMDb's own search, Cinemeta, TVmaze, AniList and Kitsu
+  (anime; AniList, then Kitsu are asked first for fansub-style filenames, everything else goes IMDb-first) and,
+  as a last resort, Wikipedia (Hebrew titles use
   he.wikipedia.org). Matching is accent-insensitive and checks alternate titles, so a title that a
   catalog lists under a translated name, or whose catalog entries are split into several parts, still resolves.
   A wrong cover is worse than none, so loose guesses are rejected. If a lookup is slow the
@@ -36,7 +36,7 @@ names come from, and how each player is read.
     If a season can't be placed you get the show's poster and no season name, never a guess.
   - Still no cover? `mpcvibedrpc.log` lists what each source returned. Then fix it under **Titles & art > Fix a match** (search under another name, or pin a cover image; see [All settings](config.md#titles--art-tab)).
   - **Episode titles.** When the filename has an episode number but no name
-    (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, or TMDB with a key; for anime MyAnimeList first)
+    (`Show.Name.Ep03...`), the name is looked up (TVmaze, Cinemeta, Kitsu, or TMDB with a key)
     and shown as `S01E03 · <Episode title>`. If a file's numbering doesn't match the catalog, nothing is guessed and
     you keep the plain `E03`. Turn off with `episodeTitles: false`. An anime matched on AniList under its
     Japanese name is also looked up under its English name, which is how TVmaze lists it; a running episode
@@ -51,7 +51,7 @@ names come from, and how each player is read.
     skipped when there is no IMDb id (e.g. AniList-only anime). While paused, the second line
     becomes the pause bar. Turn off with `richInfo: false`.
   - **Robust lookups.** Responses are cached for 10 minutes, identical in-flight requests are
-    shared, a timeout / 5xx / 429 is retried once, requests to AniList and MyAnimeList are spaced out,
+    shared, a timeout / 5xx / 429 is retried once, requests to AniList are spaced out (`requestGapMs`),
     and a source that keeps failing is paused for a minute. Order is set by `artworkSources`
     (general) and `animeSources` (anime files).
   - **Anime title language.** For anime matched on AniList, `animeTitles: 'auto'` (default) shows the

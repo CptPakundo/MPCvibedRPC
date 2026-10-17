@@ -74,15 +74,15 @@ The title parsed from the filename is looked up online (IMDb-based Cinemeta by d
 
 | Setting | Default | What it does |
 |---|---|---|
-| `artworkSources` | `['tmdb', 'imdb', 'cinemeta', 'tvmaze', 'anilist', 'kitsu', 'jikan', 'wikipedia']` | Sources are asked at the same time; the first in this list with an exact title match wins. See the source list below. |
-| `animeSources` | `['anilist', 'kitsu', 'jikan']` | Anime-style filenames ask these first, in this order. |
+| `artworkSources` | `['tmdb', 'imdb', 'cinemeta', 'tvmaze', 'anilist', 'kitsu', 'wikipedia']` | Sources are asked at the same time; the first in this list with an exact title match wins. See the source list below. |
+| `animeSources` | `['anilist', 'kitsu']` | Anime-style filenames ask these first, in this order. |
 | `tmdbApiKey` | `''` | TMDB API key. Free at <https://www.themoviedb.org/settings/api>. TMDB is skipped unless this is set. |
 | `artworkAliases` | `{}` | Search under another name, for example `{ 'filename title': 'Catalog Title' }`. |
 | `artworkOverrides` | `{}` | Pin an image URL, for example `{ 'some title': 'https://example.com/poster.jpg' }`. |
 | `artworkWaitMs` | `1500` | How long to hold the presence back waiting for a cover. It refreshes when the cover arrives. |
 | `useFolderName` | `true` | If the file is just an episode number, use the folder's name as the show (skipping `Season 1` style folders). |
 | `episodeTitles` | `true` | Look up the real episode name when the file doesn't have one (`Ep03` becomes `S01E03 · Episode title`). |
-| `episodeSources` | `['bulbapedia', 'tmdb', 'tvmaze', 'cinemeta', 'kitsu', 'jikan']` | Order tried. For anime, `jikan` (MyAnimeList) goes first, since it numbers episodes the way anime files do. `tmdb` needs `tmdbApiKey`; the others need no key. |
+| `episodeSources` | `['bulbapedia', 'tmdb', 'tvmaze', 'cinemeta', 'kitsu']` | Order tried. A `jikan` you add (a self-hosted Jikan, see `jikanBase`) goes first for anime, since MyAnimeList numbers episodes the way anime files do. `tmdb` needs `tmdbApiKey`; the others need no key. |
 | `folderEpisodeNumbers` | `false` | `true` numbers files with a running production code by their place in the season folder instead of the catalog's count. |
 | `animeTitles` | `'auto'` | For anime matched on AniList: `'auto'` uses whichever AniList name (English or romaji) the filename resembles most; `'english'` or `'romaji'` always use that one; `'file'` keeps the filename's spelling. |
 | `catalogTitle` | `true` | Show a recognised title as the catalog spells it, including punctuation a file name can't hold. `false` keeps it as parsed from the filename. |
@@ -96,7 +96,8 @@ Sources:
 | `imdb` | IMDb's own search (finds titles Cinemeta misses). |
 | `tvmaze` | TV shows worldwide. |
 | `anilist` | Anime (knows romaji, English and Japanese titles); asked first for fansub-style names. |
-| `kitsu`, `jikan` | More anime databases (Kitsu; MyAnimeList via Jikan), used if AniList is down or misses. |
+| `kitsu` | Another anime database, used if AniList is down or misses. |
+| `jikan` | MyAnimeList through Jikan. Not in any default list: the public Jikan API (api.jikan.moe) closed on 2026-10-01. To use a Jikan you host yourself, set `jikanBase` and add `jikan` to the lists. |
 | `wikipedia` | Last resort: the article's lead image (Hebrew titles use he.wikipedia.org). |
 | `bulbapedia` | Episode titles only, from its episode lists, for files named with a production code. |
 
@@ -139,7 +140,7 @@ a service switched off on the Privacy tab stays off whatever address it has here
 | `tvmazeBase` | `https://api.tvmaze.com` |
 | `anilistUrl` | `https://graphql.anilist.co` |
 | `kitsuBase` | `https://kitsu.io/api/edge` |
-| `jikanBase` | `https://api.jikan.moe/v4` |
+| `jikanBase` | `https://api.jikan.moe/v4` (the closed public API; point it at your own Jikan) |
 | `wikipediaBase` | `https://{lang}.wikipedia.org` |
 | `bulbapediaBase` | `https://bulbapedia.bulbagarden.net` |
 | `requestGapMs` | `{"graphql.anilist.co": 250, "api.jikan.moe": 400}` (the least time between two requests to a host, in milliseconds) |
