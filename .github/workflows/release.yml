@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.24', cache: false }
+        with: { go-version: '1.27.2', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
