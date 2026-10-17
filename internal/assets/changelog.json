@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.38", "date": "2026-10-18", "items": [
+    "🎁 Specials named in words now also get their name after a year, as in Sample Show (2010) - Special 01.",
+    "🔢 A double episode written S01E05 - S01E06 is shown as S01E05E06."
+  ]},
   {"version": "0.9.37", "date": "2026-10-18", "items": [
     "🔢 More file names are read as episodes: Sample Show [S01E02], S2E5, E05-E06 and Ep. 5."
   ]},
