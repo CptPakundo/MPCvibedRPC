@@ -55,7 +55,7 @@ type Artwork struct {
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
 	misses    map[string]time.Time
-	soft      map[string]bool // misses set by softMiss
+	soft      map[string]bool     // misses set by softMiss
 	closest   map[string][]string // the closest results of a title nothing matched (Explain)
 	inflight  map[string]*lookupFlight
 	late      map[string]bool

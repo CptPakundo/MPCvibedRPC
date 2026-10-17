@@ -36,6 +36,9 @@ friend of the owner on a real Mac.
   or planning a feature, a new service or a distribution change, and don't propose a listed non-goal without saying so.
   Update it in the same pull request when a change finishes a step, moves a goal or settles a decision, and refresh the
   watch list when you learn an outside fact changed (with the date checked).
+- **Decisions:** `docs/decisions.md` is the public record of the product decisions, each with its reason. Add a line
+  when the owner settles one, and don't change listed behaviour without saying which decision it touches.
+  `docs/ai.md` says how the program is made and checked; keep it true when the process changes.
 ## Ground rules
 - **Privacy first.** No personal data in commits, code, docs, tests, screenshots or release files: no email addresses,
   local paths or user names, machine details, tokens. Commit as `git -c user.name="Claude" -c user.email="noreply@anthropic.com"`

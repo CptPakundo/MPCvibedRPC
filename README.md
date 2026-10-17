@@ -28,8 +28,8 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 </div>
 
 > **Made with AI ("vibe coded").** The code, tests and documentation were written by an AI (Claude, by Anthropic) from
-> the repository owner's prompts and testing. There is no warranty (see `LICENSE`). The idea and the approach come from
-> [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
+> the repository owner's prompts and testing ([how that works](docs/ai.md)). There is no warranty (see `LICENSE`). The
+> idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
 
 ## ✨ What you get
 
@@ -135,3 +135,4 @@ More problems, by player and service, plus updates and uninstalling: [Troublesho
 - [Contributing](CONTRIBUTING.md): bug reports, building and testing.
 - [Development](docs/development.md): building, testing and releasing.
 - [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.
+- [Decisions](docs/decisions.md): why the program behaves the way it does.
