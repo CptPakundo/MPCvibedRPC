@@ -132,3 +132,4 @@ More problems, by player and service, plus updates and uninstalling: [Troublesho
 - [Security](SECURITY.md): how to verify a download, and how to report a security problem.
 - [Contributing](CONTRIBUTING.md): bug reports, building and testing.
 - [Development](docs/development.md): building, testing and releasing.
+- [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.

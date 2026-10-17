@@ -78,5 +78,5 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
 | `tools/` | the resource (.syso) and icon writers and the CI scripts (smoke tests, live player tests, the macOS app) |
-| `docs/` | the settings reference (`config.md`), how it works (`how-it-works.md`), troubleshooting (`troubleshooting.md`), this file, and the README's images (`images/`) |
+| `docs/` | the settings reference (`config.md`), how it works (`how-it-works.md`), troubleshooting (`troubleshooting.md`), the roadmap (`roadmap.md`: goals, non-goals, open decisions, outside facts to watch), this file, the README's images (`images/`) and the player logos (`players/`) |
 
