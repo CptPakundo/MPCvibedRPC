@@ -30,6 +30,8 @@ type Config struct {
 	PlexServerName string `json:"plexServerName"` // its name, for the window
 	PlexClient     string `json:"plexClient"`     // this install's Plex client identifier (made at the first sign-in)
 	PlexAddress    string `json:"plexAddress"`    // a fixed address for the server ("" = the addresses plex.tv lists)
+	PlexJWT        bool   `json:"plexJwt"`        // sign in with Plex's newer 7-day tokens and this install's own key (off: the long-lived token)
+	PlexKey        string `json:"plexKey"`        // this install's signing key for those tokens (written by the sign-in; a secret)
 
 	// Stremio: the sign-in made with "Sign in to Stremio" (not typed in the window; empty = Stremio is not followed)
 	StremioKey string `json:"stremioKey"` // the account's key

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -174,5 +177,93 @@ func TestPlexSignInWithoutPlexTV(t *testing.T) {
 	}
 	if p.state()["waiting"] != false {
 		t.Error("nothing waits")
+	}
+}
+
+// keyToken is a JWT-shaped token that runs out after left (only its exp is read by the program).
+func keyToken(n int, left time.Duration) string {
+	c, _ := json.Marshal(map[string]any{"exp": time.Now().Add(left).Unix(), "n": n})
+	return "e30." + base64.RawURLEncoding.EncodeToString(c) + ".sig"
+}
+
+// With plexJwt on, the sign-in hands plex.tv a key of this install's own and gets a 7-day token, which is renewed
+// (nonce, signed JWT) once it nears its end; signing out forgets the key.
+func TestPlexKeySignInAndRenewal(t *testing.T) {
+	var mu sync.Mutex
+	var jwk map[string]any
+	left := 24 * time.Hour // the first token runs out within renewBefore
+	issued, refreshes := 0, 0
+	tv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch {
+		case r.Method == "POST" && r.URL.Path == "/api/v2/pins":
+			var body struct {
+				JWK map[string]any `json:"jwk"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			jwk = body.JWK
+			fmt.Fprint(w, `{"id":78,"code":"samplecode"}`)
+		case r.URL.Path == "/api/v2/pins/78" && r.URL.Query().Get("deviceJWT") != "" && jwk != nil:
+			issued++
+			fmt.Fprintf(w, `{"id":78,"authToken":%q}`, keyToken(issued, left))
+		case r.URL.Path == "/api/v2/auth/nonce":
+			fmt.Fprint(w, `{"nonce":"sample-nonce"}`)
+		case r.Method == "POST" && r.URL.Path == "/api/v2/auth/token":
+			refreshes++
+			issued++
+			fmt.Fprintf(w, `{"auth_token":%q}`, keyToken(issued, 7*24*time.Hour))
+		case r.URL.Path == "/api/v2/user":
+			fmt.Fprint(w, `{"id":12345,"username":"SampleUser","title":"Sample User"}`)
+		case r.URL.Path == "/api/v2/resources":
+			fmt.Fprint(w, `[{"name":"My server","provides":"server","owned":true,"clientIdentifier":"srv-a","accessToken":"t1","connections":[]}]`)
+		default:
+			w.WriteHeader(401)
+		}
+	}))
+	t.Cleanup(tv.Close)
+	p, st, logs := plexTestAccount(t, &fakePlexTV{Server: tv})
+	if err := st.SetHidden([]string{"plexJwt"}, map[string]any{"plexJwt": true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.signIn(); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "signed in", func() bool { return p.state()["signedIn"] == true })
+	c := st.Config()
+	mu.Lock()
+	sent := jwk
+	mu.Unlock()
+	if c.PlexKey == "" || sent == nil || sent["crv"] != "Ed25519" || strings.Contains(fmt.Sprint(sent), c.PlexKey[strings.Index(c.PlexKey, ".")+1:]) {
+		t.Fatalf("key saved %v, plex.tv got %v (and never the private part)", c.PlexKey != "", sent)
+	}
+	first := c.PlexToken
+
+	p.renew(context.Background()) // a day left: renewed
+	if c = st.Config(); c.PlexToken == first || p.eng.Config().PlexToken != c.PlexToken {
+		t.Fatalf("the token was not renewed")
+	}
+	p.renew(context.Background()) // seven days left: left alone
+	mu.Lock()
+	n := refreshes
+	mu.Unlock()
+	if n != 1 {
+		t.Fatalf("%d renewals; want 1", n)
+	}
+	found := false
+	for _, l := range *logs {
+		found = found || strings.Contains(l, "Plex sign-in renewed.")
+		if strings.Contains(l, c.PlexToken) || strings.Contains(l, c.PlexKey) {
+			t.Errorf("log line %q shows a secret", l)
+		}
+	}
+	if !found {
+		t.Error("the renewal is not logged")
+	}
+	if err := p.signOut(); err != nil {
+		t.Fatal(err)
+	}
+	if c = st.Config(); c.PlexKey != "" || c.PlexToken != "" {
+		t.Errorf("after signing out: key %v, token %v", c.PlexKey != "", c.PlexToken != "")
 	}
 }

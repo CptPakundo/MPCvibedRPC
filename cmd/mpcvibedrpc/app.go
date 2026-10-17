@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -104,6 +105,7 @@ func run() error {
 	a.eng = engine.New(st.Config(), engine.Options{Log: a.log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath(),
 		MayRest: func() bool { return a.windows.Load() == 0 }, OnRest: winsys.TrimMemory})
 	a.plex = &plexAccount{st: st, eng: a.eng, log: a.log}
+	go a.plex.keepFresh(context.Background(), 0) // renews a 7-day Plex token (plexJwt) in time; nothing otherwise
 	a.stremio = &stremioAccount{st: st, eng: a.eng, log: a.log}
 	a.jellyfin = &jellyfinAccount{st: st, eng: a.eng, log: a.log}
 
