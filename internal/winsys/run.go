@@ -54,7 +54,7 @@ func runningPlayers() []string { return runningExes(players) }
 
 // RunningPlayerNames lists the supported players that are running right now ("MPC-HC", "MPC-QT", ...), for diagnostics.
 func RunningPlayerNames() []string {
-	all := append(append([]player{}, players...), otherPlayers...)
+	all := append(append(append([]player{}, players...), otherPlayers...), readOnlyPlayers...)
 	if !IsWindows {
 		all = append(all, unixPlayers...)
 	}

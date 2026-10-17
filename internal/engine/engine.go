@@ -32,6 +32,8 @@ type Options struct {
 	Pipes func(cfg core.Config) []PlayerPipe
 	// MPRIS, when not nil, replaces the MPRIS players asked on Linux (tests); see QueryMPRIS.
 	MPRIS func(timeout time.Duration) []*core.Info
+	// PotPlayer, when not nil, replaces the PotPlayer windows asked on Windows (tests); see potplayer.Query.
+	PotPlayer func() []*core.Info
 	// Version is the program's version (Plex and Jellyfin are told it).
 	Version string
 	// PlexTV, when set, replaces plex.tv and clients.plex.tv (tests).
