@@ -1,6 +1,7 @@
 package artwork
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -148,12 +149,20 @@ func TestLiveCatalogs(t *testing.T) {
 	t.Run("bulbapedia", func(t *testing.T) {
 		for prefix, page := range bulbapediaPages {
 			var pg *bulbaPage
+			refused := false
 			ask(t, func(a *Artwork) (err error) {
-				if pg, err = a.res.bulbaList(page); err != nil {
+				var fe *FetchError
+				if pg, err = a.res.bulbaList(page); errors.As(err, &fe) && fe.Status == 403 {
+					refused, err = true, nil
+				} else if err != nil {
 					err = fmt.Errorf("Bulbapedia %s: %w", page, err)
 				}
 				return err
 			})
+			if refused {
+				// Its firewall turns away data-centre addresses such as GitHub's runners; home connections get the page.
+				t.Skipf("Bulbapedia refuses this machine (HTTP 403), as it does every data-centre address: not checked")
+			}
 			if name := pg.titles[prefix+"001"]; !usable(name) {
 				t.Errorf("Bulbapedia %s: no name for %s001 among %d codes", page, prefix, len(pg.titles))
 			} else {
