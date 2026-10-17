@@ -49,12 +49,23 @@ cat > "$app/Contents/Info.plist" <<EOF
 	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>MPCvibedRPC reads what plays on the Plex, Jellyfin, Emby or Kodi server you set up on your network, to show it on Discord.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT License. Made with AI (vibe coded).</string>
 </dict>
 </plist>
 EOF
 plutil -lint "$app/Contents/Info.plist"
+# NSLocalNetworkUsageDescription: macOS 15 and later ask before an app reaches the local network (a Plex, Jellyfin,
+# Emby or Kodi server there); the floor matches what the binaries were built for (Go 1.27 needs macOS 13)
+plutil -extract NSLocalNetworkUsageDescription raw "$app/Contents/Info.plist" > /dev/null
+[ "$(plutil -extract LSMinimumSystemVersion raw "$app/Contents/Info.plist")" = 13.0 ] || { echo "LSMinimumSystemVersion is not 13.0"; exit 1; }
+for arch in arm64 amd64; do
+  minos="$(otool -l "$work/MPCvibedRPC-$arch" | awk '/LC_BUILD_VERSION/ { b = 1 } b && $1 == "minos" { print $2; exit }')"
+  echo "$arch build: minimum macOS $minos"
+  [ -n "$minos" ] && [ "${minos%%.*}" -le 13 ] || { echo "the $arch build needs macOS $minos, above the app's 13.0"; exit 1; }
+done
 
 # An ad-hoc signature (no identity): Apple silicon runs only signed code. It is not a Developer ID signature, so
 # macOS asks the user to confirm the first start (see the README).
