@@ -5,7 +5,7 @@
 # MPCvibedRPC
 
 **Show what you're watching on Discord.**<br>
-A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
+A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
 
 <p>
 <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
@@ -36,8 +36,8 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, Plex, Stremio, Jellyfin a
 - 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking and pausing.
 - 🧹 **Clean titles** from messy file names: `Show.Name.S01E02.1080p.WEB-DL.x265-GRP.mkv` becomes *Show Name · S01E02*.
 - 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more).
-- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv and VLC on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; and **Plex**, **Stremio**, **Jellyfin** and **Emby** on any device.
-- 🔗 **Clickable**: the second line and the cover open the title's page (IMDb, AniList, ...), next to the "View on IMDb" button. **Hide what I'm watching** is also in the tray / menu bar menu.
+- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; Kodi on any system; and **Plex**, **Stremio**, **Jellyfin** and **Emby** on any device. Each shows with its own logo.
+- 🔗 **Clickable**: both text lines and the cover open the title's page (IMDb, AniList, ...), next to the "View on IMDb" button. **Hide what I'm watching** is also in the tray / menu bar menu.
 - 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
 - 🪶 **Tiny and tidy**: one ~8 MB file, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it rests and asks no player at all.
 
@@ -69,6 +69,9 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
 
 **Jellyfin and Emby** (any system): enter your server's address and sign in on the **Accounts** tab.
 
+**Kodi** (any system): in Kodi, turn on *Settings > Services > Control > Allow remote control via HTTP* with a user
+name and password; enter the password (and the address, for a Kodi on another device) under **Advanced > Players**.
+
 ## 📺 Players
 
 | Player | Windows | macOS | Linux | Setup |
@@ -79,6 +82,8 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
 | mpv | ✓ | ✓ | ✓ | one click (a line in `mpv.conf`) |
 | VLC | ✓ | ✓ | ✓ | one click on Windows and macOS (its web interface); none on Linux |
 | IINA | | ✓ | | one click, then reopen IINA |
+| PotPlayer | ✓ | | | none |
+| Kodi | ✓ | ✓ | ✓ | its web server on, then its address, user name and password under Advanced |
 | Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and more | | | ✓ | none |
 | Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Accounts tab |
 | Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Accounts tab |

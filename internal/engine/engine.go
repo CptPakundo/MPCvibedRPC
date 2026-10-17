@@ -1,5 +1,5 @@
-// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a player found
-// through MPRIS on Linux, Plex, Jellyfin, Emby or Stremio), looks up artwork and keeps Discord up to date.
+// Package engine is the presence engine: it polls the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, PotPlayer, a player
+// found through MPRIS on Linux, Kodi, Plex, Jellyfin, Emby or Stremio), looks up artwork and keeps Discord up to date.
 // It can be started, stopped and given new settings at any time (the settings window drives it).
 package engine
 
@@ -58,7 +58,7 @@ type Status struct {
 	Running    bool    `json:"running"`
 	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
 	MPC        bool    `json:"mpc"`     // some player answers (the name is historic; it is not only MPC)
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, a Linux player found through MPRIS, Plex, Jellyfin, Emby or Stremio
+	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, PotPlayer, a Linux player found through MPRIS, Kodi, Plex, Jellyfin, Emby or Stremio
 	NowPlaying *string `json:"nowPlaying"`
 	Paused     bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).

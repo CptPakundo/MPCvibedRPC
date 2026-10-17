@@ -27,6 +27,18 @@ listed in [All settings](config.md).
 - Music (a song in a video player: `.mp3`, `.flac` and the like) shows as "Listening to" with the file's name; it is not
   looked up in the catalogs, so it gets no cover.
 
+## PotPlayer and Kodi
+
+- PotPlayer (Windows) needs no setup: it is read through the window messages it offers for remote control. An old
+  PotPlayer that doesn't send the file's path is named from its window title instead, so the Never show list can only
+  match the file name there, not its folder.
+- Kodi: turn on *Settings > Services > Control > Allow remote control via HTTP* in Kodi, with a user name and password,
+  and enter the same under **Advanced > Players** (the address too, for a Kodi on another device). The window says when
+  Kodi refuses the password, or when something else answers at the address. Kodi's web server uses port 8080, like
+  VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this.
+- Both were tested against stand-ins built from their documentation (PotPlayer's control header, Kodi's JSON-RPC API),
+  not yet with the real players.
+
 ## Plex
 
 - The window says when the server can't be reached, or Plex refused the sign-in (then sign out and in again on the
