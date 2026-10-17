@@ -6,7 +6,7 @@ whenever a change makes something here wrong (a new player, setting, CI step, re
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB exe, nothing to install) that shows what
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
-ratings. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv and VLC**, and **Plex**, **Stremio**, **Jellyfin** and
+ratings, and each player's logo. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer**, **Kodi**, and **Plex**, **Stremio**, **Jellyfin** and
 **Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
 their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server; all sign-ins are on the
 Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
@@ -57,6 +57,7 @@ friend of the owner on a real Mac.
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
 | `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
+| `internal/potplayer`, `internal/kodi` | PotPlayer (Windows: window messages from its control header `InternalSimpleCmd.h`); Kodi (JSON-RPC: `Player.GetActivePlayers`, `GetItem`, `GetProperties`); both read-only. Player logos for Discord are files in `docs/players`, named by `core/icons.go` (sources in `THIRD-PARTY-NOTICES.md`) |
 | `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
@@ -77,7 +78,9 @@ friend of the owner on a real Mac.
 `engine.fetchPlayer` asks, in this order: the MPC web interface (`/variables.html` on `port`, named by `core.PlayerOf`:
 MPC-HC, MPC-BE or MPC-QT), MPC-QT's always-on pipe `cmdrkotori.mpc-qt.mpv`, mpv's pipe (`mpvPipe`), on macOS IINA's
 socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface (`vlcPort`, only when `vlcPassword` is
-set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), then Plex, Stremio and last
+set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), on Windows PotPlayer's windows
+(`internal/potplayer`: its documented WM_USER messages, the path back as WM_COPYDATA), Kodi's JSON-RPC web server
+(`kodiAddress`, only when `kodiPassword` is set), then Plex, Stremio and last
 Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). **The first player
 that plays a video wins; otherwise the first that plays music; otherwise the first that is paused; otherwise the first
 that answers is reported.** A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is shown as "Listening to" (`core.Listening`)

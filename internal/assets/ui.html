@@ -181,7 +181,7 @@
     </section>
 
     <section class="card notice hidden" id="mpcHelp">
-      <p id="mpcHelpText"><b>No player is answering.</b> Open your player and play something. MPC-HC, MPC-BE, VLC and mpv need setting up first: the button does it.</p>
+      <p id="mpcHelpText"><b>No player is answering.</b> Open your player and play something. MPC-HC, MPC-BE, VLC and mpv need setting up first: the button does it. PotPlayer needs nothing; Kodi needs its web server and password (Advanced).</p>
       <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
     </section>
@@ -254,16 +254,16 @@
   // Texts that differ on macOS and Linux (the page is written for Windows; the program says which system it runs on).
   const OS_TEXT = {
     darwin: {
-      players: 'IINA, mpv, VLC or MPC-QT', here: 'this Mac', autoStart: 'Start at login', copyKey: 'Cmd+C',
+      players: 'IINA, mpv, VLC, MPC-QT or Kodi', here: 'this Mac', autoStart: 'Start at login', copyKey: 'Cmd+C',
       help: '<b>No player is answering.</b> Open your player and play something. IINA, mpv and VLC need setting up first: the button does it.',
     },
     linux: {
-      players: 'VLC, mpv, Celluloid, Haruna, SMPlayer, MPC-QT or another video player', here: 'this computer', autoStart: 'Start at login', copyKey: 'Ctrl+C',
+      players: 'VLC, mpv, Celluloid, Haruna, SMPlayer, MPC-QT, Kodi or another video player', here: 'this computer', autoStart: 'Start at login', copyKey: 'Ctrl+C',
       help: '<b>No player is answering.</b> Open VLC, Celluloid, Haruna or another video player and play something; they need no setup. mpv needs a line in mpv.conf: the button adds it.',
     },
   };
   const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
-  const players = () => (osText() ? osText().players : 'MPC-HC, MPC-BE, MPC-QT, mpv or VLC');
+  const players = () => (osText() ? osText().players : 'MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer or Kodi');
   // an in-page dialog (the browser's confirm() and alert() would head the box with this page's address). buttons are
   // [label, class] pairs, the first being the safe choice that has the focus; it resolves to the index of the button
   // pressed, or -1 for Escape or a click outside. body is text or an element.
@@ -483,7 +483,8 @@
       'Plex: only while you are signed in. plex.tv is asked for your servers, and your server tells this program what you play.',
       'Stremio: only while you are signed in. It is asked every 20 seconds which library entries changed.',
       'Jellyfin or Emby: only while you are signed in. Your own server is asked every 5 seconds what plays.',
-      'The preview at the top loads the cover image from the service that hosts it.',
+      'Kodi: only once its password is set (Advanced). It is asked at the address there, this computer unless you change it.',
+      "The preview at the top loads the cover image from the service that hosts it, or the player's logo from GitHub. Discord loads them the same way for your status.",
       'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.',
       'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
     ].map((t) => el('li', { textContent: t }))));

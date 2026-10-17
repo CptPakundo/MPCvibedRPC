@@ -17,6 +17,9 @@ shown here.
 | `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after the other players on this computer, before Plex, Stremio and Jellyfin / Emby. |
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
+| `kodiAddress` | `'127.0.0.1:8080'` | Kodi's web server (host:port, or a full `http://` address) for a Kodi on this computer or on another device. Left out of Copy diagnostics. |
+| `kodiUser` | `'kodi'` | The user name set in Kodi (Settings > Services > Control). |
+| `kodiPassword` | `''` | The password set in Kodi. Empty: don't look for Kodi. Kept in `config.json` as plain text, like `vlcPassword`. |
 | `plexAddress` | `''` | A fixed address for your Plex server, such as `http://192.168.1.20:32400`. Empty: use the addresses plex.tv lists for it (on your network first, then the others, then Plex's relay). |
 | `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `''` / `0` | Written by **Sign in to Plex** (Accounts tab), not typed: the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. The sign-in is kept in `config.json` as plain text, like other Plex apps keep theirs; the settings window and **Copy diagnostics** never show it. |
 | `stremioKey` | `''` | Written by **Sign in to Stremio** (Accounts tab), not typed: the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. Kept in `config.json` as plain text, like Stremio keeps its own; the settings window and **Copy diagnostics** never show it. |
@@ -105,8 +108,8 @@ These are uploaded to the Discord application whose `clientId` you use.
 
 | Setting | Default | What it does |
 |---|---|---|
-| `largeImageKey` | `'mpc-hc'` | Shown when no cover is found. |
-| `smallImageKey` | `'mpc-hc'` | Small corner icon when a cover is shown. While it is the default, it is left out for players other than MPC-HC, MPC-BE and MPC-QT (it is Media Player Classic's logo). |
+| `largeImageKey` | `'mpc-hc'` | Shown when no cover is found. While it is the default, players with a logo in `docs/players` (mpv, VLC, IINA, PotPlayer, Kodi, SMPlayer, Plex, Stremio, Jellyfin, Emby) show that logo instead. |
+| `smallImageKey` | `'mpc-hc'` | Small corner icon when a cover is shown. While it is the default, players outside the MPC family show their own logo there (see `largeImageKey`), or none. |
 | `appName` | `'Media Player Classic'` | Name used when `titleAsName` is off, and the text of the images. While it is the default, other players are named as themselves (mpv, VLC media player, Plex, ...). |
 
 ## Program settings

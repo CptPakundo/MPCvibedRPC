@@ -66,6 +66,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
 | `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
+| `internal/potplayer`, `internal/kodi` | PotPlayer through its documented window messages (Windows); Kodi through its JSON-RPC web server (read-only) |
 | `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
 | `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
