@@ -33,6 +33,11 @@ type Options struct {
 	Pipes func(cfg core.Config) []PlayerPipe
 	// MPRIS, when not nil, replaces the MPRIS players asked on Linux (tests); see QueryMPRIS.
 	MPRIS func(timeout time.Duration) []*core.Info
+	// MPRISBus, when set, is the bus watched for MPRIS players' changes (tests; see events.go). Without it the real
+	// session bus is watched only when MPRIS is nil.
+	MPRISBus string
+	// KodiEvents replaces where Kodi's notifications are read from (tests): "none" reads none.
+	KodiEvents string
 	// PotPlayer, when not nil, replaces the PotPlayer windows asked on Windows (tests); see potplayer.Query.
 	PotPlayer func() []*core.Info
 	// Version is the program's version (Plex and Jellyfin are told it).

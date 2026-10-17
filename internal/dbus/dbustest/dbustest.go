@@ -35,6 +35,8 @@ type Bus struct {
 	ln       net.Listener
 	conns    []net.Conn
 	unsorted []string
+	subs     []net.Conn // connections that asked for signals (AddMatch)
+	wmu      sync.Mutex // one write at a time
 }
 
 // New starts a fake bus on a Unix socket in the test's folder. It skips the test when Unix sockets are not available.
@@ -150,9 +152,15 @@ messages:
 			serial++
 			sig, _ := (&dbus.Message{Type: dbus.TypeSignal, Serial: serial, Path: "/org/freedesktop/DBus", Interface: "org.freedesktop.DBus",
 				Member: "NameAcquired", Destination: ":1.1", Sender: "org.freedesktop.DBus", Signature: "s", Body: []any{":1.1"}}).Marshal()
+			b.wmu.Lock()
 			c.Write(sig)
+			b.wmu.Unlock()
 		case m.Destination == "org.freedesktop.DBus" && m.Member == "ListNames":
 			rep = Reply{Sig: "as", Body: []any{names}}
+		case m.Destination == "org.freedesktop.DBus" && m.Member == "AddMatch":
+			b.mu.Lock()
+			b.subs = append(b.subs, c)
+			b.mu.Unlock()
 		case h != nil:
 			rep = h(m)
 		default:
@@ -168,8 +176,34 @@ messages:
 		if err != nil {
 			panic(err)
 		}
+		b.wmu.Lock()
+		c.Write(raw)
+		b.wmu.Unlock()
+	}
+}
+
+// Emit sends a signal to every connection that asked for signals (AddMatch); the rule itself is not checked.
+func (b *Bus) Emit(m *dbus.Message) {
+	m.Type = dbus.TypeSignal
+	raw, err := m.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	b.mu.Lock()
+	subs := append([]net.Conn(nil), b.subs...)
+	b.mu.Unlock()
+	b.wmu.Lock()
+	defer b.wmu.Unlock()
+	for _, c := range subs {
 		c.Write(raw)
 	}
+}
+
+// Watchers is how many connections asked for signals.
+func (b *Bus) Watchers() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.subs)
 }
 
 // Strings turns a []string into the []any the encoder takes for "as".
