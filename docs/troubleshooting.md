@@ -36,8 +36,8 @@ listed in [All settings](config.md).
   and enter the same under **Advanced > Players** (the address too, for a Kodi on another device). The window says when
   Kodi refuses the password, or when something else answers at the address. Kodi's web server uses port 8080, like
   VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this.
-- Both were tested against stand-ins built from their documentation (PotPlayer's control header, Kodi's JSON-RPC API),
-  not yet with the real players.
+- Both are tested with the real players on GitHub's Windows test machines (a fresh install, a test video playing),
+  not yet on a real desktop. Kodi on macOS, on Linux and on another device was only tried against a stand-in.
 
 ## Plex
 

@@ -157,7 +157,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   `tools/ci/live-plex.sh`: the live engine test against the official Plex Media Server image (unclaimed, no account)
   with a stand-in player that reports playback through `/:/timeline`. `jellyfin` runs `tools/ci/live-jellyfin.sh` for
   the official Jellyfin and Emby images (a matrix): the first-run wizard with a made-up user, a stand-in player (`/Sessions/Playing`),
-  the real sign-in (password and Quick Connect) and the live engine test. **This is the only
+  the real sign-in (password and Quick Connect) and the live engine test. `players-windows` runs `tools/ci/live-windows.sh`: real
+  PotPlayer and Kodi from Chocolatey (PotPlayer without its stale package checksum), a generated video in each, the live
+  engine test, and `TestLivePotPlayer` (the real PotPlayer sends the file's path). **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
