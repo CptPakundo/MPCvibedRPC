@@ -31,6 +31,11 @@ friend of the owner on a real Mac.
   no history of earlier versions or former names outside `.github/release-notes.md` and the in-app changelog
   (`internal/assets/changelog.json`: short lines, one emoji each, newest version first).
 - Versions are `0.9.x` (pre-1.0, three-part, needed by the updater). The current version is in `cmd/mpcvibedrpc/main.go`.
+- **Roadmap:** `docs/roadmap.md` holds the long-term goals, the non-goals, the owner's open decisions and a watch list of
+  outside facts (Discord, Go and OS floors, Plex, Jellyfin, Stremio, catalogs, distribution). Read it before proposing
+  or planning a feature, a new service or a distribution change, and don't propose a listed non-goal without saying so.
+  Update it in the same pull request when a change finishes a step, moves a goal or settles a decision, and refresh the
+  watch list when you learn an outside fact changed (with the date checked).
 
 ## Ground rules
 - **Privacy first.** No personal data in commits, code, docs, tests, screenshots or release files: no email addresses,
