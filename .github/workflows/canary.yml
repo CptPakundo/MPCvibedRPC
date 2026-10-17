@@ -37,7 +37,7 @@ jobs:
         run: MPCRPC_LIVE_CATALOGS=1 ./tools/ci/run-annotated.sh "live catalogs" ./tools/ci/must-pass.sh TestLiveCatalogs go test -count=1 -run TestLiveCatalogs -v ./internal/artwork
         shell: bash
 
-  # VLC and Celluloid as their makers release them (Flathub), with the live engine test and a pause from their events.
+  # mpv, VLC and Celluloid as their makers release them (Flathub), with the live engine test and a pause from their events.
   players-flathub:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -51,7 +51,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends flatpak ffmpeg xvfb dbus dbus-x11 > /dev/null
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y --noninteractive flathub org.videolan.VLC io.github.celluloid_player.Celluloid > /dev/null
+          flatpak install --user -y --noninteractive flathub io.mpv.Mpv org.videolan.VLC io.github.celluloid_player.Celluloid > /dev/null
           flatpak list --user --app --columns=application,version
       - name: Live tests
         shell: bash

@@ -26,8 +26,8 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
 - Steps: a weekly scheduled CI run of the live player and server tests against the latest releases; a small check per
   catalog service (one known title, the answer's shape); the Go vulnerability check (done in 0.9.31); each failure
   opens an issue. The weekly run, the catalog check and the issue are done (`canary.yml`, 0.9.32), and since 0.9.35
-  VLC and Celluloid are also tried as Flathub ships them (their makers' newest releases, `live-flathub.sh`); mpv
-  on Linux still comes from Ubuntu's package (Flathub's mpv is not tried yet).
+  VLC and Celluloid are also tried as Flathub ships them (their makers' newest releases, `live-flathub.sh`), and mpv
+  since 0.9.36.
 
 ### 2. Own the foundations
 - **Discord application**: the default application ID belongs to the project this one started from, which has been
