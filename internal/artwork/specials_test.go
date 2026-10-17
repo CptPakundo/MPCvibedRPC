@@ -68,7 +68,7 @@ func TestNamedSpecialFallback(t *testing.T) {
 	cfg := core.DefaultConfig()
 	cfg.ArtworkSources, cfg.EpisodeSources, cfg.AnimeSources = []string{"cinemeta"}, []string{"cinemeta"}, []string{"cinemeta"}
 	cfg.RichInfo, cfg.ArtworkWaitMs = false, 5000
-	for _, file := range []string{"Sample Show - Special 02.mkv", "[Group] Sample Show - SP2 [1080p].mkv", "Sample.Show.OAD.02.mkv"} {
+	for _, file := range []string{"Sample Show - Special 02.mkv", "[Group] Sample Show - SP2 [1080p].mkv", "Sample.Show.OAD.02.mkv", "Sample Show S01 OVA 2.mkv", "Sample Show Season 1 - Special 2.mkv"} {
 		a := New(&cfg, Options{CacheFile: filepath.Join(t.TempDir(), "c.json"), Client: &http.Client{Transport: fakeSpecials{}}})
 		m := core.ParseMedia(file, &cfg, nil)
 		if m.IsEpisode {

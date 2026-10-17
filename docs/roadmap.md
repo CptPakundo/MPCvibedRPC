@@ -82,7 +82,8 @@ release by hand, and winget needs one pull request per version. Frequent release
 - Sturdier catalog services, without losing coverage. The many catalogs are there on purpose (the owner's
   intent, 2026-10-18): every show, film, special or the like should be found. Never drop a catalog that finds titles
   the others miss; make each one more reliable, and fill gaps (such as specials) where a catalog has the data.
-  Specials (S00E01) get their names from Cinemeta's season 0 since 0.9.35, without a TMDB key.
+  Specials (S00E01) get their names from Cinemeta's season 0 since 0.9.35, without a TMDB key. Specials named in
+  words ("Special 02", "OVA 2") that no catalog lists on their own are found as the show's season 0 since 0.9.36.
 - "Why this title?" in Copy diagnostics. Done in 0.9.34: the file name, what was read from it, which catalog matched
   (or the closest results) and where the episode title came from.
 - A title-language choice for anime (the services already return every variant). Exists for AniList matches

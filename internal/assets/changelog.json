@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.36", "date": "2026-10-18", "items": [
+    "🎁 Specials named in words (Special 02, OVA 2, SP2) get the show's cover and the special's name.",
+    "🧪 The weekly check also tries mpv as its makers release it."
+  ]},
   {"version": "0.9.35", "date": "2026-10-18", "items": [
     "⚡ Kodi and the Linux players read through D-Bus (VLC, Celluloid, ...) show a pause, seek or new file at once.",
     "🎁 Specials (S00E01 and so on) get their episode names without a TMDB key.",

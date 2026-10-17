@@ -200,7 +200,7 @@ type artJSON struct {
 	Shift      float64         `json:"shift"`
 	EntryEps   float64         `json:"entryEps"`
 	Special    bool            `json:"special"`
-	IDs       *ArtIDs         `json:"ids"`
+	IDs        *ArtIDs         `json:"ids"`
 	Episode    *ArtEpisode     `json:"episode"`
 }
 
