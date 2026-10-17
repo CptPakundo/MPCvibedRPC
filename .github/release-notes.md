@@ -1,18 +1,25 @@
-## MPCvibedRPC 0.9.33
+## MPCvibedRPC 0.9.34
 
-**TVmaze covers work again, and every address the program connects to is now listed in one place.**
+**Faster updates from mpv and IINA, a clearer view of what the program does, and releases anyone can rebuild.**
 
 ### What's new
-- **TVmaze:** its search now takes 30 to 60 seconds for a show it has not been asked about lately (then it answers at
-  once for an hour). The program gave up after a few seconds, so shows found only by TVmaze got no cover and no episode
-  names. Now it carries on without TVmaze, keeps waiting in the background, and looks the title up again as soon as the
-  answer is in: the cover appears about a minute after the show starts, the first time.
-- **Where it connects:** [SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md#where-it-connects)
-  lists every address the program asks, every image the window and Discord load, and every page it only links to. The
-  Privacy tab links to it, and a test fails whenever the code names an address that is not on the list.
-- **MPC-HC's web interface:** the Privacy tab now says that it has no password, so web pages you open can read it and
-  control the player while it is on. Switch it off in MPC-HC (Options > Player > Web Interface) when you stop using
-  this program.
+- **mpv and IINA: changes show at once.** Pausing, resuming, seeking or opening another file now reaches Discord
+  within a moment, from the player's own event, instead of at the next check (up to 5 seconds later). Discord accepts
+  only a few updates in a short time, so early updates are at most one every 4 seconds. Other players are checked
+  every 5 seconds as before.
+- **Why this title?** Copy diagnostics (Help tab) now explains the title on Discord: the file name the player gave,
+  what was read from it (title, year, season, episode), which catalog matched it and as what, and where the episode
+  title came from. When nothing matched, it lists the closest results, or says that a catalog was slow and is asked
+  again soon.
+- **Recent connections** (Privacy tab): every address outside your computer the program sent a request to since it
+  started, how often and when last. It never shows or stores what was asked, and it is kept in memory only. Every
+  address the code can reach is listed in [SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md#where-it-connects).
+- **Rebuildable releases.** Every release is now rebuilt from its source on a second machine and published only when
+  the Windows program and both Linux programs match the release byte for byte. You can do the same yourself
+  (SECURITY.md says how). The workflows that build releases use pinned versions of their tools and only the
+  permissions they need.
+- **Two new pages:** [why the program behaves as it does](https://github.com/CptPakundo/MPCvibedRPC/blob/master/docs/decisions.md),
+  and [how it is made with AI and checked](https://github.com/CptPakundo/MPCvibedRPC/blob/master/docs/ai.md).
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
