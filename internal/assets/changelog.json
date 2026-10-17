@@ -1,8 +1,10 @@
 [
-  {"version": "0.9.26", "date": "2026-10-17", "items": [
+  {"version": "0.9.30", "date": "2026-10-17", "items": [
+    "🎬 PotPlayer (Windows) and Kodi (any system, also on another device) are supported.",
+    "🖼️ Each player shows with its own logo on Discord instead of Media Player Classic's or none.",
     "🙈 Never show these files can hide a whole Plex library, or a folder on your Plex, Jellyfin or Emby server.",
     "🛡️ When Discord runs as administrator, the window says so instead of just waiting for Discord.",
-    "🔗 Both text lines on Discord now open the title's page, and \"Wrong title or cover?\" leads to the fix."
+    "🔗 Both text lines on Discord open the title's page, and \"Wrong title or cover?\" leads to the fix."
   ]},
   {"version": "0.9.25", "date": "2026-10-17", "items": [
     "🧹 Quitting and updating always clean up after themselves, even while another program is reading the app's files."
