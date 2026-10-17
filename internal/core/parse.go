@@ -327,8 +327,8 @@ var (
 	feSeason  = re(`^s(\d{1,2})$`, "i")
 	feDigits4 = re(`^\d{1,4}$`, "")
 	feEp      = re(`^e(?:p(?:isode)?)?(\d{1,4})$`, "i")
-	feE       = re(`^e(?:p(?:isode)?)?(\d{1,4})(?:v\d)?$`, "i")
-	feEpWord  = re(`^(?:ep|episode)$`, "i")
+	feE       = re(`^e(?:p(?:isode)?)?(\d{1,4})(?:-e(\d{1,4}))?(?:v\d)?$`, "i")
+	feEpWord  = re(`^(?:ep|episode)\.?$`, "i")
 	feJp      = re(`^第?(\d{1,4})[話话集]$`, "")
 	feDashEp  = re(`^(\d{1,3}|(?!(?:19|20)\d\d|1080|1440|2160|4320)\d{4})(?:v\d)?$`, "i")
 )
@@ -342,8 +342,12 @@ func findEpisode(tokens []string, cut int) *epMatch {
 			next = bare(tokens[i+1])
 		}
 		if m := feSE.Exec(b); m != nil {
+			eps := "" // "S2E5" is shown as S02E05, "s01e05-e06" as S01E05E06
+			for _, n := range strings.FieldsFunc(strings.ToLower(m.Str(2)), func(r rune) bool { return r == 'e' || r == '-' }) {
+				eps += "E" + pad2s(n)
+			}
 			return &epMatch{idx: i, length: 1, season: atoi(m.Str(1)), episode: digitsOf(m.Str(2)),
-				parts: []string{"S" + pad2s(m.Str(1)) + strings.ToUpper(strings.ReplaceAll(m.Str(2), "-", ""))}}
+				parts: []string{"S" + pad2s(m.Str(1)) + eps}}
 		}
 		if m := feNxM.Exec(b); m != nil {
 			return &epMatch{idx: i, length: 1, season: atoi(m.Str(1)), episode: atoi(m.Str(2)), parts: []string{"S" + pad2s(m.Str(1)) + "E" + m.Str(2)}}
@@ -378,8 +382,12 @@ func findEpisode(tokens []string, cut int) *epMatch {
 			}
 			continue // "S02" with no episode (e.g. a season pack) is just part of the title
 		}
-		if m := feE.Exec(b); m != nil { // E03, Ep03, Episode03 (v2 = a re-release)
-			return &epMatch{idx: i, length: 1, season: NA, episode: atoi(m.Str(1)), parts: []string{"E" + pad2s(m.Str(1))}}
+		if m := feE.Exec(b); m != nil { // E03, Ep03, Episode03, E03-E04 (v2 = a re-release)
+			part := "E" + pad2s(m.Str(1))
+			if m.Has(2) {
+				part += "E" + pad2s(m.Str(2))
+			}
+			return &epMatch{idx: i, length: 1, season: NA, episode: atoi(m.Str(1)), parts: []string{part}}
 		}
 		if feEpWord.Test(b) && feDigits4.Test(next) { // "Episode 3", "Ep 03"
 			return &epMatch{idx: i, length: 2, season: NA, episode: atoi(next), parts: []string{"E" + pad2s(next)}}
@@ -543,6 +551,9 @@ func smartTokens(base string, cfg *Config) []string {
 		}
 		if psYearOnly.Test(inner) {
 			return " (" + trim(inner) + ") " // "[1984]" is a year
+		}
+		if in := trim(inner); feSE.Test(in) || feNxM.Test(in) {
+			return " " + in + " " // "[S01E02]" is the episode, not a tag
 		}
 		whole := m.Str(0)
 		if strings.HasPrefix(whole, "[") && cfg.IgnoreBrackets {
