@@ -8,8 +8,12 @@ listed in [All settings](config.md).
 - The status line at the top of the window says what is going on. "No player found": press **Set up the player
   connection**. mpv and IINA read their settings when they start, so restart them afterwards.
 - IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
+- macOS 15 or later: a Plex, Jellyfin, Emby or Kodi server on your home network can't be reached until you allow
+  it. Answer **Allow** when macOS asks, or turn MPCvibedRPC on under System Settings > Privacy & Security > Local
+  Network.
 - "Discord on standby" is normal until something plays. If it stays on "Waiting for Discord" while a video plays, use
-  the Discord desktop app (not the browser) and check that "Share my activity" is on.
+  the Discord desktop app (not the browser) and check that "Share my activity" is on (User Settings > Activity Privacy, in the Games & Apps section; Activity
+  Settings in older Discord versions).
 - "Discord refused the connection": Discord runs as administrator and this program doesn't, so Windows keeps them apart.
   Close Discord and start it normally (not with "Run as administrator", and without that setting in its shortcut).
 - More than one Discord (Stable, PTB, Canary) open: the status goes to the one that started first, which may be signed

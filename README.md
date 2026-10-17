@@ -43,7 +43,7 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 
 ## 🚀 Getting started
 
-Every system needs the **Discord desktop app** with *User Settings > Activity Privacy > "Share my activity"* turned on.
+Every system needs the **Discord desktop app** with *User Settings > Activity Privacy > "Share my activity"* turned on (Activity Privacy is in the *Games & Apps* section, called *Activity Settings* in older Discord versions).
 
 **Windows 10/11**
 1. Download **MPCvibedRPC.exe** and run it. There is nothing to install. SmartScreen may warn, because the program
@@ -113,7 +113,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 **Nothing shows on Discord?** Check these first:
 
 1. The Discord desktop app (not the browser) is running.
-2. *User Settings > Activity Privacy > "Share my activity"* is turned on.
+2. *User Settings > Activity Privacy > "Share my activity"* is turned on (under *Games & Apps*, or *Activity Settings* in older Discord versions).
 3. Discord runs normally, not as administrator.
 4. The status line at the top of the window says what is missing, for example "No player found".
 

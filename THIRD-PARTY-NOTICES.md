@@ -6,6 +6,13 @@
   BSD 3-Clause License, Copyright 2009 The Go Authors. Full text: https://go.dev/LICENSE
 - Unicode data used for text normalisation (`internal/jsre/nfd_table.go`, `nfc_table.go`) is derived from the
   Unicode Character Database - https://www.unicode.org/license.txt
+- **Catalog data.** Titles, covers, episode names and ratings are looked up online while the program runs; none of
+  it ships with the program. The settings window's Help tab shows these credits too.
+  - **TMDB**: This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo in the window is
+    TMDB's own ("Primary short (blue)", https://www.themoviedb.org/about/logos-attribution) and belongs to TMDB.
+  - **TVmaze**: TV data from https://www.tvmaze.com, licensed under CC BY-SA 4.0.
+  - Also asked: IMDb's title search, Cinemeta (Stremio), AniList, Kitsu, Wikipedia and Bulbapedia, and a Jikan
+    (MyAnimeList) server only if you set one up. Their data belongs to them and is shown as found.
 - Player logos in `docs/players/` are shown as the small icon on a Discord status, to name the player in use. They
   belong to their projects (some are trademarks) and are not covered by this project's license. Sources:
   - `mpv.png`: https://github.com/mpv-player/mpv (`etc/mpv-icon-8bit-128x128.png`; GPL-2.0-or-later / LGPL).
