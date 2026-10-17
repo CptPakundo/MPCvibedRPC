@@ -1,0 +1,59 @@
+# Once a week, the whole CI (tests, smoke tests and the live jobs, which install the newest PotPlayer, Kodi, IINA and
+# mpv on macOS, and the latest Plex, Jellyfin and Emby images) plus a check of every keyless catalog service, so an
+# outside change shows up within a week rather than when a user reports it. A failure opens an issue (label "canary");
+# the next run that passes closes it. A pull request that changes the canary runs the catalog check and a dry run of
+# the report.
+name: canary
+on:
+  schedule:
+    - cron: '23 4 * * 1' # Mondays, 04:23 UTC
+  workflow_dispatch:
+    inputs:
+      report:
+        description: Open, update or close the canary issue (otherwise the report is a dry run)
+        type: boolean
+        default: false
+  pull_request:
+    paths: ['.github/workflows/canary.yml', 'tools/ci/canary-report.sh', 'internal/artwork/live_test.go']
+permissions:
+  contents: read
+concurrency:
+  group: canary-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/ci.yml
+
+  catalogs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.2', cache: false }
+      - name: Live catalog check
+        run: MPCRPC_LIVE_CATALOGS=1 ./tools/ci/run-annotated.sh "live catalogs" ./tools/ci/must-pass.sh TestLiveCatalogs go test -count=1 -run TestLiveCatalogs -v ./internal/artwork
+        shell: bash
+
+  report:
+    needs: [ci, catalogs]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Open, update or close the canary issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPORT: ${{ (github.event_name == 'schedule' || inputs.report) && '1' || '' }}
+        run: |
+          PASSED_FILE="$RUNNER_TEMP/report-ok" ./tools/ci/canary-report.sh
+          test -f "$RUNNER_TEMP/report-ok" || { echo "::error title=canary report::the script stopped before the end"; exit 1; }
+        shell: bash
