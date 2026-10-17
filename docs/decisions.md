@@ -45,8 +45,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 
 ## Releases
 - **Versions stay 0.9.x, three-part.** *Why:* the updater compares three numbers; a fix takes the next number.
-- **Fewer, larger releases** that each bundle several changes; urgent fixes can still ship alone. *Why:* every release
-  is a new file for Windows SmartScreen and for package managers, and frequent small releases wear down trust.
+- **Frequent releases while the program is young** (2026-10-18): each real improvement ships once its checks pass.
+  *Why:* few people use it yet, so quick fixes and feedback count for more than the trust that calmer releases build
+  with Windows SmartScreen and package managers. Bundling comes back once it has a wider audience.
 - **A release stays a draft until it checks out**: its files, checksums, build records, a rebuild from the tag that
   must match byte for byte, and then a real self-update from the release before. *Why:* nobody's updater should ever
   see a broken release.
