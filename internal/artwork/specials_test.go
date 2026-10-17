@@ -20,6 +20,9 @@ func (fakeSpecials) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch {
 	case req.URL.Host == "v3-cinemeta.strem.io" && req.URL.Path == "/catalog/series/top/search=Sample Show.json":
 		body = `{"metas":[{"imdb_id":"tt0000555","name":"Sample Show","releaseInfo":"2010-","poster":"https://images.example/show.jpg"}]}`
+	case req.URL.Host == "v3-cinemeta.strem.io" && req.URL.Path == "/catalog/series/top/search=Sample Show Special 01.json":
+		// the real Cinemeta answers a special's whole name with the show itself
+		body = `{"metas":[{"imdb_id":"tt0000555","name":"Sample Show","releaseInfo":"2010-","poster":"https://images.example/show.jpg"}]}`
 	case req.URL.Host == "v3-cinemeta.strem.io" && req.URL.Path == "/catalog/series/top/search=Sample Show OVA 2.json":
 		body = `{"metas":[{"imdb_id":"tt0000777","name":"Sample Show OVA 2","releaseInfo":"2012","poster":"https://images.example/ova.jpg"}]}` // listed on its own
 	case req.URL.Host == "v3-cinemeta.strem.io" && req.URL.Path == "/meta/series/tt0000555.json":
@@ -91,6 +94,9 @@ func TestNamedSpecialFallback(t *testing.T) {
 	}
 
 	a := New(&cfg, Options{CacheFile: filepath.Join(t.TempDir(), "c.json"), Client: &http.Client{Transport: fakeSpecials{}}})
+	if art := a.Lookup(core.ParseMedia("Sample Show - Special 01.mkv", &cfg, nil)); art == nil || !art.Special || art.Episode == nil || art.Episode.Title != "Sample Special One" {
+		t.Errorf("the whole name answered with the show: %+v", art)
+	}
 	if art := a.Lookup(core.ParseMedia("Sample Show OVA 2.mkv", &cfg, nil)); art == nil || art.Special || art.Name != "Sample Show OVA 2" {
 		t.Errorf("a title listed on its own: %+v", art)
 	}

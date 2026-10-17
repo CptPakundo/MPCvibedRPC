@@ -716,7 +716,12 @@ func movieMedia(tokens []string, cut int) *Media {
 			for i := len(titleTokens) - 2; i >= 1; i-- {
 				if psParenYear.Test(titleTokens[i]) && isYear(titleTokens[i]) && len(titleTokens)-i <= 4 {
 					year = atoi(bare(titleTokens[i]))
+					tail := titleTokens[i+1:]
 					titleTokens = titleTokens[:i]
+					// "Show (2010) - Special 01" names a special, not an edition: keep it for NamedSpecial
+					if t := strings.Join(tail, " "); nsWords.Test(t) {
+						titleTokens = append(titleTokens, tail...)
+					}
 					break
 				}
 			}
@@ -931,6 +936,7 @@ func FolderEpisode(media *Media, files []string) int {
 	return NA
 }
 
+var nsWords = re(`^(?:[-–]\s*)?(?:specials?|sp|ova|oav|oad|ona)\s*\d{1,3}$`, "i")
 var nsTail = re(`^(.*?\p{L}.*?)(?:\s+(?:s|season\s*)\d{1,2})?\s*(?:[-–]\s*)?\b(?:specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
 
 // NamedSpecial reads a title such as "Sample Show - Special 03", "Sample Show OVA 2" or "Sample Show - SP2" as the

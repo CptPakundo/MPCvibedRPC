@@ -657,6 +657,12 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 				h.Name = h.Name + ": " + v.subtitle // the catalog lists the title without it
 				return &h
 			}
+			// a catalog that answers "Sample Show - Special 03" with the show itself found the special's show
+			if sp := core.NamedSpecial(media); sp != nil && r.hit.Type == "series" && normTitle(r.hit.Name) == normTitle(sp.Title) {
+				h := *r.hit
+				h.Special = true
+				return &h
+			}
 			return r.hit
 		}
 		seen = append(seen, r.seen...)
