@@ -66,9 +66,9 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/mpvipc`, `internal/pipe` | mpv's JSON IPC (mpv and MPC-QT); named pipes on Windows, Unix sockets elsewhere |
 | `internal/vlchttp` | VLC's web interface (read-only: `status.json`, `playlist.json`) |
-| `internal/potplayer`, `internal/kodi` | PotPlayer through its documented window messages (Windows); Kodi through its JSON-RPC web server (read-only) |
-| `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls) |
-| `internal/plex` | Plex: the plex.tv sign-in, the account's servers, and a server's play notifications (read-only) |
+| `internal/potplayer`, `internal/kodi` | PotPlayer through its documented window messages (Windows); Kodi through its JSON-RPC web server and its notifications on port 9090 (read-only) |
+| `internal/mpris`, `internal/dbus` | Linux video players through MPRIS; a small D-Bus client (session bus, method calls, change signals) |
+| `internal/plex` | Plex: the plex.tv sign-in (and the 7-day key sign-in, off by default), the account's servers, and a server's play notifications (read-only) |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out, and the account's library as Stremio's player updates it (read-only) |
 | `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share (problem text, network-error wording, the OS name) |

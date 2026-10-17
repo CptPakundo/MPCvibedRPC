@@ -62,10 +62,10 @@ friend of the owner on a real Mac.
 | `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles); split by job: `engine.go` (types, Start/Stop, Status), `players.go` (`fetchPlayer` and its `picker`), `remote.go` (the Plex, Stremio and Jellyfin watchers as one list, resting), `discord.go`, `tick.go` |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`), every other outside address (`hosts.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
-| `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); a minimal D-Bus client; `dbus/dbustest` is a fake bus for tests |
+| `internal/mpris`, `internal/dbus` | Linux players through MPRIS (an allowlist of video players); their change signals (`watch.go`); a minimal D-Bus client (calls and `Watch` for signals); `dbus/dbustest` is a fake bus for tests |
 | `internal/vlchttp` | VLC's web interface, read-only (`status.json`, `playlist.json`) |
-| `internal/potplayer`, `internal/kodi` | PotPlayer (Windows: window messages from its control header `InternalSimpleCmd.h`); Kodi (JSON-RPC: `Player.GetActivePlayers`, `GetItem`, `GetProperties`); both read-only. Player logos for Discord are files in `docs/players`, named by `core/icons.go` (sources in `THIRD-PARTY-NOTICES.md`) |
-| `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
+| `internal/potplayer`, `internal/kodi` | PotPlayer (Windows: window messages from its control header `InternalSimpleCmd.h`); Kodi (JSON-RPC: `Player.GetActivePlayers`, `GetItem`, `GetProperties`) and its notifications on TCP 9090 (`watch.go`); both read-only. Player logos for Discord are files in `docs/players`, named by `core/icons.go` (sources in `THIRD-PARTY-NOTICES.md`) |
+| `internal/plex` | Plex: the plex.tv PIN sign-in, the account's servers (`account.go`), the 7-day key sign-in, off by default (`jwt.go`), one server's play notifications (`watcher.go`), metadata to a file-like name (`meta.go`); read-only |
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share: the problem text, nil-safe log and clock types, the OS name, network-error wording, the same-origin redirect check (their titles are written like file names by `core/names.go`) |
@@ -110,6 +110,11 @@ Server-Sent Events from `/:/eventsource/notifications?filters=playing` (a `PlayS
 report, every few seconds). Titles come from `/library/metadata/<ratingKey>` and are written like a file name
 ("Sample Show - S01E02 - Title", "Sample Movie (2020)") so the usual parsing and lookups apply. On a server the user owns
 only their own sessions count (`/status/sessions`: user 1 or the account id); music and photos are skipped.
+With `plexJwt` (off by default, `config.json` only) the sign-in uses Plex's newer 7-day tokens instead (`jwt.go`, as
+developer.plex.tv's "Authenticating with Plex" describes): an Ed25519 key per install (`plexKey`, a secret), its JWK
+sent with the PIN to `clients.plex.tv/api/v2/pins`, the token collected with a signed device JWT, and renewed
+(`/api/v2/auth/nonce`, then `/api/v2/auth/token`) two days before it runs out (`plexAccount.keepFresh`, hourly).
+Only tested against a fake plex.tv; turn it on by default only once a real sign-in has been tried with the owner's OK.
 
 Stremio (`internal/stremio`): "Sign in to Stremio" gets the account's key through a link code (`link.stremio.com/api/v2/
 create` and `read`, the TV apps' sign-in; only an https stremio.com page is ever opened); sign-out and Restore defaults
