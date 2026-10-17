@@ -80,7 +80,8 @@ release by hand, and winget needs one pull request per version. Frequent release
   (or the closest results) and where the episode title came from.
 - A title-language choice for anime (the services already return every variant). Exists for AniList matches
   (`animeTitles`: auto, English, romaji or the file's spelling).
-- React to player events where players offer them (mpv, Kodi, Linux MPRIS), so pause and seek show at once.
+- React to player events where players offer them (mpv, Kodi, Linux MPRIS), so pause and seek show at once. mpv
+  and IINA since 0.9.34 (`engine/events.go`); left: Kodi's notifications and MPRIS's PropertiesChanged signals.
 - macOS stays "best effort": the owner has no Mac, CI and testers are the test bed.
 - Later, if asked for: a native Windows ARM64 build, translatable window texts, a Linux tray icon.
 

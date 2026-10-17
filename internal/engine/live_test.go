@@ -2,12 +2,14 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
+	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
 )
 
 // TestLivePlayer runs against a real player on this computer (MPC-QT, mpv, VLC, IINA or a Linux player that offers
@@ -93,6 +95,50 @@ func TestLivePlayer(t *testing.T) {
 	if !l.has(`(` + want + `: "`) {
 		t.Error("the log should name what the player played")
 	}
+	if os.Getenv("MPCRPC_LIVE_EVENTS") == "1" && (want == "mpv" || want == "IINA") {
+		livePauseEvent(t, e, d, want)
+	}
+}
+
+// livePauseEvent pauses the real player through its own pipe and wants the pause shown at once, from the player's
+// event, while the regular checks are a minute apart. It changes the player's state, so it is opt-in
+// (MPCRPC_LIVE_EVENTS=1; CI sets it for its throwaway players), and it resumes the player afterwards.
+func livePauseEvent(t *testing.T, e *Engine, d *disc, name string) {
+	e.Stop()
+	e.cfg.PollInterval = 60000
+	e.Start()
+	eventually(t, "connected again", func() bool { return e.Status().Discord == "connected" })
+	time.Sleep(time.Second) // the event connection is made at the start
+	var path string
+	for _, p := range PlayerPipes(e.cfg) {
+		if p.Name == name {
+			path = p.Path
+		}
+	}
+	set := func(paused bool) {
+		c, err := pipe.Dial(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		b, _ := json.Marshal(map[string]any{"command": []any{"set_property", "pause", paused}})
+		if _, err := c.Write(append(b, '\n')); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	n := len(d.list())
+	start := time.Now()
+	set(true)
+	defer set(false)
+	deadline := time.Now().Add(3 * time.Second)
+	for !(len(d.list()) > n && e.Status().Paused) {
+		if time.Now().After(deadline) {
+			t.Fatalf("the pause did not show within 3 s (regular checks are a minute apart)")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Logf("the pause showed after %v (from %s's event)", time.Since(start).Round(time.Millisecond), name)
 }
 
 func atoiOr(s string, def int) int {
