@@ -68,8 +68,10 @@ release by hand, and winget needs one pull request per version. Frequent release
   instead of plain text in `config.json`.
 
 ### 6. Readable by a human, decisions in the open
-- A public record of the product decisions and of the non-goals below, with the reason for each.
+- A public record of the product decisions and of the non-goals below, with the reason for each. Done in 0.9.34:
+  `docs/decisions.md` (the non-goals stay below).
 - A short note on how AI was used (a file, not a banner) and an AI and pull-request section in CONTRIBUTING.md.
+  Done in 0.9.34: `docs/ai.md`, linked once from the README.
 - Size limits: no dependencies, short functions.
 
 ### 7. Depth in the core, not breadth

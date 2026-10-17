@@ -41,8 +41,8 @@ type built struct {
 	display    string
 	found      *core.Art
 	music      bool
-	noEpTitle  bool // an episode whose title was wanted but did not come
-	fromFolder bool // the show's name came from the file's folder
+	noEpTitle  bool     // an episode whose title was wanted but did not come
+	fromFolder bool     // the show's name came from the file's folder
 	why        []string // "Why this title?" (see Status.Why)
 }
 
