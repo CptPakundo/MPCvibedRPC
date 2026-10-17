@@ -19,8 +19,9 @@ import (
 // MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080). MPCRPC_LIVE_MPV_PIPE and
 // MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. For Plex, MPCRPC_LIVE_PLEX_ADDRESS is the
 // server (followed without plex.tv; MPCRPC_LIVE_PLEX_TOKEN is its token, if it needs one). For Jellyfin or
-// Emby, MPCRPC_LIVE_JELLYFIN_ADDRESS, MPCRPC_LIVE_JELLYFIN_USER and MPCRPC_LIVE_JELLYFIN_PASSWORD sign in to the server. MPCRPC_LIVE_PLAYER is the
-// name the player is shown under: MPC-QT, mpv, VLC, IINA, Celluloid, Plex, ...
+// Emby, MPCRPC_LIVE_JELLYFIN_ADDRESS, MPCRPC_LIVE_JELLYFIN_USER and MPCRPC_LIVE_JELLYFIN_PASSWORD sign in to the server. For Kodi, MPCRPC_LIVE_KODI_PASSWORD
+// (and MPCRPC_LIVE_KODI_ADDRESS when it is not 127.0.0.1:8080; the user is kodi). PotPlayer needs nothing. MPCRPC_LIVE_PLAYER is the
+// name the player is shown under: MPC-QT, mpv, VLC, IINA, PotPlayer, Kodi, Celluloid, Plex, ...
 func TestLivePlayer(t *testing.T) {
 	want := os.Getenv("MPCRPC_LIVE_PLAYER")
 	if want == "" {
@@ -31,7 +32,7 @@ func TestLivePlayer(t *testing.T) {
 		port = atoiOr(p, port)
 	}
 	e, d, l := pipeEngine(t, port, nil)
-	e.opts.Pipes, e.opts.MPRIS = nil, nil // the real endpoints: MPC-QT's, mpv's, IINA's (macOS) and MPRIS (Linux)
+	e.opts.Pipes, e.opts.MPRIS, e.opts.PotPlayer = nil, nil, nil // the real ones: MPC-QT's, mpv's, IINA's (macOS), MPRIS (Linux), PotPlayer (Windows)
 	if p := os.Getenv("MPCRPC_LIVE_MPV_PIPE"); p != "" {
 		e.cfg.MpvPipe = p
 	}
@@ -55,6 +56,12 @@ func TestLivePlayer(t *testing.T) {
 			t.Fatal(err)
 		}
 		e.cfg.JellyfinAddress, e.cfg.JellyfinToken, e.cfg.JellyfinUser, e.cfg.JellyfinProduct, e.cfg.JellyfinDevice = c.Base, auth.Token, auth.UserID, srv.Product, c.DeviceID
+	}
+	if pw := os.Getenv("MPCRPC_LIVE_KODI_PASSWORD"); pw != "" {
+		e.cfg.KodiPassword = pw
+		if a := os.Getenv("MPCRPC_LIVE_KODI_ADDRESS"); a != "" {
+			e.cfg.KodiAddress = a
+		}
 	}
 	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
 		e.cfg.VlcPassword = pw
