@@ -1,4 +1,11 @@
 [
+  {"version": "0.9.34", "date": "2026-10-17", "items": [
+    "⚡ mpv and IINA: pausing, seeking or a new file shows on Discord at once instead of within 5 seconds.",
+    "🔎 Copy diagnostics explains the current title: what was read from the file name and which catalog matched.",
+    "📡 The Privacy tab lists every address the program contacted since it started, how often and when.",
+    "🧱 Every release can be rebuilt from its source, byte for byte; it is only published once a second build matches.",
+    "📜 New pages: why the program behaves as it does, and how it is made with AI and checked."
+  ]},
   {"version": "0.9.33", "date": "2026-10-17", "items": [
     "🐢 Shows only TVmaze knows get covers and episode names again: the program now waits for its slow search in the background.",
     "🗺️ SECURITY.md lists every address the program connects to, and the Privacy tab links to it.",

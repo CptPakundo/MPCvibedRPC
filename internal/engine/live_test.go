@@ -131,10 +131,10 @@ func livePauseEvent(t *testing.T, e *Engine, d *disc, name string) {
 	start := time.Now()
 	set(true)
 	defer set(false)
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := time.Now().Add(nudgeGap + time.Second) // an event just before can make it wait for the gap
 	for !(len(d.list()) > n && e.Status().Paused) {
 		if time.Now().After(deadline) {
-			t.Fatalf("the pause did not show within 3 s (regular checks are a minute apart)")
+			t.Fatalf("the pause did not show within %v (regular checks are a minute apart)", nudgeGap+time.Second)
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
