@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
+	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
 	"github.com/CptPakundo/MPCvibedRPC/internal/diag"
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
@@ -44,6 +45,7 @@ func (a *app) handlers() map[string]server.Handler {
 		"open-folder": {Fn: fn(func() any { winsys.OpenFolder(a.st.Dir); return nil })},
 		"clear-cache": {Fn: fn(func() any { eng.ClearArtworkCache(); log("INFO", "Cover cache cleared."); return nil })},
 		"stats":       {Get: true, Fn: fn(func() any { return eng.Stats() })},
+		"connections": {Get: true, Fn: fn(func() any { return map[string]any{"hosts": conns.List()} })},
 		"stats-reset": {Fn: fn(func() any { eng.ResetStats(); log("INFO", "Stats reset."); return eng.Stats() })},
 		"save":        {Fn: a.save},
 		"reset":       {Fn: func(*jsonx.Obj) (any, error) { return a.reset() }},

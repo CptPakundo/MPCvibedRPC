@@ -433,7 +433,7 @@
         if (f.key === 'plexAddress') group.append(plexBox()); // the sign-in comes first in the Plex group
         group.append(fieldFor(f, m.values[f.key]));
       }
-      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newGroup('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); }
+      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newGroup('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); newGroup('Recent connections'); group.append(connsBox()); }
       d.setAttribute('role', 'tabpanel');
       $('p-help').before(d);
     }
@@ -504,6 +504,30 @@
       'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
       ...mpc,
     ].map((t) => el('li', { textContent: t })), all));
+  }
+
+  // every computer outside this one the program asked since it started: host, how often, when last (never what for)
+  function connsBox() {
+    return el('div', { className: 'field' },
+      help('Since the program started: every address outside this computer it sent a request to, how often and when last. Never what it asked.'),
+      el('ul', { className: 'help leaves', id: 'conns' }, el('li', { textContent: 'None yet.' })));
+  }
+  function ago(ms) {
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.round(s / 60) + ' min ago';
+    return 'at ' + new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  async function pollConns() {
+    const box = $('conns');
+    if (tab !== 'privacy' || !box) return;
+    try {
+      const { hosts } = await api('connections');
+      box.textContent = '';
+      if (!hosts || !hosts.length) { box.append(el('li', { textContent: 'None yet.' })); return; }
+      hosts.forEach((h) => box.append(el('li', {}, el('b', { textContent: h.host }),
+        document.createTextNode(' (' + (h.label || 'an address you entered') + '): ' + h.count + (h.count === 1 ? ' time, ' : ' times, ') + 'last ' + ago(h.last) + '.'))));
+    } catch (_) {}
   }
 
   // A sign-in on the Accounts tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
@@ -684,6 +708,7 @@
     document.querySelectorAll('.tab').forEach((b) => { const on = b.dataset.tab === id; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'p-' + id));
     if (id === 'help') pollLog();
+    if (id === 'privacy') pollConns();
     if (id === 'general') api('stats').then(paintStats).catch(() => {});
   }
   function flagUpdate() { updFlag = true; const b = $('tab-general'); if (b) b.classList.add('has'); }
@@ -915,7 +940,7 @@
     if (m.app.seenVersion !== m.version) { showChangelog(false); later(async () => { try { model = await api('save', { app: { seenVersion: m.version } }); } catch (_) {} }); }
     showUpdate(m.update, false);
   }).catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
-  setInterval(poll, 1000); setInterval(pollLog, 3000);
+  setInterval(poll, 1000); setInterval(pollLog, 3000); setInterval(pollConns, 5000);
 })();
 </script>
 </body>

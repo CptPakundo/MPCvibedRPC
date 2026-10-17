@@ -58,7 +58,8 @@ release by hand, and winget needs one pull request per version. Frequent release
 - One list of every host the program may contact, used by the Privacy tab and SECURITY.md, and a test that fails when
   the code contacts a host not on it. Done in 0.9.33: `core.Hosts` with `core.Sources`, the table in SECURITY.md
   (linked from the Privacy tab), and `TestEveryHostIsListed`, which scans the code and the page for addresses.
-- Optionally, a "recent connections" view: host, count and time, never titles.
+- Optionally, a "recent connections" view: host, count and time, never titles. Done in 0.9.34 (Privacy tab; every
+  request through Go's default transport is counted by host, in memory only).
 - MPC-HC's web interface answers any web page once switched on (no password, open to all origins). The Privacy tab and
   SECURITY.md say so since 0.9.33. Left: offer MPC-HC's maintainers a fix (open decision 6).
 - Possibly, keep sign-ins in the system's key store (Windows DPAPI, the macOS Keychain, the Secret Service on Linux)

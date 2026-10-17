@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/store"
 	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
@@ -56,6 +57,8 @@ func main() {
 			return
 		}
 	}
+	// every web request to another computer is counted by host for the Privacy tab's Recent connections
+	http.DefaultTransport = conns.Wrap(http.DefaultTransport)
 	prepareSystem()
 	if detach() {
 		return
