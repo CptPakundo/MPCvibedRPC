@@ -1,4 +1,10 @@
 [
+  {"version": "0.9.35", "date": "2026-10-18", "items": [
+    "⚡ Kodi and the Linux players read through D-Bus (VLC, Celluloid, ...) show a pause, seek or new file at once.",
+    "🎁 Specials (S00E01 and so on) get their episode names without a TMDB key.",
+    "🔑 Ready for Plex's newer 7-day sign-in, switched off until Plex requires it (plexJwt in config.json).",
+    "🧪 The weekly check also tries VLC and Celluloid as their makers release them."
+  ]},
   {"version": "0.9.34", "date": "2026-10-17", "items": [
     "⚡ mpv and IINA: pausing, seeking or a new file shows on Discord at once instead of within 5 seconds.",
     "🔎 Copy diagnostics explains the current title: what was read from the file name and which catalog matched.",
