@@ -126,6 +126,7 @@ See [SECURITY.md](../SECURITY.md).
 
 ## Reporting a problem
 
-On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the recent log. It names
+On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the current title was
+found (the file name, what was read from it, which catalog matched) and the recent log. It names
 the titles and file names you played (that is how a wrong title is traced); folder paths, sign-ins and keys are left
 out. Paste it into a [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).

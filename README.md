@@ -118,8 +118,8 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 3. Discord runs normally, not as administrator.
 4. The status line at the top of the window says what is missing, for example "No player found".
 
-**Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies the version, the settings you changed and the
-recent log. It names what you played, so a wrong title can be traced; folder paths, sign-ins and keys are left out.
+**Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the
+current title was found and the recent log. It names what you played, so a wrong title can be traced; folder paths, sign-ins and keys are left out.
 Paste it into a
 [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
 

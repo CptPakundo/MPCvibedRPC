@@ -207,6 +207,13 @@ func Report(in Input) string {
 	if in.Status.LastError != nil && *in.Status.LastError != "" {
 		w("  Last error: %s", Redact(*in.Status.LastError))
 	}
+	if len(in.Status.Why) > 0 {
+		w("")
+		w("Why this title")
+		for _, l := range in.Status.Why {
+			w("  %s", Redact(l))
+		}
+	}
 	w("")
 	w("App settings")
 	w("  start with Windows: %s, start presence at launch: %s, show window at launch: %s, check for updates: %s", yn(in.App.AutoStart), yn(in.App.StartPresence), yn(in.App.OpenWindow), yn(in.App.CheckUpdates))

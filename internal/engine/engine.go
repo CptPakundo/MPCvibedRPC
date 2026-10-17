@@ -76,6 +76,9 @@ type Status struct {
 	Resting bool `json:"resting,omitempty"`
 	// DiscordProblem says why Discord cannot be reached when the reason is known (it refused the connection).
 	DiscordProblem string `json:"discordProblem,omitempty"`
+	// Why is "Why this title?" for Copy diagnostics: how the title shown was read from the file and found in the
+	// catalogs. Never for a hidden title or a song. Not sent to the window.
+	Why []string `json:"-"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -109,6 +112,7 @@ type Engine struct {
 	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
 	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nowPlaying *string
+	why        []string // how the title shown was read and found (Status.Why; only while nowPlaying is set)
 	preview    *core.Preview
 	paused     bool
 	lastError  *string
@@ -325,6 +329,9 @@ func (e *Engine) Status() Status {
 		s.MPC = e.mpcUp
 		s.Player = e.player
 		s.NowPlaying = e.nowPlaying
+		if e.nowPlaying != nil {
+			s.Why = e.why
+		}
 		s.PauseCleared = e.pauseCleared
 		s.Hidden = e.hidden
 		s.Preview = e.preview

@@ -56,6 +56,7 @@ type Artwork struct {
 	disk      map[string]*diskEntry
 	misses    map[string]time.Time
 	soft      map[string]bool // misses set by softMiss
+	closest   map[string][]string // the closest results of a title nothing matched (Explain)
 	inflight  map[string]*lookupFlight
 	late      map[string]bool
 	warned    map[string]bool
@@ -81,7 +82,7 @@ func New(cfg *core.Config, opts Options) *Artwork {
 		opts.OnResolved = func(*core.Art) {}
 	}
 	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(),
-		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, soft: map[string]bool{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
+		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, soft: map[string]bool{}, closest: map[string][]string{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
 		warned: map[string]bool{}, runtimes: map[string]int{}, aliases: mapByTitle(cfg.ArtworkAliases), overrides: mapByTitle(cfg.ArtworkOverrides)}
 	a.net.blocked = blockedHostFilter(cfg)
 	a.net.onLate = a.lateAnswer
@@ -241,6 +242,7 @@ func (a *Artwork) ClearCache() {
 	a.disk = map[string]*diskEntry{}
 	a.misses = map[string]time.Time{}
 	a.soft = map[string]bool{}
+	a.closest = map[string][]string{}
 	a.runtimes = map[string]int{}
 	a.mu.Unlock()
 	a.res.clearCaches()
@@ -673,6 +675,12 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 			uniq = uniq[:6]
 		}
 		extra = " Closest results - " + strings.Join(uniq, "; ") + "."
+		a.mu.Lock()
+		if len(a.closest) >= 50 {
+			clear(a.closest)
+		}
+		a.closest[normTitle(media.Title)] = uniq // for Explain
+		a.mu.Unlock()
 	}
 	a.log("INFO", `No artwork match for "`+media.Title+`".`+extra+` You can pin one with "Search under another name" / "Pin a cover image" in the Advanced settings.`)
 	return nil
