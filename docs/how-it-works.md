@@ -14,7 +14,7 @@ names come from, and how each player is read.
 - **Smart titles.** Release junk (BluRay, 1080p, x265, HDR, DDP5.1, WEB-DL, release groups...)
   is stripped, and titles, years, seasons and episodes are recognised in file names such as
   `Show Name Ep03 (2010).mkv`, `Show.Name.S05E14.720p.HDTV.x264-GRP.mkv` or
-  `[Group] Show Name - 05 [1080p].mkv`.
+  `[Group] Show Name - 05 [1080p].mkv` (also `Show Name [S01E02]`, `S2E5`, `E05-E06` and `Ep. 5`).
 - **Cover art, from several sources.** The title parsed from the filename is looked up on
   every source in `artworkSources` at once (seven by default; TMDB only with a key), and the highest-priority one with a trustworthy match wins:
   TMDB (only if you add a free API key), IMDb's own search, Cinemeta, TVmaze, AniList and Kitsu

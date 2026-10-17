@@ -1,4 +1,7 @@
 [
+  {"version": "0.9.37", "date": "2026-10-18", "items": [
+    "🔢 More file names are read as episodes: Sample Show [S01E02], S2E5, E05-E06 and Ep. 5."
+  ]},
   {"version": "0.9.36", "date": "2026-10-18", "items": [
     "🎁 Specials named in words (Special 02, OVA 2, SP2) get the show's cover and the special's name.",
     "🧪 The weekly check also tries mpv as its makers release it."

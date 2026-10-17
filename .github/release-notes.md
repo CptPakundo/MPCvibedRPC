@@ -1,16 +1,12 @@
-## MPCvibedRPC 0.9.36
+## MPCvibedRPC 0.9.37
 
-**Specials named in words are found, and the weekly check covers the newest mpv.**
+**More file names are recognised as episodes.**
 
 ### What's new
-- **Specials named in words.** A file such as `Sample Show - Special 02.mkv`, `Sample Show - OVA 2.mkv` or
-  `[Group] Sample Show - SP2.mkv` used to find no cover when no catalog lists that special as a title of its own.
-  The name is still searched as it is first (AniList lists many OVAs on their own, and those keep their own cover);
-  when nothing matches, the program now searches the show and shows the special as its season 0: the show's cover
-  and the special's name (`Season 0, Episode 2`, as a file named `S00E02` already gets). Also `OAD`, `ONA` and a
-  season marker before it (`Sample Show S01 OVA 2`).
-- **Wider weekly check.** mpv is now also tried every week as Flathub ships it (its makers' newest release), over its
-  IPC socket, with a pause that must show at once, next to VLC and Celluloid.
+- **Episode codes in square brackets.** `Sample Show [S01E02].mkv` (or `[1x02]`) lost its episode number, because
+  square brackets usually hold release tags. Now the episode is read, so its name is looked up like any other.
+- **More episode forms.** `Sample Show S2E5` is shown as `S02E05`, a double episode written `E05-E06` (or
+  `s01e05-e06`) is read as one file covering both, and `Sample Show Ep. 5` with a dot is an episode too.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
