@@ -36,7 +36,6 @@ friend of the owner on a real Mac.
   or planning a feature, a new service or a distribution change, and don't propose a listed non-goal without saying so.
   Update it in the same pull request when a change finishes a step, moves a goal or settles a decision, and refresh the
   watch list when you learn an outside fact changed (with the date checked).
-
 ## Ground rules
 - **Privacy first.** No personal data in commits, code, docs, tests, screenshots or release files: no email addresses,
   local paths or user names, machine details, tokens. Commit as `git -c user.name="Claude" -c user.email="noreply@anthropic.com"`
@@ -159,7 +158,8 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
   `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. A pull request from this repository
   is tested by its branch's push run (the `pull_request` run skips itself; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
-  a run still going on the same branch. Then: Windows builds the exe and runs `tools/ci/smoke.ps1`; `unix` builds the Linux binaries and the macOS
+  a run still going on the same branch. Then: Windows builds the exe (from an LF checkout, `CGO_ENABLED=0`) and runs `tools/ci/smoke.ps1`; `reproduce` rebuilds that exe on
+  Linux with `tools/ci/reproduce.sh` and fails unless it is the same file byte for byte; `unix` builds the Linux binaries and the macOS
   app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
   through LaunchServices); `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
   mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
@@ -177,6 +177,8 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   run). Read and fix a canary issue like a bug report. **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
+- **Actions are pinned by commit** (`uses: owner/action@<sha> # vX.Y.Z`); Dependabot updates the pins. A new action
+  gets the same form, and a job gets only the `permissions` it needs (workflows are read-only by default).
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
   Windows-only or opt-in must be added to `tools/ci/allowed-skips.sh` (ci.yml and release.yml both use it). The live
   test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
@@ -270,7 +272,8 @@ One branch and one PR per release: the change, the version bump and the release 
    with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
    against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
    awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
-   publishes it as a **draft**, and then runs `verify` (`tools/ci/verify-release.ps1`): on the draft the ten assets,
+   publishes it as a **draft**, then `reproduce` rebuilds the exe and both Linux programs from the tag on another
+   runner (they must match the release byte for byte), and then runs `verify` (`tools/ci/verify-release.ps1`): on the draft the ten assets,
    every checksum and build record and the exe's version; only if they pass is the release made public (and latest),
    followed by the checks that need it public: that it is the latest release, and a real self-update from the previous
    release. A release whose draft checks fail stays a draft (nobody's updater sees it): fix, then delete the draft and
