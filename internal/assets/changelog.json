@@ -1,4 +1,7 @@
 [
+  {"version": "0.9.32", "date": "2026-10-17", "items": [
+    "🔭 A weekly test against the newest players, servers and cover services, so changes on their side are caught sooner."
+  ]},
   {"version": "0.9.31", "date": "2026-10-17", "items": [
     "⏱️ Stremio: a video keeps showing with Stremio's newer apps, which save your place every 3 minutes instead of 90 seconds.",
     "🧭 MyAnimeList (through Jikan) is no longer asked: its public service closed. AniList and Kitsu still cover anime.",

@@ -1,37 +1,20 @@
-## MPCvibedRPC 0.9.31
+## MPCvibedRPC 0.9.32
 
-**Fixes for changes made by others: Stremio's newer apps, the closed MyAnimeList service, Discord's renamed settings,
-and a newer Go for every build.**
+**A weekly check for changes made by others. Nothing in the program itself changed.**
 
-### Stremio
-- Stremio's newer apps save your place in the library every 3 minutes instead of every 90 seconds. With them, a
-  playing video dropped off Discord for half a minute every three minutes, and a pause was often missed. The program now learns which of the two your
-  Stremio app uses, so a video stays shown with both, and a pause still takes it down.
-- Also fixed: the first regular update after a short pause was taken for another pause, so the status went away for
-  a while although the video played on.
-- If Stremio is closed without a word, the status now goes after about four minutes.
+### Why
+The players, media servers and cover and title services the program reads change without notice. In one month a
+catalog service closed and Stremio changed how often it saves your place, and in both cases the program only noticed
+once something already looked wrong on Discord.
 
-### Covers and episode titles
-- MyAnimeList's public service (Jikan) closed on 2026-10-01, so it is no longer asked. Anime are still found through
-  AniList and Kitsu. The switch on the Privacy tab stays, for a Jikan server you run yourself (see
-  [All settings](https://github.com/CptPakundo/MPCvibedRPC/blob/master/docs/config.md)). If you edited
-  `artworkSources`, `animeSources` or `episodeSources` in `config.json` by hand, remove `jikan` from them.
-- The Help tab and THIRD-PARTY-NOTICES.md credit TMDB (with its logo, as its terms ask) and TVmaze.
-
-### Discord
-- Discord renamed its *Activity Settings* section to *Games & Apps*. The welcome card, the README and the
-  troubleshooting page name both, so *User Settings > Activity Privacy > "Share my activity"* is found in old and new
-  Discord versions.
-
-### macOS
-- **macOS 13 or later** is needed now. The program is built with Go 1.27, which needs macOS 13, and Discord itself no
-  longer runs on macOS 11 or 12.
-- On macOS 15 and later, macOS asks before an app reaches your home network. The app now says why it wants to, so a
-  Plex, Jellyfin, Emby or Kodi server there can be allowed (System Settings > Privacy & Security > Local Network).
-
-### Under the hood
-- Built with Go 1.27.2 instead of Go 1.24, which no longer gets security fixes. Every change is now also checked for
-  known Go security issues.
+### What's new
+- Every Monday the whole test suite runs against the newest PotPlayer, Kodi, IINA and mpv (macOS) and the latest Plex,
+  Jellyfin and Emby servers.
+- The same run asks each cover and title service (Cinemeta, IMDb, TVmaze, AniList, Kitsu, Wikipedia, Bulbapedia) about
+  one well-known title through the program's own lookup code. It checks for a match, the year, a link, a cover and the
+  first episode's name.
+- When something fails, an issue is opened in this repository, and it is closed once a later run passes, so problems
+  are found within a week.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
