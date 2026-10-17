@@ -619,6 +619,19 @@ func episodeMedia(tokens []string, cut int, ep *epMatch) *Media {
 	after := append([]string(nil), tokens[ep.idx+ep.length:cut]...)
 	season := ep.season
 	year := NA
+	// "S01E05 - S01E06": a double episode, not an episode titled "S01E06"
+	if has(ep.season) && len(ep.parts) == 1 {
+		k := 0
+		for k < len(after) && bare(after[k]) == "-" {
+			k++
+		}
+		if k < len(after) {
+			if m := feSE.Exec(bare(after[k])); m != nil && atoi(m.Str(1)) == ep.season && digitsOf(m.Str(2)) > ep.episode {
+				ep.parts = []string{ep.parts[0] + "E" + pad2n(digitsOf(m.Str(2)))}
+				after = after[k+1:]
+			}
+		}
+	}
 
 	for len(titleTokens) > 0 && titleTokens[len(titleTokens)-1] == "-" {
 		titleTokens = titleTokens[:len(titleTokens)-1]
