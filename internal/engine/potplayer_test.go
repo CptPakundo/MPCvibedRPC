@@ -51,7 +51,7 @@ func TestPotPlayerInThePlayerOrder(t *testing.T) {
 	eventually(t, "sent with its title", func() bool {
 		act := lastActivity(d)
 		as, _ := act["assets"].(map[string]any)
-		return act != nil && act["name"] == "Sample Movie" && as != nil && as["large_text"] == "PotPlayer"
+		return act != nil && act["name"] == "Sample Movie" && as != nil && as["large_text"] == "PotPlayer" && as["large_image"] == core.PlayerIcon("PotPlayer") // no cover: the logo
 	})
 
 	pot.set(nil) // PotPlayer closed: Plex is shown
