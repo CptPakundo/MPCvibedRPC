@@ -83,7 +83,8 @@ func TestNamedSpecialFallback(t *testing.T) {
 			continue
 		}
 		act := core.BuildActivity(core.NewInfo(file, "", "", 2, 1000, 60000, 1), &cfg, 0, m, art)
-		if b, _ := json.Marshal(act); !strings.Contains(string(b), "Season 0, Episode 2") || !strings.Contains(string(b), "Sample Special Two") {
+		// the hover text keeps the file's own words (Special 2, OVA 2, OAD 2), not the catalog's "Season 0, Episode 2"
+		if b, _ := json.Marshal(act); !strings.Contains(string(b), ` 2"`) || strings.Contains(string(b), "Season 0") || !strings.Contains(string(b), "Sample Special Two") {
 			t.Errorf("%s: activity %s", file, b)
 		}
 		// The flag survives the cache file.
@@ -99,6 +100,21 @@ func TestNamedSpecialFallback(t *testing.T) {
 	}
 	if art := a.Lookup(core.ParseMedia("Sample Show OVA 2.mkv", &cfg, nil)); art == nil || art.Special || art.Name != "Sample Show OVA 2" {
 		t.Errorf("a title listed on its own: %+v", art)
+	}
+	// a show cached for the special's name before the Special flag existed gets the special's name now
+	a = New(&cfg, Options{CacheFile: filepath.Join(t.TempDir(), "c.json"), Client: &http.Client{Transport: fakeSpecials{}}})
+	m := core.ParseMedia("Sample Show - Special 02.mkv", &cfg, nil)
+	old := core.NewArt()
+	old.Type, old.Name, old.Source, old.Year = "series", "Sample Show", "Cinemeta", 2010
+	old.Poster, old.URL = "https://images.example/show.jpg", "https://www.imdb.com/title/tt0000555/"
+	a.mu.Lock()
+	a.put(a.newLookupJob(m).key, &diskEntry{art: old})
+	a.mu.Unlock()
+	if art := a.Lookup(m); art == nil || !art.Special || art.Episode == nil || art.Episode.Title != "Sample Special Two" {
+		t.Errorf("from an older cache entry: %+v", art)
+	}
+	if old.Special {
+		t.Error("the cached entry itself was changed")
 	}
 	for _, title := range []string{"Sample Movie", "Special 2", "Sample Show Specialist 2", "Sample ShowOVA2"} {
 		if sp := core.NamedSpecial(&core.Media{Title: title}); sp != nil {

@@ -45,7 +45,7 @@ names come from, and how each player is read.
     is used. Cinemeta is not used to count a running number through an anime's seasons, because its seasons can hold
     specials that shift the count. Specials named `S00E02` are looked up in season 0; one named in words
     (`Show - Special 02`, `Show (2010) - OVA 2`, `Show - SP2`) is first searched as a title of its own (AniList lists many
-    OVAs that way) and, if nothing is found, as season 0 of the show. If a catalog does not answer, the title is asked for again while the episode
+    OVAs that way) and, if nothing is found, as season 0 of the show; it keeps the file's own label (`OVA 2`). If a catalog does not answer, the title is asked for again while the episode
     plays (after about 2.5, 5 and 15 minutes).
   - **Info lines.** With a catalog match, a movie shows its year and genres (`1999 · Action, Adventure`) and
     its rating and director (`★ 7.1 · Dir. <name>`); an episode shows its title line and

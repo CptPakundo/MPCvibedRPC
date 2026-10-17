@@ -192,9 +192,10 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		media = &cp
 	}
 	// "Sample Show - Special 03" found as Sample Show's special: shown as S00E03 of the show.
+	specialLabel := "" // the file's own words ("OVA 3"), shown instead of "Season 0, Episode 3"
 	if art != nil && art.Special && art.Type == "series" {
 		if sp := NamedSpecial(media); sp != nil {
-			media = sp
+			media, specialLabel = sp, sp.Label
 		}
 	}
 
@@ -392,6 +393,9 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 				details = sn
 				seasonLine = ""
 			}
+			if details == "" {
+				details = specialLabel // a special whose name no catalog has
+			}
 			if eraName != "" {
 				a.Name = clip(eraName)
 			}
@@ -464,6 +468,9 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 				ep = art.EpInEntry
 			}
 			assets.LargeText = "Season " + itoa(effSeason) + ", Episode " + itoa(ep)
+			if specialLabel != "" {
+				assets.LargeText = specialLabel
+			}
 		} else if poster != "" {
 			yr := NA
 			if !media.IsEpisode {
