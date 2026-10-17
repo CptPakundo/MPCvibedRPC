@@ -52,7 +52,9 @@ names come from, and how each player is read.
     becomes the pause bar. Turn off with `richInfo: false`.
   - **Robust lookups.** Responses are cached for 10 minutes, identical in-flight requests are
     shared, a timeout / 5xx / 429 is retried once, requests to AniList are spaced out (`requestGapMs`),
-    and a source that keeps failing is paused for a minute. Order is set by `artworkSources`
+    and a source that keeps failing is paused for a minute. TVmaze's search can take up to a minute for a
+    show it has not been asked about lately: the program goes on without it, keeps waiting in the background, and
+    looks the title up again as soon as the answer is in. Order is set by `artworkSources`
     (general) and `animeSources` (anime files).
   - **Anime title language.** For anime matched on AniList, `animeTitles: 'auto'` (default) shows the
     AniList name the filename resembles most: a file that reads like the romaji name gets the romaji

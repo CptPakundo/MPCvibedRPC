@@ -35,10 +35,19 @@ func TestLiveCatalogs(t *testing.T) {
 	cfg := core.DefaultConfig()
 	// ask retries a service that is down or slow twice, half a minute apart, each time with a fresh finder (a failing
 	// host is paused by the first one), so one bad minute does not open an issue. Any other error, or an answer, ends it.
+	// A slow answer still coming in the background (TVmaze's search) keeps the finder, whose cache gets it, as the
+	// program's next lookup would.
 	ask := func(t *testing.T, f func(a *Artwork) error) {
 		t.Helper()
+		var a *Artwork
 		for try := 1; ; try++ {
-			err := f(New(&cfg, Options{Log: func(level, msg string) { t.Logf("%s: %s", level, msg) }}))
+			if a == nil {
+				a = New(&cfg, Options{Log: func(level, msg string) { t.Logf("%s: %s", level, msg) }})
+			}
+			err := f(a)
+			if !pending(err) {
+				a = nil
+			}
 			if !unavailable(err) || try == 3 {
 				if err != nil {
 					t.Fatal(err)

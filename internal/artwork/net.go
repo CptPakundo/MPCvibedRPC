@@ -16,7 +16,10 @@ import (
 // Every provider call goes through doRequest, which refuses a host switched off in the settings and sends the
 // User-Agent. Most go through getJSON: responses are cached and shared between identical in-flight requests,
 // a timeout / 5xx / 429 is retried once, requests to one host are spaced out, and a host that keeps failing is left
-// alone for a minute (so rapid re-testing doesn't hammer a struggling service). The exception is Bulbapedia's page
+// alone for a minute (so rapid re-testing doesn't hammer a struggling service). A request with LateMs that is still
+// waiting at its timeout is not retried or counted as a failure: it goes on in the background, its answer is cached
+// and onLate is told, so the next lookup finds it (TVmaze's search answers a new query only after 30 to 60 s, then
+// keeps it cached for an hour). The exception is Bulbapedia's page
 // text (fetchText), which has none of that (no cache, spacing, retry or breaker); the Resolver keeps the page for
 // six hours itself.
 
@@ -35,7 +38,8 @@ type FetchError struct {
 	Name       string // "TimeoutError", "TypeError", "AbortError", "Error"
 	Msg        string
 	Status     int
-	RetryAfter int // seconds
+	RetryAfter int  // seconds
+	Pending    bool // a LateMs request still waiting in the background
 }
 
 func (e *FetchError) Error() string { return e.Msg }
@@ -61,6 +65,17 @@ type reqInit struct {
 	Body             string
 	TimeoutMs        int
 	NoRetryOnTimeout bool // retryTimeout: false
+	LateMs           int  // keep waiting this long in the background after TimeoutMs, and cache a late answer
+}
+
+// errPending is what a caller gets while a LateMs request goes on in the background.
+func errPending() error {
+	return &FetchError{Name: "TimeoutError", Msg: "slow to answer; still waiting in the background", Pending: true}
+}
+
+func pending(err error) bool {
+	var fe *FetchError
+	return errors.As(err, &fe) && fe.Pending
 }
 
 type flight struct {
@@ -85,11 +100,14 @@ type Net struct {
 	gaps   map[string]int
 	// blocked, when set, says that a host must not be contacted (a service switched off in the settings).
 	blocked func(host string) bool
+	// onLate, when set, is called after a LateMs request's answer arrived in the background and was cached.
+	onLate func()
 
 	mu       sync.Mutex
 	cache    map[string]cacheEntry
 	order    []string
 	inflight map[string]*flight
+	slow     map[string]*flight // LateMs requests still going on in the background
 	fails    map[string]failState
 	next     map[string]time.Time
 }
@@ -103,7 +121,7 @@ func (n *Net) clearCache() {
 }
 
 func newNet(client *http.Client, gaps map[string]int) *Net {
-	n := &Net{gaps: gaps, cache: map[string]cacheEntry{}, inflight: map[string]*flight{}, fails: map[string]failState{}, next: map[string]time.Time{}}
+	n := &Net{gaps: gaps, cache: map[string]cacheEntry{}, inflight: map[string]*flight{}, slow: map[string]*flight{}, fails: map[string]failState{}, next: map[string]time.Time{}}
 	if client == nil {
 		// a redirect to a service that is switched off is not followed either
 		client = &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -233,6 +251,17 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 		<-f.done
 		return f.val, f.err
 	}
+	if f, ok := n.slow[key]; ok { // the same slow request is still going on: wait as long as this one may
+		n.mu.Unlock()
+		t := time.NewTimer(timeoutOf(in))
+		defer t.Stop()
+		select {
+		case <-f.done:
+			return f.val, f.err
+		case <-t.C:
+			return nil, errPending()
+		}
+	}
 	host := hostOf(u)
 	if f, ok := n.fails[host]; ok && f.n >= breakAfter {
 		if f.until.After(time.Now()) {
@@ -251,11 +280,11 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 				v, err = nil, errors.New("the answer could not be read") // waiting requests must still be released below
 			}
 		}()
-		v, err = n.fetchOnce(u, in)
+		v, err = n.fetchFirst(key, host, u, in)
 		if err != nil {
 			var fe *FetchError
 			errors.As(err, &fe)
-			if !transient(err) || (in.NoRetryOnTimeout && fe.Status == 0) {
+			if !transient(err) || fe.Pending || (in.NoRetryOnTimeout && fe.Status == 0) {
 				return nil, err
 			}
 			wait := 400 * time.Millisecond
@@ -275,6 +304,24 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 	}()
 
 	n.mu.Lock()
+	n.settle(key, host, val, err)
+	delete(n.inflight, key)
+	fl.val, fl.err = val, err
+	n.mu.Unlock()
+	close(fl.done)
+	return val, err
+}
+
+func timeoutOf(in reqInit) time.Duration {
+	if in.TimeoutMs == 0 {
+		return 3500 * time.Millisecond
+	}
+	return time.Duration(in.TimeoutMs) * time.Millisecond
+}
+
+// settle caches an answer, or counts a failure for the breaker (not a request still waiting in the background).
+// n.mu must be held.
+func (n *Net) settle(key, host string, val any, err error) {
 	if err == nil {
 		delete(n.fails, host)
 		if _, exists := n.cache[key]; !exists {
@@ -285,15 +332,59 @@ func (n *Net) getJSON(u string, in reqInit) (any, error) {
 			n.order = append(n.order, key)
 		}
 		n.cache[key] = cacheEntry{val, time.Now().Add(respTTL)}
-	} else if transient(err) {
+	} else if transient(err) && !pending(err) {
 		c := n.fails[host]
 		n.fails[host] = failState{c.n + 1, time.Now().Add(breakFor)}
 	}
-	delete(n.inflight, key)
-	fl.val, fl.err = val, err
+}
+
+// fetchFirst is the first attempt. With LateMs, an answer that is not there after TimeoutMs is waited for in the
+// background (up to LateMs), cached when it comes and announced through onLate; the caller gets errPending.
+func (n *Net) fetchFirst(key, host, u string, in reqInit) (any, error) {
+	if in.LateMs <= 0 {
+		return n.fetchOnce(u, in)
+	}
+	type answer struct {
+		v   any
+		err error
+	}
+	ch := make(chan answer, 1)
+	long := in
+	long.TimeoutMs = in.LateMs
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ch <- answer{nil, errors.New("the answer could not be read")}
+			}
+		}()
+		v, err := n.fetchOnce(u, long)
+		ch <- answer{v, err}
+	}()
+	t := time.NewTimer(timeoutOf(in))
+	defer t.Stop()
+	select {
+	case a := <-ch:
+		return a.v, a.err
+	case <-t.C:
+	}
+	sf := &flight{done: make(chan struct{})}
+	n.mu.Lock()
+	n.slow[key] = sf
 	n.mu.Unlock()
-	close(fl.done)
-	return val, err
+	go func() {
+		a := <-ch
+		n.mu.Lock()
+		n.settle(key, host, a.v, a.err)
+		delete(n.slow, key)
+		sf.val, sf.err = a.v, a.err
+		onLate := n.onLate
+		n.mu.Unlock()
+		close(sf.done)
+		if a.err == nil && onLate != nil {
+			onLate()
+		}
+	}()
+	return nil, errPending()
 }
 
 // fetchText is a plain GET that returns the body text (used for the wiki pages).

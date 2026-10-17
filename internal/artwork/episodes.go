@@ -409,7 +409,7 @@ func (r *Resolver) buildProviders() map[string]*epProvider {
 				}
 			}
 			if id == "" {
-				arr, err := a.net.getJSON(cfg.TvmazeBase+"/search/shows?q="+r.enc(ctx.query), reqInit{})
+				arr, err := a.net.getJSON(cfg.TvmazeBase+"/search/shows?q="+r.enc(ctx.query), reqInit{LateMs: 90000})
 				if err != nil {
 					return nil, err
 				}

@@ -56,10 +56,11 @@ release by hand, and winget needs one pull request per version. Frequent release
 
 ### 5. Private by design, and provably so
 - One list of every host the program may contact, used by the Privacy tab and SECURITY.md, and a test that fails when
-  the code contacts a host not on it.
+  the code contacts a host not on it. Done in 0.9.33: `core.Hosts` with `core.Sources`, the table in SECURITY.md
+  (linked from the Privacy tab), and `TestEveryHostIsListed`, which scans the code and the page for addresses.
 - Optionally, a "recent connections" view: host, count and time, never titles.
-- MPC-HC's web interface answers any web page once switched on (no password, open to all origins). Say so in the
-  Privacy text, and offer MPC-HC's maintainers a fix.
+- MPC-HC's web interface answers any web page once switched on (no password, open to all origins). The Privacy tab and
+  SECURITY.md say so since 0.9.33. Left: offer MPC-HC's maintainers a fix (open decision 6).
 - Possibly, keep sign-ins in the system's key store (Windows DPAPI, the macOS Keychain, the Secret Service on Linux)
   instead of plain text in `config.json`.
 
@@ -109,7 +110,7 @@ Outside facts the program depends on, with the date they were last checked.
 | Plex | New short-lived tokens since 2025-09; old tokens still accepted. | A retirement date for old tokens. |
 | Jellyfin, Emby | Jellyfin 12 removed the old headers and routes; only endpoints in its OpenAPI spec are kept between majors. | A new Jellyfin major; Emby API changes. |
 | Stremio | Saves playback every 180 s in newer apps (90 s in older ones); both handled since 0.9.31. | Another change to `PUSH_TO_LIBRARY_EVERY` in stremio-core. |
-| Catalog services | Jikan closed 2026-10-01 (removed in 0.9.31). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (added in 0.9.31). On 2026-10-17 TVmaze's search took about 30 s for uncommon queries (past the program's timeout; shows and episodes answered at once), and Bulbapedia refused GitHub's runners (HTTP 403), so the canary cannot check it. | A service failing the weekly check (goal 1). |
+| Catalog services | Jikan closed 2026-10-01 (removed in 0.9.31). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (added in 0.9.31). On 2026-10-17 TVmaze's search took 30 to 55 s for any query it had not cached (then cached for an hour; an aborted request does not warm it; shows and episodes answered at once): since 0.9.33 the program waits for it in the background. And Bulbapedia refused GitHub's runners (HTTP 403), so the canary cannot check it. | A service failing the weekly check (goal 1). |
 | Players | VLC 4 still unreleased; Kodi 22 in release candidates; IINA 1.5 has a new settings window. | New majors of any supported player. |
 | Distribution | Homebrew rejects unsigned casks (2026-09-01); SignPath asks for visible reputation; Flathub requires disclosure of AI-generated code. | Policy changes at these channels. |
 | Discord alternatives | Fluxer, Stoat and Matrix have no presence API for local apps; Vesktop and similar clients offer Discord's local connection. | An official, sign-in-free presence API elsewhere. |

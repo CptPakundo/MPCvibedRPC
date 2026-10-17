@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.33", "date": "2026-10-17", "items": [
+    "🐢 Shows only TVmaze knows get covers and episode names again: the program now waits for its slow search in the background.",
+    "🗺️ SECURITY.md lists every address the program connects to, and the Privacy tab links to it.",
+    "🔓 The Privacy tab warns that MPC-HC's web interface has no password: web pages you open can reach it while it is on."
+  ]},
   {"version": "0.9.32", "date": "2026-10-17", "items": [
     "🔭 A weekly test against the newest players, servers and cover services, so changes on their side are caught sooner."
   ]},

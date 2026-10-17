@@ -252,7 +252,7 @@ func buildProviders() map[string]*Provider {
 	P["tvmaze"] = &Provider{
 		Label: "TVmaze", Types: []string{"series"},
 		Search: func(a *Artwork, typ, query string, media *core.Media) ([]*Cand, error) {
-			j, err := a.net.getJSON(a.cfg.TvmazeBase+"/search/shows?q="+encURI(plain(query)), reqInit{})
+			j, err := a.net.getJSON(a.cfg.TvmazeBase+"/search/shows?q="+encURI(plain(query)), reqInit{LateMs: 90000})
 			if err != nil {
 				return nil, err
 			}
