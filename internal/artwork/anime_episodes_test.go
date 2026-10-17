@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -136,10 +137,30 @@ func animeResolver(t *testing.T, sources []string, jikanUp bool) (*Resolver, *fa
 	return newResolver(a), fake
 }
 
+// withJikan is the default episode list with Jikan added back, as a user with a self-hosted Jikan would have it.
+var withJikan = []string{"bulbapedia", "tmdb", "tvmaze", "cinemeta", "kitsu", "jikan"}
+
+// The public Jikan API is gone: by default no list names it, so it is never asked.
+func TestJikanNotAskedByDefault(t *testing.T) {
+	cfg := core.DefaultConfig()
+	for _, l := range [][]string{cfg.ArtworkSources, cfg.AnimeSources, cfg.EpisodeSources} {
+		if slices.Contains(l, "jikan") {
+			t.Errorf("jikan in a default list: %v", l)
+		}
+	}
+	if !core.IsSourceID("jikan") || cfg.JikanBase == "" {
+		t.Error("the Jikan switch and address stay, for a self-hosted Jikan")
+	}
+	r, fake := animeResolver(t, nil, true)
+	if ep := r.Find(sagaEpisode(3), sagaHit(), "Sample Saga", func(string, string) {}); ep == nil || ep.Source != "TVmaze" || fake.asked("jikan") != 0 {
+		t.Errorf("got %+v (requests %v)", ep, fake.urls)
+	}
+}
+
 // MyAnimeList numbers an anime's episodes 1, 2, 3... like the files do, so it is asked first for anime: episode 120
 // of a long-running show is simply its number 120 (on its second page), from the entry that started in 1999.
 func TestAnimeEpisodeTitleFromMyAnimeListFirst(t *testing.T) {
-	r, fake := animeResolver(t, nil, true)
+	r, fake := animeResolver(t, withJikan, true)
 	ep := r.Find(sagaEpisode(120), sagaHit(), "Sample Saga", func(string, string) {})
 	if ep == nil || ep.Title != "MAL episode 120" || ep.Source != "MyAnimeList" {
 		t.Fatalf("got %+v (requests %v)", ep, fake.urls)
@@ -162,7 +183,7 @@ func TestAnimeEpisodeTitleFromMyAnimeListFirst(t *testing.T) {
 // show's year (the file names none), not the live-action series it lists first. Its seasons are years, so a running
 // number is counted through them.
 func TestAnimeEpisodeTitleFromTheRightTVmazeShow(t *testing.T) {
-	r, fake := animeResolver(t, nil, false)
+	r, fake := animeResolver(t, withJikan, false)
 	failed := false
 	ep := r.Find(sagaEpisode(120), sagaHit(), "Sample Saga", func(string, string) { failed = true })
 	if ep == nil || ep.Title != "TVmaze episode 120" || ep.Source != "TVmaze" || !ep.Absolute {

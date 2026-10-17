@@ -129,7 +129,7 @@ func DefaultConfig() Config {
 		ReplaceDots:       true,
 
 		ShowArtwork:      true,
-		ArtworkSources:   []string{"tmdb", "imdb", "cinemeta", "tvmaze", "anilist", "kitsu", "jikan", "wikipedia"},
+		ArtworkSources:   []string{"tmdb", "imdb", "cinemeta", "tvmaze", "anilist", "kitsu", "wikipedia"},
 		DisabledSources:  []string{},
 		HideFiles:        []string{},
 		ArtworkAliases:   map[string]string{},
@@ -141,8 +141,8 @@ func DefaultConfig() Config {
 		AnilistURL:       "https://graphql.anilist.co",
 		KitsuBase:        "https://kitsu.io/api/edge",
 		BulbapediaBase:   "https://bulbapedia.bulbagarden.net",
-		JikanBase:        "https://api.jikan.moe/v4",
-		AnimeSources:     []string{"anilist", "kitsu", "jikan"},
+		JikanBase:        "https://api.jikan.moe/v4", // the public Jikan API closed on 2026-10-01: Jikan is in no source list by default
+		AnimeSources:     []string{"anilist", "kitsu"},
 		RequestGapMs:     map[string]int{"graphql.anilist.co": 250, "api.jikan.moe": 400},
 		WikipediaBase:    "https://{lang}.wikipedia.org",
 
@@ -154,7 +154,7 @@ func DefaultConfig() Config {
 		LinkButton:           true,
 		UseFolderName:        true,
 		EpisodeTitles:        true,
-		EpisodeSources:       []string{"bulbapedia", "tmdb", "tvmaze", "cinemeta", "kitsu", "jikan"}, // jikan goes first for anime
+		EpisodeSources:       []string{"bulbapedia", "tmdb", "tvmaze", "cinemeta", "kitsu"}, // "jikan" (a self-hosted Jikan in jikanBase) would go first for anime
 
 		LargeImageKey: "mpc-hc",
 		SmallImageKey: "mpc-hc",
