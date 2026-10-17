@@ -31,6 +31,7 @@ pot="$(ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files
 "$pot" "$win_video" &
 sleep 10
 live PotPlayer
+MPCRPC_LIVE_POTPLAYER=1 "$here/must-pass.sh" TestLivePotPlayer go test -count=1 -v -run TestLivePotPlayer ./internal/potplayer
 taskkill //F //IM "$(basename "$pot")" > /dev/null || true
 echo "::endgroup::"
 
