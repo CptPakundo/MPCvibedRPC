@@ -13,7 +13,7 @@ import (
 
 // plexSignIn are the settings a Plex sign-in writes and a sign-out forgets; plexClient, this install's identifier on
 // plex.tv, is kept beside them.
-var plexSignIn = []string{"plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName"}
+var plexSignIn = []string{"plexToken", "plexAccount", "plexUser", "plexServer", "plexServerName", "plexKey"}
 
 // plexAccount drives "Sign in to Plex": a code the user approves on plex.tv in their browser, after which the
 // account's token, name and server are saved with the settings and the engine follows that server.
@@ -47,8 +47,19 @@ func (p *plexAccount) signIn() (map[string]any, error) {
 		return nil, err
 	}
 	c := p.client(id)
+	var key *plex.DeviceKey // with plexJwt: a key of this install's own, and 7-day tokens it renews (keepFresh)
+	if p.st.Config().PlexJWT {
+		if key, err = plex.NewDeviceKey(); err != nil {
+			return nil, err
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	pin, err := c.NewPin(ctx)
+	var pin *plex.Pin
+	if key != nil {
+		pin, err = c.NewKeyPin(ctx, key)
+	} else {
+		pin, err = c.NewPin(ctx)
+	}
 	cancel()
 	if err != nil {
 		return nil, fmt.Errorf("Could not reach plex.tv to sign in (%v).", err)
@@ -56,15 +67,21 @@ func (p *plexAccount) signIn() (map[string]any, error) {
 	u := c.AuthURL(pin)
 	wctx, wcancel := p.begin(30*time.Minute, u) // plex.tv's codes last 30 minutes
 	go p.poll(wctx, wcancel, p.every, p.log, "The Plex sign-in was not approved in time. Press Sign in to Plex to try again.",
-		func() (bool, string) { return p.check(wctx, c, pin) })
+		func() (bool, string) { return p.check(wctx, c, pin, key) })
 	openPage(p.openURL, u)
 	p.log("INFO", "Waiting for the Plex sign-in to be approved in the browser.")
 	return p.state(), nil
 }
 
 // check asks plex.tv whether the code was approved; once it is, the account and its server are saved.
-func (p *plexAccount) check(ctx context.Context, c *plex.Client, pin *plex.Pin) (done bool, problem string) {
-	token, err := c.CheckPin(ctx, pin)
+func (p *plexAccount) check(ctx context.Context, c *plex.Client, pin *plex.Pin, key *plex.DeviceKey) (done bool, problem string) {
+	var token string
+	var err error
+	if key != nil {
+		token, err = c.CheckKeyPin(ctx, pin, key)
+	} else {
+		token, err = c.CheckPin(ctx, pin)
+	}
 	if errors.Is(err, plex.ErrPinExpired) {
 		return true, "The Plex sign-in code expired. Press Sign in to Plex to try again."
 	}
@@ -90,9 +107,13 @@ func (p *plexAccount) check(ctx context.Context, c *plex.Client, pin *plex.Pin) 
 	if pick.ID == "" && len(servers) > 0 {
 		pick = servers[0] // the account's own servers come first
 	}
+	keyText := ""
+	if key != nil {
+		keyText = key.String()
+	}
 	saved, err := p.save(ctx, func() error {
 		return p.st.SetHidden(append(plexSignIn, "plexClient"), map[string]any{"plexToken": token, "plexAccount": acc.ID,
-			"plexUser": acc.Name, "plexServer": pick.ID, "plexServerName": pick.Name, "plexClient": c.ClientID})
+			"plexUser": acc.Name, "plexServer": pick.ID, "plexServerName": pick.Name, "plexClient": c.ClientID, "plexKey": keyText})
 	})
 	if !saved {
 		return true, ""
@@ -146,6 +167,58 @@ func (p *plexAccount) choose(id string) error {
 		}
 	}
 	return errors.New("That server is not in your Plex account.")
+}
+
+// renewBefore is how long before a 7-day token runs out keepFresh renews it.
+const renewBefore = 2 * 24 * time.Hour
+
+// keepFresh renews a 7-day token (a sign-in made with plexJwt) before it runs out, checking every `every` (an hour
+// by default), until ctx ends. An older long-lived token, or none, is left alone.
+func (p *plexAccount) keepFresh(ctx context.Context, every time.Duration) {
+	if every <= 0 {
+		every = time.Hour
+	}
+	for {
+		p.renew(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(every):
+		}
+	}
+}
+
+// renew gets a new token when the saved one runs out within renewBefore (or already has).
+func (p *plexAccount) renew(ctx context.Context) {
+	cfg := p.st.Config()
+	if cfg.PlexToken == "" || cfg.PlexKey == "" {
+		return
+	}
+	exp := plex.TokenExpiry(cfg.PlexToken)
+	if exp.IsZero() || time.Until(exp) > renewBefore {
+		return
+	}
+	key, err := plex.ParseDeviceKey(cfg.PlexKey)
+	if err != nil {
+		p.log("WARN", "The saved Plex key cannot be read; sign in to Plex again.")
+		return
+	}
+	rctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	token, err := p.client(cfg.PlexClient).Refresh(rctx, key)
+	if err != nil {
+		p.log("WARN", "Could not renew the Plex sign-in ("+err.Error()+"); trying again later.")
+		return
+	}
+	if p.st.Config().PlexToken != cfg.PlexToken { // signed out or in again meanwhile
+		return
+	}
+	if err := p.st.SetHidden([]string{"plexToken"}, map[string]any{"plexToken": token}); err != nil {
+		p.log("WARN", "Could not save the renewed Plex sign-in: "+err.Error())
+		return
+	}
+	applySettings(p.st, p.eng)
+	p.log("INFO", "Plex sign-in renewed.")
 }
 
 // signOut forgets the sign-in (the token is removed from the settings file).
