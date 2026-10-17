@@ -15,6 +15,7 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
 	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
 )
 
@@ -114,6 +115,8 @@ type Engine struct {
 	since      *int64
 
 	discRefused bool // the last attempt to reach Discord was refused (Discord running as administrator)
+	kodi        *kodi.Reader
+	kodiProblem string // why Kodi did not answer (logged once; the window shows it)
 
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
@@ -149,7 +152,7 @@ func New(cfg core.Config, opts Options) *Engine {
 		unit = time.Minute
 	}
 	now := time.Now()
-	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient},
+	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient}, kodi: &kodi.Reader{Client: opts.HTTPClient},
 		stats: loadStats(opts.StatsFile, now), statSaved: now, wake: make(chan struct{}, 1)}
 }
 
@@ -192,7 +195,7 @@ func (e *Engine) start() {
 	e.cur = r
 	e.basicMode, e.noLinks, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, false, nil, false, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
-	e.vlcProblem, e.discRefused = "", false
+	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
 	now := time.Now().UnixMilli()
 	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
@@ -328,6 +331,9 @@ func (e *Engine) Status() Status {
 		var hints []string
 		if e.vlcProblem != "" {
 			hints = append(hints, e.vlcProblem)
+		}
+		if e.kodiProblem != "" {
+			hints = append(hints, e.kodiProblem)
 		}
 		for _, r := range e.remotes {
 			if p := r.w.Problem(); p != "" {

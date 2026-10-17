@@ -13,11 +13,14 @@ type Config struct {
 	ClientID     string `json:"clientId"`
 	Port         int    `json:"port"` // web interface of MPC-HC, MPC-BE and MPC-QT
 	PollInterval int    `json:"pollInterval"`
-	MpvPipe      string `json:"mpvPipe"`     // mpv's input-ipc-server name; empty = don't look for mpv
-	VlcPort      int    `json:"vlcPort"`     // VLC's web interface (http-port)
-	VlcPassword  string `json:"vlcPassword"` // its password (http-password); empty = don't look for VLC
-	IinaPipe     string `json:"iinaPipe"`    // macOS: the input-ipc-server path in IINA's mpv options; empty = don't look for IINA
-	Mpris        bool   `json:"mpris"`       // Linux: read video players through MPRIS (D-Bus)
+	MpvPipe      string `json:"mpvPipe"`      // mpv's input-ipc-server name; empty = don't look for mpv
+	VlcPort      int    `json:"vlcPort"`      // VLC's web interface (http-port)
+	VlcPassword  string `json:"vlcPassword"`  // its password (http-password); empty = don't look for VLC
+	KodiAddress  string `json:"kodiAddress"`  // Kodi's web server (host:port)
+	KodiUser     string `json:"kodiUser"`     // its user name
+	KodiPassword string `json:"kodiPassword"` // its password; empty = don't look for Kodi
+	IinaPipe     string `json:"iinaPipe"`     // macOS: the input-ipc-server path in IINA's mpv options; empty = don't look for IINA
+	Mpris        bool   `json:"mpris"`        // Linux: read video players through MPRIS (D-Bus)
 
 	// Plex: the sign-in made with "Sign in to Plex" (not typed in the window; empty plexToken = Plex is not followed)
 	PlexToken      string `json:"plexToken"`      // the account's token
@@ -106,6 +109,8 @@ func DefaultConfig() Config {
 		PollInterval: 5000,
 		MpvPipe:      "mpvsocket",
 		VlcPort:      8080,
+		KodiAddress:  "127.0.0.1:8080",
+		KodiUser:     "kodi",
 		IinaPipe:     "iina-mpvsocket",
 		Mpris:        true,
 

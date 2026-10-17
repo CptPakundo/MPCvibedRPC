@@ -80,7 +80,7 @@ func (e *Engine) rest(r *run) bool {
 		e.resting = true
 		stop := e.stopRemote
 		e.stopRemote, e.remotes = nil, nil
-		e.mpcUp, e.player, e.vlcProblem = false, "", ""
+		e.mpcUp, e.player, e.vlcProblem, e.kodiProblem = false, "", "", ""
 		e.shown, e.prev, e.nowPlaying, e.preview, e.paused = false, nil, nil, nil, false
 		e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
 		e.statTick = time.Time{}
