@@ -109,7 +109,7 @@ Outside facts the program depends on, with the date they were last checked.
 | Plex | New short-lived tokens since 2025-09; old tokens still accepted. | A retirement date for old tokens. |
 | Jellyfin, Emby | Jellyfin 12 removed the old headers and routes; only endpoints in its OpenAPI spec are kept between majors. | A new Jellyfin major; Emby API changes. |
 | Stremio | Saves playback every 180 s in newer apps (90 s in older ones); both handled since 0.9.31. | Another change to `PUSH_TO_LIBRARY_EVERY` in stremio-core. |
-| Catalog services | Jikan closed 2026-10-01 (removed in 0.9.31). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (added in 0.9.31). | A service failing the weekly check (goal 1). |
+| Catalog services | Jikan closed 2026-10-01 (removed in 0.9.31). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (added in 0.9.31). On 2026-10-17 TVmaze's search took about 30 s for uncommon queries (past the program's timeout; shows and episodes answered at once), and Bulbapedia refused GitHub's runners (HTTP 403), so the canary cannot check it. | A service failing the weekly check (goal 1). |
 | Players | VLC 4 still unreleased; Kodi 22 in release candidates; IINA 1.5 has a new settings window. | New majors of any supported player. |
 | Distribution | Homebrew rejects unsigned casks (2026-09-01); SignPath asks for visible reputation; Flathub requires disclosure of AI-generated code. | Policy changes at these channels. |
 | Discord alternatives | Fluxer, Stoat and Matrix have no presence API for local apps; Vesktop and similar clients offer Discord's local connection. | An official, sign-in-free presence API elsewhere. |
