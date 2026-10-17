@@ -907,7 +907,7 @@ func FolderEpisode(media *Media, files []string) int {
 	return NA
 }
 
-var nsTail = re(`^(.*?\p{L}.*?)\s*(?:[-–]\s*)?\b(?:specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
+var nsTail = re(`^(.*?\p{L}.*?)(?:\s+(?:s|season\s*)\d{1,2})?\s*(?:[-–]\s*)?\b(?:specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
 
 // NamedSpecial reads a title such as "Sample Show - Special 03", "Sample Show OVA 2" or "Sample Show - SP2" as the
 // show's special (S00E03), or returns nil. The parser keeps such names whole, since AniList lists OVAs as titles of

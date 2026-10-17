@@ -1,22 +1,16 @@
-## MPCvibedRPC 0.9.35
+## MPCvibedRPC 0.9.36
 
-**Instant updates for Kodi and the Linux players, names for specials, and Plex's newer sign-in made ready.**
+**Specials named in words are found, and the weekly check covers the newest mpv.**
 
 ### What's new
-- **Kodi and the Linux players: changes show at once.** Kodi and the players read through D-Bus on Linux (VLC,
-  Celluloid, mpv with mpv-mpris and the like) now tell the program when they pause, resume, seek or change file, so
-  that reaches Discord within a moment instead of at the next check, as mpv and IINA already did. Kodi sends these
-  notifications on port 9090 of its address when *Allow remote control from applications on this system* is on (the
-  default; *on other systems* for a Kodi on another device). Without it, Kodi is checked every 5 seconds as before.
-- **Specials get their names.** A file named as a special (such as `Sample Show - S00E01.mkv`, as TV databases and
-  media servers number them) now gets its episode name from Cinemeta without a TMDB key. Files without a season
-  number are never counted onto a special. The many catalog services stay on purpose: every show, film and special
-  should be found.
-- **Plex's newer sign-in, ready but off.** Plex is moving to tokens that last 7 days and are renewed with a key of each
-  app's own. The program can now sign in that way and renew the token in time, but it stays off (`plexJwt` in
-  `config.json`) until Plex requires it: the long-lived sign-in keeps working, and Plex has set no end date.
-- **Wider weekly check.** Besides Ubuntu's packages, VLC and Celluloid are now also tried every week as Flathub
-  ships them (their makers' newest releases), and the check of the catalog services includes a special.
+- **Specials named in words.** A file such as `Sample Show - Special 02.mkv`, `Sample Show - OVA 2.mkv` or
+  `[Group] Sample Show - SP2.mkv` used to find no cover when no catalog lists that special as a title of its own.
+  The name is still searched as it is first (AniList lists many OVAs on their own, and those keep their own cover);
+  when nothing matches, the program now searches the show and shows the special as its season 0: the show's cover
+  and the special's name (`Season 0, Episode 2`, as a file named `S00E02` already gets). Also `OAD`, `ONA` and a
+  season marker before it (`Sample Show S01 OVA 2`).
+- **Wider weekly check.** mpv is now also tried every week as Flathub ships it (its makers' newest release), over its
+  IPC socket, with a pause that must show at once, next to VLC and Celluloid.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
