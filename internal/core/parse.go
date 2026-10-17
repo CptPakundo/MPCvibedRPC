@@ -907,6 +907,33 @@ func FolderEpisode(media *Media, files []string) int {
 	return NA
 }
 
+var nsTail = re(`^(.*?\p{L}.*?)\s*(?:[-–]\s*)?\b(?:specials?|sp|ova|oav|oad|ona)\s*0*(\d{1,3})$`, "iu")
+
+// NamedSpecial reads a title such as "Sample Show - Special 03", "Sample Show OVA 2" or "Sample Show - SP2" as the
+// show's special (S00E03), or returns nil. The parser keeps such names whole, since AniList lists OVAs as titles of
+// their own; the lookup tries this reading only when the whole name finds nothing.
+func NamedSpecial(m *Media) *Media {
+	if m == nil || m.IsEpisode {
+		return nil
+	}
+	s := nsTail.Exec(m.Title)
+	if s == nil {
+		return nil
+	}
+	n := atoi(s.Str(2))
+	show := tidy(s.Str(1))
+	if n < 1 || u16len(show) < 2 {
+		return nil
+	}
+	cp := *m
+	cp.Title, cp.IsEpisode, cp.Season, cp.Episode = show, true, 0, n
+	cp.Parts = []string{"S00E" + pad2n(n)}
+	cp.Label = cp.Parts[0]
+	cp.Display = show + " - " + cp.Label
+	cp.Index, cp.IndexTitle, cp.Year = NA, "", m.Year
+	return &cp
+}
+
 // CleanName is the cleaned-up display name of a file.
 func CleanName(file string, cfg *Config) string {
 	media := ParseMedia(file, cfg, nil)

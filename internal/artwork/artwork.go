@@ -661,6 +661,16 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 		}
 		seen = append(seen, r.seen...)
 	}
+	// "Sample Show - Special 03" or "Sample Show OVA 2", not found as a title of its own: the show's special (S00E03).
+	if sp := core.NamedSpecial(media); sp != nil && query == media.Title {
+		r := a.searchWith(sp, sp.Title, nil)
+		if r.hit != nil && r.hit.Type == "series" {
+			h := *r.hit
+			h.Special = true
+			return &h
+		}
+		seen = append(seen, r.seen...)
+	}
 	extra := ""
 	if len(seen) > 0 {
 		uniq := []string{}
@@ -1083,6 +1093,7 @@ func hasInfoData(i *core.ArtInfo) bool { return i != nil && (len(i.Genres) > 0 |
 type lookupJob struct {
 	a           *Artwork
 	media       *core.Media
+	special     *core.Media // the title read as a show's special (core.NamedSpecial), or nil
 	query       string
 	overrideArt *core.Art
 	wantEp      bool
@@ -1134,21 +1145,24 @@ func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 	if media.IsEpisode {
 		epNo = media.Episode
 	}
+	suffix := "i"
+	special := core.NamedSpecial(media)
+	if media.IsEpisode {
+		suffix = ""
+	} else if epNo == core.NA && special != nil {
+		epNo, suffix = special.Episode, "s" // used only if the show is found through the special
+	}
 	wantEp := cfg.EpisodeTitles && epNo != core.NA && media.EpTitle == ""
 	epNoS := "null"
 	if epNo != core.NA {
 		epNoS = strconv.Itoa(epNo)
-	}
-	suffix := "i"
-	if media.IsEpisode {
-		suffix = ""
 	}
 	epKey := "ep|" + key + "|" + epNoS + suffix
 	fullKey := key
 	if wantEp {
 		fullKey = epKey
 	}
-	return &lookupJob{a: a, media: media, query: query, overrideArt: overrideArt, wantEp: wantEp,
+	return &lookupJob{a: a, media: media, special: special, query: query, overrideArt: overrideArt, wantEp: wantEp,
 		fullKey: fullKey, key: key, epKey: epKey, infoKey: "info|" + key, aniKey: "ani|" + key}
 }
 
@@ -1475,7 +1489,9 @@ func (j *lookupJob) episode(base *core.Art) *core.ArtEpisode {
 			cp.Episode, cp.CodeEpisode = n, media.Episode
 			epMedia = &cp
 		}
-	} else if base != nil && base.Type == "series" {
+	} else if base != nil && base.Type == "series" && base.Special && j.special != nil {
+		epMedia = j.special
+	} else if base != nil && base.Type == "series" && media.Index != core.NA {
 		cp := *media
 		cp.IsEpisode, cp.Episode = true, media.Index
 		epMedia = &cp
