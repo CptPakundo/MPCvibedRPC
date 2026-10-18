@@ -145,6 +145,17 @@ static void macTraySetState(const char *tip, int running, int hidden) {
 	});
 }
 
+static void macTraySetImage(const void *png, int len) {
+	NSData *data = [NSData dataWithBytes:png length:len];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!item) return;
+		NSImage *img = [[NSImage alloc] initWithData:data];
+		img.size = NSMakeSize(18, 18);
+		img.template = YES;
+		item.button.image = img;
+	});
+}
+
 static int macTrayTakeAction(void) { return atomic_exchange(&pending, 0); }
 
 static void macTrayRemove(void) {
@@ -192,11 +203,6 @@ static void macCloseWindow(void) {
 import "C"
 
 import (
-	"bytes"
-	"image"
-	"image/color"
-	"image/png"
-	"math"
 	"os"
 	"runtime"
 	"sync"
@@ -242,7 +248,7 @@ type Tray struct {
 // Hide what I'm watching and Quit.
 func StartTray(o TrayOptions) *Tray {
 	t := &Tray{o: o, stop: make(chan struct{})}
-	icon := menuBarIcon(36)
+	icon := menuBarIcon(36, t.badge())
 	p := C.CBytes(icon)
 	defer C.free(p)
 	tip, running, hidden := t.state()
@@ -252,6 +258,16 @@ func StartTray(o TrayOptions) *Tray {
 	t.push(tip, running, hidden)
 	go t.loop()
 	return t
+}
+
+func (t *Tray) badge() bool { return t.o.Badge != nil && t.o.Badge() }
+
+// setIcon shows the icon with or without the update dot.
+func (t *Tray) setIcon(dot bool) {
+	icon := menuBarIcon(36, dot)
+	p := C.CBytes(icon)
+	defer C.free(p)
+	C.macTraySetImage(p, C.int(len(icon)))
 }
 
 func (t *Tray) state() (string, bool, bool) {
@@ -287,6 +303,7 @@ func (t *Tray) loop() {
 	tick := time.NewTicker(250 * time.Millisecond) // menu commands wait at most this long; the status refreshes every fourth tick
 	defer tick.Stop()
 	lastTip, lastRunning, lastHidden, n := "", false, false, 0
+	lastBadge := t.badge()
 	for {
 		select {
 		case <-t.stop:
@@ -314,6 +331,10 @@ func (t *Tray) loop() {
 				lastTip, lastRunning, lastHidden = tip, running, hidden
 				t.push(tip, running, hidden)
 			}
+			if b := t.badge(); b != lastBadge {
+				lastBadge = b
+				t.setIcon(b)
+			}
 		}
 	}
 }
@@ -331,42 +352,3 @@ func (t *Tray) Close() {
 
 // Balloon would show a notification; the menu bar icon has none (the window shows updates).
 func (t *Tray) Balloon(title, text string) bool { return false }
-
-// menuBarIcon draws the icon for the menu bar at n x n pixels (18 points on a Retina screen): the program's rounded
-// square with the play triangle cut out, in black on transparent, which macOS recolours for light and dark menu bars.
-func menuBarIcon(n int) []byte {
-	const ss, radius, inset = 8, 0.2, 0.06
-	tri := [3][2]float64{{0.39, 0.29}, {0.39, 0.71}, {0.73, 0.5}}
-	inRect := func(x, y float64) bool {
-		x, y = (x-inset)/(1-2*inset), (y-inset)/(1-2*inset)
-		if x < 0 || y < 0 || x > 1 || y > 1 {
-			return false
-		}
-		dx := math.Max(math.Max(radius-x, x-(1-radius)), 0)
-		dy := math.Max(math.Max(radius-y, y-(1-radius)), 0)
-		return dx*dx+dy*dy <= radius*radius
-	}
-	inTri := func(x, y float64) bool {
-		s := func(a, b [2]float64) float64 { return (x-b[0])*(a[1]-b[1]) - (a[0]-b[0])*(y-b[1]) }
-		d1, d2, d3 := s(tri[0], tri[1]), s(tri[1], tri[2]), s(tri[2], tri[0])
-		return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))
-	}
-	img := image.NewNRGBA(image.Rect(0, 0, n, n))
-	for y := 0; y < n; y++ {
-		for x := 0; x < n; x++ {
-			cover := 0
-			for sy := 0; sy < ss; sy++ {
-				for sx := 0; sx < ss; sx++ {
-					u, v := (float64(x)+(float64(sx)+0.5)/ss)/float64(n), (float64(y)+(float64(sy)+0.5)/ss)/float64(n)
-					if inRect(u, v) && !inTri(u, v) {
-						cover++
-					}
-				}
-			}
-			img.SetNRGBA(x, y, color.NRGBA{0, 0, 0, uint8(math.Round(255 * float64(cover) / (ss * ss)))})
-		}
-	}
-	var out bytes.Buffer
-	_ = png.Encode(&out, img)
-	return out.Bytes()
-}

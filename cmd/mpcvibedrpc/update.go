@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
 	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
 )
@@ -18,6 +21,7 @@ type updates struct {
 	last       *updater.Info // the last check's answer
 	notified   string        // the newest version the user was told about (once per version per run)
 	installing atomic.Bool   // an update is being downloaded or swapped in
+	auto       atomic.Bool   // an automatic install waits for a quiet moment
 }
 
 func (u *updates) get() *updater.Info  { u.mu.Lock(); defer u.mu.Unlock(); return u.last }
@@ -48,8 +52,8 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	}
 	a.upd.set(r)
 	a.log("INFO", fmt.Sprintf("Update available: %s (you have %s).", r.Latest, version))
-	if manual {
-		return r, nil
+	if a.autoInstall() || manual {
+		return r, nil // installed by itself at a quiet moment: it says so afterwards instead
 	}
 	a.upd.mu.Lock()
 	first := a.upd.notified != r.Latest
@@ -66,9 +70,68 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	return r, nil
 }
 
+// autoWait is how long an automatic install waits before looking again for a quiet moment.
+var autoWait = 2 * time.Minute
+
+// quietMoment: nothing is shown on Discord (nothing plays, or a pause was cleared) and no settings window is open,
+// so restarting into a new version interrupts nobody.
+func quietMoment(windows int32, s engine.Status) bool {
+	return windows == 0 && (s.NowPlaying == nil || s.PauseCleared)
+}
+
+// autoInstall installs a found update by itself, at the next quiet moment, when "Install updates automatically" is
+// on (with checks on, and where the program can replace itself: Windows and Linux). It reports whether it will. It
+// waits in the background, looking again every autoWait; a failed install is left to the next check.
+func (a *app) autoInstall() bool {
+	enabled := func() bool {
+		s := a.st.App()
+		i := a.upd.newer()
+		return s.CheckUpdates && s.AutoUpdate && i != nil && i.CanInstall
+	}
+	if !enabled() {
+		return false
+	}
+	if !a.upd.auto.CompareAndSwap(false, true) {
+		return true // already waiting
+	}
+	go func() {
+		defer a.upd.auto.Store(false)
+		for !quietMoment(a.windows.Load(), a.eng.Status()) {
+			time.Sleep(autoWait)
+			if !enabled() {
+				return // switched off meanwhile, or installed by hand
+			}
+		}
+		latest := a.upd.newer().Latest
+		a.log("INFO", "Installing "+latest+" by itself (Install updates automatically is on).")
+		marker := filepath.Join(a.st.Dir, autoMarker)
+		_ = os.WriteFile(marker, []byte(version), 0o644)
+		if err := a.installUpdate(); err != nil {
+			_ = os.Remove(marker)
+			a.log("WARN", "The automatic update to "+latest+" failed: "+err.Error()+" The next check tries again.")
+		}
+	}()
+	return true
+}
+
+// autoMarker is the file an automatic update leaves for the new copy: it then starts in the background (no window)
+// and says once that it was updated. It holds the version it was updated from.
+const autoMarker = "auto-updated"
+
+// takeAutoMarker reads and removes the marker; it returns the version updated from, or "".
+func takeAutoMarker(dir string) string {
+	p := filepath.Join(dir, autoMarker)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	_ = os.Remove(p)
+	return strings.TrimSpace(string(b))
+}
+
 // scheduleUpdateChecks looks for a new version shortly after starting (an open window shows it as soon as it is
-// known), then daily. A copy started at login may have no network yet, so a failed first check is tried again a
-// minute later.
+// known), then every six hours. A copy started at login may have no network yet, so a failed first check is tried
+// again a minute later.
 func (a *app) scheduleUpdateChecks() {
 	time.AfterFunc(5*time.Second, func() {
 		if _, err := a.checkUpdates(false); err != nil {
@@ -80,7 +143,7 @@ func (a *app) scheduleUpdateChecks() {
 		}
 	})
 	go func() {
-		for range time.Tick(24 * time.Hour) {
+		for range time.Tick(6 * time.Hour) {
 			_, _ = a.checkUpdates(false)
 		}
 	}()

@@ -26,7 +26,7 @@ type goldenStep struct {
 var reUpdateRepo = regexp.MustCompile(`"updateRepo": "[^"]*"`)
 
 // openWindow and welcomeSeen are not part of the recorded output.
-var reOpenWindow = regexp.MustCompile(`,\r?\n\s+"(openWindow|welcomeSeen)": (true|false)`)
+var reOpenWindow = regexp.MustCompile(`,\r?\n\s+"(openWindow|welcomeSeen|autoUpdate)": (true|false)`)
 
 func TestStoreAgainstJS(t *testing.T) {
 	f, err := os.Open("testdata/store.json.gz")
@@ -80,7 +80,8 @@ func TestStoreAgainstJS(t *testing.T) {
 				t.Errorf("case %d step %d %s: file differs\n got  %s\n want %s", ci, si, s.Patch, b, want)
 			}
 			wantApp := s.App
-			wantApp.OpenWindow = true                // not part of the recorded output
+			wantApp.OpenWindow = true // not part of the recorded output
+			wantApp.AutoUpdate = true
 			wantApp.UpdateRepo = st.App().UpdateRepo // see reUpdateRepo
 			if a := st.App(); !reflect.DeepEqual(a, wantApp) {
 				t.Errorf("case %d step %d: app %+v want %+v", ci, si, a, wantApp)
@@ -133,6 +134,7 @@ func TestAppSwitchDefaultSaveReset(t *testing.T) {
 	}{
 		{"openWindow", "openWindow", true, func(a App) bool { return a.OpenWindow }},
 		{"welcomeSeen", "welcomeSeen", false, func(a App) bool { return a.WelcomeSeen }},
+		{"autoUpdate", "autoUpdate", true, func(a App) bool { return a.AutoUpdate }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := openStore(t, t.TempDir())

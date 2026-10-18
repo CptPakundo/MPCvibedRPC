@@ -13,7 +13,11 @@ Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the 
 shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
 on Discord, Hide what I'm watching (`hideTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
-"presence".
+"presence". Updates are looked for 5 s after start, then every six hours; with `autoUpdate` (on by default; Windows
+and Linux) a found update installs itself at a quiet moment (`quietMoment`: nothing shown on Discord, no settings
+window), and the new copy starts in the tray (`auto-updated` marker in the data folder) and says so once. While an
+update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, made by `tools/mkico -dot`; macOS:
+`winsys.menuBarIcon`). Test copies keep `checkUpdates` off, which also keeps them from installing anything.
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
@@ -63,7 +67,7 @@ friend of the owner on a real Mac.
 ## Layout
 | Path | Job |
 |---|---|
-| `cmd/mpcvibedrpc` | `main.go` (flags, single instance, `var version`), `app.go` (the `app` type: start-up and quit order), `api.go` (the local API handlers: `state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `update-*`, `quit`, ...), `update.go` (checks, install), `tray.go` (icon, tooltip), `accounts.go` (the `approval` helper the Plex, Stremio and Jellyfin sign-ins share, and their common endpoints) with `plex.go`, `stremio.go`, `jellyfin.go`, `logger.go` |
+| `cmd/mpcvibedrpc` | `main.go` (flags, single instance, `var version`), `app.go` (the `app` type: start-up and quit order), `api.go` (the local API handlers: `state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `update-*`, `quit`, ...), `update.go` (checks, install, automatic installs), `tray.go` (icon, tooltip), `accounts.go` (the `approval` helper the Plex, Stremio and Jellyfin sign-ins share, and their common endpoints) with `plex.go`, `stremio.go`, `jellyfin.go`, `logger.go` |
 | `internal/engine` | the tick loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window, the local stats (`stats.go`, `stats.json`: counts only, never titles); split by job: `engine.go` (types, Start/Stop, Status), `players.go` (`fetchPlayer` and its `picker`), `remote.go` (the Plex, Stremio and Jellyfin watchers as one list, resting), `discord.go`, `tick.go` |
 | `internal/core` | settings and defaults (`config.go`), filename parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, the online-service catalog (`sources.go`), every other outside address (`hosts.go`) |
 | `internal/mpvipc`, `internal/pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `internal/discord`) |
@@ -228,7 +232,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   states without Discord, override `window.fetch` for `/api/status` in the page.
 - `api/start` with nothing playing is safe: Discord is only contacted once something plays ("standby"). To keep a real
   player from being picked up, point `port` at an unused port and leave `mpvPipe`/`vlcPassword` empty.
-- Update checks: `MPCRPC_UPDATE_API=http://127.0.0.1:<port>` with `tools/ci/fake-http.ps1`.
+- Update checks: `MPCRPC_UPDATE_API=http://127.0.0.1:<port>` with `tools/ci/fake-http.ps1` (on CI; on this kind of Windows PC its
+  HttpListener may be refused without admin rights, so a small Go server in a scratch folder serves the same three
+  answers there).
 - `MPCRPC_BROWSER=none` opens no window (tests, CI); `MPCRPC_FOREGROUND=1` keeps a macOS copy from handing over to a
   detached one.
 - Live engine test against a real player, with the test's own fake Discord (opt-in):

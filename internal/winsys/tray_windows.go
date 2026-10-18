@@ -132,7 +132,9 @@ type Tray struct {
 	o       TrayOptions
 	hwnd    uintptr
 	icon    uintptr
-	created uint32 // the "TaskbarCreated" broadcast: Explorer restarted, add the icon again
+	badged  uintptr // the icon with the update dot (0 when there is none)
+	badge   bool    // the dot is shown (only touched on the tray's own thread)
+	created uint32  // the "TaskbarCreated" broadcast: Explorer restarted, add the icon again
 	tip     string
 	added   bool // the icon is on the taskbar (only touched on the tray's own thread)
 	ready   chan struct{}
@@ -185,7 +187,9 @@ func (t *Tray) loop() {
 	t.hwnd = hwnd
 	m, _, _ := pRegisterWindowMessage.Call(uintptr(unsafe.Pointer(utf16Ptr("TaskbarCreated"))))
 	t.created = uint32(m)
-	t.loadIcon()
+	t.icon = t.loadIcon(t.o.Icon, "tray.ico")
+	t.badged = t.loadIcon(t.o.Badged, "tray-update.ico")
+	t.badge = t.o.Badge != nil && t.o.Badge()
 	t.tip = t.tooltip()
 	if t.added = t.notify(nimAdd); !t.added {
 		t.o.Log("WARN", "Tray icon could not be added yet (is the taskbar running?). It will be added when the taskbar appears.")
@@ -204,22 +208,33 @@ func (t *Tray) loop() {
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&mm)))
 		pDispatchMessage.Call(uintptr(unsafe.Pointer(&mm)))
 	}
-	if t.icon != 0 {
-		pDestroyIcon.Call(t.icon)
+	for _, h := range []uintptr{t.icon, t.badged} {
+		if h != 0 {
+			pDestroyIcon.Call(h)
+		}
 	}
 }
 
-func (t *Tray) loadIcon() {
-	if len(t.o.Icon) == 0 || t.o.Dir == "" {
-		return
+// loadIcon writes an .ico to the data folder under name and loads it at the tray's size (0 when it can't).
+func (t *Tray) loadIcon(ico []byte, name string) uintptr {
+	if len(ico) == 0 || t.o.Dir == "" {
+		return 0
 	}
-	path := filepath.Join(t.o.Dir, "tray.ico")
-	if err := os.WriteFile(path, t.o.Icon, 0o644); err != nil {
-		return
+	path := filepath.Join(t.o.Dir, name)
+	if err := os.WriteFile(path, ico, 0o644); err != nil {
+		return 0
 	}
 	sz, _, _ := pGetSystemMetrics.Call(smCxSmIcon)
 	h, _, _ := pLoadImage.Call(0, uintptr(unsafe.Pointer(utf16Ptr(path))), imageIcon, sz, sz, lrLoadFile)
-	t.icon = h
+	return h
+}
+
+// shown is the icon to show: with the dot while an update waits.
+func (t *Tray) shown() uintptr {
+	if t.badge && t.badged != 0 {
+		return t.badged
+	}
+	return t.icon
 }
 
 func (t *Tray) tooltip() string {
@@ -236,7 +251,7 @@ func (t *Tray) notify(action uintptr) bool {
 	nid.uID = 1
 	nid.uFlags = nifMessage | nifIcon | nifTip
 	nid.uCallbackMessage = wmTrayCB
-	nid.hIcon = t.icon
+	nid.hIcon = t.shown()
 	tip := syscall.StringToUTF16(t.tip)
 	if len(tip) > len(nid.szTip) {
 		tip = append(tip[:len(nid.szTip)-1], 0)
@@ -345,9 +360,13 @@ func wndProc(hwnd, m, wParam, lParam uintptr) uintptr {
 				if t.added = t.notify(nimAdd); t.added {
 					t.o.Log("INFO", "Tray icon ready.")
 				}
-			} else if tip := t.tooltip(); tip != t.tip {
-				t.tip = tip
-				t.notify(nimModify)
+			} else {
+				tip := t.tooltip()
+				badge := t.o.Badge != nil && t.o.Badge()
+				if tip != t.tip || badge != t.badge {
+					t.tip, t.badge = tip, badge
+					t.notify(nimModify)
+				}
 			}
 			return 0
 		case wmClose:

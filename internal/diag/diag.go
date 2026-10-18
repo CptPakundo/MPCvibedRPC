@@ -216,7 +216,7 @@ func Report(in Input) string {
 	}
 	w("")
 	w("App settings")
-	w("  start with Windows: %s, start presence at launch: %s, show window at launch: %s, check for updates: %s", yn(in.App.AutoStart), yn(in.App.StartPresence), yn(in.App.OpenWindow), yn(in.App.CheckUpdates))
+	w("  start with Windows: %s, start presence at launch: %s, show window at launch: %s, check for updates: %s, install them automatically: %s", yn(in.App.AutoStart), yn(in.App.StartPresence), yn(in.App.OpenWindow), yn(in.App.CheckUpdates), yn(in.App.AutoUpdate))
 	if in.App.UpdateRepo != store.DefaultUpdateRepo {
 		w("  update source: (custom)")
 	}

@@ -1,14 +1,19 @@
-## MPCvibedRPC 0.9.39
+## MPCvibedRPC 0.9.40
 
-**A download counter that counts people.** The program itself is unchanged.
+**Updates install themselves, and the icon shows when one is waiting.**
 
 ### What's new
-- **Downloads by people.** The download badge on the project page used to add up every file of every release,
-  checksums included, and most of those downloads were the project's own release checks. It now counts only the
-  program files (the Windows exe, the Linux programs and the macOS app), from a fresh start on 2026-10-18 (every
-  release file was replaced by its identical copy, so links, checksums and updates are unchanged), minus every
-  download the project makes itself: the release checks and the AI agents that build the program record each of
-  theirs, and those are taken off. The program never reports anything about anyone; it only reads GitHub's counts.
+- **Automatic updates** (Windows and Linux). When a new version is out, the program installs it by itself as soon as
+  nothing is playing and the settings window is closed, so a status on Discord is never cut off mid-episode. It
+  restarts quietly in the tray and says once that it was updated. Every update is still checked against its checksum,
+  and if the new version does not start, the old one keeps running. Switch it off under **General > Updates > Install
+  updates automatically**; then the window and the tray notice offer the update as before.
+- **A red dot on the icon** while an update waits: on the tray icon on Windows, and on the menu bar icon on macOS
+  (where the window links to the new download).
+- **More frequent checks**: every six hours instead of once a day, besides the check a few seconds after starting.
+
+From this version on, updates arrive by themselves. Copies of an older version still show the update notice and
+need one click on **Install**.
 
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you

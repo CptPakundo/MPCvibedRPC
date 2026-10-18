@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.40", "date": "2026-10-18", "items": [
+    "🔄 Updates install themselves when nothing is playing and this window is closed (Windows, Linux).",
+    "🔴 The tray icon shows a red dot while an update waits.",
+    "⏱️ New versions are looked for every six hours instead of once a day."
+  ]},
   {"version": "0.9.39", "date": "2026-10-18", "items": [
     "📊 The download counter on the project page counts people only, not the project's own checks."
   ]},

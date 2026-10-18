@@ -40,3 +40,17 @@ func TestICNS(t *testing.T) {
 		t.Errorf("%d entries, want %d", n, len(icnsTypes))
 	}
 }
+
+// The tray icon shown while an update waits is generated the same way, with the dot.
+func TestCommittedUpdateIconMatchesGenerator(t *testing.T) {
+	have, err := os.ReadFile("../../internal/assets/icon-update.ico")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(have, build(sizes, true)) {
+		t.Fatal("internal/assets/icon-update.ico is out of date: run go run ./tools/mkico -dot -out internal/assets/icon-update.ico")
+	}
+	if bytes.Equal(have, Build(sizes)) {
+		t.Fatal("the update icon has no dot")
+	}
+}

@@ -207,6 +207,7 @@
           <div class="help" id="updNotes"></div>
         </div>
         <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
+        <div class="field" id="autoUpdateRow"><label class="line"><span>Install updates automatically<div class="help">It waits until nothing is playing and this window is closed.</div></span><span class="sw"><input type="checkbox" id="autoUpdate"><span></span></span></label></div>
       </div>
       <h3 class="grp">Your stats</h3>
       <div class="group">
@@ -719,12 +720,16 @@
     $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
     $('checkUpdates').checked = !!m.app.checkUpdates;
+    $('autoUpdate').checked = !!m.app.autoUpdate;
+    $('autoUpdate').disabled = !m.app.checkUpdates; // installing needs the checks
+    $('autoUpdateRow').classList.toggle('hidden', m.os === 'darwin'); // macOS: the app can't replace itself
     applyOsText();
     renderFields(m);
     paintStats(m.stats);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
   }
-  ['autoStart', 'startPresence', 'openWindow', 'checkUpdates'].forEach((id) => autosave($(id), 'app', id));
+  ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'autoUpdate'].forEach((id) => autosave($(id), 'app', id));
+  $('checkUpdates').addEventListener('change', () => { $('autoUpdate').disabled = !$('checkUpdates').checked; });
 
   const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
   // a picture of the Discord card, built from the activity the program actually sent

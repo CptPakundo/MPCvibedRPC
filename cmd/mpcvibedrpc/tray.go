@@ -9,7 +9,8 @@ import (
 // startTray puts up the tray icon (Windows) or the menu bar icon (macOS); elsewhere there is none.
 func (a *app) startTray() *winsys.Tray {
 	return winsys.StartTray(winsys.TrayOptions{
-		Icon: assets.Icon, Dir: a.st.Dir, Log: a.log,
+		Icon: assets.Icon, Badged: assets.IconUpdate, Dir: a.st.Dir, Log: a.log,
+		Badge:   func() bool { return a.upd.newer() != nil }, // the dot: an update waits
 		Tooltip: func() string { return trayTooltip(a.eng.Status()) },
 		Running: func() bool { return a.eng.Status().Running },
 		OnOpen:  a.openWindow,
