@@ -45,6 +45,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 
 ## Releases
 - **Versions stay 0.9.x, three-part.** *Why:* the updater compares three numbers; a fix takes the next number.
+- **The download counter counts people** (2026-10-18): program downloads only (not checksums or notices), counted
+  from a reset of GitHub's counts, minus every download the project makes itself (release checks and Claude agents
+  record theirs in a ledger on the `stats` branch). The program never reports anything; your own copy behaves like
+  everyone's. *Why:* GitHub's total was mostly the release checks' own downloads.
 - **Frequent releases while the program is young** (2026-10-18): each real improvement ships once its checks pass.
   *Why:* few people use it yet, so quick fixes and feedback count for more than the trust that calmer releases build
   with Windows SmartScreen and package managers. Bundling comes back once it has a wider audience.

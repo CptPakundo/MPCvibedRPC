@@ -1,0 +1,58 @@
+# The download counter in the README: how often people downloaded the program, without the downloads made by
+# development (the release checks and Claude agents record theirs in the ledger: tools/ci/dev-download.sh).
+# tools/downloads works it out from GitHub's counts and writes downloads.json (the badge) and summary.json to the
+# stats branch. Every three hours, ten minutes after each release (GitHub counts downloads a few minutes late), and by
+# hand; by hand with "baseline" ticked, counting starts again from the counts now (after the counts were reset).
+name: downloads
+on:
+  schedule:
+    - cron: '41 */3 * * *'
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: Start counting again from the counts now
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: downloads
+  cancel-in-progress: false
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # the stats branch
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: stats, path: stats }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: '1.27.2', cache: false }
+      - name: Wait for GitHub to count the release's downloads
+        if: github.event_name == 'workflow_run'
+        run: sleep 600
+      - name: Count
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          if [ "${{ inputs.baseline }}" = "true" ]; then
+            go run ./tools/downloads baseline -releases "$RUNNER_TEMP/releases.json" -stats stats
+          fi
+          go run ./tools/downloads count -releases "$RUNNER_TEMP/releases.json" -stats stats
+      - name: Save to the stats branch
+        working-directory: stats
+        run: |
+          git add -A baseline.json downloads.json summary.json
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Download count"
+          for try in 1 2 3; do
+            git push -q origin HEAD:stats && exit 0
+            git pull -q --rebase origin stats # a ledger entry arrived meanwhile (other files)
+          done
+          exit 1

@@ -54,6 +54,11 @@ friend of the owner on a real Mac.
 - **No regressions, no churn.** Weigh pros and cons; don't change working behaviour for its own sake. New behaviour that
   affects existing users stays off or unchanged by default unless the owner decides otherwise.
 - **Be exact about what was tested.** Say what ran for real, what ran against fakes, and what was not tested.
+- **Release files are only downloaded through `tools/ci/dev-download.sh`** (`download BY TAG DIR [PATTERN]`, or
+  `record BY TAG/FILE[=N]` for a download made another way, such as a test copy updating itself), never with a bare
+  `gh release download`, a browser or curl. It records the download in the ledger on the `stats` branch, so the
+  download counter leaves it out. Checking a release without downloading: GitHub lists each file's sha256 as `digest`
+  (`gh api repos/OWNER/REPO/releases/tags/vX.Y.Z`).
 
 ## Layout
 | Path | Job |
@@ -78,8 +83,9 @@ friend of the owner on a real Mac.
 | `internal/diag` | "Copy diagnostics": titles and file names kept (a wrong title is traced back to its file name); folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list left out |
 | `internal/updater` | GitHub release check, download, checksum, swap, restart |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
+| `tools/downloads` | the README's download counter: GitHub's counts of the program files since `baseline.json`, minus the ledger of development downloads (both on the `stats` branch, kept by `.github/workflows/downloads.yml`, which writes `downloads.json` for the badge and `summary.json`) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one), `version.sh`, `live-players.sh` (real players on CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one; its downloads go into the ledger), `dev-download.sh` (every development download of a release file, recorded in the ledger), `version.sh`, `live-players.sh` (real players on CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 
 ## How players are read
@@ -190,6 +196,11 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   run). Read and fix a canary issue like a bug report. **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
+- The download counter (`.github/workflows/downloads.yml`, every three hours and ten minutes after each release)
+  updates the `stats` branch only; `master` is never written by a workflow. GitHub's counts were reset on 2026-10-18
+  (every release file replaced by its identical bytes) and counting started then; after another reset, run the
+  workflow by hand with `baseline` ticked. Its summary's `notCountedYet` is a download recorded in the ledger that
+  GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
 - **Actions are pinned by commit** (`uses: owner/action@<sha> # vX.Y.Z`); Dependabot updates the pins. A new action
   gets the same form, and a job gets only the `permissions` it needs (workflows are read-only by default).
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
