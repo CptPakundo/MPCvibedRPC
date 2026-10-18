@@ -1,6 +1,14 @@
 ## MPCvibedRPC 0.9.40
 
-**Updates install themselves, and the icon shows when one is waiting.**
+**No more leftover statuses; updates install themselves, and the icon shows when one is waiting.**
+
+### Fixed
+- **A status that stayed on Discord** after you closed the player. When Discord was busy and answered a status update
+  late, the program took it for "not shown", so when you stopped watching it never took the status down, until the
+  program quit. Now every update counts as shown until it is cleared, a clear Discord does not take is tried again at
+  the next check, and while nothing plays the status is cleared again once a minute, so a missed clear cannot linger.
+- **A video paused at its very end** (some players stay on the last frame) counts as finished: the status goes at
+  once instead of showing "Paused" until the pause limit.
 
 ### What's new
 - **Automatic updates** (Windows and Linux). When a new version is out, the program installs it by itself as soon as

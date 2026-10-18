@@ -151,6 +151,12 @@ a stat elsewhere; never a connection) and no settings window holds `/api/alive` 
 (`winsys.TrimMemory`) hands memory back. A window opening calls `engine.Wake`. Tests get no resting unless they set
 `MayRest`.
 
+**Clearing** (`tick.go`): a status counts as shown from the moment it is sent, also when Discord's answer does not
+come (it may have been applied: a late answer once left statuses up for good); a clear Discord does not take keeps it
+"shown", so the next check clears again; while nothing plays and Discord is connected it is cleared again every
+`reclearEvery` (a minute, quietly); a file paused within `endSlack` (3 s) of its end has ended. Tests:
+`internal/engine/stale_test.go` (the fake Discord's `slow` and `failClears`).
+
 Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
 state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
 playlist. With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's

@@ -81,6 +81,21 @@ listed in [All settings](config.md).
 - Tried with the official Jellyfin and Emby server images on GitHub's test machines. A real server and the real apps
   haven't been tried yet; reports are welcome.
 
+## The status stays after I stop watching
+
+The status is taken down at the next check after the player stops, closes, or stays paused at the very end of the
+file, and while nothing plays it is cleared again once a minute, so a clear Discord missed (it was busy, or answered
+too late) cannot linger. Quitting the program always takes it down too: Discord drops a program's status when it
+disconnects. If one stays anyway:
+- **Another player still answers.** The program shows the first player that plays, else the first that is paused. A
+  second player left paused on a file keeps showing as paused (until **Clear my status when paused for N minutes**).
+  The window's status card names the player.
+- **A server player hasn't reported yet.** Plex, Jellyfin, Emby and Stremio learn that an app on another device was
+  closed only when its reports stop or the server drops its session: a Plex player goes after 3 minutes without a
+  report, a Jellyfin session that still says it plays after 5, a Stremio one after up to 4.
+- **An old version.** Versions before 0.9.40 could leave a status up when Discord answered slowly. Update (General >
+  Updates).
+
 ## The window doesn't open
 
 Run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings
