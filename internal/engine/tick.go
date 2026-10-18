@@ -127,26 +127,46 @@ func (e *Engine) tick(r *run) {
 		}
 		e.mu.Lock()
 	}
-	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2)
+	ended := endedAt(info)
+	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2) && !ended
 	hidden := active && (core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles) || hiddenWhere(info.Where, cfg.HideFiles))
 
 	if !active || hidden {
+		// Clear what is shown; and while nothing plays, clear again now and then (reclearEvery), so a clear Discord
+		// missed, or a status it applied although its answer never came, cannot stay up.
 		var clear *discord.Client
-		if e.shown && e.ready {
+		shown := e.shown
+		if e.ready && (shown || time.Since(e.clearedAt) >= reclearEvery) {
 			clear = e.rpc
 		}
 		e.mu.Unlock()
+		failed := false
 		if clear != nil {
-			_ = clear.ClearActivity()
-			if hidden {
+			err := clear.ClearActivity()
+			e.mu.Lock()
+			failed = err != nil
+			first := failed && !e.clearStuck
+			e.clearStuck = failed
+			if !failed {
+				e.clearedAt = time.Now()
+			}
+			e.mu.Unlock()
+			switch {
+			case first:
+				e.log("WARN", "Discord did not take the clearing of the status ("+err.Error()+"). Trying again at the next check.")
+			case failed || !shown:
+			case hidden:
 				e.log("INFO", "This file is on your don't-show list - presence cleared.")
-			} else {
+			case ended:
+				e.log("INFO", "The video ended - presence cleared.")
+			default:
 				e.log("INFO", "Nothing playing - presence cleared.")
 			}
 		}
 		e.mu.Lock()
 		e.hidden, e.paused = hidden, false
-		e.shown, e.prev, e.nowPlaying, e.preview = false, nil, nil, nil
+		e.shown = shown && failed // a clear Discord did not take is tried again at the next check
+		e.prev, e.nowPlaying, e.preview = nil, nil, nil
 		e.pausedSince, e.pauseCleared = time.Time{}, false
 		e.mu.Unlock()
 		return
@@ -192,7 +212,16 @@ func (e *Engine) tick(r *run) {
 		}
 		e.mu.Unlock()
 		if clear != nil {
-			_ = clear.ClearActivity()
+			if err := clear.ClearActivity(); err != nil {
+				e.mu.Lock()
+				e.pauseCleared, e.shown = false, true // not cleared: the next check tries again
+				e.mu.Unlock()
+				e.log("WARN", "Discord did not take the clearing of the status ("+err.Error()+"). Trying again at the next check.")
+				return
+			}
+			e.mu.Lock()
+			e.clearedAt = time.Now()
+			e.mu.Unlock()
 			e.log("INFO", fmt.Sprintf("Paused for %d min - presence cleared (it returns when you resume).", cfg.PauseClearMinutes))
 		}
 		return
@@ -213,6 +242,7 @@ func (e *Engine) tick(r *run) {
 		e.mu.Lock()
 		e.lastError = &msg
 		e.prev = nil
+		e.shown = true // Discord may have applied it although its answer did not come: it must be cleared later
 		e.mu.Unlock()
 		e.log("ERROR", "Failed to update presence: "+msg)
 		return
@@ -289,6 +319,18 @@ func pollInterval(cfg core.Config) time.Duration {
 		interval = 250 * time.Millisecond
 	}
 	return interval
+}
+
+// reclearEvery is how often the status is cleared again while nothing plays and Discord is connected (shortened in
+// tests): Discord limits a status to five changes in 20 seconds, and once a minute keeps far below that.
+var reclearEvery = time.Minute
+
+// endSlack: a player paused this close to the end of the file has finished it (some stay paused on the last frame).
+const endSlack = 3000 // ms
+
+// endedAt reports whether the player is paused at the end of its file: that is a finished video, not a pause.
+func endedAt(info *core.Info) bool {
+	return info != nil && info.State == 1 && info.Duration > 0 && info.Position >= info.Duration-endSlack
 }
 
 // recheckAfter is when an episode shown without its title is looked up again, in minutes after it was shown (or after

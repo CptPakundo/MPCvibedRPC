@@ -269,10 +269,13 @@ func orEmpty(b []byte) []byte {
 	return []byte("{}")
 }
 
+// RequestTimeout is how long a request waits for Discord when its caller gives no time (shortened in tests).
+var RequestTimeout = 10 * time.Second
+
 // Request sends a command and waits for Discord's answer.
 func (c *Client) Request(cmd string, args any, timeout time.Duration) (json.RawMessage, error) {
 	if timeout <= 0 {
-		timeout = 10 * time.Second
+		timeout = RequestTimeout
 	}
 	c.mu.Lock()
 	if c.closed || c.conn == nil {

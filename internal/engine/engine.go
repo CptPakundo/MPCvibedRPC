@@ -103,7 +103,9 @@ type Engine struct {
 	ready      bool
 	connecting bool
 	warnedDisc bool
-	shown      bool
+	shown      bool      // a status may be up on Discord (also after a send whose answer did not come)
+	clearedAt  time.Time // when the status was last cleared: while nothing plays it is cleared again now and then
+	clearStuck bool      // the last clear failed (logged once until one works)
 	prev       *core.Prev
 	basicMode  bool
 	noLinks    bool // Discord refused the clickable title and cover: they are sent without links

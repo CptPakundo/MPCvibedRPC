@@ -65,8 +65,12 @@ type disc struct {
 	rejectLinks bool
 	// dropNext closes the connection on the next SET_ACTIVITY without answering (a Discord that goes away)
 	dropNext bool
-	ln       fakeListener
-	conns    []io.ReadWriteCloser
+	// slow answers every SET_ACTIVITY this late (it is applied at once, like a busy Discord that answers after the timeout)
+	slow time.Duration
+	// failClears answers a clearing SET_ACTIVITY (no activity) with an error, as if Discord did not take it
+	failClears bool
+	ln         fakeListener
+	conns      []io.ReadWriteCloser
 }
 
 func newDisc(t *testing.T) *disc { return newDiscAt(t, fakePath(sockDir(t))) }
@@ -132,7 +136,14 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		rej := (d.reject && act != nil && act["type"] != nil) || (d.rejectLinks && act != nil && act["details_url"] != nil)
 		drop := d.dropNext
 		d.dropNext = false
+		slow, failClear := d.slow, d.failClears && m["cmd"] == "SET_ACTIVITY" && act == nil
 		d.mu.Unlock()
+		if slow > 0 {
+			time.Sleep(slow)
+		}
+		if failClear {
+			rej = true
+		}
 		if drop {
 			c.Close()
 			return
