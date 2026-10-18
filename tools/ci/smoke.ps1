@@ -58,7 +58,8 @@ try {
   Check (WaitFor { (Invoke-WebRequest "http://127.0.0.1:$port/variables.html" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } 20 'fake http up') 'fake MPC-HC web interface is up'
 
   # settings: point the program at the fake MPC-HC; no artwork lookups from CI
-  Set-Content (Join-Path $home_ 'config.json') (@{ port = $port; pollInterval = 500; showArtwork = $false } | ConvertTo-Json)
+  # (automatic installs off: the update below is started by hand, at a known moment)
+  Set-Content (Join-Path $home_ 'config.json') (@{ port = $port; pollInterval = 500; showArtwork = $false; app = @{ autoUpdate = $false } } | ConvertTo-Json)
 
   # the program carries its version details and icon
   $vi = (Get-Item $app).VersionInfo

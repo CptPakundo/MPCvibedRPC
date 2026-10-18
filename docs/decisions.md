@@ -33,6 +33,11 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   settings page that outlives its program only confuses.
 - **On macOS the program lives in the menu bar and shows its settings in a window of its own**, never in a browser.
   *Why:* a browser window behaved badly for a tester, and a menu bar app is what a Mac user expects.
+- **Updates install themselves by default** (2026-10-18; Windows and Linux): checks every six hours, and a found
+  update is installed at the next quiet moment (nothing playing, no settings window open), then a notice says so once.
+  The tray and menu bar icon show a red dot while an update waits. One switch turns it off. *Why:* users on old
+  versions miss fixes; a restart while nothing plays interrupts nobody, and every update is checksummed and falls back
+  to the old version if the new one does not start.
 
 ## Privacy
 - **Copy diagnostics keeps titles and file names**, and leaves out folder paths, web address details, server names,

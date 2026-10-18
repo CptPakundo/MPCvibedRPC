@@ -89,6 +89,14 @@ func run() error {
 		token: server.NewToken(), quitDone: make(chan struct{})}
 
 	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
+	autoFrom := "" // updated by itself from this version: start quietly in the tray and say so once
+	if afterUpdate {
+		autoFrom = takeAutoMarker(st.Dir)
+	}
+	if autoFrom != "" {
+		msg += " after updating itself from " + autoFrom
+		background = true
+	}
 	if background {
 		msg += " in the background"
 	}
@@ -129,6 +137,11 @@ func run() error {
 	a.mu.Lock()
 	a.tray = t
 	a.mu.Unlock()
+	if autoFrom != "" && t != nil {
+		if !t.Balloon("MPCvibedRPC updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
+			a.log("INFO", "No notice of the automatic update was shown (no tray notifications here).")
+		}
+	}
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
 	if st.App().AutoStart {

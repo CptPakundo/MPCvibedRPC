@@ -4,6 +4,7 @@
 //	go run ./tools/mkico -out internal/assets/icon.ico
 //	go run ./tools/mkico -icns MPCvibedRPC.icns     (the macOS app icon, made when the app is packaged)
 //	go run ./tools/mkico -png docs/images/icon.png    (a 256-pixel logo for the README)
+//	go run ./tools/mkico -dot -out internal/assets/icon-update.ico   (the tray icon while an update is waiting)
 package main
 
 import (
@@ -21,8 +22,9 @@ func main() {
 	out := flag.String("out", "internal/assets/icon.ico", "output .ico file")
 	icns := flag.String("icns", "", "write a macOS .icns file here instead")
 	pngFile := flag.String("png", "", "write a 256-pixel PNG here instead")
+	withDot := flag.Bool("dot", false, "the .ico with the update dot in its top right corner")
 	flag.Parse()
-	path, data := *out, func() []byte { return Build(sizes) }
+	path, data := *out, func() []byte { return build(sizes, *withDot) }
 	if *icns != "" {
 		path, data = *icns, BuildICNS
 	}
@@ -54,15 +56,29 @@ func inTriangle(x, y float64) bool {
 	return !(neg && pos)
 }
 
+// The update dot: a red circle in the top right corner, cut out of the icon by a transparent ring so it stands apart
+// at 16 pixels too.
+const dotX, dotY, dotR, dotRing = 0.79, 0.21, 0.21, 0.07
+
+func inDot(x, y, r float64) bool { return (x-dotX)*(x-dotX)+(y-dotY)*(y-dotY) <= r*r }
+
 // pixel is the colour of one pixel of the n x n icon (y counted from the top), supersampled 8x8: blurple, white
 // inside the triangle, transparent outside the rounded square.
-func pixel(n, x, y int) (r, g, b, a byte) {
+func pixel(n, x, y int) (r, g, b, a byte) { return pixelDot(n, x, y, false) }
+
+// pixelDot is pixel, with the update dot when dot is set.
+func pixelDot(n, x, y int, dot bool) (r, g, b, a byte) {
 	const ss = 8
-	var cover, white float64
+	var cover, white, red float64
 	for sy := 0; sy < ss; sy++ {
 		for sx := 0; sx < ss; sx++ {
 			u, v := (float64(x)+(float64(sx)+0.5)/ss)/float64(n), (float64(y)+(float64(sy)+0.5)/ss)/float64(n)
-			if inRoundRect(u, v) {
+			if dot && inDot(u, v, dotR) {
+				cover++
+				red++
+			} else if dot && inDot(u, v, dotR+dotRing) {
+				continue // the gap around the dot
+			} else if inRoundRect(u, v) {
 				cover++
 				if inTriangle(u, v) {
 					white++
@@ -73,13 +89,14 @@ func pixel(n, x, y int) (r, g, b, a byte) {
 	if cover == 0 {
 		return 0, 0, 0, 0
 	}
-	w := white / cover
-	ch := func(blue, full float64) byte { return byte(math.Round(blue + (full-blue)*w)) }
-	return ch(88, 255), ch(101, 255), ch(242, 255), byte(math.Round(255 * cover / (ss * ss)))
+	w, rd := white/cover, red/cover
+	// blurple, mixed with white (the triangle) and Discord's red (the dot) by how much of the pixel each covers
+	ch := func(blue, full, dotc float64) byte { return byte(math.Round(blue + (full-blue)*w + (dotc-blue)*rd)) }
+	return ch(88, 255, 237), ch(101, 255, 66), ch(242, 255, 69), byte(math.Round(255 * cover / (ss * ss)))
 }
 
 // frame returns the BMP-in-ICO payload (header, bottom-up BGRA pixels, empty AND mask) for one size.
-func frame(n int) []byte {
+func frame(n int, dot bool) []byte {
 	b := new(bytes.Buffer)
 	binary.Write(b, binary.LittleEndian, struct {
 		Size          uint32
@@ -91,7 +108,7 @@ func frame(n int) []byte {
 	}{40, int32(n), int32(2 * n), 1, 32, 0, uint32(4 * n * n), 0, 0, 0, 0})
 	for y := n - 1; y >= 0; y-- {
 		for x := 0; x < n; x++ {
-			r, g, bl, a := pixel(n, x, y)
+			r, g, bl, a := pixelDot(n, x, y, dot)
 			b.Write([]byte{bl, g, r, a})
 		}
 	}
@@ -100,10 +117,13 @@ func frame(n int) []byte {
 }
 
 // Build makes the .ico file for the given square sizes.
-func Build(sizes []int) []byte {
+func Build(sizes []int) []byte { return build(sizes, false) }
+
+// build makes the .ico file, with the update dot when dot is set.
+func build(sizes []int, dot bool) []byte {
 	var frames [][]byte
 	for _, n := range sizes {
-		frames = append(frames, frame(n))
+		frames = append(frames, frame(n, dot))
 	}
 	out := new(bytes.Buffer)
 	binary.Write(out, binary.LittleEndian, [3]uint16{0, 1, uint16(len(sizes))})

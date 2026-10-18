@@ -113,9 +113,12 @@ To uninstall:
 
 ## Updates
 
-The program checks for new versions when it starts and once a day (switch it off under **General > Updates**). On Windows
-and Linux, **Install** downloads the new version, checks it and restarts; on macOS the window links to the
-download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
+The program checks for new versions when it starts and every six hours (switch it off under **General > Updates**). While
+an update waits, the tray icon (macOS: the menu bar icon) shows a red dot. On Windows and Linux it installs the update
+by itself as soon as nothing is playing and the settings window is closed, restarts in the tray and says so once
+(**Install updates automatically**, on by default); **Install** in the window does it at once. Every update is checked
+against its checksum, and if the new version does not start, the old one keeps running. On macOS the window links to
+the download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
 an update the window shows what's new once; the version number at the top of the window shows every version.
 
 ## Is the download safe?

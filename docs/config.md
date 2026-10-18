@@ -125,7 +125,8 @@ These belong to the program itself and live under `app` in `config.json`. All bu
 | `autoStart` | `false` | Start when you log in, straight to the tray (macOS and Linux: in the background). The real switch is the login item itself: the registry's Run key on Windows, a LaunchAgent on macOS, an autostart entry in `~/.config/autostart` on Linux. |
 | `startPresence` | `true` | Begin sending presence as soon as the app opens (the General switch **Show on Discord when the app opens**). |
 | `openWindow` | `true` | Show the window when you open the app yourself. `false` goes straight to the tray (macOS and Linux: the background), like at login. |
-| `checkUpdates` | `true` | Look for a newer release a few seconds after the program starts, then once a day. |
+| `checkUpdates` | `true` | Look for a newer release a few seconds after the program starts, then every six hours. |
+| `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update is installed by itself as soon as nothing is playing and the settings window is closed, and the program restarts in the tray and says so once. Until then the tray icon (macOS: the menu bar icon) shows a red dot. Off: the window and a tray notice offer the update, and **Install** installs it. |
 | `updateRepo` | `CptPakundo/MPCvibedRPC` | The GitHub repository (`owner/repo`) that publishes releases. A release is only installed by the program when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
 | `seenVersion` | (none) | The version whose changes the window last showed. Written by the window; a different version (an update, a new install) shows its changes once. **Restore defaults** keeps it. Not in the settings window. |
 | `welcomeSeen` | `false` | Whether the first-run welcome card was closed. Written by the window; **Restore defaults** shows the card again. Not in the settings window. |
