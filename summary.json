@@ -1,8 +1,13 @@
 {
   "since": "2026-10-18T01:10:32Z",
-  "people": 0,
+  "people": 4,
   "development": 20,
   "notCountedYet": 0,
-  "byFile": {},
-  "byRelease": {}
+  "byFile": {
+    "MPCvibedRPC.exe": 4
+  },
+  "byRelease": {
+    "v0.9.39": 1,
+    "v0.9.40": 3
+  }
 }
