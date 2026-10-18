@@ -114,7 +114,13 @@ func livePauseEvent(t *testing.T, e *Engine, d *disc, name, how string) {
 	e.Stop()
 	e.cfg.PollInterval = 60000
 	e.Start()
-	eventually(t, "connected again", func() bool { return e.Status().Discord == "connected" })
+	// a sandboxed player can miss the first check after the restart (Flathub Celluloid did once in four runs); the
+	// next one is a minute later
+	for until := time.Now().Add(70 * time.Second); e.Status().Discord != "connected"; time.Sleep(50 * time.Millisecond) {
+		if time.Now().After(until) {
+			t.Fatal("timed out waiting for: connected again")
+		}
+	}
 	time.Sleep(time.Second) // the event connection is made at the start
 	set := livePauser(t, e.cfg, name, how)
 	n := len(d.list())
