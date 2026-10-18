@@ -1,5 +1,5 @@
 # Once a week, the whole CI (tests, smoke tests and the live jobs, which install the newest PotPlayer, Kodi, IINA and
-# mpv on macOS, and the latest Plex, Jellyfin and Emby images), VLC and Celluloid from Flathub (their makers' newest
+# mpv on macOS, and the latest Plex, Jellyfin and Emby images), mpv, VLC and Celluloid from Flathub (their makers' newest
 # releases, not Ubuntu's older packages), plus a check of every keyless catalog service, so an
 # outside change shows up within a week rather than when a user reports it. A failure opens an issue (label "canary");
 # the next run that passes closes it. A pull request that changes the canary runs the catalog check, the Flathub players

@@ -22,8 +22,13 @@ function WaitFor([scriptblock]$cond, [int]$seconds, [string]$what) {
 
 $programs = 'MPCvibedRPC.exe', 'MPCvibedRPC-linux-amd64', 'MPCvibedRPC-linux-arm64', 'MPCvibedRPC-macos.zip'
 $rel = Join-Path $work 'release'
+# every download of a release file is recorded in the download ledger, so the download counter leaves it out
+$ledger = Join-Path $PSScriptRoot 'dev-download.sh'
+function Fetch([string]$t, [string]$dir, [string]$pattern) {
+  bash $ledger download "release check $tag $Stage" $t $dir.Replace('\', '/') $pattern
+}
 try {
-  gh release download $tag --repo $repo --dir $rel
+  Fetch $tag $rel ''
   if ($Stage -eq 'draft') {
     $want = @($programs + ($programs | ForEach-Object { "$_.sha256" }) + 'LICENSE', 'THIRD-PARTY-NOTICES.md') | Sort-Object
     $got = @(Get-ChildItem $rel | ForEach-Object Name) | Sort-Object
@@ -46,7 +51,7 @@ try {
     $prev = gh release list --repo $repo --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' | Where-Object { $_ -ne $tag } | Select-Object -First 1
     Write-Host "previous release: $prev"
     $dir = Join-Path $work 'update'
-    gh release download $prev --repo $repo --pattern 'MPCvibedRPC.exe' --dir $dir
+    Fetch $prev $dir 'MPCvibedRPC.exe'
     $app = Join-Path $dir 'MPCvibedRPC.exe'
     $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out-Null
     Set-Content (Join-Path $home_ 'config.json') '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}'
@@ -63,7 +68,10 @@ try {
     $u = Api 'update-check'
     Check ($u.newer -eq $true -and $u.latest -eq $Version) "$prev is offered $Version (offered $($u.latest))"
     Api 'update-install' | Out-Null
-    Check ($p.WaitForExit(60000)) "$prev exits to update"
+    $exited = $p.WaitForExit(60000)
+    # the updater downloads the exe and its checksum file (both before it exits)
+    if ($exited) { bash $ledger record "release check $tag self-update" "$tag/MPCvibedRPC.exe" "$tag/MPCvibedRPC.exe.sha256" }
+    Check $exited "$prev exits to update"
     Check (WaitFor { (Ping) -eq $Version } 60 'new version up') "$Version runs after the update"
     Check ((Get-FileHash $app).Hash -eq (Get-FileHash (Join-Path $rel 'MPCvibedRPC.exe')).Hash) 'the updated file is the released exe'
     try { Api 'quit' | Out-Null } catch {}
