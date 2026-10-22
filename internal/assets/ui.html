@@ -944,7 +944,7 @@
     // the changelog shows once for each new version (a new install too); the version button shows it any time
     if (m.app.seenVersion !== m.version) { showChangelog(false); later(async () => { try { model = await api('save', { app: { seenVersion: m.version } }); } catch (_) {} }); }
     showUpdate(m.update, false);
-  }).catch((e) => { document.body.innerHTML = '<main><p>Could not reach the program: ' + e.message + '</p></main>'; });
+  }).catch((e) => { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Could not reach the program: ' + e.message }))); });
   setInterval(poll, 1000); setInterval(pollLog, 3000); setInterval(pollConns, 5000);
 })();
 </script>

@@ -151,7 +151,7 @@ func newFakePMS(t *testing.T, id, token string) *fakePMS {
 		"103": `{"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"103","key":"/library/metadata/103","type":"track","title":"Sample Song","grandparentTitle":"Sample Band","duration":200000}]}}`,
 	}
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if f.token != "" && r.Header.Get("X-Plex-Token") != f.token {
+		if f.token != "" && r.Header.Get("X-Plex-Token") != f.token && r.URL.Path != "/identity" { // a real server answers /identity to anyone
 			w.WriteHeader(401)
 			return
 		}
@@ -306,6 +306,57 @@ func TestWatcherOwnServerShowsOnlyMine(t *testing.T) {
 	}
 	pms.events <- playing("my-player", "101", 9000, "stopped")
 	eventually(t, "only theirs left", func() bool { return w.Now().State == -1 })
+}
+
+// TestWatcherTokenOnlyToTheServer: an address from plex.tv's list that turns out to be another computer (a local
+// address on another network) never sees a token, and a shared server never gets the account's token.
+func TestWatcherTokenOnlyToTheServer(t *testing.T) {
+	var mu sync.Mutex
+	var leaked []string
+	decoy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		if tok := r.Header.Get("X-Plex-Token"); tok != "" {
+			leaked = append(leaked, r.URL.Path+" "+tok)
+		}
+		mu.Unlock()
+		if r.Header.Get("X-Plex-Token") == "" {
+			w.WriteHeader(401) // a server that wants a sign-in for everything
+			return
+		}
+		fmt.Fprint(w, `{"MediaContainer":{"machineIdentifier":"someone-else"}}`)
+	}))
+	t.Cleanup(decoy.Close)
+	pms := newFakePMS(t, "srv-a", "own-token")
+	tv, _ := fakeTV(t, fmt.Sprintf(`[{"name":"My server","provides":"server","owned":true,"clientIdentifier":"srv-a","accessToken":"own-token","connections":[{"uri":%q,"local":true,"relay":false},{"uri":%q,"local":false,"relay":false}]}]`, decoy.URL, pms.URL))
+	w := &Watcher{Client: &Client{ClientID: "test-client", TVBase: tv.URL, ResourcesBase: tv.URL}, Token: "account-token", Account: 12345, Server: "srv-a"}
+	startWatcher(t, w)
+	eventually(t, "connected", func() bool { return w.Now() != nil })
+	mu.Lock()
+	if len(leaked) > 0 {
+		t.Errorf("the other computer got a token: %v", leaked)
+	}
+	mu.Unlock()
+
+	// a shared server plex.tv lists without its own token: the account's token is not sent instead
+	var got []string
+	friend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = append(got, r.Header.Get("X-Plex-Token"))
+		mu.Unlock()
+		fmt.Fprint(w, `{"MediaContainer":{"machineIdentifier":"srv-b"}}`)
+	}))
+	t.Cleanup(friend.Close)
+	tv2, _ := fakeTV(t, fmt.Sprintf(`[{"name":"Friend's server","provides":"server","owned":false,"clientIdentifier":"srv-b","connections":[{"uri":%q,"local":false,"relay":false}]}]`, friend.URL))
+	w2 := &Watcher{Client: &Client{ClientID: "test-client", TVBase: tv2.URL, ResourcesBase: tv2.URL}, Token: "account-token", Account: 12345, Server: "srv-b"}
+	startWatcher(t, w2)
+	eventually(t, "refused", func() bool { return strings.Contains(w2.Problem(), "no sign-in for the shared Plex server") })
+	mu.Lock()
+	defer mu.Unlock()
+	for _, tok := range got {
+		if tok != "" {
+			t.Errorf("the shared server got token %q", tok)
+		}
+	}
 }
 
 func TestWatcherProblems(t *testing.T) {

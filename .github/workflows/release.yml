@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.2', cache: false }
+        with: { go-version: '1.27.3', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
@@ -66,7 +66,7 @@ jobs:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.2', cache: false }
+        with: { go-version: '1.27.3', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
@@ -136,7 +136,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.2', cache: false }
+        with: { go-version: '1.27.3', cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - name: Rebuild and compare

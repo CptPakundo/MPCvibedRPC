@@ -47,7 +47,9 @@ sign-in), `stremio.com` (entering the Stremio link code), and the title's page o
 
 ## What is kept, and what to know
 The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json` as plain text; a password you type goes to your
-own server once and is never stored. Kodi's password is kept in `config.json` as plain text too, as VLC's is.
+own server once and is never stored. The Plex sign-in goes only to plex.tv and to a server that has first shown, without
+it, that it is the chosen server; a server shared with you gets the key plex.tv made for it, never your account's.
+Kodi's password is kept in `config.json` as plain text too, as VLC's is.
 
 MPC-HC's web interface has no password and lets any web page read it (it answers every origin). While it is on, a
 website open in your browser could see what you play and send the player commands. "Set up the player connection"

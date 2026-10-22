@@ -167,7 +167,10 @@ func (w *Watcher) find(ctx context.Context) (Server, error) {
 	return Server{}, errors.New("The chosen Plex server is no longer in your Plex account. Choose another one (Accounts > Plex).")
 }
 
-// reach finds an address of the server that answers as that server.
+// reach finds an address of the server that answers as that server. The token goes only to an address that has
+// shown it is that server: /identity is asked without it (a Plex server answers it to anyone), since a local address
+// from plex.tv's list can belong to another computer on another network. A server that wants a sign-in even there
+// gets the token only at an https address (a plex.direct certificate is the server's own) or the address the user set.
 func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, error) {
 	addrs := s.Addresses()
 	if w.Address != "" {
@@ -180,7 +183,10 @@ func (w *Watcher) reach(ctx context.Context, s Server, token string) (string, er
 			} `json:"MediaContainer"`
 		}
 		c, cancel := context.WithTimeout(ctx, 4*time.Second)
-		_, err := w.Client.getJSON(c, "GET", a+"/identity", token, &id)
+		_, err := w.Client.getJSON(c, "GET", a+"/identity", "", &id)
+		if errors.Is(err, ErrToken) && (w.Address != "" || strings.HasPrefix(a, "https://")) {
+			_, err = w.Client.getJSON(c, "GET", a+"/identity", token, &id)
+		}
 		cancel()
 		if err == nil && (s.ID == "" || id.MediaContainer.MachineIdentifier == s.ID) {
 			return a, nil
@@ -229,8 +235,13 @@ func (w *Watcher) follow(ctx context.Context) error {
 			s = Server{ID: w.Server} // plex.tv is unreachable, but the address is known
 		}
 	}
+	// the account's token is only for the user's own server or the address they set: a shared server gets the token
+	// plex.tv made for it, so a friend's server (or whoever took it over) never holds the account's sign-in
 	token := s.Token
 	if token == "" {
+		if !s.Owned && w.Address == "" {
+			return fmt.Errorf("plex.tv gave no sign-in for the shared Plex server%s. Sign out of Plex and in again (Accounts > Plex).", quoted(s.Name))
+		}
 		token = w.Token
 	}
 	base, err := w.reach(ctx, s, token)

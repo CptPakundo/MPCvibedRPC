@@ -27,6 +27,10 @@ func newFakePlex(t *testing.T) *fakePlex {
 		f.mu.Lock()
 		f.asked++
 		f.mu.Unlock()
+		if r.URL.Path == "/identity" && r.Header.Get("X-Plex-Token") == "" { // a real server answers it to anyone
+			fmt.Fprint(w, `{"MediaContainer":{"size":0,"apiVersion":"1.2.3","claimed":true,"machineIdentifier":"srv-1","version":"1.43.4.10903-e5521bd8c"}}`)
+			return
+		}
 		if r.Header.Get("X-Plex-Token") == "" || r.Header.Get("X-Plex-Client-Identifier") != "test-install" {
 			w.WriteHeader(401)
 			return

@@ -1,5 +1,9 @@
 [
-  {"version": "0.9.40", "date": "2026-10-18", "items": [
+  {"version": "0.9.41", "date": "2026-10-22", "items": [
+    "🔒 Built with Go 1.27.3, which stops trusting a set of web certificates its makers found unsafe.",
+    "🔑 Plex: your sign-in is only sent to a server once it has shown it is yours (or a friend's, with its own key)."
+  ]},
+  {"version": "0.9.40","date": "2026-10-18", "items": [
     "🔄 Updates install themselves when nothing is playing and this window is closed (Windows, Linux).",
     "🔴 The tray icon shows a red dot while an update waits.",
     "⏱️ New versions are looked for every six hours instead of once a day.",
