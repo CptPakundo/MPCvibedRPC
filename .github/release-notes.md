@@ -14,6 +14,11 @@
 
 Nothing to do: the update installs itself, and your settings and sign-ins are kept.
 
+> **If you run a Plex server:** Plex Media Server 1.43.2 and older has flaws that attackers have used since
+> 2026-10-17 ("Plex2Shell"). If yours ran such a version and could be reached from the internet, update it and follow
+> [Plex's advice](https://forums.plex.tv/t/942319) (sign out of all devices, choose a new password), then sign in to
+> Plex again in this app (**Accounts > Plex**).
+
 ### Get it
 - **Windows:** download **`MPCvibedRPC.exe`** and run it, or install it from the Updates section of the version you
   have. Your settings are kept.
