@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: stats, path: stats }
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.2', cache: false }
+        with: { go-version: '1.27.3', cache: false }
       - name: Wait for GitHub to count the release's downloads
         if: github.event_name == 'workflow_run'
         run: sleep 600

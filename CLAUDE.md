@@ -115,7 +115,8 @@ and file events), MPRIS players (`mpris.Watch`: D-Bus `PropertiesChanged` and `S
 
 Plex (`internal/plex`): "Sign in to Plex" gets a token through a plex.tv PIN the user approves in their browser
 (`cmd/mpcvibedrpc/plex.go`); the window never receives the token. While presence runs, a watcher looks the chosen
-server up on plex.tv (`clients.plex.tv/api/v2/resources`, or uses `plexAddress`), checks `/identity`, and reads
+server up on plex.tv (`clients.plex.tv/api/v2/resources`, or uses `plexAddress`), checks `/identity` without the token (the token goes only to
+the server that answered with the chosen id; a shared server gets its own `accessToken`, never the account's), and reads
 Server-Sent Events from `/:/eventsource/notifications?filters=playing` (a `PlaySessionStateNotification` per player
 report, every few seconds). Titles come from `/library/metadata/<ratingKey>` and are written like a file name
 ("Sample Show - S01E02 - Title", "Sample Movie (2020)") so the usual parsing and lookups apply. On a server the user owns
