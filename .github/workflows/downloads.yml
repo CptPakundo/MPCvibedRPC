@@ -1,7 +1,7 @@
-# The download counter in the README: how often people downloaded the program, without the downloads made by
-# development (the release checks and Claude agents record theirs in the ledger: tools/ci/dev-download.sh).
-# tools/downloads works it out from GitHub's counts and writes downloads.json (the badge) and summary.json to the
-# stats branch. Every three hours, ten minutes after each release (GitHub counts downloads a few minutes late), and by
+# The project's own download count: how often people downloaded the program, without the downloads made by
+# development (the release checks and Claude agents record theirs in the ledger: tools/ci/dev-download.sh). The README
+# shows GitHub's own count; this one is for the project (summary.json).
+# tools/downloads works it out from GitHub's counts and writes downloads.json and summary.json to the stats branch. Every three hours, ten minutes after each release (GitHub counts downloads a few minutes late), and by
 # hand; by hand with "baseline" ticked, counting starts again from the counts now (after the counts were reset).
 name: downloads
 on:
