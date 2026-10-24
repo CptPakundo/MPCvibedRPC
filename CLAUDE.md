@@ -79,6 +79,7 @@ friend of the owner on a real Mac.
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share: the problem text, nil-safe log and clock types, the OS name, network-error wording, the same-origin redirect check (their titles are written like file names by `core/names.go`) |
 | `internal/conns` | Recent connections (Privacy tab): `main` wraps `http.DefaultTransport`, so every web request to another computer is counted by host (count, last time, in memory; never a path or a title). A new HTTP client must keep using the default transport |
+| `internal/proc` | starting a helper process hidden (Windows: no console) or detached from this one (`Detach`, `DetachVisible`: the window's browser, the macOS `--serve` copy) |
 | `internal/discord` | Discord's local IPC protocol |
 | `internal/artwork`, `internal/jsre` | catalog lookups, episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `internal/store`, `internal/jsonx` | `config.json`, the settings window layout (`schema.go`), validation; a JSON reader/writer that keeps the file's key order and unknown keys and prints numbers like JavaScript |

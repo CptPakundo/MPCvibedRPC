@@ -219,7 +219,7 @@ func buildProviders() map[string]*Provider {
 			var list []*Cand
 			for _, d := range asArr(get(j, "d")) {
 				qid := str(get(d, "qid"))
-				if !slices.Contains(want, qid) || get(d, "qid") == nil {
+				if !slices.Contains(want, qid) {
 					continue
 				}
 				c := &Cand{Titles: nonEmptyTitles(get(d, "l")), Year: yearNum(get(d, "y")), URL: imdbURL(str(get(d, "id"))), URLLabel: "IMDb"}

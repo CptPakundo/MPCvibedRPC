@@ -55,7 +55,7 @@ func TestPlayerBelongs(t *testing.T) {
 func TestMpcBeIniEdit(t *testing.T) {
 	p := players[1]
 	in := "[Settings]\nLanguage=en\n[WebServer]\nEnableWebServer=0\nPort=13579\nLocalhostOnly=1\n"
-	out := SetIniValue(SetIniValue(in, p.section, p.enableKey, "1"), p.section, p.portKey, "13580")
+	out := setIniValue(setIniValue(in, p.section, p.enableKey, "1"), p.section, p.portKey, "13580")
 	want := "[Settings]\nLanguage=en\n[WebServer]\nEnableWebServer=1\nPort=13580\nLocalhostOnly=1\n"
 	if out != want {
 		t.Errorf("got %q", out)

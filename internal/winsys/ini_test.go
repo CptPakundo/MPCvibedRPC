@@ -21,7 +21,7 @@ func TestSetIniValueAgainstJS(t *testing.T) {
 	}
 	bad := 0
 	for i, c := range cases {
-		if got := SetIniValue(c.Text, c.Sec, c.Key, c.Value); got != c.Out {
+		if got := setIniValue(c.Text, c.Sec, c.Key, c.Value); got != c.Out {
 			bad++
 			if bad < 5 {
 				t.Errorf("case %d: %q [%s] %s=%s\n got %q\nwant %q", i, c.Text, c.Sec, c.Key, c.Value, got, c.Out)
@@ -37,14 +37,14 @@ func TestIniFileRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	for _, u16 := range []bool{false, true} {
 		p := filepath.Join(dir, "x.ini")
-		if err := WriteIni(p, "[Settings]\r\nLanguage=ä\r\n", u16); err != nil {
+		if err := writeIni(p, "[Settings]\r\nLanguage=ä\r\n", u16); err != nil {
 			t.Fatal(err)
 		}
 		raw, _ := os.ReadFile(p)
 		if u16 != bytes.HasPrefix(raw, []byte{0xff, 0xfe}) {
 			t.Fatal("BOM wrong")
 		}
-		txt, gotU16, err := ReadIni(p)
+		txt, gotU16, err := readIni(p)
 		if err != nil || gotU16 != u16 || txt != "[Settings]\r\nLanguage=ä\r\n" {
 			t.Fatalf("%q %v %v", txt, gotU16, err)
 		}
@@ -62,13 +62,13 @@ func TestGetIniValue(t *testing.T) {
 		{"WebServer", "LocalhostOnly", "", false},
 		{"Missing", "Port", "", false},
 	} {
-		if v, ok := GetIniValue(text, c.sec, c.key); v != c.want || ok != c.ok {
+		if v, ok := getIniValue(text, c.sec, c.key); v != c.want || ok != c.ok {
 			t.Errorf("[%s] %s = %q %v, want %q %v", c.sec, c.key, v, ok, c.want, c.ok)
 		}
 	}
-	// what SetIniValue writes reads back
-	out := SetIniValue(SetIniValue("", "WebServer", "LocalhostOnly", "1"), "WebServer", "Port", "1")
-	if v, _ := GetIniValue(out, "WebServer", "LocalhostOnly"); v != "1" {
+	// what setIniValue writes reads back
+	out := setIniValue(setIniValue("", "WebServer", "LocalhostOnly", "1"), "WebServer", "Port", "1")
+	if v, _ := getIniValue(out, "WebServer", "LocalhostOnly"); v != "1" {
 		t.Errorf("round trip: %q", out)
 	}
 }

@@ -49,7 +49,7 @@ type Activity struct {
 
 func jsRound(x float64) float64 { return math.Floor(x + 0.5) }
 
-func FmtTime(ms int) string {
+func fmtTime(ms int) string {
 	total := int(math.Max(0, math.Floor(float64(ms)/1000)))
 	h := total / 3600
 	mm := (total % 3600) / 60
@@ -433,9 +433,9 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 			a.Timestamps = &Timestamps{Start: start}
 		}
 	} else {
-		clock := FmtTime(info.Position)
+		clock := fmtTime(info.Position)
 		if info.Duration > 0 {
-			clock = FmtTime(info.Position) + " / " + FmtTime(info.Duration)
+			clock = fmtTime(info.Position) + " / " + fmtTime(info.Duration)
 		}
 		bar := ""
 		if cfg.TextProgressBar {

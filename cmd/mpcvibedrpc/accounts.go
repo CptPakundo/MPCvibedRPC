@@ -102,6 +102,19 @@ func (a *approval) poll(ctx context.Context, cancel context.CancelFunc, every ti
 	}
 }
 
+// forget is a sign-out: it ends a sign-in that still waits for approval and runs clear (which removes the saved
+// sign-in) under the saving lock, so a sign-in or a renewal finishing at the same moment cannot write its token after
+// the sign-out.
+func (a *approval) forget(clear func() error) error {
+	a.saving.Lock()
+	defer a.saving.Unlock()
+	a.mu.Lock()
+	a.end()
+	a.problem = ""
+	a.mu.Unlock()
+	return clear()
+}
+
 // save runs fn under the saving lock, unless the sign-in was cancelled meanwhile (signed out, or replaced by a newer
 // sign-in): then it reports false and fn does not run.
 func (a *approval) save(ctx context.Context, fn func() error) (bool, error) {

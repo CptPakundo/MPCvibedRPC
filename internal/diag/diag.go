@@ -1,7 +1,7 @@
 // Package diag builds the "Copy diagnostics" text: version, system, the settings that differ from the defaults,
 // the current state and the recent log, for pasting into a bug report. Titles and file names stay in: a wrong title can
 // only be traced back to the name it came from. Left out are folder paths (they can hold a user name), the paths and
-// queries of web addresses, sign-ins, keys and the Never show list.
+// queries of web addresses, addresses on the home network, sign-ins, keys and the Never show list.
 package diag
 
 import (
@@ -35,17 +35,29 @@ var (
 	// A path may contain spaces, so it runs to the ": " that ends it in an error message, to a closing quote, or to the
 	// end of the line.
 	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|["']|$)`)
-	reUnix    = regexp.MustCompile(`(^|[\s("'])/(?:home|Users|Volumes|tmp|var|private|mnt|media|run|opt|srv|storage)/[^"']*?(:\s|["']|$)`)
+	// A Unix path: "~/..." or an absolute path of two or more parts (a lone "/x" could be a title's slash), starting
+	// at the line, a space, a bracket or a quote.
+	reUnix = regexp.MustCompile(`(^|[\s("'])(?:~|/[^/\s"']+)/[^"']*?(:\s|["']|$)`)
+	reFile = regexp.MustCompile(`file://[^\s"']*`)
+	// An IPv4 address is a computer on the user's network; only the loopback address says nothing about them.
+	reAddr = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b`)
 )
 
 // Redact shortens a log line for a bug report: web addresses keep only their server (a path or query can carry a key),
-// and folder paths and server names are replaced (they can hold a user name). Titles and file names stay: they are
-// what a report about a wrong title needs.
+// and folder paths, server names and addresses on the home network are replaced (they can hold a user name or point at
+// a user's computer). Titles and file names stay: they are what a report about a wrong title needs.
 func Redact(line string) string {
 	line = reURL.ReplaceAllString(line, "${1}${2}/…")
+	line = reFile.ReplaceAllString(line, "file://<path>")
 	line = reServer.ReplaceAllString(line, `$1 "…"`)
 	line = reWinPath.ReplaceAllString(line, "$1<path>$2")
-	return reUnix.ReplaceAllString(line, "$1<path>$2")
+	line = reUnix.ReplaceAllString(line, "$1<path>$2")
+	return reAddr.ReplaceAllStringFunc(line, func(a string) string {
+		if strings.HasPrefix(a, "127.") {
+			return a
+		}
+		return "<address>"
+	})
 }
 
 // changed lists the settings that differ from the defaults. Values that could identify you or what you watch are
@@ -74,8 +86,9 @@ func asMap(v any) map[string]any {
 }
 
 // privateKeys are the settings whose value is never shown, only that it is set: keys, sign-ins, accounts and servers.
+// TestPrivateKeysCoverEverySignIn fails when a setting whose name says it is one of those is missing here.
 var privateKeys = map[string]bool{
-	"tmdbApiKey": true, "vlcPassword": true, "kodiPassword": true, "kodiAddress": true, "stremioKey": true,
+	"tmdbApiKey": true, "vlcPassword": true, "kodiUser": true, "kodiPassword": true, "kodiAddress": true, "stremioKey": true,
 	"plexToken": true, "plexAccount": true, "plexUser": true, "plexServer": true, "plexServerName": true, "plexClient": true, "plexAddress": true, "plexKey": true,
 	"jellyfinAddress": true, "jellyfinToken": true, "jellyfinUser": true, "jellyfinUserName": true, "jellyfinServerName": true, "jellyfinDevice": true,
 }

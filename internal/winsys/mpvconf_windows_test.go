@@ -31,7 +31,7 @@ func TestEnableMpvIPC(t *testing.T) {
 		t.Fatalf("portable: %+v", r)
 	}
 	b, _ := os.ReadFile(conf)
-	if v, _ := MpvConfValue(string(b), "input-ipc-server"); v != "mpvsocket" {
+	if v, _ := mpvConfValue(string(b), "input-ipc-server"); v != "mpvsocket" {
 		t.Fatalf("written: %q", b)
 	}
 	// again: nothing changes, the name in use is reported

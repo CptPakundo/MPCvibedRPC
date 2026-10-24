@@ -13,9 +13,9 @@ import (
 // VLC's own default port for its web interface.
 const vlcDefaultPort = 8080
 
-// VlcrcValue finds an option in vlcrc text. VLC reads the file line by line and ignores the [section] lines, so the
+// vlcrcValue finds an option in vlcrc text. VLC reads the file line by line and ignores the [section] lines, so the
 // last "key=value" line wins; commented lines ("#key=" is how VLC writes a default) are skipped.
-func VlcrcValue(text, key string) (string, bool) {
+func vlcrcValue(text, key string) (string, bool) {
 	val, found := "", false
 	for _, l := range strings.Split(strings.TrimPrefix(text, "\ufeff"), "\n") {
 		l = strings.TrimSuffix(l, "\r")
@@ -26,10 +26,10 @@ func VlcrcValue(text, key string) (string, bool) {
 	return val, found
 }
 
-// SetVlcrcValue sets key=value in vlcrc text: on its own line if there is one, else right after VLC's commented
+// setVlcrcValue sets key=value in vlcrc text: on its own line if there is one, else right after VLC's commented
 // default ("#key="), else at the top of [section] (added at the end when missing). A byte-order mark and the line
 // endings are kept.
-func SetVlcrcValue(text, section, key, value string) string {
+func setVlcrcValue(text, section, key, value string) string {
 	bom := ""
 	if strings.HasPrefix(text, "\ufeff") {
 		bom, text = "\ufeff", text[len("\ufeff"):]
@@ -82,8 +82,8 @@ func vlcHTTPOn(extraintf string) bool {
 
 // vlcReady reports whether vlcrc already has the web interface on with a password (VLC keeps it closed without one).
 func vlcReady(text string) bool {
-	intf, _ := VlcrcValue(text, "extraintf")
-	pw, _ := VlcrcValue(text, "http-password")
+	intf, _ := vlcrcValue(text, "extraintf")
+	pw, _ := vlcrcValue(text, "http-password")
 	return vlcHTTPOn(intf) && pw != ""
 }
 
@@ -129,7 +129,7 @@ type vlcResult struct {
 // reported back; otherwise password (or a new random one) and port are used. Switched on by us, the interface only
 // answers this PC (http-host), unless the user chose a host. VLC must not be running: it rewrites vlcrc when it exits.
 func enableVlcHTTP(file, text string, port int, password string) vlcResult {
-	cur := func(k string) string { v, _ := VlcrcValue(text, k); return v }
+	cur := func(k string) string { v, _ := vlcrcValue(text, k); return v }
 	usePort := port
 	if p, err := strconv.Atoi(strings.TrimSpace(cur("http-port"))); err == nil && p > 0 && p < 65536 {
 		usePort = p
@@ -147,7 +147,7 @@ func enableVlcHTTP(file, text string, port int, password string) vlcResult {
 		if intf != "" {
 			intf += ":"
 		}
-		t = SetVlcrcValue(t, "core", "extraintf", intf+"http")
+		t = setVlcrcValue(t, "core", "extraintf", intf+"http")
 	}
 	pw := cur("http-password")
 	if pw == "" {
@@ -160,14 +160,14 @@ func enableVlcHTTP(file, text string, port int, password string) vlcResult {
 		}
 		pw = hex.EncodeToString(b)
 	}
-	t = SetVlcrcValue(t, "lua", "http-password", pw)
+	t = setVlcrcValue(t, "lua", "http-password", pw)
 	local := false
-	if _, set := VlcrcValue(t, "http-host"); !wasOn && !set {
-		t = SetVlcrcValue(t, "core", "http-host", "127.0.0.1")
+	if _, set := vlcrcValue(t, "http-host"); !wasOn && !set {
+		t = setVlcrcValue(t, "core", "http-host", "127.0.0.1")
 		local = true
 	}
-	if _, set := VlcrcValue(t, "http-port"); !set && usePort != vlcDefaultPort {
-		t = SetVlcrcValue(t, "core", "http-port", strconv.Itoa(usePort))
+	if _, set := vlcrcValue(t, "http-port"); !set && usePort != vlcDefaultPort {
+		t = setVlcrcValue(t, "core", "http-port", strconv.Itoa(usePort))
 	}
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		return vlcResult{Message: "VLC: could not create " + filepath.Dir(file) + "."}

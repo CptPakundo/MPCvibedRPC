@@ -15,8 +15,8 @@ var (
 	reSection = regexp.MustCompile(`^\s*\[.*\]\s*$`)
 )
 
-// SetIniValue sets key=value inside [section] of INI text, adding the section/key when missing.
-func SetIniValue(text, section, key, value string) string {
+// setIniValue sets key=value inside [section] of INI text, adding the section/key when missing.
+func setIniValue(text, section, key, value string) string {
 	eol := "\n"
 	if strings.Contains(text, "\r\n") {
 		eol = "\r\n"
@@ -61,8 +61,8 @@ func SetIniValue(text, section, key, value string) string {
 	return strings.Join(out, eol)
 }
 
-// GetIniValue reads key inside [section] of INI text (both matched without regard to case).
-func GetIniValue(text, section, key string) (string, bool) {
+// getIniValue reads key inside [section] of INI text (both matched without regard to case).
+func getIniValue(text, section, key string) (string, bool) {
 	head := core.Lower("[" + section + "]")
 	in := false
 	for _, l := range reEOL.Split(strings.TrimPrefix(text, "\ufeff"), -1) {
@@ -81,8 +81,8 @@ func GetIniValue(text, section, key string) (string, bool) {
 	return "", false
 }
 
-// ReadIni reads an INI file that is either UTF-8 or UTF-16 with a BOM (MPC-HC writes the latter).
-func ReadIni(file string) (text string, utf16le bool, err error) {
+// readIni reads an INI file that is either UTF-8 or UTF-16 with a BOM (MPC-HC writes the latter).
+func readIni(file string) (text string, utf16le bool, err error) {
 	b, err := os.ReadFile(file)
 	if err != nil {
 		return "", false, err
@@ -124,8 +124,8 @@ func writeFileAtomic(file string, data []byte) error {
 	return nil
 }
 
-// WriteIni is the reverse of ReadIni.
-func WriteIni(file, text string, asUTF16 bool) error {
+// writeIni is the reverse of readIni.
+func writeIni(file, text string, asUTF16 bool) error {
 	if !asUTF16 {
 		return writeFileAtomic(file, []byte(text))
 	}

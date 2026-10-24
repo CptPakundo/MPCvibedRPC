@@ -47,8 +47,10 @@ func (s *stremioAccount) signIn() (map[string]any, error) {
 		return nil, fmt.Errorf("Could not reach Stremio to sign in (%v).", err)
 	}
 	wctx, wcancel := s.begin(15*time.Minute, l.URL)
-	go s.poll(wctx, wcancel, s.every, s.log, "The Stremio sign-in was not approved in time. Press Sign in to Stremio to try again.",
-		func() (bool, string) { return s.check(wctx, c, l) })
+	engine.Go(s.log, "The Stremio sign-in", func() {
+		s.poll(wctx, wcancel, s.every, s.log, "The Stremio sign-in was not approved in time. Press Sign in to Stremio to try again.",
+			func() (bool, string) { return s.check(wctx, c, l) })
+	})
 	openPage(s.openURL, l.URL)
 	s.log("INFO", "Waiting for the Stremio sign-in to be approved in the browser.")
 	return s.state(), nil
@@ -88,10 +90,11 @@ func (s *stremioAccount) revoke() {
 
 // signOut ends the session on Stremio's side (when it answers) and forgets the key.
 func (s *stremioAccount) signOut() error {
-	s.stopWaiting()
-	s.clearProblem()
-	s.revoke()
-	if err := s.st.SetHidden([]string{"stremioKey"}, map[string]any{}); err != nil {
+	err := s.forget(func() error {
+		s.revoke()
+		return s.st.SetHidden([]string{"stremioKey"}, map[string]any{})
+	})
+	if err != nil {
 		return err
 	}
 	applySettings(s.st, s.eng)

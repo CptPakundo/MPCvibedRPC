@@ -75,7 +75,6 @@ type Status struct {
 	// Hint explains why a player that seems to be there does not answer (VLC refusing the password, for example).
 	Hint      string  `json:"hint,omitempty"`
 	LastError *string `json:"lastError"`
-	Since     *int64  `json:"since"`
 	// Resting is true while Discord is not running and nothing is asked (see Options.MayRest; never while the
 	// window is open).
 	Resting bool `json:"resting,omitempty"`
@@ -124,7 +123,6 @@ type Engine struct {
 	preview    *core.Preview
 	paused     bool
 	lastError  *string
-	since      *int64
 
 	discRefused bool // the last attempt to reach Discord was refused (Discord running as administrator)
 	kodi        *kodi.Reader
@@ -205,11 +203,9 @@ func (e *Engine) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &run{ctx: ctx, cancel: cancel}
 	e.cur = r
-	e.basicMode, e.noLinks, e.prev, e.shown, e.mpcUp, e.warnedDisc, e.player = false, false, nil, false, false, false, ""
+	e.basicMode, e.noLinks, e.prev, e.shown, e.warnedDisc, e.player = false, false, nil, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
-	now := time.Now().UnixMilli()
-	e.since = &now
 	e.lastError, e.nowPlaying = nil, nil
 	cfg := e.cfg
 	cfgCopy := cfg
@@ -222,8 +218,8 @@ func (e *Engine) start() {
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // the first check starts them (unless it rests)
 	e.mu.Unlock()
 	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
-	go e.loop(r, pollInterval(cfg))
-	go e.watchPlayers(r)
+	go e.loop(r, pollInterval(cfg)) // recovers from a panic in a check itself
+	Go(e.log, "The player watch", func() { e.watchPlayers(r) })
 }
 
 // Stop clears the presence (waiting at most 1.5 s for Discord) and disconnects.
@@ -266,7 +262,7 @@ func (e *Engine) stop() {
 	}
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
-	e.nowPlaying, e.since, e.preview = nil, nil, nil
+	e.nowPlaying, e.preview = nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
 	e.saveStats(time.Now())
@@ -320,7 +316,7 @@ func (e *Engine) Status() Status {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	running := e.cur != nil
-	s := Status{Running: running, Discord: "off", LastError: e.lastError, Since: e.since}
+	s := Status{Running: running, Discord: "off", LastError: e.lastError}
 	if running {
 		// Discord is only contacted once something plays; until then it is on standby, not missing
 		switch {
@@ -335,7 +331,7 @@ func (e *Engine) Status() Status {
 			s.DiscordProblem = "Discord refused the connection. It is probably running as administrator: start it normally."
 		}
 		s.Paused = e.paused
-		s.MPC = e.mpcUp
+		s.MPC = e.player != ""
 		s.Player = e.player
 		s.NowPlaying = e.nowPlaying
 		if e.nowPlaying != nil {

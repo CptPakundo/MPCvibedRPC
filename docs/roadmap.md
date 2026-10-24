@@ -2,7 +2,8 @@
 
 Where MPCvibedRPC is heading, what it deliberately leaves out, and the outside changes it has to watch. It comes from
 a research pass over Discord's documentation, the projects the program reads from, similar presence tools and their
-users, and distribution channels (last reviewed 2026-10-17, with 0.9.31).
+users, and distribution channels (last reviewed 2026-10-17, with 0.9.31; the watch list was refreshed on 2026-10-22,
+with 0.9.41).
 
 Keep it current: when a change moves a goal, finishes a step, or settles a decision, update this page in the same pull
 request. Re-check the watch list about twice a year (with each Go release, in February and August).

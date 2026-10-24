@@ -14,7 +14,7 @@ shown here.
 | `port` | `13579` | Web interface port of MPC-HC, MPC-BE and MPC-QT (MPC-QT also works without its web interface). |
 | `mpvPipe` | `'mpvsocket'` | The `input-ipc-server` name mpv listens on (set in `mpv.conf`; a name such as `mpvsocket` is the pipe `\\.\pipe\mpvsocket`, on macOS and Linux a socket of that name in the temporary folder; a full path or `~/...` is used as it is). Empty: don't look for mpv. See [Players in detail](how-it-works.md#players-in-detail). |
 | `iinaPipe` | `'iina-mpvsocket'` | macOS only: the `input-ipc-server` socket in IINA's mpv options (IINA Settings > Advanced), named like `mpvPipe`. **Set up the player connection** adds it to IINA. Empty: don't look for IINA. |
-| `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after the other players on this computer, before Plex, Stremio and Jellyfin / Emby. |
+| `mpris` | `true` | Linux only: find video players through MPRIS (D-Bus): VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and others. Music players and browsers are never shown. They are asked after MPC-QT, mpv and VLC and before Kodi, Plex, Stremio and Jellyfin / Emby. |
 | `vlcPassword` | `''` | The password of VLC's web interface (`http-password` in VLC's `vlcrc`). Empty: don't look for VLC. **Set up the player connection** fills it in. Kept in `config.json` as plain text, like VLC keeps it in `vlcrc`. |
 | `vlcPort` | `8080` | The port of VLC's web interface (`http-port`). |
 | `kodiAddress` | `'127.0.0.1:8080'` | Kodi's web server (host:port, or a full `http://` address) for a Kodi on this computer or on another device. Left out of Copy diagnostics. |
@@ -66,6 +66,7 @@ only applies the switches below.
 | `ignoreBrackets` | `true` | Hide `[Group]` style tags. |
 | `replaceUnderscore` | `true` | Basic mode only (smart mode always does this). |
 | `replaceDots` | `true` | Basic mode only (smart mode always does this). |
+| `ignoreFiletype` | `true` | Internal: only the recorded parsing tests read it. A title never carries the file's extension either way. |
 
 ## Titles & art tab
 
@@ -117,7 +118,7 @@ These are uploaded to the Discord application whose `clientId` you use.
 
 ## Program settings
 
-These belong to the program itself and live under `app` in `config.json`. All but `updateRepo` are in the settings window.
+These belong to the program itself and live under `app` in `config.json`. All but `updateRepo`, `seenVersion` and `welcomeSeen` are in the settings window.
 **Restore defaults** and **Open settings folder** are under **Advanced > Maintenance**; the update switch and **Check now** are under **General > Updates**.
 
 | Setting | Default | What it does |

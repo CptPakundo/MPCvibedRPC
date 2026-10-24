@@ -92,8 +92,10 @@ func (j *jellyfinAccount) signIn(address string) (map[string]any, error) {
 	}
 	wctx, wcancel := j.begin(10*time.Minute, p.Code) // Jellyfin forgets a code after 10 minutes
 	incomplete := 0
-	go j.poll(wctx, wcancel, j.every, j.log, "The Quick Connect code was not approved in time. Press Sign in to try again.",
-		func() (bool, string) { return j.check(wctx, c, p, &incomplete) })
+	engine.Go(j.log, "The Quick Connect sign-in", func() {
+		j.poll(wctx, wcancel, j.every, j.log, "The Quick Connect code was not approved in time. Press Sign in to try again.",
+			func() (bool, string) { return j.check(wctx, c, p, &incomplete) })
+	})
 	j.log("INFO", "Waiting for the Jellyfin Quick Connect code to be approved.")
 	return j.state(), nil
 }
@@ -205,11 +207,12 @@ func (j *jellyfinAccount) revoke() {
 
 // signOut ends the session on the server (when it answers) and forgets the sign-in.
 func (j *jellyfinAccount) signOut() error {
-	j.stopWaiting()
-	j.clearProblem()
 	product := j.st.Config().JellyfinProduct
-	j.revoke()
-	if err := j.st.SetHidden(jellyfinSignIn, map[string]any{}); err != nil {
+	err := j.forget(func() error {
+		j.revoke()
+		return j.st.SetHidden(jellyfinSignIn, map[string]any{})
+	})
+	if err != nil {
 		return err
 	}
 	applySettings(j.st, j.eng)

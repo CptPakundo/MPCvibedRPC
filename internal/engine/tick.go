@@ -117,8 +117,8 @@ func (e *Engine) tick(r *run) {
 	if info != nil {
 		player = info.Player
 	}
-	if (info != nil) != e.mpcUp || player != e.player {
-		e.mpcUp, e.player = info != nil, player
+	if player != e.player {
+		e.player = player
 		e.mu.Unlock()
 		if player != "" {
 			e.log("INFO", player+" detected.")

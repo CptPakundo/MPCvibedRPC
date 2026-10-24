@@ -192,7 +192,7 @@ func LoadConfig(userJSON []byte) Config {
 	return cfg
 }
 
-// ConfigFrom is LoadConfig for a Go map (handy in tests and for the settings window).
+// ConfigFrom is LoadConfig for a Go map (the recorded tests build their settings this way).
 func ConfigFrom(m map[string]any) Config {
 	b, _ := json.Marshal(m)
 	return LoadConfig(b)

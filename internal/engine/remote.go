@@ -80,7 +80,7 @@ func (e *Engine) rest(r *run) bool {
 		e.resting = true
 		stop := e.stopRemote
 		e.stopRemote, e.remotes = nil, nil
-		e.mpcUp, e.player, e.vlcProblem, e.kodiProblem = false, "", "", ""
+		e.player, e.vlcProblem, e.kodiProblem = "", "", ""
 		e.shown, e.prev, e.nowPlaying, e.preview, e.paused = false, nil, nil, nil, false
 		e.pausedSince, e.pauseCleared, e.hidden = time.Time{}, false, false
 		e.statTick = time.Time{}
@@ -115,7 +115,7 @@ func (e *Engine) startRemote(r *run) {
 	e.remotes = nil
 	add := func(name string, w watcher) {
 		e.remotes = append(e.remotes, remote{name, w})
-		go w.Run(ctx)
+		Go(e.log, "The "+name+" watcher", func() { w.Run(ctx) })
 	}
 	if cfg.PlexToken != "" {
 		add("Plex", &plex.Watcher{

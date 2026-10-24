@@ -89,9 +89,12 @@ func run() error {
 		token: server.NewToken(), quitDone: make(chan struct{})}
 
 	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
-	autoFrom := "" // updated by itself from this version: start quietly in the tray and say so once
-	if afterUpdate {
-		autoFrom = takeAutoMarker(st.Dir)
+	// An automatic update leaves a marker for the copy it starts: that copy starts quietly in the tray and says so once.
+	// A start without --after-update that finds one is a start by hand after that copy never got going: the marker is
+	// stale and goes, so a later update by hand is not taken for an automatic one.
+	autoFrom := takeAutoMarker(st.Dir)
+	if !afterUpdate {
+		autoFrom = ""
 	}
 	if autoFrom != "" {
 		msg += " after updating itself from " + autoFrom
@@ -113,7 +116,8 @@ func run() error {
 	a.eng = engine.New(st.Config(), engine.Options{Log: a.log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath(),
 		MayRest: func() bool { return a.windows.Load() == 0 }, OnRest: winsys.TrimMemory})
 	a.plex = &plexAccount{st: st, eng: a.eng, log: a.log}
-	go a.plex.keepFresh(context.Background(), 0) // renews a 7-day Plex token (plexJwt) in time; nothing otherwise
+	// renews a 7-day Plex token (plexJwt) in time; nothing otherwise
+	engine.Go(a.log, "The Plex sign-in renewal", func() { a.plex.keepFresh(context.Background(), 0) })
 	a.stremio = &stremioAccount{st: st, eng: a.eng, log: a.log}
 	a.jellyfin = &jellyfinAccount{st: st, eng: a.eng, log: a.log}
 
@@ -145,7 +149,7 @@ func run() error {
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
 	if st.App().AutoStart {
-		go winsys.SetAutoStart(true, exe)
+		engine.Go(a.log, "The run-at-login entry", func() { winsys.SetAutoStart(true, exe) })
 	}
 	if st.App().StartPresence {
 		a.eng.Start()

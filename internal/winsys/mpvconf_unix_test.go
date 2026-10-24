@@ -32,7 +32,7 @@ func TestEnableMpvIPCUnix(t *testing.T) {
 		t.Fatalf("set up: %+v", r)
 	}
 	b, _ := os.ReadFile(conf)
-	if v, _ := MpvConfValue(string(b), "input-ipc-server"); v != pipe.Path("mpvsocket") || !filepath.IsAbs(v) {
+	if v, _ := mpvConfValue(string(b), "input-ipc-server"); v != pipe.Path("mpvsocket") || !filepath.IsAbs(v) {
 		t.Fatalf("written: %q (a bare name would be relative to mpv's working folder)", b)
 	}
 	if r := enableMpvIPC("mpvsocket", nil); r.Edited != "" || r.Using != pipe.Path("mpvsocket") {

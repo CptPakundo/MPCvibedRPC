@@ -11,8 +11,8 @@ import (
 
 const mpvIPCKey = "input-ipc-server"
 
-// MpvConfValue finds a top-level option in mpv.conf text (before the first [profile]); commented lines are skipped.
-func MpvConfValue(text, key string) (string, bool) {
+// mpvConfValue finds a top-level option in mpv.conf text (before the first [profile]); commented lines are skipped.
+func mpvConfValue(text, key string) (string, bool) {
 	for _, l := range strings.Split(strings.TrimPrefix(text, "\ufeff"), "\n") {
 		l = strings.TrimSpace(strings.TrimSuffix(l, "\r"))
 		if strings.HasPrefix(l, "[") {
@@ -33,8 +33,8 @@ func MpvConfValue(text, key string) (string, bool) {
 	return "", false
 }
 
-// AddMpvConfLine puts key=value at the top of mpv.conf text, keeping a byte-order mark and the line endings.
-func AddMpvConfLine(text, key, value string) string {
+// addMpvConfLine puts key=value at the top of mpv.conf text, keeping a byte-order mark and the line endings.
+func addMpvConfLine(text, key, value string) string {
 	bom := ""
 	if strings.HasPrefix(text, "\ufeff") {
 		bom, text = "\ufeff", text[len("\ufeff"):]
@@ -92,7 +92,7 @@ func enableMpvIPC(name string, exeDirs []string) mpvResult {
 	if err != nil && !os.IsNotExist(err) {
 		return mpvResult{Message: "mpv: could not read " + file + "."}
 	}
-	if v, ok := MpvConfValue(string(b), mpvIPCKey); ok && v != "" {
+	if v, ok := mpvConfValue(string(b), mpvIPCKey); ok && v != "" {
 		return mpvResult{Message: "mpv was already set up (" + mpvIPCKey + "=" + v + ").", Using: v, OK: true}
 	}
 	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
@@ -102,7 +102,7 @@ func enableMpvIPC(name string, exeDirs []string) mpvResult {
 	if !IsWindows {
 		value = pipe.Path(name) // a bare name would be a file in whatever folder mpv was started from
 	}
-	if err := writeFileAtomic(file, []byte(AddMpvConfLine(string(b), mpvIPCKey, value))); err != nil {
+	if err := writeFileAtomic(file, []byte(addMpvConfLine(string(b), mpvIPCKey, value))); err != nil {
 		return mpvResult{Message: "mpv: could not write " + file + "."}
 	}
 	return mpvResult{Message: "mpv set up (mpv.conf); it takes effect the next time mpv starts.", Using: name, Edited: file, OK: true}

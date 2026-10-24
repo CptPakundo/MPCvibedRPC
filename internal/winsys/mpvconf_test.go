@@ -14,22 +14,22 @@ func TestMpvConfValue(t *testing.T) {
 		"vo=gpu\n[profile]\ninput-ipc-server=inprofile\n":                       "",
 		"": "",
 	} {
-		got, _ := MpvConfValue(text, "input-ipc-server")
+		got, _ := mpvConfValue(text, "input-ipc-server")
 		if got != want {
-			t.Errorf("MpvConfValue(%q) = %q, want %q", text, got, want)
+			t.Errorf("mpvConfValue(%q) = %q, want %q", text, got, want)
 		}
 	}
 }
 
 func TestAddMpvConfLine(t *testing.T) {
-	got := AddMpvConfLine("\ufeffvo=gpu\r\n[p]\r\nfs=yes\r\n", "input-ipc-server", "mpvsocket")
+	got := addMpvConfLine("\ufeffvo=gpu\r\n[p]\r\nfs=yes\r\n", "input-ipc-server", "mpvsocket")
 	if !strings.HasPrefix(got, "\ufeff# ") || !strings.Contains(got, "\r\ninput-ipc-server=mpvsocket\r\nvo=gpu\r\n[p]") {
 		t.Errorf("got %q", got)
 	}
-	if v, ok := MpvConfValue(got, "input-ipc-server"); !ok || v != "mpvsocket" {
+	if v, ok := mpvConfValue(got, "input-ipc-server"); !ok || v != "mpvsocket" {
 		t.Errorf("the added line must be read back, got %q", v)
 	}
-	got = AddMpvConfLine("vo=gpu\n", "input-ipc-server", "mpvsocket")
+	got = addMpvConfLine("vo=gpu\n", "input-ipc-server", "mpvsocket")
 	if strings.Contains(got, "\r") || !strings.HasSuffix(got, "input-ipc-server=mpvsocket\nvo=gpu\n") {
 		t.Errorf("LF file: got %q", got)
 	}

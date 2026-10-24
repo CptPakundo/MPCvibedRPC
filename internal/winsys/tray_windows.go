@@ -79,7 +79,7 @@ const (
 	cmdQuit             = 3
 	cmdHide             = 4
 	timerID             = 1
-	ClassName           = "MPCvibedRPC.Tray"
+	className           = "MPCvibedRPC.Tray"
 )
 
 type wndClassEx struct {
@@ -172,7 +172,7 @@ func (t *Tray) loop() {
 
 	current = t
 	hinst, _, _ := pGetModuleHandle.Call(0)
-	cls := utf16Ptr(ClassName)
+	cls := utf16Ptr(className)
 	wc := wndClassEx{lpfnWndProc: syscall.NewCallback(wndProc), hInstance: hinst, lpszClassName: cls}
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
 	if r, _, err := pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
@@ -252,11 +252,7 @@ func (t *Tray) notify(action uintptr) bool {
 	nid.uFlags = nifMessage | nifIcon | nifTip
 	nid.uCallbackMessage = wmTrayCB
 	nid.hIcon = t.shown()
-	tip := syscall.StringToUTF16(t.tip)
-	if len(tip) > len(nid.szTip) {
-		tip = append(tip[:len(nid.szTip)-1], 0)
-	}
-	copy(nid.szTip[:], tip)
+	fillUTF16(nid.szTip[:], t.tip)
 	r, _, _ := pShellNotifyIcon.Call(action, uintptr(unsafe.Pointer(&nid)))
 	return r != 0
 }
@@ -281,7 +277,10 @@ func (t *Tray) Balloon(title, text string) bool {
 
 // fillUTF16 copies s into a fixed buffer, cutting it short if needed and always ending with a zero.
 func fillUTF16(dst []uint16, s string) {
-	u := syscall.StringToUTF16(s)
+	u, err := syscall.UTF16FromString(s)
+	if err != nil { // a NUL inside the text: nothing sensible can be shown
+		u = []uint16{0}
+	}
 	if len(u) > len(dst) {
 		u = append(u[:len(dst)-1], 0)
 	}

@@ -192,7 +192,7 @@
     <div class="tabs" id="tabs" role="tablist" aria-label="Settings sections"></div>
   </div>
 
-  <div class="panels" id="panels">
+  <div class="panels">
     <section class="panel" id="p-general" role="tabpanel">
       <h3 class="grp">Startup</h3>
       <div class="group">
@@ -677,13 +677,12 @@
     return box;
   }
 
-  const TAB_NAMES = { accounts: 'Accounts', look: 'Look', titles: 'Titles & art', privacy: 'Privacy', advanced: 'Advanced' };
   let tab = 'general';
   try { tab = localStorage.getItem('tab') || 'general'; } catch (_) {}
   let updFlag = false;
   function buildTabs() {
     const list = [['general', 'General']];
-    model.schema.forEach((s) => list.push([s.id, TAB_NAMES[s.id] || s.title]));
+    model.schema.forEach((s) => list.push([s.id, s.title])); // the tab names come from store/schema.go
     list.push(['help', 'Help']);
     if (!list.some((x) => x[0] === tab)) tab = 'general';
     const bar = $('tabs'); bar.textContent = '';

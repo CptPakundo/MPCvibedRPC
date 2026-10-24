@@ -290,7 +290,7 @@ func TestPlayPauseClearStop(t *testing.T) {
 	if len(d.list()) != n+1 {
 		t.Fatalf("stop should clear once, got %d new", len(d.list())-n)
 	}
-	if s := e.Status(); s.Running || s.Discord != "off" || s.NowPlaying != nil || s.Since != nil {
+	if s := e.Status(); s.Running || s.Discord != "off" || s.NowPlaying != nil {
 		t.Fatalf("%+v", s)
 	}
 }

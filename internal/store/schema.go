@@ -46,7 +46,7 @@ var Sections = []Section{
 		{Type: "heading", Label: "Stremio"},         // the window puts the sign-in under it
 		{Type: "heading", Label: "Jellyfin / Emby"}, // the window puts the sign-in under it
 	}},
-	{ID: "look", Title: "How it looks", Fields: []Field{
+	{ID: "look", Title: "Look", Fields: []Field{
 		{Key: "activityType", Type: "choice", Label: "Style", Options: [][2]string{{"watching", "Watching (with progress bar)"}, {"playing", "Playing (classic timer)"}}},
 		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
@@ -54,7 +54,7 @@ var Sections = []Section{
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the text lines and the cover clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
 		{Key: "episodeInDetails", Type: "bool", Label: "Also show S01E02 in the title line", Help: "Discord already shows a season and episode badge."},
 	}},
-	{ID: "titles", Title: "Titles and artwork", Fields: []Field{
+	{ID: "titles", Title: "Titles & art", Fields: []Field{
 		{Key: "episodeTitles", Type: "bool", Label: "Look up episode titles"},
 		{Key: "catalogTitle", Type: "bool", Label: "Use the catalog's spelling of titles", Help: "Restores punctuation that file names cannot contain, such as a colon in a title."},
 		{Key: "animeTitles", Type: "choice", Label: "Anime titles", Options: [][2]string{{"auto", "Closest AniList name (auto)"}, {"english", "Always English"}, {"romaji", "Always romaji"}, {"file", "Keep the file's spelling"}}},
