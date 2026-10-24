@@ -1,10 +1,18 @@
-// Package assets holds the files built into the program: the settings page and the icon.
+// Package assets holds the files built into the program: the settings page (markup, style sheet and script) and the icon.
 package assets
 
 import _ "embed"
 
 //go:embed ui.html
 var UI string
+
+// CSS and JS are the page's style sheet and script, served as /ui.css and /ui.js (the page policy allows no inline ones).
+//
+//go:embed ui.css
+var CSS string
+
+//go:embed ui.js
+var JS string
 
 //go:embed icon.ico
 var Icon []byte

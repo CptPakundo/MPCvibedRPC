@@ -1,6 +1,7 @@
 // Package server is the local control surface: a tiny HTTP server on 127.0.0.1 that serves the settings page and
 // its API. It is guarded by a random per-launch token (header X-Token, or ?t= for the page itself) and a Host check,
-// so no website can drive it.
+// so no website can drive it. The page's style sheet and script are public files (no token): they hold nothing secret,
+// and the page hands the token to its script in a meta tag.
 package server
 
 import (
@@ -36,7 +37,9 @@ type Handler struct {
 // Options configures a Server.
 type Options struct {
 	Token    string
-	Page     string // the settings page; __TOKEN__ is replaced by the token
+	Page     string // the settings page; __TOKEN__ is replaced by the token (it sits in a meta tag the script reads)
+	CSS      string // the page's style sheet, served as /ui.css
+	JS       string // the page's script, served as /ui.js
 	Icon     []byte
 	Handlers map[string]Handler
 	Version  string
@@ -55,7 +58,8 @@ type Server struct {
 type Validation interface{ IsValidation() bool }
 
 // Cover images for the preview card come straight from the catalogs' image hosts (https only, no referrer).
-const csp = "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+// The page's own style sheet and script only: no inline ones.
+const csp = "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: https:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 func New(o Options) *Server { return &Server{o: o} }
 
@@ -101,6 +105,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case r.Method == "GET" && p == "/icon.ico":
 		send(w, 200, s.o.Icon, "image/x-icon")
+		return
+	case r.Method == "GET" && p == "/ui.css":
+		send(w, 200, s.o.CSS, "text/css; charset=utf-8")
+		return
+	case r.Method == "GET" && p == "/ui.js":
+		send(w, 200, s.o.JS, "text/javascript; charset=utf-8")
 		return
 	case r.Method == "GET" && p == "/":
 		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("t")), []byte(s.o.Token)) != 1 {

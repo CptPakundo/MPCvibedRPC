@@ -1,0 +1,727 @@
+(() => {
+  const TOKEN = document.querySelector('meta[name="token"]').content;
+  const $ = (id) => document.getElementById(id);
+  let model = null, queue = Promise.resolve(), clearTimer = null, saving = 0;
+
+  async function api(name, body, method) {
+    const res = await fetch('/api/' + name, { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+    let j = {}; try { j = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
+    return j;
+  }
+  const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); kids.forEach((k) => e.append(k)); return e; };
+  const help = (text) => el('div', { className: 'help', textContent: text });
+  // a switch with its label (and help) on the left
+  const switchRow = (label, input, helpText, cls) => el('label', { className: 'line' + (cls ? ' ' + cls : '') }, el('span', {}, document.createTextNode(label), ...(helpText ? [help(helpText)] : [])), el('span', { className: 'sw' }, input, el('span')));
+  const note = (text, err) => {
+    clearTimeout(clearTimer); $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').textContent = text;
+    if (!err) clearTimer = setTimeout(() => { $('msg').textContent = 'Changes are saved as you make them.'; }, 2500);
+  };
+  const later = (task) => { queue = queue.then(task, task); }; // one change at a time, in order
+  const readValue = (i) => (i.type === 'checkbox' ? i.checked : i.value);
+  const showValue = (i, v) => { if (i.type === 'checkbox') i.checked = !!v; else i.value = v == null ? '' : v; };
+  const appValue = (key) => (key === 'autoStart' ? !!model.autoStart : model.app[key]);
+
+  // Texts that differ on macOS and Linux (the page is written for Windows; the program says which system it runs on).
+  const OS_TEXT = {
+    darwin: {
+      players: 'IINA, mpv, VLC, MPC-QT or Kodi', here: 'this Mac', autoStart: 'Start at login', copyKey: 'Cmd+C',
+      help: '<b>No player is answering.</b> Open your player and play something. IINA, mpv and VLC need setting up first: the button does it.',
+    },
+    linux: {
+      players: 'VLC, mpv, Celluloid, Haruna, SMPlayer, MPC-QT, Kodi or another video player', here: 'this computer', autoStart: 'Start at login', copyKey: 'Ctrl+C',
+      help: '<b>No player is answering.</b> Open VLC, Celluloid, Haruna or another video player and play something; they need no setup. mpv needs a line in mpv.conf: the button adds it.',
+    },
+  };
+  const osText = () => (model && model.os !== 'windows' ? OS_TEXT[model.os === 'darwin' ? 'darwin' : 'linux'] : null);
+  const players = () => (osText() ? osText().players : 'MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer or Kodi');
+  // an in-page dialog (the browser's confirm() and alert() would head the box with this page's address). buttons are
+  // [label, class] pairs, the first being the safe choice that has the focus; it resolves to the index of the button
+  // pressed, or -1 for Escape or a click outside. body is text or an element.
+  let modalCount = 0;
+  const modal = (title, body, buttons, wide) => new Promise((resolve) => {
+    const prev = document.activeElement;
+    const btns = buttons.map(([label, cls], i) => { const b = el('button', { textContent: label, className: cls || '' }); b.onclick = () => done(i); return b; });
+    const content = typeof body === 'string' ? el('p', { textContent: body }) : body;
+    const uid = 'dlg' + (++modalCount);
+    const box = el('div', { className: 'dlg' + (wide ? ' wide' : '') }, el('h2', { textContent: title, id: uid + '-title' }), content, el('div', { className: 'row' }, ...btns));
+    box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-modal', 'true');
+    content.id = uid + '-body'; box.setAttribute('aria-labelledby', uid + '-title'); box.setAttribute('aria-describedby', uid + '-body');
+    const back = el('div', { className: 'dlg-back' }, box);
+    const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
+    const key = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); done(-1); }
+      else if (e.key === 'Tab') { e.preventDefault(); const i = btns.indexOf(document.activeElement); btns[(i + (e.shiftKey ? btns.length - 1 : 1)) % btns.length].focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    back.onmousedown = (e) => { if (e.target === back) done(-1); };
+    document.body.append(back);
+    btns[0].focus();
+  });
+  // a yes/no question (Cancel first); with cancel set to null it is a message with a single button
+  const ask = async (title, text, yes, danger, cancel = 'Cancel') => {
+    const ok = [yes, danger ? 'primary danger' : 'primary'];
+    if (!cancel) { await modal(title, text, [ok]); return true; }
+    return (await modal(title, text, [[cancel], ok])) === 1;
+  };
+
+  // the changelog: the newest version's changes, or every version's
+  async function showChangelog(all) {
+    const log = (model && model.changelog) || [];
+    if (!log.length) return;
+    const list = all ? log : log.slice(0, 1);
+    const box = el('div', { className: 'chg' });
+    list.forEach((v) => {
+      if (list.length > 1) box.append(el('h3', { textContent: 'Version ' + v.version + ' · ' + v.date }));
+      box.append(el('ul', {}, ...v.items.map((t) => el('li', { textContent: t }))));
+    });
+    const buttons = all || log.length < 2 ? [['Close', 'primary']] : [['Close', 'primary'], ['Earlier versions']];
+    if ((await modal(all ? 'Changelog' : "What's new in " + log[0].version, box, buttons, true)) === 1) showChangelog(true);
+  }
+
+  // the counts on the General tab (kept on this computer only)
+  const dur = (ms) => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + ' h ' + (m % 60) + ' min' : m + ' min'; };
+  function paintStats(s) {
+    if (!s) return;
+    const since = new Date(s.since + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const by = Object.entries(s.players || {}).sort((a, b) => b[1] - a[1]).map(([p, n]) => p + ' ' + n).join(', ');
+    $('statsText').textContent = s.videos
+      ? 'Since ' + since + ': ' + s.videos + (s.videos === 1 ? ' video' : ' videos') + ' shown on Discord, ' + s.matched + ' found in a catalog, ' + dur(s.watchedMs) + ' of playing.' + (by ? ' By player: ' + by + '.' : '')
+      : 'Nothing shown on Discord yet (counting since ' + since + ').';
+  }
+  const autoStartName = () => (osText() ? osText().autoStart : 'Start with Windows');
+  function applyOsText() {
+    const t = osText();
+    if (!t) return;
+    $('mpcHelpText').innerHTML = t.help;
+    $('autoStartLabel').textContent = t.autoStart;
+    if (model.tray) { // the macOS app has a menu bar icon
+      $('autoStartHelp').textContent = 'Starts in the menu bar, without a window.';
+      $('openWindowHelp').textContent = 'Turn off to go straight to the menu bar. Reopen the window from its icon.';
+    } else {
+      $('autoStartHelp').textContent = 'Starts in the background, without a window.';
+      $('openWindowHelp').textContent = 'Turn off to start in the background. Open the app again to show this window.';
+    }
+  }
+
+  // Every control saves on its own, one at a time and only its own setting: a toggle or a choice as soon as it changes,
+  // a text box when it loses focus (or on Enter). A value that is refused goes back to what was saved.
+  // "get" reads the control's value and "set" writes a value back into it (used when a value is refused).
+  const same = (a, b) => (Array.isArray(a) || Array.isArray(b) ? JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort()) : String(a) === String(b == null ? '' : b));
+  function saver(scope, key, get, set) {
+    return async () => {
+      const value = get();
+      const saved = scope === 'app' ? appValue(key) : model.values[key];
+      if (same(value, saved)) return;
+      note('Saving…');
+      saving++;
+      try {
+        const m = await api('save', scope === 'app' ? { app: { [key]: value } } : { settings: { [key]: value } });
+        model = m;
+        set(scope === 'app' ? appValue(key) : m.values[key]);
+        note('Saved.');
+      } catch (e) {
+        set(saved);
+        note(e.message, true);
+      } finally {
+        saving--;
+      }
+    };
+  }
+  function autosave(input, scope, key) {
+    const run = saver(scope, key, () => readValue(input), (v) => showValue(input, v));
+    input.addEventListener('change', () => later(run));
+    if (input.tagName === 'INPUT' && input.type !== 'checkbox') input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  }
+
+  // One control per setting. sources: a switch per online service (the stored value is the list that is OFF);
+  // lines: one entry per line (stored as a list); the rest save through autosave.
+  // the visible name of a control: a <label> tied to it by id, and its help text as the description
+  const nameOf = (f, input, helpEl) => {
+    input.id = 'f-' + f.key;
+    if (helpEl) { helpEl.id = 'fh-' + f.key; input.setAttribute('aria-describedby', helpEl.id); }
+    return el('label', { className: 'name', htmlFor: input.id, textContent: f.label });
+  };
+  function fieldFor(f, v) {
+    const wrap = el('div', { className: 'field' });
+    const helpEl = f.help ? help(f.help) : null, h = helpEl ? [helpEl] : [];
+    if (f.type === 'sources') {
+      const off = new Set(v || []);
+      const boxes = f.sources.map((s) => { const cb = el('input', { type: 'checkbox', checked: !off.has(s.id) }); cb.dataset.id = s.id; return cb; });
+      const list = el('div', { className: 'sources' }, ...f.sources.map((s, i) => switchRow(s.label, boxes[i], s.used + ' (' + s.host + ')', 'src')));
+      const name = el('div', { textContent: f.label, id: 'fl-' + f.key });
+      list.setAttribute('role', 'group'); list.setAttribute('aria-labelledby', name.id);
+      wrap.append(name, ...h, list);
+      const run = saver('settings', f.key, () => boxes.filter((c) => !c.checked).map((c) => c.dataset.id), (ids) => { const o = new Set(ids || []); boxes.forEach((c) => { c.checked = !o.has(c.dataset.id); }); });
+      boxes.forEach((c) => c.addEventListener('change', () => later(run)));
+      return wrap;
+    }
+    if (f.type === 'lines') {
+      const ta = el('textarea', { value: (v || []).join('\n'), spellcheck: false, placeholder: 'One per line, e.g. Private' });
+      ta.dataset.key = f.key;
+      wrap.append(nameOf(f, ta, helpEl), el('div', { className: 'ctl' }, ta), ...h);
+      const run = saver('settings', f.key, () => ta.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean), (arr) => { ta.value = (arr || []).join('\n'); });
+      ta.addEventListener('change', () => later(run));
+      return wrap;
+    }
+    let input;
+    if (f.type === 'bool') {
+      input = el('input', { type: 'checkbox', checked: !!v });
+      wrap.append(switchRow(f.label, input, f.help));
+    } else {
+      if (f.type === 'choice') { input = el('select'); f.options.forEach(([val, text]) => input.append(new Option(text, val, false, val === v))); }
+      else if (f.type === 'map') input = el('textarea', { value: v || '', spellcheck: false });
+      else if (f.type === 'int') input = el('input', { type: 'number', value: v, min: f.min, max: f.max });
+      else input = el('input', { type: f.type === 'secret' ? 'password' : 'text', value: v || '', spellcheck: false, autocomplete: 'off' });
+      wrap.append(nameOf(f, input, helpEl), el('div', { className: 'ctl' }, input), ...h);
+    }
+    input.dataset.key = f.key;
+    autosave(input, 'settings', f.key);
+    return wrap;
+  }
+
+  // What the window adds under some group headings (sign-ins, buttons); the settings themselves come from the schema.
+  const EXTRAS = {
+    'accounts/Stremio': () => [stremioBox()],
+    'accounts/Jellyfin / Emby': () => [jellyfinBox()],
+    'advanced/Players': () => [playerSetupBox()],
+    'advanced/Maintenance': () => [maintenanceBox()],
+  };
+
+  function renderFields(m) {
+    document.querySelectorAll('.panel.dyn').forEach((p) => p.remove());
+    for (const sec of m.schema) {
+      const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
+      let group = null;
+      const newGroup = (title) => { if (title) d.append(el('h3', { className: 'grp', textContent: title })); group = el('div', { className: 'group' }); d.append(group); };
+      for (const f of sec.fields) {
+        if (f.type === 'heading') {
+          newGroup(f.label);
+          const extra = EXTRAS[sec.id + '/' + f.label];
+          if (extra) group.append(...extra());
+          continue;
+        }
+        if (!group) newGroup('');
+        if (f.key === 'plexAddress') group.append(plexBox()); // the sign-in comes first in the Plex group
+        group.append(fieldFor(f, m.values[f.key]));
+      }
+      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newGroup('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); newGroup('Recent connections'); group.append(connsBox()); }
+      d.setAttribute('role', 'tabpanel');
+      $('p-help').before(d);
+    }
+    buildTabs();
+  }
+
+  // With "Look up cover art and titles online" off, the list of services below it is dimmed and cannot be changed
+  // (it keeps its values).
+  function dimServices(panel) {
+    const main = panel.querySelector('input[data-key="showArtwork"]'), list = panel.querySelector('.sources');
+    if (!main || !list) return;
+    const apply = () => {
+      list.classList.toggle('off', !main.checked);
+      list.querySelectorAll('input').forEach((c) => { c.disabled = !main.checked; });
+    };
+    apply();
+    // queued behind the save of the switch itself, so it also sees a value that was refused and put back
+    main.addEventListener('change', () => later(apply));
+  }
+
+  // "Set up the player connection" at the top of Advanced > Players: the same call and confirmation as the card that
+  // shows when no player is answering
+  function playerSetupBox() {
+    const msg = el('span', { className: 'help' });
+    const btn = el('button', { textContent: 'Set up the player connection' });
+    btn.onclick = () => setUpPlayers(btn, msg);
+    return el('div', { className: 'field' }, el('div', { className: 'row' }, btn, msg),
+      help('Switches on what each player needs. MPC-HC, MPC-BE and VLC are restarted after you confirm.'));
+  }
+
+  // the bottom of Advanced: the folder with the settings, and Restore defaults
+  function maintenanceBox() {
+    const folder = el('button', { textContent: 'Open settings folder' });
+    folder.onclick = () => api('open-folder', {}).catch(() => {});
+    const reset = el('button', { textContent: 'Restore defaults', className: 'danger' });
+    reset.onclick = restoreDefaults;
+    return el('div', { className: 'field' }, el('div', { className: 'row' }, folder, reset));
+  }
+
+  // the parts of the Privacy tab that are not settings: clearing the cover cache, and what else leaves this PC
+  function coverCacheBox() {
+    const msg = el('span', { className: 'help' });
+    const btn = el('button', { textContent: 'Clear cover cache' });
+    btn.onclick = () => later(async () => {
+      btn.disabled = true; msg.textContent = '';
+      try { await api('clear-cache', {}); msg.textContent = 'Cleared.'; note('Cover cache cleared.'); } catch (e) { msg.textContent = e.message; }
+      btn.disabled = false;
+    });
+    return el('div', { className: 'field' }, el('div', { textContent: 'Cover cache' }),
+      help('Remembers what was found for titles you watched, so they show up faster next time. Clearing it makes the next lookups ask the services again.'),
+      el('div', { className: 'row actions' }, btn, msg));
+  }
+  function leavesBox() {
+    const all = el('li', {}, document.createTextNode('Every address the program reaches is listed in '),
+      el('a', { href: 'https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md#where-it-connects', target: '_blank', rel: 'noopener', textContent: 'SECURITY.md' }),
+      document.createTextNode('.'));
+    // MPC-HC is Windows-only; its web interface answers every web page (no password, any origin)
+    const mpc = osText() ? [] : ["MPC-HC's web interface has no password, and web pages you open can read it and control the player while it is on. Switch it off in MPC-HC when you stop using this program."];
+    return el('div', { className: 'field' }, el('ul', { className: 'help leaves' }, ...[
+      'Discord: your status. That is the point of the program.',
+      'GitHub: asked about new versions while Check for updates is on.',
+      'Plex: only while you are signed in. plex.tv is asked for your servers, and your server tells this program what you play.',
+      'Stremio: only while you are signed in. It is asked every 20 seconds which library entries changed.',
+      'Jellyfin or Emby: only while you are signed in. Your own server is asked every 5 seconds what plays.',
+      'Kodi: only once its password is set (Advanced). It is asked at the address there, this computer unless you change it, and listened to on port 9090 there for its pause and play notifications.',
+      "The preview at the top loads the cover image from the service that hosts it, or the player's logo from GitHub. Discord loads them the same way for your status.",
+      'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.',
+      'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
+      ...mpc,
+    ].map((t) => el('li', { textContent: t })), all));
+  }
+
+  // every computer outside this one the program asked since it started: host, how often, when last (never what for)
+  function connsBox() {
+    return el('div', { className: 'field' },
+      help('Since the program started: every address outside this computer it sent a request to, how often and when last. Never what it asked.'),
+      el('ul', { className: 'help leaves', id: 'conns' }, el('li', { textContent: 'None yet.' })));
+  }
+  function ago(ms) {
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.round(s / 60) + ' min ago';
+    return 'at ' + new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  async function pollConns() {
+    const box = $('conns');
+    if (tab !== 'privacy' || !box || document.hidden) return;
+    try {
+      const { hosts } = await api('connections');
+      const rows = (hosts || []).map((h) => [h.host, ' (' + (h.label || 'an address you entered') + '): ' + h.count + (h.count === 1 ? ' time, ' : ' times, ') + 'last ' + ago(h.last) + '.']);
+      const sig = rows.map((r) => r.join('')).join('\n');
+      if (box.dataset.sig === sig) return; // unchanged: leave the list alone, so a selection in it survives
+      box.dataset.sig = sig;
+      box.textContent = '';
+      if (!rows.length) { box.append(el('li', { textContent: 'None yet.' })); return; }
+      rows.forEach(([host, rest]) => box.append(el('li', {}, el('b', { textContent: host }), document.createTextNode(rest))));
+    } catch (_) {}
+  }
+
+  // A sign-in on the Accounts tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
+  // element shown above the buttons, o.onShow(state) and o.onBusy(on) let it follow the box.
+  function signInBox(name, o) {
+    const text = help(''), err = el('div', { className: 'help bad hidden' });
+    const btn = el('button');
+    const again = el('button', { textContent: 'Open the sign-in page again', className: 'hidden' });
+    const out = el('button', { textContent: 'Sign out', className: 'hidden' });
+    const box = el('div', { className: 'field' }, text, err, ...(o.extra ? [o.extra] : []), el('div', { className: 'row actions' }, btn, again, out));
+    let cur = null, timer = null;
+    const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
+    const show = (p) => {
+      cur = p;
+      clearTimeout(timer);
+      fail(p.problem);
+      again.classList.toggle('hidden', !p.waiting);
+      out.classList.toggle('hidden', !p.signedIn || p.waiting);
+      btn.className = p.signedIn && !p.waiting ? 'hidden' : p.waiting ? '' : 'primary';
+      if (p.waiting) {
+        text.textContent = 'Approve the sign-in on the page that opened in your browser.';
+        btn.textContent = 'Cancel';
+        timer = setTimeout(refresh, 2000);
+      } else if (p.signedIn) text.textContent = o.signedIn(p);
+      else { text.textContent = o.intro; btn.textContent = 'Sign in to ' + o.service; }
+      if (o.onShow) o.onShow(p);
+    };
+    const refresh = async () => { if (!box.isConnected) return; try { show(await api(name)); } catch (_) { timer = setTimeout(refresh, 4000); } };
+    const busy = (on) => { btn.disabled = out.disabled = on; if (o.onBusy) o.onBusy(on); };
+    const act = (call, body) => later(async () => { busy(true); try { show(await api(call, body || {})); } catch (e) { fail(e.message); } busy(false); });
+    btn.onclick = () => act(name + (cur && cur.waiting ? '-cancel' : '-signin'));
+    again.onclick = () => { if (cur && cur.url) window.open(cur.url, '_blank', 'noopener'); };
+    out.onclick = async () => { if (await ask('Sign out of ' + o.service + '?', o.signedOut + ' You can sign in again at any time.', 'Sign out')) act(name + '-signout'); };
+    setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
+    return { box, act, fail };
+  }
+
+  // "Sign in to Plex", then the server to follow.
+  function plexBox() {
+    const sel = el('select', { className: 'hidden' });
+    sel.setAttribute('aria-label', 'Plex server');
+    let listed = false;
+    const listServers = async (cur) => {
+      listed = true;
+      try {
+        const { servers } = await api('plex-servers', {});
+        sel.textContent = '';
+        servers.forEach((s) => sel.append(new Option(s.name + (s.owned ? '' : ' (shared with you)'), s.id, false, s.id === cur.server)));
+        if (!servers.length) sel.append(new Option('No Plex server in this account', '', true, true));
+        sel.disabled = servers.length < 2;
+      } catch (e) { listed = false; s.fail(e.message); }
+    };
+    const s = signInBox('plex', {
+      service: 'Plex',
+      intro: 'Shows what you play on Plex on any device. Signing in opens plex.tv; this app never sees your password.',
+      signedIn: (p) => 'Signed in as ' + (p.user || 'your Plex account') + '. Server:',
+      signedOut: 'Discord stops showing what you play on Plex.',
+      extra: el('div', { className: 'ctl' }, sel),
+      onShow: (p) => {
+        const on = p.signedIn && !p.waiting;
+        sel.classList.toggle('hidden', !on);
+        if (!on) listed = false;
+        else if (!listed) { sel.textContent = ''; sel.append(new Option(p.serverName || 'Loading…', p.server || '', true, true)); listServers(p); }
+      },
+      onBusy: (on) => { sel.disabled = on || sel.options.length < 2; },
+    });
+    sel.onchange = () => { if (sel.value) s.act('plex-server', { id: sel.value }); };
+    return s.box;
+  }
+
+  function stremioBox() {
+    return signInBox('stremio', {
+      service: 'Stremio',
+      intro: 'Shows what you watch in Stremio on any device. Signing in opens stremio.com; this app never sees your password.',
+      signedIn: () => 'Signed in. Pausing takes the status down; it comes back when you resume.',
+      signedOut: 'Discord stops showing what you watch in Stremio.',
+    }).box;
+  }
+
+  // The Jellyfin / Emby sign-in: the server's address, then a Quick Connect code to approve in a Jellyfin app, or a user
+  // name and password (Emby, or Quick Connect off). The password is passed on to the server once and never kept.
+  function jellyfinBox() {
+    const input = (type, placeholder) => { const i = el('input', { type, spellcheck: false, autocomplete: 'off', placeholder }); i.setAttribute('aria-label', placeholder); return i; };
+    const text = help(''), err = el('div', { className: 'help bad hidden' });
+    const addr = input('text', 'http://192.168.1.20:8096');
+    addr.setAttribute('aria-label', 'Server address');
+    const user = input('text', 'User name'), pass = input('password', 'Password');
+    const code = el('div', { className: 'jf-code hidden' });
+    const btn = el('button', { className: 'primary' });
+    const cancel = el('button', { textContent: 'Cancel', className: 'hidden' });
+    const usePw = el('button', { textContent: 'Use a password instead', className: 'hidden' });
+    const out = el('button', { textContent: 'Sign out', className: 'hidden' });
+    const addrRow = el('div', { className: 'ctl' }, addr);
+    const pwRow = el('div', { className: 'ctl jf-pw hidden' }, user, pass);
+    const box = el('div', { className: 'field' }, text, err, addrRow, code, pwRow, el('div', { className: 'row actions' }, btn, usePw, cancel, out));
+    let cur = null, timer = null, pwMode = false;
+    const fail = (m) => { err.textContent = m || ''; err.classList.toggle('hidden', !m); };
+    const show = (p) => {
+      cur = p;
+      clearTimeout(timer);
+      fail(p.problem);
+      const pw = !p.signedIn && !p.waiting && (p.password || pwMode);
+      const name = (p.server ? '"' + p.server + '"' : 'your server') + (p.product ? ' (' + p.product + ')' : '');
+      addrRow.classList.toggle('hidden', p.signedIn || p.waiting || pw);
+      pwRow.classList.toggle('hidden', !pw);
+      code.classList.toggle('hidden', !p.waiting);
+      out.classList.toggle('hidden', !p.signedIn);
+      btn.classList.toggle('hidden', p.signedIn || p.waiting);
+      cancel.classList.toggle('hidden', !p.waiting && !pw);
+      usePw.classList.toggle('hidden', !p.waiting);
+      if (p.waiting) {
+        code.textContent = p.code;
+        text.textContent = 'Enter this code in Jellyfin: your profile > Quick Connect.';
+        timer = setTimeout(refresh, 2000);
+      } else if (p.signedIn) {
+        text.textContent = 'Signed in as ' + (p.user || 'your user') + ' on ' + name + '.';
+        pwMode = false;
+      } else if (pw) {
+        text.textContent = 'Sign in to ' + name + ' with your user name and password. The password goes to your server once and is not kept.';
+        btn.textContent = 'Sign in';
+        if (!user.value) setTimeout(() => user.focus());
+      } else {
+        text.textContent = 'Shows what you play on your Jellyfin or Emby server on any device. Enter the address you open it at.';
+        btn.textContent = 'Sign in to Jellyfin / Emby';
+        if (p.address && !addr.value) addr.value = p.address.replace(/\/emby$/, '');
+      }
+    };
+    const refresh = async () => { if (!box.isConnected) return; try { show(await api('jellyfin')); } catch (_) { timer = setTimeout(refresh, 4000); } };
+    const act = (name, body) => later(async () => {
+      [btn, out, cancel, usePw].forEach((b) => { b.disabled = true; });
+      fail('');
+      try { show(await api(name, body || {})); } catch (e) { fail(e.message); }
+      [btn, out, cancel, usePw].forEach((b) => { b.disabled = false; });
+      pass.value = '';
+    });
+    const address = () => (cur && cur.address && (cur.password || pwMode) ? cur.address : addr.value);
+    btn.onclick = () => {
+      if (!pwRow.classList.contains('hidden')) act('jellyfin-password', { address: address(), user: user.value, password: pass.value });
+      else act('jellyfin-signin', { address: addr.value });
+    };
+    [addr, user, pass].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); }));
+    cancel.onclick = () => { pwMode = false; act('jellyfin-cancel'); };
+    usePw.onclick = () => { const a = cur.address; act('jellyfin-cancel'); later(() => { pwMode = true; show(Object.assign({}, cur, { address: a, password: true })); }); };
+    out.onclick = async () => { if (await ask('Sign out of ' + ((cur && cur.product) || 'Jellyfin') + '?', 'Discord stops showing what you play there. You can sign in again at any time.', 'Sign out')) act('jellyfin-signout'); };
+    setTimeout(refresh); // once the box is on the page (a box from an earlier render stops asking)
+    return box;
+  }
+
+  let tab = 'general';
+  try { tab = localStorage.getItem('tab') || 'general'; } catch (_) {}
+  let updFlag = false;
+  function buildTabs() {
+    const list = [['general', 'General']];
+    model.schema.forEach((s) => list.push([s.id, s.title])); // the tab names come from store/schema.go
+    list.push(['help', 'Help']);
+    if (!list.some((x) => x[0] === tab)) tab = 'general';
+    const bar = $('tabs'); bar.textContent = '';
+    list.forEach(([id, label]) => {
+      const b = el('button', { className: 'tab', textContent: label, id: 'tab-' + id });
+      b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'p-' + id); b.setAttribute('aria-selected', 'false'); b.dataset.tab = id;
+      b.onclick = () => showTab(id);
+      b.onkeydown = (e) => { // Left and Right (and Home, End) move between the tabs
+        const all = [...bar.querySelectorAll('.tab')], i = all.indexOf(b);
+        const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : e.key === 'Home' ? all[0] : e.key === 'End' ? all[all.length - 1] : null;
+        if (!to) return;
+        e.preventDefault(); to.focus(); to.click();
+      };
+      bar.append(b);
+    });
+    document.querySelectorAll('.panel').forEach((p) => { if (!p.hasAttribute('aria-labelledby')) p.setAttribute('aria-labelledby', 'tab-' + p.id.slice(2)); });
+    if (updFlag) flagUpdate();
+    showTab(tab);
+  }
+  function showTab(id) {
+    tab = id;
+    try { localStorage.setItem('tab', id); } catch (_) {}
+    document.querySelectorAll('.tab').forEach((b) => { const on = b.dataset.tab === id; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+    document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'p-' + id));
+    if (id === 'help') pollLog();
+    if (id === 'privacy') pollConns();
+    if (id === 'general') api('stats').then(paintStats).catch(() => {});
+  }
+  function flagUpdate() { updFlag = true; const b = $('tab-general'); if (b) b.classList.add('has'); }
+
+  function fill(m) {
+    model = m;
+    $('ver').textContent = 'v' + m.version;
+    $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
+    $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
+    $('checkUpdates').checked = !!m.app.checkUpdates;
+    $('autoUpdate').checked = !!m.app.autoUpdate;
+    $('autoUpdate').disabled = !m.app.checkUpdates; // installing needs the checks
+    $('autoUpdateRow').classList.toggle('hidden', m.os === 'darwin'); // macOS: the app can't replace itself
+    applyOsText();
+    renderFields(m);
+    paintStats(m.stats);
+    $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
+  }
+  ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'autoUpdate'].forEach((id) => autosave($(id), 'app', id));
+  $('checkUpdates').addEventListener('change', () => { $('autoUpdate').disabled = !$('checkUpdates').checked; });
+
+  const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  // a picture of the Discord card, built from the activity the program actually sent
+  function paintPreview(p) {
+    const box = $('preview');
+    box.classList.toggle('hidden', !p);
+    if (!p) return;
+    $('pvName').textContent = (p.listening ? 'Listening to ' : p.watching ? 'Watching ' : 'Playing ') + p.name;
+    $('pvDetails').textContent = p.details || '';
+    $('pvDetails').classList.toggle('pv-link', !!p.linked);
+    $('pvDetails').title = p.linked ? 'Opens the catalog page on Discord (the cover too)' : '';
+    $('pvState').textContent = p.state || '';
+    const img = $('pvImg'); const src = p.largeImage || '/icon.ico';
+    if (img.dataset.src !== src) { img.dataset.src = src; img.onerror = () => { img.onerror = null; img.src = '/icon.ico'; }; img.src = src; }
+    img.title = p.largeText || '';
+    const bar = $('pvBar'); const timed = p.start && p.end && p.end > p.start;
+    bar.classList.toggle('hidden', !timed);
+    if (timed) { const total = (p.end - p.start) / 1000; const done = Math.min(total, Math.max(0, (Date.now() - p.start) / 1000)); $('pvElapsed').textContent = mmss(done); $('pvTotal').textContent = mmss(total); $('pvFill').style.width = (100 * done / total).toFixed(1) + '%'; }
+    const btn = $('pvButton'); btn.textContent = p.button || ''; btn.classList.toggle('hidden', !p.button);
+    $('fixMatch').classList.toggle('hidden', !!p.listening); // songs are not looked up
+  }
+
+  function paint(s) {
+    paintPreview(s.preview);
+    if (typeof s.hideTitle === 'boolean' && model && !saving && model.values.hideTitle !== s.hideTitle) {
+      model.values.hideTitle = s.hideTitle; // switched from the tray or the menu bar
+      const box = document.querySelector('input[data-key="hideTitle"]');
+      if (box) box.checked = s.hideTitle;
+    }
+    // while nothing is shown, the card is one line and a button; the two lights only say something once it runs
+    ['pDiscord', 'pMpc', 'spacer'].forEach((id) => $(id).classList.toggle('hidden', !s.running));
+    $('idle').classList.toggle('hidden', !!s.running);
+    const d = $('pDiscord'), p = $('pMpc');
+    d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '') + (s.running ? '' : ' hidden');
+    d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : s.discord === 'standby' ? 'Discord on standby' : 'Discord idle';
+    d.title = s.discord === 'standby' ? 'Discord is contacted as soon as something plays.' : s.discord === 'waiting' ? 'Discord was not found yet. Is the desktop app running?' : '';
+    p.className = 'pill ' + (s.mpc ? 'good' : 'warn') + (s.running ? '' : ' hidden');
+    p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : 'No player found';
+    const now = $('now');
+    now.textContent = '';
+    if (!s.running) { /* the idle line says it */ }
+    else if (s.hidden) now.append(document.createTextNode('Hidden'), el('small', { textContent: 'The file playing is on your Never show list, so nothing is shown on Discord.' }));
+    else if (s.nowPlaying) {
+      const sub = s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing';
+      // while the Discord preview is showing, the title is already there: keep only a note that adds something
+      if (s.preview) { if (s.paused) now.append(el('small', { textContent: sub })); }
+      else now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: sub }));
+    }
+    else if (s.mpc) now.append(document.createTextNode('Nothing playing'), el('small', { textContent: 'Play something in ' + players() + '.' }));
+    now.classList.toggle('hidden', !now.hasChildNodes());
+    const t = $('toggle'); t.textContent = s.running ? 'Stop showing' : 'Show on Discord'; t.className = s.running ? '' : 'primary';
+    // a short line for screen readers, changed only when the state changes (the status itself changes every second)
+    const live = s.running ? d.textContent + '. ' + p.textContent + '.' : 'Not showing on Discord.';
+    if ($('liveStatus').textContent !== live) $('liveStatus').textContent = live;
+    const dp = $('discordProblem'); dp.textContent = s.discordProblem || ''; dp.classList.toggle('hidden', !s.discordProblem);
+    $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
+    const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
+    if (s.update && s.update.newer && s.update.latest !== updShown && $('installUpd').disabled === false) showUpdate(s.update, false);
+    paintUpdBanner(s.update);
+  }
+  // a one-line notice at the top while an update is available
+  function paintUpdBanner(u) {
+    const on = !!(u && u.newer);
+    $('updBanner').classList.toggle('hidden', !on);
+    if (on) $('updBannerText').textContent = 'MPCvibedRPC ' + u.latest + ' is available.';
+  }
+  $('updBannerBtn').onclick = () => { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); };
+
+  function closeWindow() { document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>'; try { window.close(); } catch (_) {} }
+  async function poll() { if (document.hidden) return; try { paint(await api('status')); } catch (_) {} }
+  // A connection the program holds open while it runs: when it ends the program has quit, so the window closes at once.
+  async function watchAlive() {
+    try {
+      const res = await fetch('/api/alive', { headers: { 'X-Token': TOKEN } });
+      if (!res.ok) return;
+      const reader = res.body.getReader();
+      while (!(await reader.read()).done) {}
+    } catch (_) {}
+    closeWindow();
+  }
+  watchAlive();
+  async function pollLog() {
+    if (tab !== 'help' || document.hidden) return;
+    try {
+      const { lines } = await api('log'); const box = $('log'); const sig = lines.join('\n');
+      if (box.dataset.sig === sig) return; // unchanged: leave the list alone, so a selection in it survives
+      box.dataset.sig = sig;
+      const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+      box.textContent = '';
+      lines.forEach((l) => { const m = / (INFO|WARN|ERROR) /.exec(l); box.append(el('div', { className: m ? 'L-' + m[1] : '', textContent: l })); });
+      if (stick) box.scrollTop = box.scrollHeight;
+    } catch (_) {}
+  }
+
+  // the welcome card: dismissing it is remembered, so it only ever greets a new install
+  $('welcomeOk').onclick = () => {
+    $('welcome').classList.add('hidden');
+    later(async () => { try { model = await api('save', { app: { welcomeSeen: true } }); } catch (e) { note(e.message, true); } });
+  };
+
+  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { await ask('Could not change this', e.message, 'OK', false, null); } $('toggle').disabled = false; };
+  async function restoreDefaults() {
+    if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex, Stremio, Jellyfin and Emby, and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
+    later(async () => {
+      try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
+    });
+  }
+  // "Set up the player connection": used by the card shown when no player is answering and by Advanced > Players.
+  // msgEl shows the progress and the result.
+  async function setUpPlayers(btn, msgEl) {
+    btn.disabled = true;
+    msgEl.textContent = 'Working…';
+    try {
+      let r = await api('mpc-web', { closeMpc: false });
+      if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { msgEl.textContent = ''; btn.disabled = false; return; } r = await api('mpc-web', { closeMpc: true }); }
+      msgEl.textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
+      if (r.settingsChanged) { // the mpv name or VLC's password may have been taken over; the window is drawn again, so say it here too
+        try { fill(await api('state')); note(msgEl.textContent); } catch (_) {}
+      }
+    } catch (e) { msgEl.textContent = e.message; }
+    btn.disabled = false;
+  }
+  $('enableWeb').onclick = () => setUpPlayers($('enableWeb'), $('webMsg'));
+  // Release notes as GitHub writes them (Markdown), shown with their paragraphs, bullet points, bold and code. Built
+  // from text nodes only, so nothing in the notes can act as HTML.
+  function notesOf(md) {
+    const box = el('div', { className: 'notes' });
+    const inline = (text) => {
+      const out = el('span');
+      text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').split(/(\*\*[^*]+\*\*|`[^`]+`)/).forEach((part) => {
+        if (/^\*\*[^*]+\*\*$/.test(part)) out.append(el('b', { textContent: part.slice(2, -2) }));
+        else if (/^`[^`]+`$/.test(part)) out.append(el('code', { textContent: part.slice(1, -1) }));
+        else if (part) out.append(document.createTextNode(part));
+      });
+      return out;
+    };
+    let list = null, para = null;
+    for (const raw of String(md || '').replace(/\r\n/g, '\n').split('\n')) {
+      const line = raw.trim();
+      const item = /^[-*] +(.*)$/.exec(line);
+      if (!line) { list = para = null; continue; }
+      if (item) {
+        if (!list) { list = el('ul'); box.append(list); para = null; }
+        list.append(el('li', {}, inline(item[1])));
+        continue;
+      }
+      const head = /^#{1,6} +(.*)$/.exec(line);
+      if (head) { list = para = null; box.append(el('p', {}, el('b', { textContent: head[1] }))); continue; }
+      if (list && /^\s{2,}/.test(raw)) { list.lastChild.append(document.createTextNode(' '), inline(line)); continue; }
+      list = null;
+      if (!para) { para = el('p'); box.append(para); } else para.append(document.createTextNode(' '));
+      para.append(inline(line));
+    }
+    return box;
+  }
+  function setNotes(md) { const n = $('updNotes'); n.textContent = ''; if (md) n.append(notesOf(md)); }
+  // A newer version: shown once per version, whether the window found it (Check now) or the program did in the
+  // background (at start, then daily) while the window is open.
+  let updShown = '';
+  function showUpdate(u, explain) {
+    if (!u || !u.newer) return;
+    updShown = u.latest;
+    $('updText').textContent = 'Version ' + u.latest + ' is available (you have ' + u.current + ').';
+    setNotes(u.notes);
+    offerUpdate(u, explain);
+    flagUpdate();
+    paintUpdBanner(u);
+  }
+  $('checkUpd').onclick = async () => {
+    $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('pageUpd').classList.add('hidden'); $('updNotes').textContent = '';
+    try {
+      await queue; // a change still being saved goes first
+      const u = await api('update-check', {});
+      if (!u.configured) $('updText').textContent = 'No update source is set (updateRepo in the settings file).';
+      else if (u.error) $('updText').textContent = u.error;
+      else if (u.newer) showUpdate(u, true);
+      else $('updText').textContent = 'You are up to date (' + u.current + ').';
+    } catch (e) { $('updText').textContent = 'Could not check: ' + e.message; }
+  };
+  // Install where the program can update itself; on a Mac (an app bundle) the release page is offered instead.
+  let updPage = '';
+  function offerUpdate(u, explain) {
+    if (u.canInstall || (!osText() && u.url)) $('installUpd').classList.remove('hidden');
+    else if (osText() && u.page) { updPage = u.page; $('pageUpd').classList.remove('hidden'); }
+    else if (explain) $('updNotes').textContent = 'That release has no program file attached.';
+  }
+  $('pageUpd').onclick = () => { if (updPage) window.open(updPage, '_blank', 'noopener'); };
+  $('installUpd').onclick = async () => { $('updText').textContent = 'Downloading… the program will restart.'; $('installUpd').disabled = true; try { await api('update-install', {}); } catch (e) { $('updText').textContent = e.message; $('installUpd').disabled = false; } };
+  $('copyDiag').onclick = async () => {
+    const msg = $('diagMsg'), box = $('diagText');
+    try {
+      const { text } = await api('diagnostics');
+      box.value = text; box.classList.remove('hidden');
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { box.focus(); box.select(); try { ok = document.execCommand('copy'); } catch (_) {} }
+      msg.textContent = ok ? 'Copied. Look it over before you post it: it names what you played (folder paths, sign-ins and keys are left out).' : 'Select the text below and copy it (' + (osText() ? osText().copyKey : 'Ctrl+C') + ').';
+    } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
+  };
+  $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose', '_blank', 'noopener');
+  $('ver').onclick = () => showChangelog(true);
+  // the preview's "Wrong title or cover?": the place where a match is fixed (another name to search under, a pinned cover)
+  $('fixMatch').onclick = () => {
+    showTab('titles');
+    const h = [...document.querySelectorAll('#p-titles h3.grp')].find((x) => x.textContent === 'Fix a match');
+    if (h) h.scrollIntoView({ block: 'start' });
+  };
+  $('statsReset').onclick = async () => {
+    if (!await ask('Reset your stats?', 'The counts start again from today.', 'Reset', true)) return;
+    try { paintStats(await api('stats-reset', {})); } catch (e) { note(e.message, true); }
+  };
+  $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord stops showing what you watch.', 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+
+  api('state').then((m) => {
+    fill(m); paint(m.status);
+    // the changelog shows once for each new version (a new install too); the version button shows it any time
+    if (m.app.seenVersion !== m.version) { showChangelog(false); later(async () => { try { model = await api('save', { app: { seenVersion: m.version } }); } catch (_) {} }); }
+    showUpdate(m.update, false);
+  }).catch((e) => { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Could not reach the program: ' + e.message }))); });
+  setInterval(poll, 1000); setInterval(pollLog, 3000); setInterval(pollConns, 5000);
+  // a hidden window asks for nothing; when it shows again it catches up at once
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(); pollLog(); pollConns(); } });
+})();
