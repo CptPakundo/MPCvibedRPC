@@ -46,7 +46,7 @@ if [ "$os" = Linux ]; then
 
   xvfb-run -a celluloid --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
   pid=$!
-  wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid"
+  wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid" 240 # Celluloid's first start on a fresh runner once took over 20 s
   live Celluloid "$none" MPCRPC_LIVE_EVENTS=mpris
   stop_last
   pkill -x celluloid || true # xvfb-run does not pass the signal on
