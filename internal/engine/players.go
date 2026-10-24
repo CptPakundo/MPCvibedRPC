@@ -164,73 +164,10 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		pipes = e.opts.Pipes
 	}
 	var pk picker
-	info := e.fetchMPC(ctx, cfg.Port)
-	askedQt := false
-	if info != nil && info.Player == "MPC-QT" {
-		// MPC-QT's page reports a meaningless speed; its own connection knows the real one
-		web := info
-		for _, p := range pipes(cfg) {
-			if p.Name == "MPC-QT" {
-				askedQt = true
-				if in := askPipe(p); in != nil {
-					info = in
-					break
-				}
-			}
-		}
-		if info == web {
-			info.Rate = 1
-		}
-	}
+	info, askedQt := e.fetchMPCOrQt(ctx, cfg, pipes)
 	if !pk.offer(info) {
 		info = nil
-		sources := []source{func(offer func(*core.Info) bool) {
-			for _, p := range pipes(cfg) {
-				if ctx.Err() != nil {
-					return
-				}
-				if askedQt && p.Name == "MPC-QT" {
-					continue
-				}
-				if offer(askPipe(p)) {
-					return
-				}
-			}
-		}}
-		if cfg.VlcPassword != "" {
-			sources = append(sources, func(offer func(*core.Info) bool) { offer(e.fetchVLC(ctx, cfg)) })
-		}
-		if HasMPRIS && cfg.Mpris {
-			sources = append(sources, func(offer func(*core.Info) bool) {
-				query := QueryMPRIS
-				if e.opts.MPRIS != nil {
-					query = e.opts.MPRIS
-				}
-				for _, in := range query(1500 * time.Millisecond) {
-					if offer(in) {
-						return
-					}
-				}
-			})
-		}
-		if runtime.GOOS == "windows" || e.opts.PotPlayer != nil { // PotPlayer is Windows only; tests stand in for it anywhere
-			sources = append(sources, func(offer func(*core.Info) bool) {
-				query := potplayer.Query
-				if e.opts.PotPlayer != nil {
-					query = e.opts.PotPlayer
-				}
-				for _, in := range query() {
-					in.Player = "PotPlayer"
-					if offer(in) {
-						return
-					}
-				}
-			})
-		}
-		if cfg.KodiPassword != "" {
-			sources = append(sources, func(offer func(*core.Info) bool) { offer(e.fetchKodi(ctx, cfg)) })
-		}
-		sources = append(sources, e.remoteSource(ctx))
+		sources := e.sourcesFor(ctx, cfg, pipes, askedQt)
 		offer := func(in *core.Info) bool {
 			if !pk.offer(in) {
 				return false
@@ -263,6 +200,82 @@ func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 		info.Rate = 1 // MPC-QT's web interface can report a meaningless speed
 	}
 	return info
+}
+
+// fetchMPCOrQt asks the MPC web interface. When that is MPC-QT, its own connection is asked as well, and askedQt says
+// that it was (its pipe is then left out of the later sources).
+func (e *Engine) fetchMPCOrQt(ctx context.Context, cfg core.Config, pipes func(core.Config) []PlayerPipe) (info *core.Info, askedQt bool) {
+	info = e.fetchMPC(ctx, cfg.Port)
+	if info != nil && info.Player == "MPC-QT" {
+		// MPC-QT's page reports a meaningless speed; its own connection knows the real one
+		web := info
+		for _, p := range pipes(cfg) {
+			if p.Name == "MPC-QT" {
+				askedQt = true
+				if in := askPipe(p); in != nil {
+					info = in
+					break
+				}
+			}
+		}
+		if info == web {
+			info.Rate = 1
+		}
+	}
+	return info, askedQt
+}
+
+// sourcesFor lists, in the order they are asked, the players to look at when the web interface has no playing video:
+// the pipes (MPC-QT's only if it was not asked already), VLC, MPRIS, PotPlayer, Kodi, then Plex, Stremio and
+// Jellyfin/Emby. A source is only asked when it is reached.
+func (e *Engine) sourcesFor(ctx context.Context, cfg core.Config, pipes func(core.Config) []PlayerPipe, askedQt bool) []source {
+	sources := []source{func(offer func(*core.Info) bool) {
+		for _, p := range pipes(cfg) {
+			if ctx.Err() != nil {
+				return
+			}
+			if askedQt && p.Name == "MPC-QT" {
+				continue
+			}
+			if offer(askPipe(p)) {
+				return
+			}
+		}
+	}}
+	if cfg.VlcPassword != "" {
+		sources = append(sources, func(offer func(*core.Info) bool) { offer(e.fetchVLC(ctx, cfg)) })
+	}
+	if HasMPRIS && cfg.Mpris {
+		sources = append(sources, func(offer func(*core.Info) bool) {
+			query := QueryMPRIS
+			if e.opts.MPRIS != nil {
+				query = e.opts.MPRIS
+			}
+			for _, in := range query(1500 * time.Millisecond) {
+				if offer(in) {
+					return
+				}
+			}
+		})
+	}
+	if runtime.GOOS == "windows" || e.opts.PotPlayer != nil { // PotPlayer is Windows only; tests stand in for it anywhere
+		sources = append(sources, func(offer func(*core.Info) bool) {
+			query := potplayer.Query
+			if e.opts.PotPlayer != nil {
+				query = e.opts.PotPlayer
+			}
+			for _, in := range query() {
+				in.Player = "PotPlayer"
+				if offer(in) {
+					return
+				}
+			}
+		})
+	}
+	if cfg.KodiPassword != "" {
+		sources = append(sources, func(offer func(*core.Info) bool) { offer(e.fetchKodi(ctx, cfg)) })
+	}
+	return append(sources, e.remoteSource(ctx))
 }
 
 // lookingOn names the places a started engine looks for a player, for the log.
