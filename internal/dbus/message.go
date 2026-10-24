@@ -572,9 +572,13 @@ func (d *decoder) value(t string) (any, error) {
 		if elem[0] == '{' {
 			m := map[string]any{}
 			for d.off < end {
+				at := d.off
 				kv, err := d.value(elem)
 				if err != nil {
 					return nil, err
+				}
+				if d.off == at {
+					return nil, errShort // an entry of no size (a broken message) would loop for ever
 				}
 				pair := kv.([]any)
 				if len(pair) == 2 {

@@ -153,7 +153,7 @@ func (e *Engine) watchPlayers(r *run) {
 			if resting || busy {
 				continue
 			}
-			go func(s eventSource) { // on its own: a Kodi that does not answer must not hold up the others
+			Go(e.log, "The "+s.key+" watch", func() { // on its own: a Kodi that does not answer must not hold up the others
 				defer func() {
 					mu.Lock()
 					delete(watching, s.key)
@@ -169,7 +169,7 @@ func (e *Engine) watchPlayers(r *run) {
 				stop := context.AfterFunc(r.ctx, func() { c.Close() })
 				defer stop()
 				_ = watch()
-			}(s)
+			})
 		}
 		select {
 		case <-r.ctx.Done():

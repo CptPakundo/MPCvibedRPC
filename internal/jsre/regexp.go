@@ -1,9 +1,12 @@
 // Package jsre is a small regular-expression engine with JavaScript semantics.
 //
-// Go's regexp (RE2) has no lookahead or lookbehind, which the filename parser relies on, so this package
-// re-implements the JavaScript flavour that parser needs: backtracking, greedy/lazy and counted quantifiers,
-// lookahead and lookbehind, \p{L}-style properties (L, Lu, N, M), flags g i u. Anything else (backreferences,
-// named groups, the m and s flags, ...) is rejected by Compile. Text is handled as []rune, so indexes are code points.
+// Go's regexp (RE2) has no lookahead or lookbehind, which 16 of the program's patterns use (the filename parser in
+// core, one episode rule in artwork). The other patterns would run on RE2 as they are, but all of them were recorded
+// from the JavaScript original along with their results, so they all share this engine, which implements the
+// JavaScript flavour they need: backtracking, greedy/lazy and counted quantifiers, lookahead and lookbehind,
+// \p{L}-style properties (L, Lu, N, M), flags g i u. Anything else (backreferences, named groups, the m and s flags,
+// ...) is rejected by Compile. Text is handled as []rune, so indexes are code points. The package also holds the
+// Unicode normalisation tables (norm.go) that the standard library lacks.
 package jsre
 
 import (
@@ -564,7 +567,7 @@ func Compile(pattern, flags string) (*Regexp, error) {
 		return nil, fmt.Errorf("invalid regular expression /%s/: unmatched )", pattern)
 	}
 	re.ncap = p.ncap
-	re.root = re.compile(root, false)
+	re.root = re.compile(root)
 	return re, nil
 }
 
@@ -642,7 +645,7 @@ func (re *Regexp) single(n *node) func(rune) bool {
 	return nil
 }
 
-func (re *Regexp) compile(n *node, backward bool) matcher {
+func (re *Regexp) compile(n *node) matcher {
 	if pred := re.single(n); pred != nil && n.kind != nNonCap {
 		return func(s *state, i int, k func(int) bool) bool {
 			if i < len(s.in) && pred(s.in[i]) {
@@ -679,9 +682,9 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 			return false
 		}
 	case nNonCap:
-		return re.compile(n.subs[0], backward)
+		return re.compile(n.subs[0])
 	case nGroup:
-		inner := re.compile(n.subs[0], backward)
+		inner := re.compile(n.subs[0])
 		idx := n.idx
 		return func(s *state, i int, k func(int) bool) bool {
 			o0, o1 := s.caps[2*idx], s.caps[2*idx+1]
@@ -702,7 +705,7 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 	case nSeq:
 		ms := make([]matcher, len(n.subs))
 		for i, sub := range n.subs {
-			ms[i] = re.compile(sub, backward)
+			ms[i] = re.compile(sub)
 		}
 		var build func(idx int) matcher
 		build = func(idx int) matcher {
@@ -719,7 +722,7 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 	case nAlt:
 		ms := make([]matcher, len(n.subs))
 		for i, sub := range n.subs {
-			ms[i] = re.compile(sub, backward)
+			ms[i] = re.compile(sub)
 		}
 		return func(s *state, i int, k func(int) bool) bool {
 			for _, m := range ms {
@@ -730,7 +733,7 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 			return false
 		}
 	case nLook:
-		inner := re.compile(n.subs[0], false)
+		inner := re.compile(n.subs[0])
 		neg, behind := n.neg, n.behind
 		return func(s *state, i int, k func(int) bool) bool {
 			saved := append([]int(nil), s.caps...)
@@ -760,12 +763,12 @@ func (re *Regexp) compile(n *node, backward bool) matcher {
 			return false
 		}
 	case nQuant:
-		return re.compileQuant(n, backward)
+		return re.compileQuant(n)
 	}
 	panic("jsre: unknown node")
 }
 
-func (re *Regexp) compileQuant(n *node, backward bool) matcher {
+func (re *Regexp) compileQuant(n *node) matcher {
 	min, max, greedy := n.min, n.max, n.greedy
 	sub := n.subs[0]
 	if pred := re.single(sub); pred != nil {
@@ -804,7 +807,7 @@ func (re *Regexp) compileQuant(n *node, backward bool) matcher {
 			}
 		}
 	}
-	inner := re.compile(sub, backward)
+	inner := re.compile(sub)
 	capLo, capHi := n.capLo, n.capHi
 	var rep func(s *state, i int, k func(int) bool, count int) bool
 	rep = func(s *state, i int, k func(int) bool, count int) bool {

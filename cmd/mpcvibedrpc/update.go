@@ -94,7 +94,7 @@ func (a *app) autoInstall() bool {
 	if !a.upd.auto.CompareAndSwap(false, true) {
 		return true // already waiting
 	}
-	go func() {
+	engine.Go(a.log, "The automatic update", func() {
 		defer a.upd.auto.Store(false)
 		for !quietMoment(a.windows.Load(), a.eng.Status()) {
 			time.Sleep(autoWait)
@@ -102,7 +102,11 @@ func (a *app) autoInstall() bool {
 				return // switched off meanwhile, or installed by hand
 			}
 		}
-		latest := a.upd.newer().Latest
+		i := a.upd.newer()
+		if i == nil {
+			return // gone meanwhile: a check found nothing newer, or the settings were restored
+		}
+		latest := i.Latest
 		a.log("INFO", "Installing "+latest+" by itself (Install updates automatically is on).")
 		marker := filepath.Join(a.st.Dir, autoMarker)
 		_ = os.WriteFile(marker, []byte(version), 0o644)
@@ -110,7 +114,7 @@ func (a *app) autoInstall() bool {
 			_ = os.Remove(marker)
 			a.log("WARN", "The automatic update to "+latest+" failed: "+err.Error()+" The next check tries again.")
 		}
-	}()
+	})
 	return true
 }
 
@@ -142,11 +146,11 @@ func (a *app) scheduleUpdateChecks() {
 			})
 		}
 	})
-	go func() {
+	engine.Go(a.log, "The update check", func() {
 		for range time.Tick(6 * time.Hour) {
 			_, _ = a.checkUpdates(false)
 		}
-	}()
+	})
 }
 
 // installUpdate downloads the newer version, swaps it in and restarts into it.

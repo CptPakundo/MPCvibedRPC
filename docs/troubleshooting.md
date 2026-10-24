@@ -8,6 +8,7 @@ listed in [All settings](config.md).
 - The status line at the top of the window says what is going on. "No player found": press **Set up the player
   connection**. mpv and IINA read their settings when they start, so restart them afterwards.
 - IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
+- MPC-QT needs no setup (it is read through its own connection); MPC-BE is set up like MPC-HC, with the same button.
 - macOS 15 or later: a Plex, Jellyfin, Emby or Kodi server on your home network can't be reached until you allow
   it. Answer **Allow** when macOS asks, or turn MPCvibedRPC on under System Settings > Privacy & Security > Local
   Network.

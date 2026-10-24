@@ -11,6 +11,13 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
+// reset empties the list between tests.
+func reset() {
+	mu.Lock()
+	clear(hosts)
+	mu.Unlock()
+}
+
 // rt answers every request itself: nothing leaves the test.
 type rt struct{ urls []string }
 

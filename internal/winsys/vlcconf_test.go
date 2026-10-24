@@ -16,38 +16,38 @@ const vlcrcDefault = "\ufeff###\n###  vlc 3.0.24\n###\n\n" +
 
 func TestVlcrcValue(t *testing.T) {
 	text := vlcrcDefault + "extraintf=rc\r\nextraintf=http:rc\n#http-password=old\n"
-	if v, ok := VlcrcValue(text, "extraintf"); !ok || v != "http:rc" {
+	if v, ok := vlcrcValue(text, "extraintf"); !ok || v != "http:rc" {
 		t.Errorf("the last line wins, like in VLC: %q %v", v, ok)
 	}
-	if v, ok := VlcrcValue(text, "http-password"); ok {
+	if v, ok := vlcrcValue(text, "http-password"); ok {
 		t.Errorf("a commented line is not a value: %q", v)
 	}
-	if _, ok := VlcrcValue(text, "http"); ok {
+	if _, ok := vlcrcValue(text, "http"); ok {
 		t.Error("only whole keys match")
 	}
 }
 
 func TestSetVlcrcValue(t *testing.T) {
 	// next to VLC's commented default, in its own section
-	got := SetVlcrcValue(vlcrcDefault, "lua", "http-password", "pw")
+	got := setVlcrcValue(vlcrcDefault, "lua", "http-password", "pw")
 	if !strings.Contains(got, "#http-password=\nhttp-password=pw\n") || !strings.HasPrefix(got, "\ufeff###") {
 		t.Errorf("got:\n%s", got)
 	}
 	// an existing value is replaced in place
-	got = SetVlcrcValue(got, "lua", "http-password", "new")
+	got = setVlcrcValue(got, "lua", "http-password", "new")
 	if strings.Count(got, "http-password=") != 2 || !strings.Contains(got, "\nhttp-password=new\n") {
 		t.Errorf("got:\n%s", got)
 	}
 	// no commented default: at the top of the section
-	got = SetVlcrcValue("[core] # core program\r\n\r\n#other=1\r\n", "core", "extraintf", "http")
+	got = setVlcrcValue("[core] # core program\r\n\r\n#other=1\r\n", "core", "extraintf", "http")
 	if got != "[core] # core program\r\nextraintf=http\r\n\r\n#other=1\r\n" {
 		t.Errorf("CRLF kept, under the section: %q", got)
 	}
 	// no section either (or an empty file): one is added
-	if got = SetVlcrcValue("", "lua", "http-password", "pw"); got != "[lua]\nhttp-password=pw\n" {
+	if got = setVlcrcValue("", "lua", "http-password", "pw"); got != "[lua]\nhttp-password=pw\n" {
 		t.Errorf("empty file: %q", got)
 	}
-	if got = SetVlcrcValue("[qt]\nqt-x=1\n", "core", "extraintf", "http"); got != "[qt]\nqt-x=1\n\n[core]\nextraintf=http\n" {
+	if got = setVlcrcValue("[qt]\nqt-x=1\n", "core", "extraintf", "http"); got != "[qt]\nqt-x=1\n\n[core]\nextraintf=http\n" {
 		t.Errorf("new section: %q", got)
 	}
 }
@@ -78,11 +78,11 @@ func TestEnableVlcHTTP(t *testing.T) {
 				}
 				text := readFile(t, f)
 				for k, want := range map[string]string{"extraintf": "http", "http-password": r.Password, "http-host": "127.0.0.1"} {
-					if v, _ := VlcrcValue(text, k); v != want {
+					if v, _ := vlcrcValue(text, k); v != want {
 						t.Errorf("%s = %q, want %q", k, v, want)
 					}
 				}
-				if _, set := VlcrcValue(text, "http-port"); set {
+				if _, set := vlcrcValue(text, "http-port"); set {
 					t.Error("VLC's default port needs no line")
 				}
 				if !vlcReady(text) {
@@ -104,10 +104,10 @@ func TestEnableVlcHTTP(t *testing.T) {
 					t.Fatalf("got %+v", r)
 				}
 				out := readFile(t, f)
-				if v, _ := VlcrcValue(out, "extraintf"); v != "rc:http" {
+				if v, _ := vlcrcValue(out, "extraintf"); v != "rc:http" {
 					t.Errorf("extraintf = %q", v)
 				}
-				if v, _ := VlcrcValue(out, "http-host"); v != "192.168.1.5" {
+				if v, _ := vlcrcValue(out, "http-host"); v != "192.168.1.5" {
 					t.Errorf("http-host = %q", v)
 				}
 				if !strings.HasPrefix(out, "\ufeff") {
@@ -122,7 +122,7 @@ func TestEnableVlcHTTP(t *testing.T) {
 				if r.Password != "typed" || r.Port != 18080 {
 					t.Errorf("got %+v", r)
 				}
-				if v, _ := VlcrcValue(out, "http-port"); v != "18080" {
+				if v, _ := vlcrcValue(out, "http-port"); v != "18080" {
 					t.Errorf("http-port = %q", v)
 				}
 				if !strings.Contains(out, "#http-port=8080\nhttp-port=18080\n") {
@@ -138,7 +138,7 @@ func TestEnableVlcHTTP(t *testing.T) {
 				if !r.OK || r.Password == "" || strings.Contains(r.Message, "this PC only") {
 					t.Errorf("got %+v", r)
 				}
-				if _, set := VlcrcValue(out, "http-host"); set {
+				if _, set := vlcrcValue(out, "http-host"); set {
 					t.Error("a web interface the user had on keeps its address")
 				}
 			},

@@ -157,7 +157,7 @@ func (p *picker) result() *core.Info {
 type source func(offer func(*core.Info) bool)
 
 // fetchPlayer asks the web interface first (MPC-HC and MPC-BE only have that), then MPC-QT's pipe, mpv, IINA, VLC,
-// the MPRIS players, Plex, Stremio and last Jellyfin/Emby.
+// the MPRIS players, PotPlayer, Kodi, Plex, Stremio and last Jellyfin/Emby.
 func (e *Engine) fetchPlayer(ctx context.Context, cfg core.Config) *core.Info {
 	pipes := PlayerPipes
 	if e.opts.Pipes != nil {

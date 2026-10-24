@@ -1,6 +1,7 @@
 package diag
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -27,9 +28,43 @@ func TestRedact(t *testing.T) {
 		`[2026-01-01T00:00:00.000Z] WARN Could not read '/home/someone/.config/mpv/mpv.conf' (denied)`:         `[2026-01-01T00:00:00.000Z] WARN Could not read '<path>' (denied)`,
 		`[2026-01-01T00:00:00.000Z] INFO Following the Plex server "Someone's PC".`:                            `[2026-01-01T00:00:00.000Z] INFO Following the Plex server "…".`,
 		`[2026-01-01T00:00:00.000Z] INFO Looking for mpv under the name it is set up with: /tmp/x/mpv-socket.`: `[2026-01-01T00:00:00.000Z] INFO Looking for mpv under the name it is set up with: <path>`,
+		// any Unix path of two or more parts, a home-folder path and a file: address go too
+		`[2026-01-01T00:00:00.000Z] WARN Could not read /root/.config/mpv/mpv.conf: denied`:                `[2026-01-01T00:00:00.000Z] WARN Could not read <path>: denied`,
+		`[2026-01-01T00:00:00.000Z] WARN Could not read ~/.config/mpv/mpv.conf: denied`:                    `[2026-01-01T00:00:00.000Z] WARN Could not read <path>: denied`,
+		`[2026-01-01T00:00:00.000Z] WARN Could not read "/data/media/Sample Show/x.mkv" for "Sample Show"`: `[2026-01-01T00:00:00.000Z] WARN Could not read "<path>" for "Sample Show"`,
+		`[2026-01-01T00:00:00.000Z] WARN fetch file:///home/someone/fake/x failed`:                         `[2026-01-01T00:00:00.000Z] WARN fetch file://<path> failed`,
+		// a computer on the home network is replaced; a title with a slash and the loopback address stay
+		`[2026-01-01T00:00:00.000Z] WARN Jellyfin: dial tcp 192.168.1.20:8096: connection refused`:         `[2026-01-01T00:00:00.000Z] WARN Jellyfin: dial tcp <address>: connection refused`,
+		`[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show 24/7 · S01E02 (mpv: "Sample.Show.24-7.mkv")`: `[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show 24/7 · S01E02 (mpv: "Sample.Show.24-7.mkv")`,
+		`[2026-01-01T00:00:00.000Z] INFO Kodi answered at 127.0.0.1:8080.`:                                 `[2026-01-01T00:00:00.000Z] INFO Kodi answered at 127.0.0.1:8080.`,
 	} {
 		if got := Redact(in); got != want {
 			t.Errorf("Redact(%q)\n got %q\nwant %q", in, got, want)
+		}
+	}
+}
+
+// Every setting whose name says it holds a sign-in, a key, a password, an address or an account is summarised as
+// "(set)", so a new one cannot leak by being forgotten in privateKeys.
+func TestPrivateKeysCoverEverySignIn(t *testing.T) {
+	// names that sound private but hold nothing personal: Discord image names, a switch, a product name, a folder rule
+	public := map[string]bool{"largeImageKey": true, "smallImageKey": true, "plexJwt": true, "jellyfinProduct": true, "useFolderName": true}
+	words := []string{"token", "key", "password", "address", "user", "account", "server", "secret", "device"}
+	rt := reflect.TypeOf(core.Config{})
+	for i := 0; i < rt.NumField(); i++ {
+		tag := strings.Split(rt.Field(i).Tag.Get("json"), ",")[0]
+		lower := strings.ToLower(tag)
+		private := false
+		for _, w := range words {
+			private = private || strings.Contains(lower, w)
+		}
+		if private && !public[tag] && !privateKeys[tag] {
+			t.Errorf("%s sounds like a sign-in or a server but Copy diagnostics would show its value: add it to privateKeys (or to this test's public list)", tag)
+		}
+	}
+	for k := range public {
+		if privateKeys[k] {
+			t.Errorf("%s is both public here and in privateKeys", k)
 		}
 	}
 }

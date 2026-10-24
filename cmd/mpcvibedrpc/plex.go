@@ -66,8 +66,10 @@ func (p *plexAccount) signIn() (map[string]any, error) {
 	}
 	u := c.AuthURL(pin)
 	wctx, wcancel := p.begin(30*time.Minute, u) // plex.tv's codes last 30 minutes
-	go p.poll(wctx, wcancel, p.every, p.log, "The Plex sign-in was not approved in time. Press Sign in to Plex to try again.",
-		func() (bool, string) { return p.check(wctx, c, pin, key) })
+	engine.Go(p.log, "The Plex sign-in", func() {
+		p.poll(wctx, wcancel, p.every, p.log, "The Plex sign-in was not approved in time. Press Sign in to Plex to try again.",
+			func() (bool, string) { return p.check(wctx, c, pin, key) })
+	})
 	openPage(p.openURL, u)
 	p.log("INFO", "Waiting for the Plex sign-in to be approved in the browser.")
 	return p.state(), nil
@@ -158,7 +160,14 @@ func (p *plexAccount) choose(id string) error {
 	}
 	for _, s := range list {
 		if s["id"] == id {
-			if err := p.st.SetHidden([]string{"plexServer", "plexServerName"}, map[string]any{"plexServer": id, "plexServerName": s["name"]}); err != nil {
+			// under the saving lock, so a sign-out at the same moment cannot be followed by this write
+			p.saving.Lock()
+			err := errors.New("You are signed out of Plex.")
+			if p.st.Config().PlexToken != "" {
+				err = p.st.SetHidden([]string{"plexServer", "plexServerName"}, map[string]any{"plexServer": id, "plexServerName": s["name"]})
+			}
+			p.saving.Unlock()
+			if err != nil {
 				return err
 			}
 			applySettings(p.st, p.eng)
@@ -210,10 +219,18 @@ func (p *plexAccount) renew(ctx context.Context) {
 		p.log("WARN", "Could not renew the Plex sign-in ("+err.Error()+"); trying again later.")
 		return
 	}
-	if p.st.Config().PlexToken != cfg.PlexToken { // signed out or in again meanwhile
+	// The check and the write happen under the saving lock, which a sign-out holds too: a sign-out between them
+	// would otherwise leave the new token behind with no account.
+	p.saving.Lock()
+	same := p.st.Config().PlexToken == cfg.PlexToken // else signed out or in again meanwhile
+	if same {
+		err = p.st.SetHidden([]string{"plexToken"}, map[string]any{"plexToken": token})
+	}
+	p.saving.Unlock()
+	if !same {
 		return
 	}
-	if err := p.st.SetHidden([]string{"plexToken"}, map[string]any{"plexToken": token}); err != nil {
+	if err != nil {
 		p.log("WARN", "Could not save the renewed Plex sign-in: "+err.Error())
 		return
 	}
@@ -223,9 +240,7 @@ func (p *plexAccount) renew(ctx context.Context) {
 
 // signOut forgets the sign-in (the token is removed from the settings file).
 func (p *plexAccount) signOut() error {
-	p.stopWaiting()
-	p.clearProblem()
-	if err := p.st.SetHidden(plexSignIn, map[string]any{}); err != nil {
+	if err := p.forget(func() error { return p.st.SetHidden(plexSignIn, map[string]any{}) }); err != nil {
 		return err
 	}
 	applySettings(p.st, p.eng)

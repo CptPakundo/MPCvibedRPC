@@ -101,8 +101,8 @@ func TestActivityAgainstJS(t *testing.T) {
 		}
 	}
 	for _, f := range g.FT {
-		if got := FmtTime(f.Ms); got != f.Out {
-			t.Errorf("FmtTime(%d)=%q want %q", f.Ms, got, f.Out)
+		if got := fmtTime(f.Ms); got != f.Out {
+			t.Errorf("fmtTime(%d)=%q want %q", f.Ms, got, f.Out)
 		}
 	}
 	for _, p := range g.PB {

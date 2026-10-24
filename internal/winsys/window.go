@@ -9,8 +9,8 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
 )
 
-// FindBrowser returns Edge/Chrome/Brave/Vivaldi if installed.
-func FindBrowser() string {
+// findBrowser returns Edge/Chrome/Brave/Vivaldi if installed.
+func findBrowser() string {
 	if !IsWindows {
 		return findBrowserUnix()
 	}
@@ -51,7 +51,7 @@ func start(c *exec.Cmd) bool {
 // gets a browser profile of its own, so the user's regular profile is left alone and no background browser outlives
 // the window; CloseWindowBrowser(profileDir) ends it. MPCRPC_BROWSER names the browser to use instead, or "none".
 func OpenWindow(url, profileDir string) string {
-	b := FindBrowser()
+	b := findBrowser()
 	switch v := os.Getenv("MPCRPC_BROWSER"); v {
 	case "":
 	case "none":

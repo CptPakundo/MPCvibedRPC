@@ -1,6 +1,7 @@
 // Package updater updates the program from GitHub Releases. Publish a release whose tag is a version ("v1.2.0")
-// with the program for each system (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...; see AssetFor) and optionally a
-// .sha256 next to each; the app offers it, downloads it and swaps itself in. On macOS it only offers the release page.
+// with the program for each system (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...; see AssetFor) and a .sha256 next
+// to each (without one the app only links to the release); the app offers it, downloads it and swaps itself in. On
+// macOS it only offers the release page.
 package updater
 
 import (

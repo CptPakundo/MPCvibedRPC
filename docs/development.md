@@ -20,7 +20,7 @@ The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
 `go test ./...` runs everything: the parsers, artwork matching and activity builder are checked against recorded reference output
 (tens of thousands of cases, stored as test data in each package's `testdata/`), the engine against a fake MPC-HC, a fake mpv, a fake VLC, a fake Plex, a fake Stremio, a fake Jellyfin / Emby and a fake Discord, and the
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
-program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, a real Plex Media Server, and the official Jellyfin and Emby server images: `tools/ci/live-jellyfin.sh jellyfin|emby`) and macOS (mpv, and IINA after the program has set it up).
+program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, a real Plex Media Server, and the official Jellyfin and Emby server images: `tools/ci/live-jellyfin.sh jellyfin|emby`), macOS (mpv, and IINA after the program has set it up) and Windows (PotPlayer and Kodi). Once a week the canary (`.github/workflows/canary.yml`) runs all of it against the newest players, server images and catalog services and opens an issue when something outside changed.
 
 Running a copy that cannot touch an installed one: `MPCRPC_HOME` gives it its own data folder (and its own
 run-at-login entry), and `MPCRPC_BROWSER` names the browser to show the window in (one that understands `--app`), or
@@ -33,15 +33,17 @@ To publish a version:
    it from there), the version's lines at the top of `internal/assets/changelog.json` (the window shows them once
    after the update; a test checks that the newest entry is the version being built), and `.github/release-notes.md`,
    which becomes the release text.
-2. `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z` - the workflow in
+2. The change goes through a pull request whose CI is green and is merged; then
+   `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z` - the workflow in
    `.github/workflows/release.yml` checks that the tag matches the version, runs the tests, builds the programs on
    Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, resting while Discord is
    closed, DPI awareness, version details, autostart, self-update; macOS and Linux: the API, login item, player setup, a
    second start, and on macOS opening the app like the Finder does) and attaches them with their `.sha256` files and
    build records to a release that is still a draft.
-3. Then it checks the draft as a user would get it (`tools/ci/verify-release.ps1`): the ten files, each program's
-   checksum and build record, the exe's version. Only then is the release made public, and a real self-update from the
-   release before it is tried.
+3. A second runner rebuilds the Windows and Linux programs from the tag (`tools/ci/reproduce.sh`); each must match
+   the release's file byte for byte. Then the draft is checked as a user would get it (`tools/ci/verify-release.ps1`):
+   the ten files, each program's checksum and build record, the exe's version. Only then is the release made public,
+   and a real self-update from the release before it is tried.
 
 ## Screenshots
 The README's pictures (`docs/images/window-*.jpg`) are taken again when the part of the window they show changes:
@@ -73,6 +75,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/jellyfin` | Jellyfin and Emby: the Quick Connect or password sign-in and sign-out (`account.go`), the server's session list (`watcher.go`), titles written as file names (`meta.go`); read-only. The window's sign-in handlers are in `cmd/mpcvibedrpc/jellyfin.go` |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share (problem text, network-error wording, the OS name) |
 | `internal/conns` | **Recent connections** on the Privacy tab: requests to other computers counted by host |
+| `internal/proc` | starting a helper process hidden (Windows) or detached from this one (the window's browser, the macOS copy that keeps running) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
 | `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/diag` | **Copy diagnostics**: the report, with folder paths, addresses, server names and sign-ins left out |

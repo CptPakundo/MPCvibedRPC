@@ -226,8 +226,8 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 		// control and file browser) to the whole network. A web interface the user had on already keeps their choice.
 		wasOn := regDword(p.regKey, p.enableKey) == 1
 		for _, f := range inis {
-			if text, _, err := ReadIni(f); err == nil {
-				if v, found := GetIniValue(text, p.section, p.enableKey); found && v == "1" {
+			if text, _, err := readIni(f); err == nil {
+				if v, found := getIniValue(text, p.section, p.enableKey); found && v == "1" {
 					wasOn = true
 				}
 			}
@@ -240,16 +240,16 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 			run("reg", "add", p.regKey, "/v", p.localKey, "/t", "REG_DWORD", "/d", "1", "/f")
 		}
 		for _, f := range inis {
-			text, u16, err := ReadIni(f)
+			text, u16, err := readIni(f)
 			if err != nil {
 				continue
 			}
-			t := SetIniValue(text, p.section, p.enableKey, "1")
-			t = SetIniValue(t, p.section, p.portKey, prt)
+			t := setIniValue(text, p.section, p.enableKey, "1")
+			t = setIniValue(t, p.section, p.portKey, prt)
 			if !wasOn {
-				t = SetIniValue(t, p.section, p.localKey, "1")
+				t = setIniValue(t, p.section, p.localKey, "1")
 			}
-			if WriteIni(f, t, u16) == nil { // read-only install folder: the registry value still applies when no ini exists
+			if writeIni(f, t, u16) == nil { // read-only install folder: the registry value still applies when no ini exists
 				edited = append(edited, f)
 			}
 		}

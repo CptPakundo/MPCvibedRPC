@@ -12,7 +12,8 @@ MPCvibedRPC is AI-generated ("vibe coded"). This page says what that means here,
 
 ## How the work is checked
 Nobody reads every line by hand, so the checks have to be real:
-- Unit tests for every package, and engine tests against a fake Discord and fake players, on Windows, macOS and Linux.
+- Unit tests for every package with logic of its own, and engine tests against a fake Discord and fake players, on
+  Windows, macOS and Linux.
 - Live tests on CI against real players (mpv, VLC, Celluloid, IINA, PotPlayer, Kodi) and real media servers (Plex,
   Jellyfin, Emby), each started fresh on a throwaway runner with made-up test videos.
 - A weekly run against the newest players, servers and catalog services, which opens an issue when something outside

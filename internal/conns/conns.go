@@ -112,10 +112,3 @@ func List() []Entry {
 	})
 	return out
 }
-
-// reset empties the list (tests).
-func reset() {
-	mu.Lock()
-	clear(hosts)
-	mu.Unlock()
-}

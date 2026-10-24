@@ -18,7 +18,7 @@ func (e *Engine) connectDiscord(r *run) {
 	cfg := e.cfg
 	e.mu.Unlock()
 
-	go func() {
+	Go(e.log, "The Discord connection", func() {
 		var client *discord.Client
 		if e.opts.NewDiscord != nil {
 			client = e.opts.NewDiscord()
@@ -59,8 +59,9 @@ func (e *Engine) connectDiscord(r *run) {
 		e.prev = nil
 		e.mu.Unlock()
 		e.log("INFO", "Connected to Discord.")
+		e.Wake() // the status goes up now, not at the next check
 
-		go func() {
+		Go(e.log, "The Discord connection watch", func() {
 			select {
 			case <-client.Done():
 			case <-r.ctx.Done():
@@ -74,8 +75,8 @@ func (e *Engine) connectDiscord(r *run) {
 			e.ready, e.rpc, e.shown, e.prev, e.preview = false, nil, false, nil, nil
 			e.mu.Unlock()
 			e.log("WARN", "Lost connection to Discord. Will reconnect when needed.")
-		}()
-	}()
+		})
+	})
 }
 
 // sendActivity shows a on Discord and returns what was sent. Only a refusal by Discord changes the mode: one that
