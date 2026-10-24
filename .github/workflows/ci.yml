@@ -21,9 +21,11 @@ on:
   workflow_call: # the weekly canary (canary.yml) runs all of it against the newest players and servers
 permissions:
   contents: read
-# A newer push to the same branch or pull request replaces a run that is still going.
+# A newer push to the same branch or pull request replaces a run that is still going. The event's action is part of
+# the group, so a pull request's later pushes (synchronize) never cancel the run its opening started: that is the one
+# with the live jobs.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event.action || github.event_name }}
   cancel-in-progress: true
 jobs:
   test:
