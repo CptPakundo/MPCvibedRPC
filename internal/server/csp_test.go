@@ -22,6 +22,15 @@ func TestPolicyAllowsCoverImages(t *testing.T) {
 			t.Errorf("policy lacks %q", d)
 		}
 	}
+	// no inline script or style: the page is a file, a style sheet and a script from this server
+	for _, d := range []string{"style-src 'self'", "script-src 'self'"} {
+		if !strings.Contains(csp, d) {
+			t.Errorf("policy lacks %q", d)
+		}
+	}
+	if strings.Contains(csp, "unsafe-") {
+		t.Fatalf("policy allows inline or eval code: %q", csp)
+	}
 	if strings.Contains(csp, "connect-src") || strings.Contains(img, "http:") || strings.Contains(img, "*") {
 		t.Fatalf("policy is wider than needed: %q", csp)
 	}

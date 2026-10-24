@@ -1,29 +1,36 @@
-# Tests on Linux (with the race detector), Windows and macOS, then builds the program for each system and smoke-tests
-# it for real, and runs the engine against real players on Linux and macOS.
+# Every push: tests on Linux (with the race detector, gofmt, govulncheck, staticcheck and deadcode), Windows and macOS,
+# then the programs built for each system and smoke-tested for real, and the Windows exe rebuilt on Linux to prove it
+# is reproducible. Once per pull request (when it is opened, reopened or marked ready; also by hand, and in the weekly
+# canary): the live jobs, which install real players and real media servers on throwaway runners and run the engine
+# against them. A pull request's later pushes run only the fast jobs; the canary runs everything against the newest
+# players and servers every week.
 name: ci
 on:
-  # A change to documentation only (the README and other top-level .md files, docs/, the issue templates, the release
-  # notes) changes nothing that is built or run, so it is not tested; a change that also touches anything else is.
-  # master is not tested on push: its commits come from a pull request whose branch was tested, and the release run
-  # tests the tagged commit again before anything is published.
+  # A change to documentation only (the README and other top-level .md files, docs/, the issue templates) changes
+  # nothing that is built or run, so it is not tested; a change that also touches anything else is. master is not
+  # tested on push: its commits come from a pull request whose branch was tested, and the release run tests the tagged
+  # commit again before anything is published.
   push:
     branches: ['**', '!master']
     tags-ignore: ['v*']
-    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**', '.github/release-notes.md']
+    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**']
   pull_request:
-    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**', '.github/release-notes.md']
+    types: [opened, reopened, ready_for_review, synchronize]
+    paths-ignore: ['*.md', 'docs/**', '.github/ISSUE_TEMPLATE/**']
   workflow_dispatch:
   workflow_call: # the weekly canary (canary.yml) runs all of it against the newest players and servers
 permissions:
   contents: read
-# A newer push to the same branch or pull request replaces a run that is still going.
+# A newer push to the same branch or pull request replaces a run that is still going. The event's action is part of
+# the group, so a pull request's later pushes (synchronize) never cancel the run its opening started: that is the one
+# with the live jobs.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event.action || github.event_name }}
   cancel-in-progress: true
 jobs:
   test:
     # A pull request from this repository is already tested by the push of its branch; only pull requests from forks
-    # (which get no push run here) are tested through the pull_request event. The other jobs need this one.
+    # (which get no push run here) are tested through the pull_request event. The build jobs need this one.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
@@ -34,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/run-annotated.sh "go vet" go vet ./...
         shell: bash
       - name: gofmt
@@ -59,42 +66,25 @@ jobs:
         run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -race -count=1 ./...
         shell: bash
       - name: Test
-        if: runner.os == 'macOS'
-        run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
-        shell: bash
-      - name: Test
-        if: runner.os == 'Windows'
+        if: runner.os != 'Linux'
         run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
         shell: bash
 
+  # The Windows exe as a release builds it (.github/actions/build-windows), smoke-tested for real.
   windows:
     needs: test
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      # the files as the repository has them (LF), and no cgo: the same input and build as the Linux rebuild
-      # in release.yml (reproduce)
+      # the files as the repository has them (LF), and no cgo: the same input and build as the Linux rebuild below
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
-      - name: Build
-        shell: pwsh
-        run: |
-          $env:CGO_ENABLED = '0'
-          New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version $env:VERSION -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$env:VERSION" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
-          go run ./tools/mkrsrc -version $env:NEXT -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$env:NEXT" -o dist/next.exe ./cmd/mpcvibedrpc
-          Get-ChildItem dist | Format-Table Name, Length
-          Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
-          git ls-files --eol | Select-String "w/crlf" | Select-Object -First 3 # must be none (reproduce)
-      - name: Smoke test
-        shell: pwsh
-        run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $env:VERSION -NextVersion $env:NEXT
+      - uses: ./.github/actions/build-windows
+        with: { version: "${{ env.VERSION }}", next: "${{ env.NEXT }}" }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MPCvibedRPC-windows
@@ -109,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -120,7 +110,8 @@ jobs:
         shell: bash
         run: ./tools/ci/reproduce.sh "$VERSION" rebuilt && ./tools/ci/reproduce.sh compare windows/MPCvibedRPC.exe rebuilt/MPCvibedRPC.exe
 
-  # The Linux programs and the macOS app, built as a release builds them, then started for real in throwaway folders.
+  # The Linux programs and the macOS app as a release builds them (.github/actions/build-unix), started for real in
+  # throwaway folders.
   unix:
     needs: test
     strategy:
@@ -132,37 +123,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
         shell: bash
-      - name: Build (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          mkdir -p dist
-          for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$VERSION" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
-          done
-          ls -l dist
-          echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
-      - name: Smoke test (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$VERSION"
-          test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
-        shell: bash
-      - name: Build (macOS app)
-        if: runner.os == 'macOS'
-        run: ./tools/ci/package-macos.sh "$VERSION" dist
-        shell: bash
-      - name: Smoke test (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
-          app="$RUNNER_TEMP/app/MPCvibedRPC.app"
-          SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" "$VERSION" "$app"
-          test -f "$RUNNER_TEMP/smoke-ok" || { echo "::error title=smoke test::the script stopped before the end"; exit 1; }
+      - uses: ./.github/actions/build-unix
+        with: { version: "${{ env.VERSION }}" }
       - name: Screenshot of the settings window and menu bar (macOS)
         if: always() && runner.os == 'macOS'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -175,10 +140,12 @@ jobs:
           name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
           path: dist/*
 
+  # The live jobs below run once per pull request (opened, reopened or marked ready), by hand, and from the canary: not
+  # on every push, which the fast jobs above cover. They need no job before them; each installs what it tests.
   # The engine against real players (the test's own fake Discord): mpv, VLC, mpv-mpris and Celluloid on Linux; mpv
   # and IINA (set up by the real program) on macOS.
   players:
-    needs: test
+    if: github.event_name != 'push' && !(github.event_name == 'pull_request' && github.event.action == 'synchronize')
     strategy:
       fail-fast: false
       matrix:
@@ -188,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - name: Install players (Linux)
         timeout-minutes: 10 # a slow package mirror once hung here
         if: runner.os == 'Linux'
@@ -210,31 +177,28 @@ jobs:
         run: |
           bus=""; [ "$RUNNER_OS" = Linux ] && bus="dbus-run-session --"
           PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players" $bus ./tools/ci/live-players.sh
-          test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players::the script stopped before the end"; exit 1; }
         shell: bash
   # The engine against real PotPlayer and Kodi on Windows (installed from Chocolatey; the test's own fake Discord).
   players-windows:
-    needs: test
+    if: github.event_name != 'push' && !(github.event_name == 'pull_request' && github.event.action == 'synchronize')
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - name: Live tests (PotPlayer, Kodi)
         timeout-minutes: 20
-        run: |
-          PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players (Windows)" ./tools/ci/live-windows.sh
-          test -f "$RUNNER_TEMP/live-ok" || { echo "::error title=live players (Windows)::the script stopped before the end"; exit 1; }
+        run: PASSED_FILE="$RUNNER_TEMP/live-ok" ./tools/ci/run-annotated.sh "live players (Windows)" ./tools/ci/live-windows.sh
         shell: bash
   plex:
-    needs: test
+    if: github.event_name != 'push' && !(github.event_name == 'pull_request' && github.event.action == 'synchronize')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
         run: |
@@ -242,12 +206,10 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
       - name: Live test (Plex Media Server)
         # the official server image, unclaimed; a stand-in player reports playback to it
-        run: |
-          PASSED_FILE="$RUNNER_TEMP/plex-ok" ./tools/ci/run-annotated.sh "live Plex" ./tools/ci/live-plex.sh
-          test -f "$RUNNER_TEMP/plex-ok" || { echo "::error title=live Plex::the script stopped before the end"; exit 1; }
+        run: PASSED_FILE="$RUNNER_TEMP/plex-ok" ./tools/ci/run-annotated.sh "live Plex" ./tools/ci/live-plex.sh
         shell: bash
   jellyfin:
-    needs: test
+    if: github.event_name != 'push' && !(github.event_name == 'pull_request' && github.event.action == 'synchronize')
     strategy:
       fail-fast: false
       matrix:
@@ -257,7 +219,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - name: Install ffmpeg
         timeout-minutes: 10
         run: |
@@ -265,7 +227,7 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
       - name: Live test (${{ matrix.server }})
         # the official server image, set up with a made-up user; a stand-in player reports playback to it
-        run: |
-          PASSED_FILE="$RUNNER_TEMP/jf-ok" ./tools/ci/run-annotated.sh "live ${{ matrix.server }}" ./tools/ci/live-jellyfin.sh ${{ matrix.server }}
-          test -f "$RUNNER_TEMP/jf-ok" || { echo "::error title=live ${{ matrix.server }}::the script stopped before the end"; exit 1; }
+        env:
+          SERVER: ${{ matrix.server }}
+        run: PASSED_FILE="$RUNNER_TEMP/jf-ok" ./tools/ci/run-annotated.sh "live $SERVER" ./tools/ci/live-jellyfin.sh "$SERVER"
         shell: bash

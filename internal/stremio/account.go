@@ -14,6 +14,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
 
 var (
@@ -25,7 +28,7 @@ var (
 
 // Client talks to Stremio's account services.
 type Client struct {
-	HTTP *http.Client // nil = http.DefaultClient
+	HTTP *http.Client // nil = remote.NewClient (a 20-second limit, no redirect to another host)
 	// Where the services are; tests point these at a fake. Empty means the real services.
 	APIBase  string // https://api.strem.io
 	LinkBase string // https://link.stremio.com
@@ -45,11 +48,15 @@ func (c *Client) link() string {
 	return "https://link.stremio.com"
 }
 
+// defaultHTTP is the shared client (internal/remote): the account key travels in POST bodies, which Go sends again on
+// a 307 or 308, so a redirect to another host is refused.
+var defaultHTTP = remote.NewClient(20 * time.Second)
+
 func (c *Client) http() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return http.DefaultClient
+	return defaultHTTP
 }
 
 // apiError is how Stremio's services answer a request they refuse: {"error":{"message":..,"code":..}}.
@@ -70,7 +77,7 @@ func (c *Client) call(ctx context.Context, method, u string, body any, v any) er
 		}
 		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, u, rd)
+	req, err := http.NewRequest(method, u, rd)
 	if err != nil {
 		return err
 	}
@@ -78,12 +85,7 @@ func (c *Client) call(ctx context.Context, method, u string, body any, v any) er
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	res, err := c.http().Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, 16<<20))
+	res, raw, err := remote.Fetch(ctx, c.http(), req, 16<<20)
 	if err != nil {
 		return err
 	}

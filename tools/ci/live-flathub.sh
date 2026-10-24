@@ -4,11 +4,10 @@
 # through MPRIS, each with the test's own fake Discord, and a pause that must show at once. The weekly canary runs it, inside a session bus
 # of its own:   dbus-run-session -- tools/ci/live-flathub.sh
 set -euo pipefail
+. "$(dirname "$0")/lib.sh"
 videos="$HOME/Videos" # VLC may read it; Celluloid is given it below (its sandbox opens only what it is given)
-mkdir -p "$videos"
 video="$videos/Sample Show S01E02.mkv"
-ffmpeg -loglevel error -f lavfi -i "testsrc=duration=600:size=320x240:rate=5" -f lavfi -i "sine=duration=600" \
-  -c:v libx264 -preset ultrafast -c:a aac -shortest "$video"
+ci_video "$video"
 app="" # the player started last
 cleanup() { [ -z "$app" ] || flatpak kill "$app" 2> /dev/null || true; }
 trap cleanup EXIT
@@ -20,8 +19,6 @@ live() {
     MPCRPC_LIVE_MPV_PIPE=/nonexistent/none MPCRPC_LIVE_EVENTS=mpris ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { flatpak kill "$app" 2> /dev/null || true; app=""; sleep 2; }
-wait_socket() { for _ in $(seq 1 240); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
-wait_bus() { for _ in $(seq 1 240); do dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames | grep -qE "\"$1" && return 0; sleep 0.25; done; echo "$1 is not on the bus"; return 1; }
 
 # wait_playing NAME-PATTERN: the player's MPRIS PlaybackStatus must become Playing (else it shows what it says)
 wait_playing() {
@@ -48,16 +45,16 @@ stop_last
 
 app=org.videolan.VLC
 xvfb-run -a flatpak run --command=vlc "$app" --intf dummy --extraintf dbus --no-video --aout dummy --loop "$video" > /dev/null 2>&1 &
-wait_bus org.mpris.MediaPlayer2.vlc
+wait_bus org.mpris.MediaPlayer2.vlc 240 # a Flathub player starts slowly the first time
 live VLC
 stop_last
 
 app=io.github.celluloid_player.Celluloid
 xvfb-run -a flatpak run --filesystem="$videos:ro" "$app" --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
-wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid"
+wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid" 240
 wait_playing "org.mpris.MediaPlayer2.*[Cc]elluloid"
 live Celluloid
 stop_last
 
 echo "live Flathub player tests passed"
-[ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE" # proof for CI that the script got to the end
+done_file

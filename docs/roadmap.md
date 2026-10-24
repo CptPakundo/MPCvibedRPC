@@ -77,7 +77,9 @@ release by hand, and winget needs one pull request per version. Frequent release
   `docs/decisions.md` (the non-goals stay below).
 - A short note on how AI was used (a file, not a banner) and an AI and pull-request section in CONTRIBUTING.md.
   Done in 0.9.34: `docs/ai.md`, linked once from the README.
-- Size limits: no dependencies, short functions.
+- Size limits: no dependencies, short functions. Since 0.9.43 two code analysers (staticcheck, deadcode) run on every
+  change, and 0.9.44 split the four longest functions (the activity builder, the engine's check, the player order and
+  the player setup) into named steps; a checkup of the whole project on 2026-10-24 is what the two releases came from.
 
 ### 7. Depth in the core, not breadth
 - Sturdier catalog services, without losing coverage. The many catalogs are there on purpose (the owner's

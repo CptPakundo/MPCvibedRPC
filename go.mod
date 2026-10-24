@@ -1,3 +1,3 @@
 module github.com/CptPakundo/MPCvibedRPC
 
-go 1.27
+go 1.27.3

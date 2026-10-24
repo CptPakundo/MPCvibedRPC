@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -44,8 +43,16 @@ func GetAutoStart(exe string) bool {
 	if !IsWindows {
 		return getLoginItem(exe)
 	}
-	r := run("reg", "query", runKey, "/v", runName())
-	return r.ok && strings.Contains(strings.ToLower(r.stdout), strings.ToLower(filepath.Base(exe)))
+	data, ok := registryRunValue(runName())
+	return ok && runEntryNames(data, exe)
+}
+
+// runEntryNames says whether the Run entry's command line names a program file with the same name as exe (case does
+// not matter; the folder is not compared).
+func runEntryNames(command, exe string) bool {
+	// the file's name after the last separator of either kind: a Windows path is compared on every system (tests)
+	name := exe[strings.LastIndexAny(exe, `\/`)+1:]
+	return name != "" && strings.Contains(strings.ToLower(command), strings.ToLower(name))
 }
 
 // SetAutoStart adds or removes the registry entry (or the login item).

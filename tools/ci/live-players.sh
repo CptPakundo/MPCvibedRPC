@@ -4,11 +4,11 @@
 # macOS: mpv over its IPC socket, then IINA after the real program has set it up ("Set up the player connection").
 # Linux runs it inside its own session bus:   dbus-run-session -- tools/ci/live-players.sh
 set -euo pipefail
+. "$(dirname "$0")/lib.sh"
 os="$(uname -s)"
 work="$(mktemp -d)"
 video="$work/Sample Show S01E02.mkv"
-ffmpeg -loglevel error -f lavfi -i "testsrc=duration=600:size=320x240:rate=5" -f lavfi -i "sine=duration=600" \
-  -c:v libx264 -preset ultrafast -c:a aac -shortest "$video"
+ci_video "$video"
 tmp="${TMPDIR:-/tmp}"; tmp="${tmp%/}"
 pid="" # the player started last (one at a time; macOS has bash 3.2, so no arrays)
 cleanup() { [ -z "$pid" ] || kill "$pid" 2> /dev/null || true; }
@@ -21,8 +21,6 @@ live() {
   bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
-wait_socket() { for _ in $(seq 1 240); do [ -S "$1" ] && return 0; sleep 0.25; done; echo "no socket at $1"; return 1; }
-wait_bus() { for _ in $(seq 1 80); do dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames | grep -qE "\"$1" && return 0; sleep 0.25; done; echo "$1 is not on the bus"; return 1; }
 
 # mpv over its IPC socket (both systems)
 mpv --no-config --vo=null --ao=null --loop-file=inf --input-ipc-server="$tmp/mpvsocket" "$video" > /dev/null 2>&1 &
@@ -48,7 +46,7 @@ if [ "$os" = Linux ]; then
 
   xvfb-run -a celluloid --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
   pid=$!
-  wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid"
+  wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid" 240 # Celluloid's first start on a fresh runner once took over 20 s
   live Celluloid "$none" MPCRPC_LIVE_EVENTS=mpris
   stop_last
   pkill -x celluloid || true # xvfb-run does not pass the signal on
@@ -98,4 +96,4 @@ else
   pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
 echo "live player tests passed"
-[ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE" # proof for CI that the script got to the end
+done_file

@@ -5,7 +5,8 @@
 # (a pull request that changes the canary, a run started by hand).
 set -euo pipefail
 failed="$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "- \(.key): \(.value.result)"')"
-open="$(gh issue list --label canary --state open --json number --jq '.[0].number // empty' 2> /dev/null || true)"
+# A failed listing must not pass for "no issue is open": it would open a second issue, or never close the old one.
+open="$(gh issue list --label canary --state open --json number --jq '.[0].number // empty')" || { echo "::error title=canary report::could not list the canary issues"; exit 1; }
 run() { if [ "${REPORT:-}" = 1 ]; then "$@"; else printf 'would run:'; printf ' %q' "$@"; echo; fi; }
 
 if [ -n "$failed" ]; then

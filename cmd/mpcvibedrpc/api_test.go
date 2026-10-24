@@ -12,7 +12,7 @@ import (
 // Every endpoint the settings page calls exists.
 func TestEveryWindowCallHasAHandler(t *testing.T) {
 	h := (&app{}).handlers()
-	page := string(assets.UI)
+	page := assets.UI + assets.JS
 	names := []string{"start", "stop"} // chosen by the Show on Discord button
 	for _, c := range regexp.MustCompile(`(?:api|act)\('([a-z-]+)'`).FindAllStringSubmatch(page, -1) {
 		names = append(names, c[1])

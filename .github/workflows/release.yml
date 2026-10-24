@@ -22,27 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
         shell: bash
-      - name: Build and smoke-test
-        shell: bash
-        run: |
-          v="$VERSION"
-          mkdir -p dist
-          if [ "$RUNNER_OS" = Linux ]; then
-            for arch in amd64 arm64; do
-              CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$v" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
-            done
-            PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$v"
-          else
-            ./tools/ci/package-macos.sh "$v" dist
-            mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
-            PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/smoke-unix.sh "$RUNNER_TEMP/app/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" "$v" "$RUNNER_TEMP/app/MPCvibedRPC.app"
-          fi
-          test -f "$RUNNER_TEMP/smoke-ok" || { echo "the smoke test stopped before the end"; exit 1; }
+      - uses: ./.github/actions/build-unix # the same build and smoke test as ci.yml
+        with: { version: "${{ env.VERSION }}" }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unix-${{ matrix.os }}
@@ -66,24 +52,23 @@ jobs:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
         shell: bash
-      - name: Build
+      - uses: ./.github/actions/build-windows # the same build and smoke test as ci.yml
+        with: { version: "${{ env.VERSION }}", next: "${{ env.NEXT }}" }
+      - name: The release's files
         shell: pwsh
         run: |
-          $env:CGO_ENABLED = '0' # Windows needs no cgo; without it the exe can be rebuilt anywhere
-          $v, $next = $env:VERSION, $env:NEXT
-          New-Item -ItemType Directory dist | Out-Null
-          go run ./tools/mkrsrc -version $v -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$v" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
-          go run ./tools/mkrsrc -version $next -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-          go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$next" -o dist/next.exe ./cmd/mpcvibedrpc
-          ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $v -NextVersion $next
-          Remove-Item dist/next.exe
+          Remove-Item dist/next.exe # only the smoke test's update target
           Copy-Item LICENSE, THIRD-PARTY-NOTICES.md dist/
+      # The release text comes from the in-app changelog (one description per release), plus .github/release-advisory.md
+      # when that file exists (a hand-written block for what one-liners cannot say; it is deleted after its release).
+      - name: Release text
+        shell: bash
+        run: go run ./tools/relnotes -version "$VERSION" -out "$RUNNER_TEMP/release-notes.md" && cat "$RUNNER_TEMP/release-notes.md"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: unix-*
@@ -123,7 +108,7 @@ jobs:
             dist/MPCvibedRPC-macos.zip.sha256
             dist/LICENSE
             dist/THIRD-PARTY-NOTICES.md
-          body_path: .github/release-notes.md
+          body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
           draft: true # made public by the verify job, once the files check out
 
@@ -136,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with: { go-version: '1.27.3', cache: false }
+        with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh '${{ github.ref_name }}'
         shell: bash
       - name: Rebuild and compare

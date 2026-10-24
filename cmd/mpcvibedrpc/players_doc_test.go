@@ -16,7 +16,7 @@ func TestPlayersAreNamedEverywhere(t *testing.T) {
 		"docs/how-it-works.md", "docs/troubleshooting.md", "docs/development.md", "docs/config.md",
 		"cmd/mpcvibedrpc/main.go",   // the header comment
 		"tools/mkrsrc/main.go",      // the exe's file description
-		"internal/assets/ui.html",   // the welcome and help texts
+		"internal/assets/ui.js",     // the welcome and help texts
 		"internal/engine/engine.go", // the package comment and Status.Player
 	}
 	for _, f := range files {
