@@ -92,12 +92,14 @@ func TestEveryHostIsListed(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	page, err := os.ReadFile(filepath.Join(root, "internal", "assets", "ui.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, u := range urlRE.FindAllString(string(page), -1) {
-		add(u, "ui.html")
+	for _, name := range []string{"ui.html", "ui.css", "ui.js"} {
+		page, err := os.ReadFile(filepath.Join(root, "internal", "assets", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, u := range urlRE.FindAllString(string(page), -1) {
+			add(u, name)
+		}
 	}
 	if len(found) < 10 {
 		t.Fatalf("only %d hosts found; the scan is broken", len(found))

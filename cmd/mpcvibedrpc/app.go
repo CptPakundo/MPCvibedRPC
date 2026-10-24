@@ -121,7 +121,7 @@ func run() error {
 	a.stremio = &stremioAccount{st: st, eng: a.eng, log: a.log}
 	a.jellyfin = &jellyfinAccount{st: st, eng: a.eng, log: a.log}
 
-	a.srv = server.New(server.Options{Token: a.token, Page: assets.UI, Icon: assets.Icon, Handlers: a.handlers(), Version: version,
+	a.srv = server.New(server.Options{Token: a.token, Page: assets.UI, CSS: assets.CSS, JS: assets.JS, Icon: assets.Icon, Handlers: a.handlers(), Version: version,
 		OnWindow: func(open bool) {
 			if open {
 				a.windows.Add(1)

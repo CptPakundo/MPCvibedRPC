@@ -20,7 +20,7 @@ func (valErr) Error() string      { return "nope" }
 func (valErr) IsValidation() bool { return true }
 
 func start(t *testing.T) (*Server, string) {
-	s := New(Options{Token: "tok", Page: "<html>__TOKEN__</html>", Icon: []byte("ICO"), Version: "9.9.9", Handlers: map[string]Handler{
+	s := New(Options{Token: "tok", Page: "<html>__TOKEN__</html>", CSS: "body{}", JS: "void 0;", Icon: []byte("ICO"), Version: "9.9.9", Handlers: map[string]Handler{
 		"status": {Get: true, Fn: func(*jsonx.Obj) (any, error) { return map[string]int{"a": 1}, nil }},
 		"echo":   {Fn: func(b *jsonx.Obj) (any, error) { return map[string]any{"got": b.M["x"]}, nil }},
 		"nil":    {Fn: func(*jsonx.Obj) (any, error) { return nil, nil }},
@@ -71,6 +71,25 @@ func TestServer(t *testing.T) {
 	}
 	if c, _, _ := do(t, "GET", base+"/", "", nil, ""); c != 403 {
 		t.Fatal(c)
+	}
+	// the style sheet and the script are public (no token) but follow the page's other rules
+	for _, f := range []struct{ path, body, ctype string }{
+		{"/ui.css", "body{}", "text/css; charset=utf-8"},
+		{"/ui.js", "void 0;", "text/javascript; charset=utf-8"},
+	} {
+		c, b, h := do(t, "GET", base+f.path, "", nil, "")
+		if c != 200 || b != f.body || h.Get("Content-Type") != f.ctype || h.Get("Cache-Control") != "no-store" || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") == "" {
+			t.Fatal(f.path, c, b, h)
+		}
+		if c, _, _ := do(t, "GET", base+f.path, "", nil, "evil.example"); c != 403 {
+			t.Fatal(f.path, "with a foreign Host:", c)
+		}
+		if c, _, _ := do(t, "POST", base+f.path, "", nil, ""); c != 404 {
+			t.Fatal(f.path, "POST:", c)
+		}
+	}
+	if c, _, _ := do(t, "GET", base+"/api/status", "", nil, ""); c != 401 {
+		t.Fatal("the API still needs the token:", c)
 	}
 	if c, _, _ := do(t, "GET", base+"/nothing", "", nil, ""); c != 404 {
 		t.Fatal(c)

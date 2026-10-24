@@ -77,7 +77,7 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 | `internal/conns` | **Recent connections** on the Privacy tab: requests to other computers counted by host |
 | `internal/proc` | starting a helper process hidden (Windows) or detached from this one (the window's browser, the macOS copy that keeps running) |
 | `internal/store`, `internal/jsonx` | `config.json` in `%LOCALAPPDATA%`, the settings schema shown in the window, validation |
-| `internal/server`, `internal/assets` | local settings page (`ui.html`) and API on `127.0.0.1`, protected by a per-launch token |
+| `internal/server`, `internal/assets` | local settings page (`ui.html`, `ui.css`, `ui.js`) and API on `127.0.0.1`, protected by a per-launch token |
 | `internal/diag` | **Copy diagnostics**: the report, with folder paths, addresses, server names and sign-ins left out |
 | `internal/winsys` | the operating system: run at login (registry, LaunchAgent, autostart entry), setting up the player connection (the MPC-HC and MPC-BE web interface, `mpv.conf`, `vlcrc`, IINA's settings), window, tray icon (Win32, no helper process); on macOS the menu bar icon and the settings window (`macapp_darwin.go`, Cocoa and WebKit, in the macOS build only) |
 | `internal/updater` | GitHub release check, download, checksum, swap and restart |
