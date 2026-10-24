@@ -6,7 +6,6 @@ package plex
 // token. Older long-lived tokens still work; this is used only when the plexJwt setting is on.
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -15,7 +14,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -115,53 +113,10 @@ func TokenExpiry(token string) time.Time {
 	return time.Unix(n, 0)
 }
 
-// sendJSON sends body (nil for none) to u and decodes the answer into v, as getJSON does; 498 is ErrExpired.
-func (c *Client) sendJSON(ctx context.Context, method, u string, body, v any) (status int, err error) {
-	var r io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return 0, err
-		}
-		r = bytes.NewReader(b)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, u, r)
-	if err != nil {
-		return 0, err
-	}
-	c.header(req, "")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	res, err := c.http().Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer res.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if err != nil {
-		return res.StatusCode, err
-	}
-	switch {
-	case res.StatusCode == 498:
-		return res.StatusCode, ErrExpired
-	case res.StatusCode == http.StatusUnauthorized:
-		return res.StatusCode, ErrToken
-	case res.StatusCode < 200 || res.StatusCode > 299:
-		return res.StatusCode, fmt.Errorf("HTTP %d", res.StatusCode)
-	}
-	if v != nil {
-		if err := json.Unmarshal(data, v); err != nil {
-			return res.StatusCode, fmt.Errorf("unexpected answer: %w", err)
-		}
-	}
-	return res.StatusCode, nil
-}
-
 // NewKeyPin starts a sign-in that hands plex.tv this install's public key with the PIN.
 func (c *Client) NewKeyPin(ctx context.Context, k *DeviceKey) (*Pin, error) {
 	var p Pin
-	if _, err := c.sendJSON(ctx, "POST", c.resources()+"/api/v2/pins", map[string]any{"strong": true, "jwk": k.JWK()}, &p); err != nil {
+	if _, err := c.send(ctx, "POST", c.resources()+"/api/v2/pins", "", map[string]any{"strong": true, "jwk": k.JWK()}, &p); err != nil {
 		return nil, err
 	}
 	if p.ID == 0 || p.Code == "" {
@@ -179,7 +134,7 @@ func (c *Client) CheckKeyPin(ctx context.Context, p *Pin, k *DeviceKey) (string,
 	var r struct {
 		AuthToken *string `json:"authToken"`
 	}
-	status, err := c.sendJSON(ctx, "GET", fmt.Sprintf("%s/api/v2/pins/%d?deviceJWT=%s", c.resources(), p.ID, url.QueryEscape(jwt)), nil, &r)
+	status, err := c.send(ctx, "GET", fmt.Sprintf("%s/api/v2/pins/%d?deviceJWT=%s", c.resources(), p.ID, url.QueryEscape(jwt)), "", nil, &r)
 	if status == http.StatusNotFound {
 		return "", ErrPinExpired
 	}
@@ -197,7 +152,7 @@ func (c *Client) Refresh(ctx context.Context, k *DeviceKey) (string, error) {
 	var n struct {
 		Nonce string `json:"nonce"`
 	}
-	if _, err := c.sendJSON(ctx, "GET", c.resources()+"/api/v2/auth/nonce", nil, &n); err != nil {
+	if _, err := c.send(ctx, "GET", c.resources()+"/api/v2/auth/nonce", "", nil, &n); err != nil {
 		return "", err
 	}
 	if n.Nonce == "" {
@@ -210,7 +165,7 @@ func (c *Client) Refresh(ctx context.Context, k *DeviceKey) (string, error) {
 	var t struct {
 		Token string `json:"auth_token"`
 	}
-	if _, err := c.sendJSON(ctx, "POST", c.resources()+"/api/v2/auth/token", map[string]string{"jwt": jwt}, &t); err != nil {
+	if _, err := c.send(ctx, "POST", c.resources()+"/api/v2/auth/token", "", map[string]string{"jwt": jwt}, &t); err != nil {
 		return "", err
 	}
 	if t.Token == "" {
