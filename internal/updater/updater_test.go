@@ -141,6 +141,9 @@ func TestDownloadRejects(t *testing.T) {
 			w.Write(good)
 		}))
 		defer srv.Close()
+		oldAPI := APIBase // the release files must be on the API's host (or GitHub's)
+		APIBase = srv.URL
+		defer func() { APIBase = oldAPI }()
 		info := &Info{URL: srv.URL + "/exe", ShaURL: srv.URL + "/sha"}
 		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "HTTP 404") {
 			t.Errorf("404: %v", err)
@@ -150,20 +153,66 @@ func TestDownloadRejects(t *testing.T) {
 			t.Errorf("no checksum file: %v", err)
 		}
 	})
+	// The checksum file is fetched first, so these need a valid one to reach the check of the program itself.
 	t.Run("not a program", func(t *testing.T) {
-		_, done := setup(t, bytes.Repeat([]byte("<html>"), 400000), "", "")
+		html := bytes.Repeat([]byte("<html>"), 400000)
+		sum := sha256.Sum256(html)
+		_, done := setup(t, html, hex.EncodeToString(sum[:]), "")
 		defer done()
 		info, _ := Check(nil, "o/r", "1.0.0")
-		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil {
-			t.Fatal("should reject")
+		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "does not look like") {
+			t.Fatal(err)
 		}
 	})
 	t.Run("too small", func(t *testing.T) {
-		_, done := setup(t, fakeExe(1000), "", "")
+		small := fakeExe(1000)
+		sum := sha256.Sum256(small)
+		_, done := setup(t, small, hex.EncodeToString(sum[:]), "")
 		defer done()
 		info, _ := Check(nil, "o/r", "1.0.0")
-		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil {
-			t.Fatal("should reject")
+		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "does not look like") {
+			t.Fatal(err)
+		}
+	})
+	t.Run("checksum file is read before the program", func(t *testing.T) {
+		var gotExe bool
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/exe" {
+				gotExe = true
+			}
+			fmt.Fprint(w, "not-a-checksum")
+		}))
+		defer srv.Close()
+		old := APIBase
+		APIBase = srv.URL
+		defer func() { APIBase = old }()
+		info := &Info{URL: srv.URL + "/exe", ShaURL: srv.URL + "/sha"}
+		if _, err := Download(nil, info, filepath.Join(t.TempDir(), "a.exe")); err == nil || !strings.Contains(err.Error(), "checksum file") {
+			t.Fatal(err)
+		}
+		if gotExe {
+			t.Error("the program was downloaded although its checksum file is invalid")
+		}
+	})
+	t.Run("larger than the cap", func(t *testing.T) {
+		big := fakeExe(4 << 20)
+		sum := sha256.Sum256(big)
+		_, done := setup(t, big, hex.EncodeToString(sum[:]), "")
+		defer done()
+		old := maxProgram
+		maxProgram = 3 << 20
+		defer func() { maxProgram = old }()
+		info, _ := Check(nil, "o/r", "1.0.0")
+		dir := t.TempDir()
+		if _, err := Download(nil, info, filepath.Join(dir, "a.exe")); err == nil || !strings.Contains(err.Error(), "larger than 3 MiB") {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "a.exe.new")); err == nil {
+			t.Error("nothing may be written for a download over the cap")
+		}
+		maxProgram = 4 << 20 // exactly at the cap is fine
+		if _, err := Download(nil, info, filepath.Join(dir, "a.exe")); err != nil {
+			t.Errorf("at the cap: %v", err)
 		}
 	})
 	t.Run("no asset", func(t *testing.T) {

@@ -1,7 +1,7 @@
 // Package updater updates the program from GitHub Releases. Publish a release whose tag is a version ("v1.2.0")
 // with the program for each system (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...; see AssetFor) and a .sha256 next
-// to each (without one the app only links to the release); the app offers it, downloads it and swaps itself in. On
-// macOS it only offers the release page.
+// to each (without one the app only links to the release); the app offers it, downloads it and swaps itself in. The
+// files must come from GitHub (see allowedHost). On macOS it only offers the release page.
 package updater
 
 import (
@@ -14,12 +14,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
@@ -55,7 +57,7 @@ func checkWeb(client *http.Client, repo, current string) (*Info, error) {
 	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	res, err := get(ctx, &noRedirect, WebBase+"/"+repo+"/releases/latest", "")
+	res, err := get(ctx, &noRedirect, WebBase+"/"+repo+"/releases/latest", "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +148,9 @@ func Compare(a, b string) int {
 var reRepo = regexp.MustCompile(`^[\w.-]+/[\w.-]+$`)
 
 // get sends a GET request for url with the program's user agent (and the Accept header when given).
-func get(ctx context.Context, client *http.Client, url, accept string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+// A non-empty etag makes it a conditional request.
+func get(ctx context.Context, client *http.Client, addr, accept, etag string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", addr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +158,39 @@ func get(ctx context.Context, client *http.Client, url, accept string) (*http.Re
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
+	}
 	return client.Do(req)
+}
+
+// lastAnswer is the last successful "latest release" answer for an address, with its ETag; kept for this process only.
+type lastAnswer struct {
+	etag string
+	info Info
+}
+
+var (
+	answersMu sync.Mutex
+	answers   = map[string]lastAnswer{}
+)
+
+// lastRelease returns a copy of the kept answer for api (nil when there is none) and its ETag.
+func lastRelease(api string) (*Info, string) {
+	answersMu.Lock()
+	defer answersMu.Unlock()
+	a, ok := answers[api]
+	if !ok {
+		return nil, ""
+	}
+	info := a.info
+	return &info, a.etag
+}
+
+func keepRelease(api, etag string, info *Info) {
+	answersMu.Lock()
+	defer answersMu.Unlock()
+	answers[api] = lastAnswer{etag: etag, info: *info}
 }
 
 // trimV drops the "v" of a tag such as "v1.2.0".
@@ -176,11 +211,18 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	res, err := get(ctx, client, APIBase+"/repos/"+repo+"/releases/latest", "application/vnd.github+json")
+	api := APIBase + "/repos/" + repo + "/releases/latest"
+	cached, etag := lastRelease(api)
+	res, err := get(ctx, client, api, "application/vnd.github+json", etag)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode == http.StatusNotModified && cached != nil {
+		// unchanged since the last answer; a 304 does not count against GitHub's rate limit
+		cached.Current, cached.Newer = current, Compare(current, cached.Latest) < 0
+		return cached, nil
+	}
 	if res.StatusCode == 404 {
 		return &Info{Configured: true, Error: "No releases published there yet."}, nil
 	}
@@ -228,12 +270,51 @@ func Check(client *http.Client, repo, current string) (*Info, error) {
 		}
 	}
 	info.CanInstall = info.URL != "" && info.ShaURL != "" // a release without a checksum is offered on its page only
+	if tag := res.Header.Get("ETag"); tag != "" {
+		keepRelease(api, tag, info)
+	}
 	return info, nil
 }
 
 var reSHA256 = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
-// Download fetches the new program next to exe (as exe+".new") and returns its path.
+// maxProgram is the most Download reads of a program file: the program is about 8 MB, so this is generous, and a
+// wrong or hostile address cannot fill the memory or the disk.
+var maxProgram int64 = 64 << 20
+
+// allowedHost says whether a release file may be fetched from u: an https address on GitHub (github.com, or a
+// *.githubusercontent.com host where release files are served from), or an address on the host of APIBase or WebBase
+// with the same scheme as that base (tests and the fake update server point both at 127.0.0.1 over plain http).
+func allowedHost(u *url.URL) bool {
+	if u.User != nil {
+		return false
+	}
+	for _, base := range []string{APIBase, WebBase} {
+		if b, err := url.Parse(base); err == nil && b.Host != "" && strings.EqualFold(u.Host, b.Host) && u.Scheme == b.Scheme {
+			return true
+		}
+	}
+	if u.Scheme != "https" || (u.Port() != "" && u.Port() != "443") {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "github.com" || strings.HasSuffix(h, ".githubusercontent.com")
+}
+
+// checkAddress refuses a download address that allowedHost does not accept; the error names the host.
+func checkAddress(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return errors.New("The release has an invalid download address, so it was not installed.")
+	}
+	if !allowedHost(u) {
+		return fmt.Errorf("The release points to %s, which is not GitHub, so it was not installed.", u.Host)
+	}
+	return nil
+}
+
+// Download fetches the new program next to exe (as exe+".new") and returns its path. The checksum file comes first
+// (a release without a valid one is refused before the program is downloaded); both addresses must be on GitHub.
 func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if info == nil || info.URL == "" {
 		if Asset == "" {
@@ -241,33 +322,37 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 		}
 		return "", fmt.Errorf("The release has no %s file.", Asset)
 	}
-	if client == nil {
-		client = http.DefaultClient
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	res, err := get(ctx, client, info.URL, "")
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		return "", fmt.Errorf("Download failed (HTTP %d)", res.StatusCode)
-	}
-	buf, err := io.ReadAll(io.LimitReader(res.Body, 512<<20))
-	if err != nil {
-		return "", err
-	}
-	if len(buf) < minSize || !bytes.HasPrefix(buf, []byte(Magic)) {
-		if runtime.GOOS == "linux" {
-			return "", errors.New("The downloaded file does not look like a Linux program.")
-		}
-		return "", errors.New("The downloaded file does not look like a Windows program.")
-	}
 	if info.ShaURL == "" {
 		return "", errors.New("The release has no checksum file, so the download was not installed. Get it from the release page.")
 	}
-	sres, err := get(ctx, client, info.ShaURL, "")
+	for _, a := range []string{info.URL, info.ShaURL} {
+		if err := checkAddress(a); err != nil {
+			return "", err
+		}
+	}
+	if client == nil {
+		client = http.DefaultClient
+	}
+	// a redirect (GitHub sends release files on to its content host) must stay on an allowed host too
+	c := *client
+	prev := c.CheckRedirect
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if !allowedHost(req.URL) {
+			return fmt.Errorf("The download was redirected to %s, which is not GitHub, so it was not installed.", req.URL.Host)
+		}
+		if prev != nil {
+			return prev(req, via)
+		}
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
+	client = &c
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	sres, err := get(ctx, client, info.ShaURL, "", "")
 	if err != nil {
 		return "", err
 	}
@@ -280,8 +365,35 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	if len(f) == 0 || !reSHA256.MatchString(f[0]) {
 		return "", errors.New("The checksum file is not valid, so the download was not installed.")
 	}
+	want := strings.ToLower(f[0])
+
+	res, err := get(ctx, client, info.URL, "", "")
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		return "", fmt.Errorf("Download failed (HTTP %d)", res.StatusCode)
+	}
+	tooBig := fmt.Errorf("The download is larger than %d MiB, so it was not installed.", maxProgram>>20)
+	if res.ContentLength > maxProgram {
+		return "", tooBig
+	}
+	buf, err := io.ReadAll(io.LimitReader(res.Body, maxProgram+1))
+	if err != nil {
+		return "", err
+	}
+	if int64(len(buf)) > maxProgram {
+		return "", tooBig
+	}
+	if len(buf) < minSize || !bytes.HasPrefix(buf, []byte(Magic)) {
+		if runtime.GOOS == "linux" {
+			return "", errors.New("The downloaded file does not look like a Linux program.")
+		}
+		return "", errors.New("The downloaded file does not look like a Windows program.")
+	}
 	sum := sha256.Sum256(buf)
-	if strings.ToLower(f[0]) != hex.EncodeToString(sum[:]) {
+	if want != hex.EncodeToString(sum[:]) {
 		return "", errors.New("The download is corrupted (checksum mismatch).")
 	}
 	next := exe + ".new"

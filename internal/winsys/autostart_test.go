@@ -26,6 +26,23 @@ func TestRunName(t *testing.T) {
 	}
 }
 
+func TestRunEntryNames(t *testing.T) {
+	for _, c := range []struct {
+		command, exe string
+		want         bool
+	}{
+		{`"C:\Apps\MPCvibedRPC.exe" --background`, `C:\Other\MPCvibedRPC.exe`, true}, // the folder is not compared
+		{`"c:\apps\mpcvibedrpc.EXE" --background`, `MPCvibedRPC.exe`, true},          // case does not matter
+		{`"D:\Portable\MPCvibedRPC.exe" --background --home "D:\Portable\data"`, `MPCvibedRPC.exe`, true},
+		{`"C:\Apps\OtherProgram.exe" --background`, `MPCvibedRPC.exe`, false},
+		{``, `MPCvibedRPC.exe`, false},
+	} {
+		if got := runEntryNames(c.command, c.exe); got != c.want {
+			t.Errorf("runEntryNames(%q, %q) = %v, want %v", c.command, c.exe, got, c.want)
+		}
+	}
+}
+
 func TestRunCommandCarriesTheDataFolder(t *testing.T) {
 	for _, c := range []struct{ name, exe, home, want string }{
 		{"default copy", `C:\Apps\MPCvibedRPC.exe`, "", `"C:\Apps\MPCvibedRPC.exe" --background`},

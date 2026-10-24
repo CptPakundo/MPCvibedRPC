@@ -4,6 +4,6 @@
 # (the smoke test covers them there). A new test that skips on some system belongs here.
 live='TestLivePlayer|TestLiveJellyfin|TestLivePotPlayer|TestLiveCatalogs'
 case "${RUNNER_OS:-$(uname -s)}" in
-  Windows|MINGW*|MSYS*) echo "$live|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending|TestCloseFrameSaysWhy" ;;
+  Windows|MINGW*|MSYS*) echo "$live|TestEndToEnd|TestLoginAndActivity|TestErrorReply|TestHandshakeTimeout|TestServerCloseFailsPending|TestCloseFrameSaysWhy|TestAutostartRegistryRoundTrip" ;;
   *) echo "$live" ;;
 esac
