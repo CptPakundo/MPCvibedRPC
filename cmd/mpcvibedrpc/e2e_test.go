@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -86,6 +87,19 @@ func (d *fakeDiscord) n() int { d.mu.Lock(); defer d.mu.Unlock(); return len(d.a
 type api struct {
 	port  int
 	token string
+	pid   int
+}
+
+// waitGone waits until the program with pid (from ipc.json) has exited: ipc.json goes early in its quit, before the
+// engine stops and the log's last line is written, so a test that only waited for the file could remove its folder
+// while the program still wrote into it.
+func waitGone(t *testing.T, pid int) {
+	t.Helper()
+	p, err := os.FindProcess(pid)
+	if err != nil {
+		return
+	}
+	waitFor(t, fmt.Sprintf("process %d exited", pid), func() bool { return p.Signal(syscall.Signal(0)) != nil })
 }
 
 func (a api) call(t *testing.T, method, name, body string) (int, map[string]any) {
@@ -123,7 +137,7 @@ func readIPC(home string) (api, bool) {
 	if json.Unmarshal(raw, &i) != nil || i.Port == 0 {
 		return api{}, false
 	}
-	return api{i.Port, i.Token}, true
+	return api{i.Port, i.Token, i.Pid}, true
 }
 
 func TestEndToEnd(t *testing.T) {
@@ -209,7 +223,7 @@ func TestEndToEnd(t *testing.T) {
 	if !strings.Contains(string(pb), `"version":"3.0.0"`) {
 		t.Fatalf("ping %s", pb)
 	}
-	if code, _ := (api{a.port, "bad"}).call(t, "GET", "state", ""); code != 401 {
+	if code, _ := (api{port: a.port, token: "bad"}).call(t, "GET", "state", ""); code != 401 {
 		t.Fatalf("code %d", code)
 	}
 
@@ -285,6 +299,11 @@ func TestEndToEnd(t *testing.T) {
 		}
 		a.call(t, "POST", "quit", "{}")
 		waitFor(t, "ipc.json removed", func() bool { _, ok := readIPC(home); return !ok })
+		select {
+		case <-exited:
+		case <-time.After(10 * time.Second):
+			t.Fatal("the program did not exit after quit")
+		}
 		return
 	}
 	if u["canInstall"] != true {
@@ -318,4 +337,5 @@ func TestEndToEnd(t *testing.T) {
 	waitFor(t, "presence from the new version", func() bool { return disc.n() >= n+3 })
 	b2.call(t, "POST", "quit", "{}")
 	waitFor(t, "ipc.json removed", func() bool { _, ok := readIPC(home); return !ok })
+	waitGone(t, b2.pid) // the updated copy was started detached: wait for it, or its last log line races the folder's removal
 }
