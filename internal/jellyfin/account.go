@@ -56,19 +56,9 @@ type Client struct {
 	Version  string       // the program's version
 }
 
-var defaultHTTP = &http.Client{Timeout: 15 * time.Second, CheckRedirect: sameServer}
-
-// sameServer follows a redirect only on the same server and never from https to http: Go keeps the X-Emby headers
-// (which carry the token) on a redirect elsewhere, and a sign-in would send the password along.
-func sameServer(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("too many redirects")
-	}
-	if !remote.SameOrigin(req, via) {
-		return errors.New("the server sent the request to another address")
-	}
-	return nil
-}
+// defaultHTTP is the shared client (internal/remote): Go keeps the X-Emby headers (which carry the token) on a redirect
+// elsewhere, and a sign-in would send the password along, so a redirect to another address is refused.
+var defaultHTTP = remote.NewClient(15 * time.Second)
 
 func (c *Client) http() *http.Client {
 	if c.HTTP != nil {
@@ -119,7 +109,7 @@ func (c *Client) do(ctx context.Context, method, path, token string, body, v any
 		}
 		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.Base+path, rd)
+	req, err := http.NewRequest(method, c.Base+path, rd)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -127,12 +117,7 @@ func (c *Client) do(ctx context.Context, method, path, token string, body, v any
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	res, err := c.http().Do(req)
-	if err != nil {
-		return time.Time{}, err
-	}
-	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, 16<<20))
+	res, raw, err := remote.Fetch(ctx, c.http(), req, 16<<20)
 	if err != nil {
 		return time.Time{}, err
 	}

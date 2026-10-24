@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"runtime"
@@ -87,4 +88,36 @@ func NetReason(err error) string {
 // SameOrigin tells whether a redirect stays on the host of the first request and does not drop from https to http.
 func SameOrigin(req *http.Request, via []*http.Request) bool {
 	return req.URL.Host == via[0].URL.Host && !(via[0].URL.Scheme == "https" && req.URL.Scheme != "https")
+}
+
+// NewClient is the HTTP client of the Plex, Stremio and Jellyfin readers. It has no Transport of its own, so every
+// request goes through http.DefaultTransport as it is at that moment (internal/conns wraps it at start-up to count
+// connections: never set or clone a transport here). A redirect to another host, or from https to http, is refused:
+// Go would send the headers that carry a sign-in on to the new address, and a POST body (a key, a password) again on a
+// 307 or 308. timeout limits a whole request; 0 means none (an event stream).
+func NewClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, CheckRedirect: sameServer}
+}
+
+func sameServer(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("too many redirects")
+	}
+	if !SameOrigin(req, via) {
+		return errors.New("the server sent the request to another address")
+	}
+	return nil
+}
+
+// Fetch sends req on c under ctx and reads at most limit bytes of the answer. The response is nil when no answer came;
+// otherwise its status and headers are valid (its body is read and closed), also with a read error. What the status
+// means is up to the caller.
+func Fetch(ctx context.Context, c *http.Client, req *http.Request, limit int64) (*http.Response, []byte, error) {
+	res, err := c.Do(req.WithContext(ctx))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(res.Body, limit))
+	return res, body, err
 }

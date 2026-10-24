@@ -23,6 +23,7 @@ import (
 const (
 	sessionTimeout = 3 * time.Minute
 	streamTimeout  = 45 * time.Second
+	lookupTimeout  = 15 * time.Second // plex.tv has this long to list the account's servers
 )
 
 // Watcher follows one server's play notifications (Server-Sent Events from /:/eventsource/notifications) and knows
@@ -45,6 +46,10 @@ type Watcher struct {
 	srvToken string
 	now      remote.Clock
 	retry    time.Duration // the first wait before reconnecting (tests shorten it)
+
+	// How long plex.tv has to list the servers and the event stream may stay silent; 0 = lookupTimeout and
+	// streamTimeout (tests shorten them).
+	limits struct{ lookup, stream time.Duration }
 }
 
 type playback struct {
@@ -149,7 +154,13 @@ func (w *Watcher) Run(ctx context.Context) {
 
 // find looks up the server on plex.tv: its addresses, whether the user owns it, and the token for it.
 func (w *Watcher) find(ctx context.Context) (Server, error) {
-	list, err := w.Client.Servers(ctx, w.Token)
+	wait := lookupTimeout
+	if w.limits.lookup > 0 {
+		wait = w.limits.lookup
+	}
+	lctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	list, err := w.Client.Servers(lctx, w.Token)
 	if err != nil {
 		if errors.Is(err, ErrToken) {
 			return Server{}, err
@@ -257,8 +268,19 @@ func (w *Watcher) follow(ctx context.Context) error {
 	}
 	w.Client.header(req, token)
 	req.Header.Set("Accept", "text/event-stream")
+	// the server has the silence limit to send its headers: one that takes the connection and never answers would
+	// otherwise hold the watcher for good (the stream client has no overall time limit)
+	silence := streamTimeout
+	if w.limits.stream > 0 {
+		silence = w.limits.stream
+	}
+	headers := time.AfterFunc(silence, cancel)
 	res, err := w.Client.stream().Do(req)
+	headers.Stop()
 	if err != nil {
+		if ctx.Err() == nil && sctx.Err() != nil {
+			err = context.DeadlineExceeded
+		}
 		return fmt.Errorf("Could not open the Plex server's notifications (%s).", reason(err))
 	}
 	defer res.Body.Close()
@@ -285,7 +307,7 @@ func (w *Watcher) follow(ctx context.Context) error {
 	// a stream that goes quiet (the server pings every few seconds) is reopened
 	alive := make(chan struct{}, 1)
 	go func() {
-		t := time.NewTimer(streamTimeout)
+		t := time.NewTimer(silence)
 		defer t.Stop()
 		for {
 			select {
@@ -295,7 +317,7 @@ func (w *Watcher) follow(ctx context.Context) error {
 				if !t.Stop() {
 					<-t.C
 				}
-				t.Reset(streamTimeout)
+				t.Reset(silence)
 			case <-t.C:
 				cancel()
 				return

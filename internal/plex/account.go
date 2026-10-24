@@ -4,6 +4,7 @@
 package plex
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
 )
@@ -58,17 +60,9 @@ func (c *Client) http() *http.Client {
 	return defaultHTTP
 }
 
-// defaultHTTP is http.DefaultClient, except that the token is not passed on when plex.tv or a server redirects to another
-// host (Go only drops its own Authorization header there, not X-Plex-Token).
-var defaultHTTP = &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("too many redirects")
-	}
-	if !remote.SameOrigin(req, via) {
-		req.Header.Del("X-Plex-Token")
-	}
-	return nil
-}}
+// defaultHTTP is the shared client (internal/remote): a redirect to another host is refused, which also keeps
+// X-Plex-Token (Go only drops its own Authorization header there) from being passed on.
+var defaultHTTP = remote.NewClient(15 * time.Second)
 
 // header sets what Plex expects from every app. The token goes in a header, never in the address.
 func (c *Client) header(req *http.Request, token string) {
@@ -83,35 +77,51 @@ func (c *Client) header(req *http.Request, token string) {
 	}
 }
 
-// getJSON asks for url and decodes the answer into v. A 401 is ErrToken; status gives the code for the caller's
-// own handling of anything else.
-func (c *Client) getJSON(ctx context.Context, method, u, token string, v any) (status int, err error) {
-	req, err := http.NewRequestWithContext(ctx, method, u, nil)
+// send sends body (nil for none) to u and decodes the answer into v (when v is not nil). A 401 is ErrToken and 498 is
+// ErrExpired (only the 7-day tokens run out); status gives the code for the caller's own handling of anything else.
+func (c *Client) send(ctx context.Context, method, u, token string, body, v any) (status int, err error) {
+	var r io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return 0, err
+		}
+		r = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, u, r)
 	if err != nil {
 		return 0, err
 	}
 	c.header(req, token)
-	res, err := c.http().Do(req)
-	if err != nil {
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	res, data, err := remote.Fetch(ctx, c.http(), req, 8<<20)
+	if res == nil {
 		return 0, err
 	}
-	defer res.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
 		return res.StatusCode, err
 	}
 	switch {
+	case res.StatusCode == 498:
+		return res.StatusCode, ErrExpired
 	case res.StatusCode == http.StatusUnauthorized:
 		return res.StatusCode, ErrToken
 	case res.StatusCode < 200 || res.StatusCode > 299:
 		return res.StatusCode, fmt.Errorf("HTTP %d", res.StatusCode)
 	}
 	if v != nil {
-		if err := json.Unmarshal(body, v); err != nil {
+		if err := json.Unmarshal(data, v); err != nil {
 			return res.StatusCode, fmt.Errorf("unexpected answer: %w", err)
 		}
 	}
 	return res.StatusCode, nil
+}
+
+// getJSON is send without a body.
+func (c *Client) getJSON(ctx context.Context, method, u, token string, v any) (status int, err error) {
+	return c.send(ctx, method, u, token, nil, v)
 }
 
 // Pin is a sign-in in progress: the user approves Code on plex.tv, then CheckPin returns the account's token.
