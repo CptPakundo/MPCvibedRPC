@@ -51,7 +51,9 @@ func GetAutoStart(exe string) bool {
 // runEntryNames says whether the Run entry's command line names a program file with the same name as exe (case does
 // not matter; the folder is not compared).
 func runEntryNames(command, exe string) bool {
-	return strings.Contains(strings.ToLower(command), strings.ToLower(filepath.Base(exe)))
+	// the file's name after the last separator of either kind: a Windows path is compared on every system (tests)
+	name := exe[strings.LastIndexAny(exe, `\/`)+1:]
+	return name != "" && strings.Contains(strings.ToLower(command), strings.ToLower(name))
 }
 
 // SetAutoStart adds or removes the registry entry (or the login item).

@@ -4,6 +4,7 @@
 # without signing in; a generated sample episode; and a stand-in player that reports playback to the server the way
 # Plex apps do (/:/timeline). The engine follows the server's play notifications at a fixed address, without plex.tv.
 set -euo pipefail
+. "$(dirname "$0")/lib.sh"
 work="$(mktemp -d)"
 P=http://127.0.0.1:32400
 player=(-H "Accept: application/json" -H "X-Plex-Client-Identifier: ci-sample-player" -H "X-Plex-Product: CI Player"

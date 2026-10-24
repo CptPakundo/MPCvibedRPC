@@ -5,6 +5,7 @@
 # Jellyfin and Emby apps do (/Sessions/Playing, then /Sessions/Playing/Progress every few seconds).
 #   usage: live-jellyfin.sh jellyfin|emby
 set -euo pipefail
+. "$(dirname "$0")/lib.sh"
 kind="${1:?jellyfin or emby}"
 case "$kind" in
   jellyfin) image=jellyfin/jellyfin:latest; product=Jellyfin; port=8096 ;;
