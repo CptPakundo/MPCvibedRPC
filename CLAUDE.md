@@ -230,7 +230,9 @@ One branch and one PR per release: the change, the version bump and the release 
 2. Locally: `go vet ./...` (also `GOOS=linux`, `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...`, and a
    scan of the diff and new files for personal data (the owner's name, email, local paths) before the first push.
    Then push, `gh pr create`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps ran.
-3. With the owner's go-ahead: `gh pr merge <n> --rebase --delete-branch`, then `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`
+3. With the owner's go-ahead: `gh pr merge <n> --rebase --delete-branch` (GitHub refuses to rebase a branch that holds
+   merge commits, such as merged agent branches: use `--merge` then, or rebase the branch locally first), then
+   `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`
    with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
    against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
    awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
