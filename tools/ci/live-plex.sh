@@ -12,8 +12,7 @@ cleanup() { [ -z "${feed:-}" ] || kill "$feed" 2> /dev/null || true; docker rm -
 trap cleanup EXIT
 
 mkdir -p "$work/media/TV/Sample Show/Season 01" "$work/config"
-ffmpeg -loglevel error -f lavfi -i "testsrc=duration=300:size=320x240:rate=5" -f lavfi -i "sine=duration=300" \
-  -c:v libx264 -preset ultrafast -c:a aac -shortest "$work/media/TV/Sample Show/Season 01/Sample Show - S01E02.mkv"
+ci_video "$work/media/TV/Sample Show/Season 01/Sample Show - S01E02.mkv" 300
 docker run -d --name pms --network host -e TZ=UTC -e "ALLOWED_NETWORKS=127.0.0.1/255.255.255.255" \
   -v "$work/config:/config" -v "$work/media:/data" plexinc/pms-docker:latest > /dev/null
 
@@ -51,4 +50,4 @@ feed=$!
 MPCRPC_LIVE_PLAYER=Plex MPCRPC_LIVE_TITLE="Sample Show - S01E02" MPCRPC_LIVE_PLEX_ADDRESS="$P" \
   bash "$(dirname "$0")/must-pass.sh" TestLivePlayer go test -count=1 -timeout 3m -run TestLivePlayer -v ./internal/engine
 
-[ -z "${PASSED_FILE:-}" ] || touch "$PASSED_FILE"
+done_file

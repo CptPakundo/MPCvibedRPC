@@ -1,0 +1,39 @@
+# Builds the Windows program the way a release is built and smoke-tests it, for ci.yml and release.yml alike:
+# dist/MPCvibedRPC.exe (and dist/next.exe, the version after it, which the smoke test updates to) from an LF checkout
+# without cgo, so the Linux rebuild (tools/ci/reproduce.sh) gives the same bytes. The job must have checked out with
+# core.autocrlf off and set up Go before.
+name: Build and smoke-test the Windows program
+description: dist/MPCvibedRPC.exe and dist/next.exe, then tools/ci/smoke.ps1
+inputs:
+  version:
+    description: the version being built (VERSION from tools/ci/version.sh)
+    required: true
+  next:
+    description: the version after it (NEXT), for the smoke test's self-update
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Build
+      shell: pwsh
+      env:
+        V: ${{ inputs.version }}
+        N: ${{ inputs.next }}
+      run: |
+        $env:CGO_ENABLED = '0' # no cgo: the exe can be rebuilt anywhere, byte for byte
+        New-Item -ItemType Directory dist -Force | Out-Null
+        go run ./tools/mkrsrc -version $env:V -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+        go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$env:V" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+        go run ./tools/mkrsrc -version $env:N -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+        go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$env:N" -o dist/next.exe ./cmd/mpcvibedrpc
+        Get-ChildItem dist | Format-Table Name, Length
+        Write-Host "::notice title=exe size::$((Get-Item dist/MPCvibedRPC.exe).Length) bytes"
+        # the checkout must be LF, or the rebuild on Linux cannot match
+        $crlf = git ls-files --eol | Select-String "w/crlf"
+        if ($crlf) { $crlf | Select-Object -First 5; Write-Host "::error title=build::the checkout has CRLF files; the exe would not be reproducible"; exit 1 }
+    - name: Smoke test
+      shell: pwsh
+      env:
+        V: ${{ inputs.version }}
+        N: ${{ inputs.next }}
+      run: ./tools/ci/smoke.ps1 -Exe "$PWD/dist/MPCvibedRPC.exe" -NewExe "$PWD/dist/next.exe" -Version $env:V -NextVersion $env:N

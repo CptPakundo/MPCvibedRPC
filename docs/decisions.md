@@ -57,6 +57,15 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 - **Frequent releases while the program is young** (2026-10-18): each real improvement ships once its checks pass.
   *Why:* few people use it yet, so quick fixes and feedback count for more than the trust that calmer releases build
   with Windows SmartScreen and package managers. Bundling comes back once it has a wider audience.
+- **The release text is the changelog** (2026-10-24): the GitHub release's body is rendered from the in-app changelog's
+  newest entry (`tools/relnotes`), plus a hand-written block only when a release needs one (a security note). *Why:*
+  the same facts were written twice, in two wordings, for every release, and nothing checked that the second text was
+  for the right version.
+- **Live tests once per pull request** (2026-10-24): the jobs that install real players and real media servers run
+  when a pull request is opened, reopened or marked ready, by hand, and in the weekly canary; every push runs the unit
+  tests (with the race detector on Linux), the builds, the smoke tests and the reproducible-build check. *Why:* the
+  live jobs were half of every push's CI minutes and ran about three times per branch; once per pull request keeps the
+  "live tests before a release" guarantee, since every release goes through a pull request.
 - **A release stays a draft until it checks out**: its files, checksums, build records, a rebuild from the tag that
   must match byte for byte, and then a real self-update from the release before. *Why:* nobody's updater should ever
   see a broken release.

@@ -54,7 +54,9 @@ item="$(find "$item_dir" -name "$item_glob" 2> /dev/null | head -n 1)"
 [ -n "$item" ] || fail "no login item in $item_dir"
 grep -qF -- "--background" "$item" || fail "the login item does not start in the background"
 grep -qF -- "$MPCRPC_HOME" "$item" || fail "the login item does not keep the data folder"
-if [ "$want_os" = darwin ]; then plutil -lint "$item"; else command -v desktop-file-validate > /dev/null && desktop-file-validate "$item"; fi
+if [ "$want_os" = darwin ]; then plutil -lint "$item"
+elif command -v desktop-file-validate > /dev/null; then desktop-file-validate "$item"
+else echo "::warning title=smoke test::desktop-file-validate is not installed here, so the login item was not validated"; fi
 cat "$item"
 [ "$(post save '{"app":{"autoStart":false}}' | jq -r .autoStart)" = false ] || fail "autoStart did not switch off"
 [ ! -e "$item" ] || fail "the login item was not removed"

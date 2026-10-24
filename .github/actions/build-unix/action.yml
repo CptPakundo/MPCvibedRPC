@@ -1,0 +1,45 @@
+# Builds the Linux programs (on a Linux runner) or the macOS app (on a macOS runner) the way a release is built, then
+# smoke-tests them for real in a throwaway folder (tools/ci/smoke-unix.sh), for ci.yml and release.yml alike. The job
+# must have checked out and set up Go before. Output: dist/ (MPCvibedRPC-linux-amd64 and -arm64, or MPCvibedRPC-macos.zip).
+name: Build and smoke-test the Linux or macOS program
+description: dist/ for this runner's system, then tools/ci/smoke-unix.sh
+inputs:
+  version:
+    description: the version being built (VERSION from tools/ci/version.sh)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Build (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        V: ${{ inputs.version }}
+      run: |
+        mkdir -p dist
+        for arch in amd64 arm64; do
+          CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$V" -o dist/MPCvibedRPC-linux-$arch ./cmd/mpcvibedrpc
+        done
+        ls -l dist
+        echo "::notice title=linux-amd64 size::$(stat -c %s dist/MPCvibedRPC-linux-amd64) bytes"
+    - name: Smoke test (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        V: ${{ inputs.version }}
+      run: PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$PWD/dist/MPCvibedRPC-linux-amd64" "$V"
+    - name: Build (macOS app)
+      if: runner.os == 'macOS'
+      shell: bash
+      env:
+        V: ${{ inputs.version }}
+      run: ./tools/ci/package-macos.sh "$V" dist
+    - name: Smoke test (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      env:
+        V: ${{ inputs.version }}
+      run: |
+        mkdir -p "$RUNNER_TEMP/app" && ditto -x -k dist/MPCvibedRPC-macos.zip "$RUNNER_TEMP/app"
+        app="$RUNNER_TEMP/app/MPCvibedRPC.app"
+        SCREENSHOT="$RUNNER_TEMP/macos-window.png" PASSED_FILE="$RUNNER_TEMP/smoke-ok" ./tools/ci/run-annotated.sh "smoke test" ./tools/ci/smoke-unix.sh "$app/Contents/MacOS/MPCvibedRPC" "$V" "$app"
