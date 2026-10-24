@@ -1,9 +1,9 @@
 [
   {"version": "0.9.44", "date": "2026-10-25", "items": [
-    "🧵 Plex, Stremio and Jellyfin / Emby share one web client: every request has a time limit, and a redirect elsewhere is refused.",
+    "🧵 Plex, Stremio and Jellyfin / Emby share one web client: requests have a time limit; a redirect elsewhere is refused.",
     "⏱️ Plex: a plex.tv or a server that accepts the connection and then stays silent no longer stalls the watcher.",
-    "🔐 Updates: the checksum is read before the program, only GitHub addresses are accepted, and an unchanged answer costs no rate limit.",
-    "🧩 The settings page is split into markup, style and script with a stricter content policy, and every field has a label.",
+    "🔐 Updates: the checksum is read first, only GitHub addresses are accepted, and an unchanged answer costs no rate limit.",
+    "🧩 The settings page is split into markup, style and script, with a stricter content policy and a label for every field.",
     "📌 Text you select in the log or the connections list stays selected; a hidden window stops asking for the status.",
     "🪟 Windows: whether the program starts with Windows is read from the registry directly, without a helper program.",
     "✂️ The four longest pieces of the code are split into named steps, with no change in what they do.",
