@@ -142,68 +142,127 @@ var (
 // closed while those change (VLC only when something changes); without closeMpc the caller is told (needsClose) and
 // can ask the user. mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing. On macOS and
 // Linux, enableUnix does the same for the players there (iinaPipe: IINA's connection on macOS).
+//
+// The steps run in this order: look for the running players, close them, set up MPC-HC and MPC-BE, reopen them, set
+// up mpv, set up VLC (and reopen it), and word the result.
 func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) WebResult {
 	if !IsWindows {
 		return enableUnix(port, closeMpc, mpvPipe, vlcPort, vlcPassword, iinaPipe)
 	}
 	exes := runningPlayers()
 	others := runningExes(otherPlayers)
-	var vlcExes, vlcDirs []string
+	vlcAt := findVlc(others)
+	closeVlc := vlcAt.file != "" && !vlcReady(vlcAt.text) && len(vlcAt.exes) > 0
+	if (len(exes) > 0 || closeVlc) && !closeMpc {
+		return WebResult{NeedsClose: true, Message: openPlayersMessage(len(exes) > 0, closeVlc)}
+	}
+	if !closeVlc {
+		vlcAt.exes = nil // left alone
+	}
+	closePlayers(exes, &vlcAt)
+	mpc := setUpMpcFamily(exes, port)
+	reopenPlayers(exes)
+
+	// MPC-QT needs nothing (its own connection is always on); mpv needs input-ipc-server in mpv.conf
+	mpv, qtFound := setUpMpv(others, mpvPipe)
+	edited := mpc.edited
+	if mpv.Edited != "" {
+		edited = append(edited, mpv.Edited)
+	}
+
+	// VLC needs its web interface on (extraintf=http) with a password, in the vlcrc it reads
+	vlc := setUpVlc(vlcAt, vlcPort, vlcPassword)
+	if vlc.Edited != "" {
+		edited = append(edited, vlc.Edited)
+	}
+
+	message, ok := describeSetup(port, mpc, len(exes) > 0, mpv, vlc, qtFound)
+	return WebResult{OK: ok, Message: message, Edited: edited, MpvPipe: mpv.Using, VlcPort: vlc.Port, VlcPassword: vlc.Password}
+}
+
+// vlcSpot is the VLC found on this PC before the setup: its running programs, the vlcrc it reads and that file's text.
+type vlcSpot struct {
+	exes []string
+	file string // "" when there is no vlcrc to set up
+	text string
+}
+
+// read loads the vlcrc's text again (VLC may have saved its settings on the way out).
+func (v *vlcSpot) read() {
+	if b, err := os.ReadFile(v.file); err == nil {
+		v.text = string(b)
+	}
+}
+
+// findVlc looks for VLC among the running programs: where they run from tells which vlcrc it reads.
+func findVlc(others []string) vlcSpot {
+	var v vlcSpot
+	var vlcDirs []string
 	for _, e := range others {
 		if vlcPlayer.belongs(e) {
-			vlcExes = append(vlcExes, e)
+			v.exes = append(v.exes, e)
 			vlcDirs = append(vlcDirs, filepath.Dir(e))
 		}
 	}
 	vlcPaths, vlcPresent := vlcConfPaths(vlcDirs)
-	vlcFile, vlcText := "", ""
-	readVlc := func() {
-		if b, err := os.ReadFile(vlcFile); err == nil {
-			vlcText = string(b)
-		}
-	}
 	if vlcPresent && len(vlcPaths) > 0 {
-		vlcFile = vlcPaths[0]
-		readVlc()
+		v.file = vlcPaths[0]
+		v.read()
 	}
-	closeVlc := vlcFile != "" && !vlcReady(vlcText) && len(vlcExes) > 0
-	if (len(exes) > 0 || closeVlc) && !closeMpc {
-		var open []string
-		if len(exes) > 0 {
-			open = append(open, "MPC-HC or MPC-BE")
-		}
-		if closeVlc {
-			open = append(open, "VLC")
-		}
-		return WebResult{NeedsClose: true, Message: strings.Join(open, " and ") + " is open and has to be closed for a moment (it will reopen)."}
+	return v
+}
+
+// openPlayersMessage is what the caller is told when the players have to be closed first.
+func openPlayersMessage(mpcOpen, vlcOpen bool) string {
+	var open []string
+	if mpcOpen {
+		open = append(open, "MPC-HC or MPC-BE")
 	}
-	if !closeVlc {
-		vlcExes = nil // left alone
+	if vlcOpen {
+		open = append(open, "VLC")
 	}
-	if len(exes) > 0 || len(vlcExes) > 0 {
+	return strings.Join(open, " and ") + " is open and has to be closed for a moment (it will reopen)."
+}
+
+// closePlayers closes the running MPC-HC/MPC-BE (exes) and the VLC that is to be reopened (vlc.exes, empty when VLC is
+// left alone), first politely, then by force; VLC's settings are read again once it is gone.
+func closePlayers(exes []string, vlc *vlcSpot) {
+	if len(exes) > 0 || len(vlc.exes) > 0 {
 		var procs []string
 		if len(exes) > 0 {
 			for _, p := range players {
 				procs = append(procs, p.procs...)
 			}
 		}
-		if len(vlcExes) > 0 {
+		if len(vlc.exes) > 0 {
 			procs = append(procs, vlcPlayer.procs...)
 		}
 		for _, n := range procs {
 			run("taskkill", "/IM", n+".exe")
 		}
 		time.Sleep(3 * time.Second)
-		if len(runningPlayers()) > 0 || (len(vlcExes) > 0 && len(runningExes([]player{vlcPlayer})) > 0) {
+		if len(runningPlayers()) > 0 || (len(vlc.exes) > 0 && len(runningExes([]player{vlcPlayer})) > 0) {
 			for _, n := range procs {
 				run("taskkill", "/F", "/IM", n+".exe")
 			}
 			time.Sleep(time.Second)
 		}
-		if len(vlcExes) > 0 {
-			readVlc() // VLC may have saved its settings on the way out
+		if len(vlc.exes) > 0 {
+			vlc.read() // VLC may have saved its settings on the way out
 		}
 	}
+}
+
+// mpcSetup is what switching the MPC-HC and MPC-BE web interfaces on did.
+type mpcSetup struct {
+	ok     bool
+	edited []string // the .ini files that were changed
+	done   []string // the players found
+	locked bool     // a web interface we switched on answers this PC only
+}
+
+// setUpMpcFamily switches the web interface of MPC-HC and MPC-BE on, in the registry and in every .ini file found.
+func setUpMpcFamily(exes []string, port int) mpcSetup {
 	prt := strconv.Itoa(port)
 	ok := true
 	edited := []string{}
@@ -257,21 +316,33 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 			done = append(done, p.name)
 		}
 	}
+	return mpcSetup{ok: ok, edited: edited, done: done, locked: locked}
+}
+
+// startDetached opens a program again, visible and independent of this one.
+func startDetached(exe string) {
+	c := proc.DetachVisible(exec.Command(exe))
+	if c.Start() == nil {
+		_ = c.Process.Release()
+	}
+}
+
+// reopenPlayers starts the MPC-HC/MPC-BE programs that were closed, once each.
+func reopenPlayers(exes []string) {
 	reopened := map[string]bool{}
 	for _, e := range exes {
 		if reopened[strings.ToLower(e)] {
 			continue // two windows of one player: it is opened once
 		}
 		reopened[strings.ToLower(e)] = true
-		c := proc.DetachVisible(exec.Command(e))
-		if c.Start() == nil {
-			_ = c.Process.Release()
-		}
+		startDetached(e)
 	}
+}
 
-	// MPC-QT needs nothing (its own connection is always on); mpv needs input-ipc-server in mpv.conf
+// setUpMpv sets mpv up (input-ipc-server in the mpv.conf it reads) and says whether MPC-QT, which needs nothing, is
+// on this PC.
+func setUpMpv(others []string, mpvPipe string) (mpv mpvResult, qtFound bool) {
 	var mpvDirs []string
-	qtFound := false
 	for _, e := range others {
 		if mpvPlayer.belongs(e) {
 			mpvDirs = append(mpvDirs, filepath.Dir(e))
@@ -282,41 +353,43 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 	if !qtFound {
 		qtFound = mpcQTPlayer.installed(nil, nil) || dirExists(filepath.Join(os.Getenv("APPDATA"), "mpc-qt"))
 	}
-	mpv := enableMpvIPC(mpvPipe, mpvDirs)
-	if mpv.Edited != "" {
-		edited = append(edited, mpv.Edited)
-	}
+	return enableMpvIPC(mpvPipe, mpvDirs), qtFound
+}
 
-	// VLC needs its web interface on (extraintf=http) with a password, in the vlcrc it reads
+// setUpVlc switches VLC's web interface on in its vlcrc (when there is one), then reopens the VLC that was closed for it.
+func setUpVlc(v vlcSpot, vlcPort int, vlcPassword string) vlcResult {
 	var vlc vlcResult
-	if vlcFile != "" {
-		vlc = enableVlcHTTP(vlcFile, vlcText, vlcPort, vlcPassword)
+	if v.file != "" {
+		vlc = enableVlcHTTP(v.file, v.text, vlcPort, vlcPassword)
 		if vlc.Edited != "" {
-			edited = append(edited, vlc.Edited)
-			if len(vlcExes) > 0 {
+			if len(v.exes) > 0 {
 				vlc.Message += " VLC was reopened."
 			} else {
 				vlc.Message += " It takes effect the next time VLC starts."
 			}
 		}
-		for _, e := range vlcExes {
-			c := proc.DetachVisible(exec.Command(e))
-			if c.Start() == nil {
-				_ = c.Process.Release()
-			}
+		for _, e := range v.exes {
+			startDetached(e)
 		}
 	}
+	return vlc
+}
 
+// describeSetup words what was done, and whether all of it worked. mpcReopened: MPC-HC or MPC-BE was open and has been
+// started again.
+func describeSetup(port int, mpc mpcSetup, mpcReopened bool, mpv mpvResult, vlc vlcResult, qtFound bool) (message string, ok bool) {
+	ok = mpc.ok
+	done := mpc.done
 	var parts []string
 	if len(done) > 0 || (mpv.Message == "" && vlc.Message == "" && !qtFound) {
 		if len(done) == 0 { // nothing found: the MPC-HC values were still written, as they always were
 			done = append(done, players[0].name)
 		}
 		m := fmt.Sprintf("%s web interface switched on (port %d).", strings.Join(done, " and "), port)
-		if locked {
+		if mpc.locked {
 			m = fmt.Sprintf("%s web interface switched on (port %d, for this PC only).", strings.Join(done, " and "), port)
 		}
-		if len(exes) > 0 {
+		if mpcReopened {
 			m += " The player was reopened."
 		}
 		parts = append(parts, m)
@@ -332,7 +405,7 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 		parts = append(parts, vlc.Message)
 		ok = ok && vlc.OK
 	}
-	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using, VlcPort: vlc.Port, VlcPassword: vlc.Password}
+	return strings.Join(parts, " "), ok
 }
 
 // regDword reads a REG_DWORD value (-1 when it is not there).

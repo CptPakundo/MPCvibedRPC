@@ -174,7 +174,8 @@ func joinNonEmpty(sep string, parts ...string) string {
 }
 
 // BuildActivity builds the activity in Discord's wire format, or nil if there is nothing to show. media may be nil
-// (it is then parsed from the file name); art may be nil.
+// (it is then parsed from the file name); art may be nil. It only orchestrates: the title, the info line, the two
+// text lines, the state and the images are each built by a function of their own below.
 func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *Activity {
 	if info == nil || info.File == "" || (info.State != 1 && info.State != 2) {
 		return nil
@@ -199,70 +200,9 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		}
 	}
 
-	playing := info.State == 2
-	rate := info.Rate
-	if !(rate > 0) {
-		rate = 1
-	}
 	watching := cfg.ActivityType != "playing"
 	titleInName := watching && cfg.TitleAsName
-	title := media.Title
-	if title == "" {
-		title = media.Display
-	}
-	// Recognised titles are shown the way the catalog spells them.
-	if cfg.CatalogTitle && art != nil && art.Name != "" && art.Source != "Wikipedia" && !strings.ContainsAny(art.Name, "()") {
-		key := normKey
-		var ty *jsre.Match
-		if !media.IsEpisode && !truthy(media.Year) {
-			ty = reYearTail.Exec(title)
-		}
-		kn, kt := key(art.Name), key(title)
-		same := kn == kt || (ty != nil && kn == key(ty.Str(1)))
-		near := !same && !art.Split && u16len(kn) >= 12 && u16len(kt) >= 12 && abs(u16len(kn)-u16len(kt)) <= 1 && editDistance(kn, kt) <= 1
-		longer := !media.IsEpisode && art.Type == "movie" && u16len(kt) >= 4 && strings.HasPrefix(kn, kt)
-		season := ""
-		if media.IsEpisode && art.Split && !same && strings.HasPrefix(kn, kt) {
-			if reSeasonPunc.Test(art.Name) || art.SeasonName == "" || kn != key(title+art.SeasonName) {
-				season = art.Name
-			} else {
-				season = title + ": " + art.SeasonName
-			}
-		}
-		numbered := media.IndexTitle != "" && kn == key(media.IndexTitle)
-		wrapped := !media.IsEpisode && art.Type == "movie" && u16len(kn) >= 8 && u16len(kt) > u16len(kn) && strings.HasSuffix(kt, kn)
-		if same || near || longer || wrapped || numbered {
-			title = art.Name
-		} else if season != "" {
-			title = season
-		}
-	}
-	if art != nil && art.Alt != nil && cfg.AnimeTitles != "file" {
-		english, romaji := art.Alt.English, art.Alt.Romaji
-		pick := ""
-		switch {
-		case cfg.AnimeTitles == "english":
-			pick = firstNonEmpty(english, romaji)
-		case cfg.AnimeTitles == "romaji":
-			pick = firstNonEmpty(romaji, english)
-		case english != "" && romaji != "":
-			f := normKey(title)
-			if bigramSim(f, normKey(romaji)) > bigramSim(f, normKey(english)) {
-				pick = romaji
-			} else {
-				pick = english
-			}
-		default:
-			pick = firstNonEmpty(english, romaji)
-		}
-		if pick != "" && normText(pick) != normText(title) {
-			title = pick
-		}
-	}
-	poster := ""
-	if cfg.ShowArtwork && art != nil && art.Poster != "" {
-		poster = art.Poster
-	}
+	title := chooseTitle(media, cfg, art)
 
 	a := &Activity{Instance: false}
 
@@ -277,11 +217,121 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		}
 	}
 
+	genres, infoLine := infoParts(media, cfg, art)
+	effSeason := effectiveSeason(media, art)
+
+	details := ""
+	seasonLine := ""
+	if titleInName {
+		if media.IsEpisode {
+			var eraName string
+			details, seasonLine, eraName = episodeDetails(media, cfg, art, title, effSeason, specialLabel, watching)
+			if eraName != "" {
+				a.Name = clip(eraName)
+			}
+		} else {
+			details = movieDetails(media, art, genres)
+		}
+	} else {
+		details = media.Display
+	}
+	if details != "" {
+		a.Details = clip(details)
+	}
+
+	a.State, a.Timestamps = stateAndTimes(info, cfg, now, watching, titleInName, seasonLine, infoLine)
+	a.Assets = buildAssets(media, cfg, art, title, watching, effSeason, specialLabel)
+
+	if cfg.LinkButton && art != nil && buttonURL(art.URL) {
+		lbl := "View on " + firstNonEmpty(art.URLLabel, "IMDb")
+		if u16len(lbl) > 32 {
+			lbl = u16slice(lbl, 0, 32)
+		}
+		a.Buttons = []Button{{Label: lbl, URL: art.URL}}
+	}
+	return a
+}
+
+// chooseTitle is the title the activity is built around: the file's title, spelled the way the catalog spells it
+// (CatalogTitle), then for anime the English or romaji title the user prefers (AnimeTitles).
+func chooseTitle(media *Media, cfg *Config, art *Art) string {
+	title := media.Title
+	if title == "" {
+		title = media.Display
+	}
+	title = catalogSpelling(title, media, cfg, art)
+	return animeTitle(title, cfg, art)
+}
+
+// catalogSpelling shows a recognised title the way the catalog spells it, and a split season as "Show: Season name".
+func catalogSpelling(title string, media *Media, cfg *Config, art *Art) string {
+	if !(cfg.CatalogTitle && art != nil && art.Name != "" && art.Source != "Wikipedia" && !strings.ContainsAny(art.Name, "()")) {
+		return title
+	}
+	var ty *jsre.Match
+	if !media.IsEpisode && !truthy(media.Year) {
+		ty = reYearTail.Exec(title)
+	}
+	kn, kt := normKey(art.Name), normKey(title)
+	same := kn == kt || (ty != nil && kn == normKey(ty.Str(1)))
+	near := !same && !art.Split && u16len(kn) >= 12 && u16len(kt) >= 12 && abs(u16len(kn)-u16len(kt)) <= 1 && editDistance(kn, kt) <= 1
+	longer := !media.IsEpisode && art.Type == "movie" && u16len(kt) >= 4 && strings.HasPrefix(kn, kt)
+	season := ""
+	if media.IsEpisode && art.Split && !same && strings.HasPrefix(kn, kt) {
+		if reSeasonPunc.Test(art.Name) || art.SeasonName == "" || kn != normKey(title+art.SeasonName) {
+			season = art.Name
+		} else {
+			season = title + ": " + art.SeasonName
+		}
+	}
+	numbered := media.IndexTitle != "" && kn == normKey(media.IndexTitle)
+	wrapped := !media.IsEpisode && art.Type == "movie" && u16len(kn) >= 8 && u16len(kt) > u16len(kn) && strings.HasSuffix(kt, kn)
+	if same || near || longer || wrapped || numbered {
+		return art.Name
+	}
+	if season != "" {
+		return season
+	}
+	return title
+}
+
+// animeTitle swaps in the English or romaji title of a recognised anime, as AnimeTitles asks ("file" keeps the
+// file's own).
+func animeTitle(title string, cfg *Config, art *Art) string {
+	if art == nil || art.Alt == nil || cfg.AnimeTitles == "file" {
+		return title
+	}
+	english, romaji := art.Alt.English, art.Alt.Romaji
+	pick := ""
+	switch {
+	case cfg.AnimeTitles == "english":
+		pick = firstNonEmpty(english, romaji)
+	case cfg.AnimeTitles == "romaji":
+		pick = firstNonEmpty(romaji, english)
+	case english != "" && romaji != "":
+		f := normKey(title)
+		if bigramSim(f, normKey(romaji)) > bigramSim(f, normKey(english)) {
+			pick = romaji
+		} else {
+			pick = english
+		}
+	default:
+		pick = firstNonEmpty(english, romaji)
+	}
+	if pick != "" && normText(pick) != normText(title) {
+		return pick
+	}
+	return title
+}
+
+// infoParts reads the catalog's extra facts (RichInfo): the genres (at most two), which a film shows in its first
+// line, and the info line after the season line: genres and rating for an episode, rating and director for a film.
+func infoParts(media *Media, cfg *Config, art *Art) (genres, infoLine string) {
 	var inf *ArtInfo
 	if cfg.RichInfo && art != nil && art.Info != nil {
 		inf = art.Info
 	}
-	genres, rating, director := "", "", ""
+	rating, director := "", ""
 	if inf != nil {
 		if len(inf.Genres) > 0 {
 			g := inf.Genres
@@ -297,13 +347,17 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 			director = "Dir. " + inf.Director
 		}
 	}
-	var infoLine string
 	if media.IsEpisode {
 		infoLine = joinNonEmpty(" · ", genres, rating)
 	} else {
 		infoLine = joinNonEmpty(" · ", rating, director)
 	}
+	return genres, infoLine
+}
 
+// effectiveSeason is the season an episode is shown with: the file's own, else the catalog's, else 1 for a show the
+// catalog splits into seasons; NA when it has none (or the file has no episode number).
+func effectiveSeason(media *Media, art *Art) int {
 	effSeason := NA
 	if media.IsEpisode && media.Episode != NA {
 		switch {
@@ -315,139 +369,147 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 			effSeason = 1
 		}
 	}
+	return effSeason
+}
 
-	details := ""
-	seasonLine := ""
-	if titleInName {
-		if media.IsEpisode {
-			eraName := ""
-			var em *jsre.Match
-			if art != nil && art.SeasonName != "" && rePokemon.Test(title) {
-				em = reGenre.Exec(art.SeasonName)
-			}
-			seasonLabel := ""
-			if art != nil {
-				seasonLabel = art.SeasonName
-			}
-			if em != nil {
-				era := em.Str(1)
-				if g, ok := genNames[era]; ok {
-					era = g
-				}
-				seasonLabel = ""
-				if em.Has(2) {
-					seasonLabel = em.Str(2)
-				}
-				if !strings.Contains(normText(title), normText(era)) {
-					eraName = title + ": " + era
-				}
-			}
-			if em == nil && media.CodePrefix == "XY" && media.Episode >= 1 && media.Episode <= 140 && rePokemon.Test(media.Title) {
-				xy := "XYZ"
-				if media.Episode <= 49 {
-					xy = "XY"
-				} else if media.Episode <= 93 {
-					xy = "XY Kalos Quest"
-				}
-				eraName = media.Title + ": " + xy
-				seasonLabel = ""
-			}
-			sn := ""
-			if seasonLabel != "" && !strings.Contains(normText(title), normText(seasonLabel)) {
-				sn = seasonLabel
-			}
-			var ep *ArtEpisode
-			if art != nil {
-				ep = art.Episode
-			}
-			label := media.Label
-			if media.Season == NA && effSeason != NA && reEpLabel.Test(label) {
-				label = "S" + pad2n(effSeason) + "E" + pad2n(media.Episode)
-			}
-			continued := false
-			if media.EpTitleBase != "" && ep != nil && ep.Title != "" {
-				nt, nb := normKey(ep.Title), normKey(media.EpTitleBase)
-				suffix := ""
-				if strings.HasPrefix(nt, nb) {
-					suffix = nt[len(nb):]
-				}
-				continued = rePartSuffix.Test(suffix)
-			}
-			epTitle := ""
-			switch {
-			case continued:
-				epTitle = ep.Title
-			case media.EpTitle != "":
-				epTitle = media.EpTitle
-			case ep != nil:
-				epTitle = ep.Title
-			}
-			badge := watching && media.Episode != NA && effSeason != NA
-			seasonLine = sn
-			if badge && !cfg.EpisodeInDetails {
-				details = joinNonEmpty(" · ", epTitle)
-			} else {
-				details = joinNonEmpty(" · ", label, epTitle)
-			}
-			if details == "" && sn != "" {
-				details = sn
-				seasonLine = ""
-			}
-			if details == "" {
-				details = specialLabel // a special whose name no catalog has
-			}
-			if eraName != "" {
-				a.Name = clip(eraName)
-			}
-		} else {
-			year := ""
-			switch {
-			case truthy(media.Year):
-				year = itoa(media.Year)
-			case art != nil && art.Type == "movie" && truthy(art.Year):
-				year = itoa(art.Year)
-			}
-			details = joinNonEmpty(" · ", year, genres)
+// episodeDetails is the first text line of an episode (label and episode title), the season line that goes in front
+// of the info line, and eraName, which replaces the status name when a Pokémon season or era is recognised ("" if not).
+func episodeDetails(media *Media, cfg *Config, art *Art, title string, effSeason int, specialLabel string, watching bool) (details, seasonLine, eraName string) {
+	var em *jsre.Match
+	if art != nil && art.SeasonName != "" && rePokemon.Test(title) {
+		em = reGenre.Exec(art.SeasonName)
+	}
+	seasonLabel := ""
+	if art != nil {
+		seasonLabel = art.SeasonName
+	}
+	if em != nil {
+		era := em.Str(1)
+		if g, ok := genNames[era]; ok {
+			era = g
 		}
+		seasonLabel = ""
+		if em.Has(2) {
+			seasonLabel = em.Str(2)
+		}
+		if !strings.Contains(normText(title), normText(era)) {
+			eraName = title + ": " + era
+		}
+	}
+	if em == nil && media.CodePrefix == "XY" && media.Episode >= 1 && media.Episode <= 140 && rePokemon.Test(media.Title) {
+		xy := "XYZ"
+		if media.Episode <= 49 {
+			xy = "XY"
+		} else if media.Episode <= 93 {
+			xy = "XY Kalos Quest"
+		}
+		eraName = media.Title + ": " + xy
+		seasonLabel = ""
+	}
+	sn := ""
+	if seasonLabel != "" && !strings.Contains(normText(title), normText(seasonLabel)) {
+		sn = seasonLabel
+	}
+	var ep *ArtEpisode
+	if art != nil {
+		ep = art.Episode
+	}
+	label := media.Label
+	if media.Season == NA && effSeason != NA && reEpLabel.Test(label) {
+		label = "S" + pad2n(effSeason) + "E" + pad2n(media.Episode)
+	}
+	continued := false
+	if media.EpTitleBase != "" && ep != nil && ep.Title != "" {
+		nt, nb := normKey(ep.Title), normKey(media.EpTitleBase)
+		suffix := ""
+		if strings.HasPrefix(nt, nb) {
+			suffix = nt[len(nb):]
+		}
+		continued = rePartSuffix.Test(suffix)
+	}
+	epTitle := ""
+	switch {
+	case continued:
+		epTitle = ep.Title
+	case media.EpTitle != "":
+		epTitle = media.EpTitle
+	case ep != nil:
+		epTitle = ep.Title
+	}
+	badge := watching && media.Episode != NA && effSeason != NA
+	seasonLine = sn
+	if badge && !cfg.EpisodeInDetails {
+		details = joinNonEmpty(" · ", epTitle)
 	} else {
-		details = media.Display
+		details = joinNonEmpty(" · ", label, epTitle)
 	}
-	if details != "" {
-		a.Details = clip(details)
+	if details == "" && sn != "" {
+		details = sn
+		seasonLine = ""
 	}
+	if details == "" {
+		details = specialLabel // a special whose name no catalog has
+	}
+	return details, seasonLine, eraName
+}
 
-	if playing {
+// movieDetails is the first text line of a film: its year (the file's, else the catalog's) and the genres.
+func movieDetails(media *Media, art *Art, genres string) string {
+	year := ""
+	switch {
+	case truthy(media.Year):
+		year = itoa(media.Year)
+	case art != nil && art.Type == "movie" && truthy(art.Year):
+		year = itoa(art.Year)
+	}
+	return joinNonEmpty(" · ", year, genres)
+}
+
+// stateAndTimes is the second text line and the timestamps: while playing the season and info lines (or "Playing")
+// with the progress bar's start and end, while paused the position (and no timestamps).
+func stateAndTimes(info *Info, cfg *Config, now int64, watching, titleInName bool, seasonLine, infoLine string) (state string, ts *Timestamps) {
+	if info.State == 2 {
+		rate := info.Rate
+		if !(rate > 0) {
+			rate = 1
+		}
 		if !titleInName {
-			a.State = "Playing"
+			state = "Playing"
 		} else if seasonLine != "" || infoLine != "" {
-			a.State = clip(joinNonEmpty(" · ", seasonLine, infoLine))
+			state = clip(joinNonEmpty(" · ", seasonLine, infoLine))
 		}
 		start := int64(jsRound(float64(now) - float64(info.Position)/rate))
 		end := int64(jsRound(float64(now) + math.Max(0, float64(info.Duration-info.Position))/rate))
 		switch {
 		case watching && info.Duration > 0:
-			a.Timestamps = &Timestamps{Start: start, End: end}
+			ts = &Timestamps{Start: start, End: end}
 		case !watching && cfg.ShowRemainingTime && info.Duration > 0:
-			a.Timestamps = &Timestamps{End: end}
+			ts = &Timestamps{End: end}
 		default:
-			a.Timestamps = &Timestamps{Start: start}
+			ts = &Timestamps{Start: start}
 		}
-	} else {
-		clock := fmtTime(info.Position)
-		if info.Duration > 0 {
-			clock = fmtTime(info.Position) + " / " + fmtTime(info.Duration)
-		}
-		bar := ""
-		if cfg.TextProgressBar {
-			bar = ProgressBar(info.Position, info.Duration, cfg.ProgressWidth)
-		}
-		if bar != "" {
-			a.State = "⏸ " + bar + " " + clock
-		} else {
-			a.State = "Paused at " + clock
-		}
+		return state, ts
 	}
+	clock := fmtTime(info.Position)
+	if info.Duration > 0 {
+		clock = fmtTime(info.Position) + " / " + fmtTime(info.Duration)
+	}
+	bar := ""
+	if cfg.TextProgressBar {
+		bar = ProgressBar(info.Position, info.Duration, cfg.ProgressWidth)
+	}
+	if bar != "" {
+		return "⏸ " + bar + " " + clock, nil
+	}
+	return "Paused at " + clock, nil
+}
 
+// buildAssets is the cover and the small corner icon with their hover texts; nil when there is no image to show.
+func buildAssets(media *Media, cfg *Config, art *Art, title string, watching bool, effSeason int, specialLabel string) *Assets {
+	poster := ""
+	if cfg.ShowArtwork && art != nil && art.Poster != "" {
+		poster = art.Poster
+	}
 	assets := &Assets{}
 	if poster != "" {
 		assets.LargeImage = poster
@@ -458,47 +520,39 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	} else if cfg.LargeImageKey != "" {
 		assets.LargeImage = cfg.LargeImageKey
 	}
-	if assets.LargeImage != "" {
-		if watching && effSeason != NA && media.Episode != NA {
-			ep := media.Episode
-			switch {
-			case truthy(media.BadgeEpisode):
-				ep = media.BadgeEpisode
-			case art != nil && art.Split && truthy(art.EpInEntry):
-				ep = art.EpInEntry
+	if assets.LargeImage == "" {
+		return nil
+	}
+	if watching && effSeason != NA && media.Episode != NA {
+		ep := media.Episode
+		switch {
+		case truthy(media.BadgeEpisode):
+			ep = media.BadgeEpisode
+		case art != nil && art.Split && truthy(art.EpInEntry):
+			ep = art.EpInEntry
+		}
+		assets.LargeText = "Season " + itoa(effSeason) + ", Episode " + itoa(ep)
+		if specialLabel != "" {
+			assets.LargeText = specialLabel
+		}
+	} else if poster != "" {
+		yr := NA
+		if !media.IsEpisode {
+			if truthy(media.Year) {
+				yr = media.Year
+			} else if art != nil && art.Type == "movie" && truthy(art.Year) {
+				yr = art.Year
 			}
-			assets.LargeText = "Season " + itoa(effSeason) + ", Episode " + itoa(ep)
-			if specialLabel != "" {
-				assets.LargeText = specialLabel
-			}
-		} else if poster != "" {
-			yr := NA
-			if !media.IsEpisode {
-				if truthy(media.Year) {
-					yr = media.Year
-				} else if art != nil && art.Type == "movie" && truthy(art.Year) {
-					yr = art.Year
-				}
-			}
-			if yr != NA {
-				assets.LargeText = clip(title + " (" + itoa(yr) + ")")
-			} else {
-				assets.LargeText = clip(title)
-			}
+		}
+		if yr != NA {
+			assets.LargeText = clip(title + " (" + itoa(yr) + ")")
 		} else {
-			assets.LargeText = clip(cfg.AppName)
+			assets.LargeText = clip(title)
 		}
-		a.Assets = assets
+	} else {
+		assets.LargeText = clip(cfg.AppName)
 	}
-
-	if cfg.LinkButton && art != nil && buttonURL(art.URL) {
-		lbl := "View on " + firstNonEmpty(art.URLLabel, "IMDb")
-		if u16len(lbl) > 32 {
-			lbl = u16slice(lbl, 0, 32)
-		}
-		a.Buttons = []Button{{Label: lbl, URL: art.URL}}
-	}
-	return a
+	return assets
 }
 
 // AddLinks makes the two text lines and the cover open the title's catalog page, the page the "View on ..." button
