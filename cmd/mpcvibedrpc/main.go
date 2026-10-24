@@ -27,14 +27,15 @@ import (
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
-var version = "0.9.42"
+var version = "0.9.43"
 
 const preferredPort = 47654
 
 var (
 	background  bool
 	afterUpdate bool
-	serve       bool // macOS: this is the copy that does the work (see detach in launch_darwin.go)
+	//lint:ignore U1000 set here for every system, read by launch_darwin.go only
+	serve bool // macOS: this is the copy that does the work (see detach in launch_darwin.go)
 )
 
 func main() {

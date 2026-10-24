@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.43", "date": "2026-10-24", "items": [
+    "🧪 The project's own tests run six times faster, and new checks keep the docs, the page and the code in step.",
+    "🔍 Every change is now also read by two code analysers before it can be released."
+  ]},
   {"version": "0.9.42", "date": "2026-10-24", "items": [
     "⚡ The status appears the moment Discord is reached, not at the next check.",
     "🛡️ An automatic update that is called off meanwhile can no longer end the program.",

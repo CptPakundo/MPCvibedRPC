@@ -58,6 +58,7 @@ func jellyfinEngine(t *testing.T, port int, f *fakeJellyfin, product string) (*E
 }
 
 func TestJellyfinPlayback(t *testing.T) {
+	t.Parallel()
 	f := newFakeJellyfin(t)
 	e, d, l := jellyfinEngine(t, deadPort(t), f, "Jellyfin")
 	e.Start()
@@ -86,6 +87,7 @@ func TestJellyfinPlayback(t *testing.T) {
 
 // An Emby server shows as Emby.
 func TestEmbyIsCalledEmby(t *testing.T) {
+	t.Parallel()
 	f := newFakeJellyfin(t)
 	e, _, l := jellyfinEngine(t, deadPort(t), f, "Emby")
 	e.Start()
@@ -97,6 +99,7 @@ func TestEmbyIsCalledEmby(t *testing.T) {
 
 // A refused sign-in is shown in the window.
 func TestJellyfinRefusedSignIn(t *testing.T) {
+	t.Parallel()
 	f := newFakeJellyfin(t)
 	e, _, _ := jellyfinEngine(t, deadPort(t), f, "Jellyfin")
 	e.cfg.JellyfinToken = "revoked"

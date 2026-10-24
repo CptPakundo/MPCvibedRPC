@@ -7,6 +7,7 @@ import (
 
 // The log names the file the title came from (a wrong title can only be traced back to it), but never its folder path.
 func TestLogNamesTheFile(t *testing.T) {
+	t.Parallel()
 	e, m, d, l := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return len(d.list()) >= 1 && l.has("Playing: ") })

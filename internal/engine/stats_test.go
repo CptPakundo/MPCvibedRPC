@@ -14,6 +14,7 @@ import (
 )
 
 func TestStatsCountWhatIsShownAndStayOnThisComputer(t *testing.T) {
+	t.Parallel()
 	e, m, d, _ := setup(t)
 	file := filepath.Join(t.TempDir(), "stats.json")
 	e.opts.StatsFile = file
@@ -71,6 +72,7 @@ func TestStatsCountWhatIsShownAndStayOnThisComputer(t *testing.T) {
 }
 
 func TestStatsFileThatIsBrokenStartsOver(t *testing.T) {
+	t.Parallel()
 	file := filepath.Join(t.TempDir(), "stats.json")
 	os.WriteFile(file, []byte("{not json"), 0o644)
 	if s := New(core.DefaultConfig(), Options{StatsFile: file}).Stats(); s.Videos != 0 || s.Since == "" || s.Players == nil {
@@ -97,10 +99,9 @@ func (f *failingCatalogs) RoundTrip(req *http.Request) (*http.Response, error) {
 // An episode shown without its title (the catalogs did not answer) is sent again a few times while it plays, so a
 // title that comes later reaches Discord; then it stops. Without catalog lookups nothing is repeated.
 func TestEpisodeWithoutTitleIsAskedAgainWhilePlaying(t *testing.T) {
-	saved := recheckAfter
-	recheckAfter = []float64{1, 1, 1}
-	t.Cleanup(func() { recheckAfter = saved })
-	e, m, d, _ := setup(t)
+	t.Parallel()
+	m := newMPC(t)
+	e, d, _ := newTestEngine(t, withPort(m.port), shortPause, func(_ *core.Config, o *Options) { o.RecheckAfter = []float64{1, 1, 1} })
 	cfg := e.Config()
 	cfg.ShowArtwork, cfg.ArtworkWaitMs = true, 50
 	e.cfg = cfg

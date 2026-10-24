@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
 )
 
@@ -21,6 +22,8 @@ func clears(d *disc, from int) int {
 // A busy Discord that applies the status but answers after the timeout: the player then quits. The status must still
 // be cleared (it was left on the profile when the program took the late answer for "not shown").
 func TestStatusClearedAfterALateAnswer(t *testing.T) {
+	// not parallel: it shortens the discord package's timeout, which every engine shares (Go runs the sequential tests
+	// before the parallel ones resume)
 	defer func(d time.Duration) { discord.RequestTimeout = d }(discord.RequestTimeout)
 	discord.RequestTimeout = 200 * time.Millisecond
 	e, m, d, l := setup(t)
@@ -39,6 +42,7 @@ func TestStatusClearedAfterALateAnswer(t *testing.T) {
 
 // A clear Discord does not take is tried again until one works, and logged once.
 func TestFailedClearIsRetried(t *testing.T) {
+	t.Parallel()
 	e, m, d, l := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return e.Status().NowPlaying != nil })
@@ -64,9 +68,9 @@ func TestFailedClearIsRetried(t *testing.T) {
 
 // While nothing plays and Discord is connected, the status is cleared again now and then, without a log line.
 func TestNothingPlayingIsClearedAgainNowAndThen(t *testing.T) {
-	defer func(d time.Duration) { reclearEvery = d }(reclearEvery)
-	reclearEvery = 300 * time.Millisecond
-	e, m, d, l := setup(t)
+	t.Parallel()
+	m := newMPC(t)
+	e, d, l := newTestEngine(t, withPort(m.port), shortPause, func(_ *core.Config, o *Options) { o.ReclearEvery = 300 * time.Millisecond })
 	e.Start()
 	eventually(t, "shown", func() bool { return e.Status().NowPlaying != nil })
 	n := len(d.list())
@@ -89,6 +93,7 @@ func TestNothingPlayingIsClearedAgainNowAndThen(t *testing.T) {
 // A player paused at the very end of its file (some stay on the last frame) has finished the video: the status is
 // cleared at once instead of showing "Paused" until the pause limit.
 func TestPausedAtTheEndClears(t *testing.T) {
+	t.Parallel()
 	e, m, d, l := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return e.Status().NowPlaying != nil })

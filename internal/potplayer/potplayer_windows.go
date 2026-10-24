@@ -12,6 +12,16 @@ import (
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
+// The messages, sent as WM_USER with one of these in wParam. The answers come back as the result, except the file
+// path, which PotPlayer sends to the window named in lParam as WM_COPYDATA (UTF-8, dwData = getFileName).
+const (
+	getTotalTime   = 0x5002 // ms
+	getCurrentTime = 0x5004 // ms
+	getPlayStatus  = 0x5006 // 0 stopped, 1 paused, 2 playing
+	getSpeed       = 0x5015 // 200..12000 (0.2x..12x); 0 from versions without it
+	getFileName    = 0x6020
+)
+
 var (
 	user32              = syscall.NewLazyDLL("user32.dll")
 	kernel32            = syscall.NewLazyDLL("kernel32.dll")

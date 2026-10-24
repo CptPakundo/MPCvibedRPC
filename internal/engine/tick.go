@@ -101,7 +101,7 @@ func (e *Engine) tick(r *run) {
 	}
 	e.mu.Lock()
 	cfg := e.cfg
-	e.statTime(time.Now(), pollInterval(cfg))
+	e.statTime(time.Now(), e.pollInterval(cfg))
 	e.mu.Unlock()
 
 	info := e.fetchPlayer(r.ctx, cfg)
@@ -136,7 +136,7 @@ func (e *Engine) tick(r *run) {
 		// missed, or a status it applied although its answer never came, cannot stay up.
 		var clear *discord.Client
 		shown := e.shown
-		if e.ready && (shown || time.Since(e.clearedAt) >= reclearEvery) {
+		if e.ready && (shown || time.Since(e.clearedAt) >= e.reclearEvery) {
 			clear = e.rpc
 		}
 		e.mu.Unlock()
@@ -258,8 +258,8 @@ func (e *Engine) tick(r *run) {
 		if e.recheckKey != key {
 			e.recheckKey, e.rechecks, e.recheckAt = key, 0, time.Time{}
 		}
-		if e.recheckAt.IsZero() && e.rechecks < len(recheckAfter) {
-			e.recheckAt = time.Now().Add(time.Duration(float64(e.pauseUnit) * recheckAfter[e.rechecks]))
+		if e.recheckAt.IsZero() && e.rechecks < len(e.recheckAfter) {
+			e.recheckAt = time.Now().Add(time.Duration(float64(e.pauseUnit) * e.recheckAfter[e.rechecks]))
 			e.rechecks++
 		}
 	} else if e.recheckKey == key {
@@ -312,18 +312,21 @@ func (e *Engine) loop(r *run, interval time.Duration) {
 	}
 }
 
-// pollInterval is how often the players are asked (at least every 250 ms).
-func pollInterval(cfg core.Config) time.Duration {
+// pollInterval is how often the players are asked: the setting, but never more often than minPoll.
+func (e *Engine) pollInterval(cfg core.Config) time.Duration {
 	interval := time.Duration(cfg.PollInterval) * time.Millisecond
-	if interval < 250*time.Millisecond {
-		interval = 250 * time.Millisecond
+	if interval < e.minPoll {
+		interval = e.minPoll
 	}
 	return interval
 }
 
-// reclearEvery is how often the status is cleared again while nothing plays and Discord is connected (shortened in
-// tests): Discord limits a status to five changes in 20 seconds, and once a minute keeps far below that.
-var reclearEvery = time.Minute
+// minPoll is the shortest interval between checks (tests shorten it: Options.MinPoll).
+const minPoll = 250 * time.Millisecond
+
+// reclearEvery is how often the status is cleared again while nothing plays and Discord is connected (tests shorten
+// it: Options.ReclearEvery): Discord limits a status to five changes in 20 seconds, and once a minute keeps far below that.
+const reclearEvery = time.Minute
 
 // endSlack: a player paused this close to the end of the file has finished it (some stay paused on the last frame).
 const endSlack = 3000 // ms
@@ -334,7 +337,8 @@ func endedAt(info *core.Info) bool {
 }
 
 // recheckAfter is when an episode shown without its title is looked up again, in minutes after it was shown (or after
-// the previous try): a catalog that did not answer gets another chance while the episode plays.
+// the previous try): a catalog that did not answer gets another chance while the episode plays. Read-only; tests
+// replace it through Options.RecheckAfter.
 var recheckAfter = []float64{2.5, 5, 15}
 
 // hiddenWhere reports whether the Never show list matches where a server keeps the item (see core.Info.Where).

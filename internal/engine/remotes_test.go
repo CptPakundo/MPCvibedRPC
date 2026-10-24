@@ -43,6 +43,7 @@ var remoteRigs = []struct {
 
 // A remote is asked after the players on this computer: one that plays wins, and the remote comes back when it stops.
 func TestRemotesInThePlayerOrder(t *testing.T) {
+	t.Parallel()
 	for _, tc := range remoteRigs {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newMPC(t)
@@ -71,6 +72,7 @@ func TestRemotesInThePlayerOrder(t *testing.T) {
 
 // Resting stops the watcher (no more requests) and starts it again when it ends.
 func TestRemotesStopWhileResting(t *testing.T) {
+	t.Parallel()
 	for _, tc := range remoteRigs {
 		t.Run(tc.name, func(t *testing.T) {
 			var mayRest atomic.Bool

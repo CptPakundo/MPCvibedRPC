@@ -205,12 +205,3 @@ func (b *Bus) Watchers() int {
 	defer b.mu.Unlock()
 	return len(b.subs)
 }
-
-// Strings turns a []string into the []any the encoder takes for "as".
-func Strings(s ...string) []any {
-	out := make([]any, len(s))
-	for i, v := range s {
-		out[i] = v
-	}
-	return out
-}

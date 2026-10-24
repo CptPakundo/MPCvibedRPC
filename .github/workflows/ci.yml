@@ -45,6 +45,15 @@ jobs:
         if: runner.os == 'Linux'
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
         shell: bash
+      # staticcheck without ST1005: the program's error texts are sentences, because the window shows them to the user.
+      # deadcode: every function must be reachable from the program or a test; delete what is not, or say why it stays.
+      - name: staticcheck and deadcode
+        if: runner.os == 'Linux'
+        run: |
+          go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 -checks inherit,-ST1005 ./...
+          dead="$(go run golang.org/x/tools/cmd/deadcode@v0.52.0 -test ./...)"
+          test -z "$dead" || { echo "$dead"; echo 'Unreachable code: delete it, or explain in a comment why it must stay.'; exit 1; }
+        shell: bash
       - name: Test (with the race detector)
         if: runner.os == 'Linux'
         run: ./tools/ci/run-annotated.sh "go test -race" ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -race -count=1 ./...

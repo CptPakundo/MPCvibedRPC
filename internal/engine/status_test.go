@@ -8,6 +8,7 @@ import (
 
 // Discord is only contacted once something plays: until then the window must not claim it is missing.
 func TestDiscordOnStandbyUntilSomethingPlays(t *testing.T) {
+	t.Parallel()
 	e, m, _, _ := setup(t)
 	m.set(func(m *mpc) { m.state = -1 })
 	e.Start()
@@ -21,6 +22,7 @@ func TestDiscordOnStandbyUntilSomethingPlays(t *testing.T) {
 
 // Saving settings that did not change for the engine (app-only options) must not restart it.
 func TestUnchangedSettingsDoNotRestart(t *testing.T) {
+	t.Parallel()
 	e, _, _, l := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return e.Status().NowPlaying != nil })
@@ -42,6 +44,7 @@ func (l *logs) list() []string {
 }
 
 func TestPausedFlagClearsWhenPlaybackEnds(t *testing.T) {
+	t.Parallel()
 	e, m, _, _ := setup(t)
 	e.Start()
 	m.set(func(m *mpc) { m.state = 1 })
