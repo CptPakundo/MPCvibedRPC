@@ -19,8 +19,7 @@ func NFD(s string) string {
 		return s
 	}
 	var b strings.Builder
-	var emit func(r rune)
-	emit = func(r rune) {
+	emit := func(r rune) {
 		if r >= 0xAC00 && r <= 0xD7A3 { // Hangul syllable
 			const sBase, lBase, vBase, tBase = 0xAC00, 0x1100, 0x1161, 0x11A7
 			const vCount, tCount = 21, 28

@@ -8,6 +8,7 @@ import (
 
 // A panic in a background goroutine is logged and ends only that goroutine.
 func TestGoLogsAPanicInsteadOfCrashing(t *testing.T) {
+	t.Parallel()
 	var mu sync.Mutex
 	var lines []string
 	done := make(chan struct{})

@@ -10,6 +10,7 @@ import (
 // "Why this title?" names the file and what was read from it while it shows, never the folder path, and is gone
 // once nothing plays.
 func TestStatusExplainsTheTitle(t *testing.T) {
+	t.Parallel()
 	e, m, d, _ := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return len(d.list()) >= 1 && len(e.Status().Why) > 0 })
@@ -36,6 +37,7 @@ func TestStatusExplainsTheTitle(t *testing.T) {
 
 // A hidden title explains nothing: no file name, no title.
 func TestHideTitleExplainsNothing(t *testing.T) {
+	t.Parallel()
 	e, _, d, _, _ := privacySetup(t, func(c *core.Config) { c.HideTitle = true })
 	e.Start()
 	eventually(t, "a status is sent", func() bool { return len(d.list()) >= 1 })

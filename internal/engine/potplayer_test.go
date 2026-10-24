@@ -34,6 +34,7 @@ func potPlaying() *core.Info {
 // PotPlayer is shown under its own name; a video playing in a player asked earlier (mpv) comes first, and PotPlayer
 // comes before the services (Plex).
 func TestPotPlayerInThePlayerOrder(t *testing.T) {
+	t.Parallel()
 	pot := &fakePot{}
 	pot.set(potPlaying())
 	m := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Show - S01E02.mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})

@@ -1,26 +1,17 @@
-## MPCvibedRPC 0.9.42
+## MPCvibedRPC 0.9.43
 
-**A maintenance release from a full checkup of the code: eight small fixes, nothing new to set up.**
+**A release for the project's own checks. Nothing changes in what the program does.**
 
-### Fixed
-- **The status appears at once.** When Discord is reached, the program showed what you were watching only at its
-  next check (up to five seconds later). Now it shows it the moment the connection is made.
-- **Automatic updates cannot crash the program.** An update that was waiting for a quiet moment and then called off
-  (a newer check found nothing, or **Restore defaults**) could end the program when the moment came.
-- **A stale "updated itself" note.** If the program was started by hand after an automatic update had not got going,
-  the next update by hand was mistaken for an automatic one. The leftover is now cleared on every start by hand.
-- **Plex: no sign-in left behind.** Signing out at the very moment a token renewal or a server change finished could
-  leave a sign-in in the settings file with no account. Both now happen under the same lock as the sign-out.
-- **Copy diagnostics hides more.** Besides the folders it already left out, it now also leaves out home folders
-  (`~/...`), any Unix path of two or more parts, `file:` addresses, the addresses of computers on your network and the
-  Kodi user name. Titles and file names stay, as before, so a wrong title can still be traced. A test now fails when
-  a setting whose name says it is a sign-in, a key, a password or an address is not covered.
-- **Faults in background tasks are logged.** A fault in the Discord connection, a server watcher, a sign-in or the
-  update check used to close the program without a word; it now ends only that task and writes a line to the log.
-- **Linux: a broken D-Bus message can no longer hang the program.** A message on the session bus with an empty
-  dictionary entry kept the reader busy for ever; it is now refused like any other broken message.
-- PotPlayer, Kodi and IINA are named everywhere the players are listed (the player order in the docs, the
-  program's file description); dead code and stale comments from the checkup are gone.
+### Changed
+- **Faster tests.** The engine's tests, which drive a fake Discord and fake players, now run side by side and ask their
+  fakes every 25 ms instead of every 250 ms: the whole suite takes about a tenth of the time it did. The pace of the
+  real program is unchanged (it still asks a player every 5 seconds by default, never more often than every 250 ms).
+- **Checks that keep the texts true.** Four new tests fail when the documentation drifts from the code: every setting
+  must have its row and default in `docs/config.md`, every text that lists the players must name them all, the release
+  notes must be for the version being built, and the settings page's script must parse.
+- **Two code analysers on every change.** `staticcheck` and `deadcode` run on the Linux CI job; the few findings they
+  had are fixed (a stale field, a constant block in the wrong file, two style points).
+- The exe's file description and the developer notes name every player.
 
 Nothing to do: the update installs itself, and your settings and sign-ins are kept.
 

@@ -82,7 +82,7 @@ func clip(s string) string {
 		s = u16slice(s, 0, 125) + "..."
 	}
 	if n := u16len(s); n < 2 {
-		s += strings.Repeat("​", 2-n)
+		s += strings.Repeat(string(rune(0x200B)), 2-n) // zero-width spaces: Discord wants at least two characters
 	}
 	return s
 }

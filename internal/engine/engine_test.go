@@ -185,16 +185,21 @@ func noPotPlayer() []*core.Info { return nil }
 // testMod adjusts the settings and options of a test engine before it is made.
 type testMod func(*core.Config, *Options)
 
+// testPoll is how often a test engine asks its fakes: ten times faster than the program's floor, so the tests finish
+// in seconds, and the fakes are local. Tests that need a fixed number of checks set PollInterval themselves.
+const testPoll = 25 * time.Millisecond
+
 // newTestEngine makes an engine for a test: it talks to a fake Discord, logs into the returned capture, asks every
-// 250 ms, looks nothing up, sees no player on this computer (see noPipes, noMPRIS and noPotPlayer), keeps its cache in a temporary
-// folder and is stopped when the test ends. mods change that before the engine is made.
+// testPoll, looks nothing up, sees no player on this computer (see noPipes, noMPRIS and noPotPlayer), keeps its cache in
+// a temporary folder and is stopped when the test ends. mods change that before the engine is made. Tests never
+// change package variables (they run in parallel): what they need to shorten is an Option.
 func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
 	d := newDisc(t)
 	cfg := core.DefaultConfig()
-	cfg.PollInterval = 250
+	cfg.PollInterval = int(testPoll / time.Millisecond)
 	cfg.ShowArtwork = false
 	l := &logs{}
-	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, KodiEvents: "none", Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json")}
+	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, KodiEvents: "none", Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), MinPoll: testPoll}
 	for _, mod := range mods {
 		mod(&cfg, &opts)
 	}
@@ -239,6 +244,7 @@ func (l *logs) has(sub string) bool {
 }
 
 func TestPlayPauseClearStop(t *testing.T) {
+	t.Parallel()
 	e, m, d, l := setup(t)
 	if s := e.Status(); s.Running || s.Discord != "off" {
 		t.Fatalf("%+v", s)
@@ -296,6 +302,7 @@ func TestPlayPauseClearStop(t *testing.T) {
 }
 
 func TestSteadyPlaybackDoesNotSpam(t *testing.T) {
+	t.Parallel()
 	e, m, d, _ := setup(t)
 	e.Start()
 	eventually(t, "first", func() bool { return len(d.list()) >= 1 })
@@ -314,6 +321,7 @@ func TestSteadyPlaybackDoesNotSpam(t *testing.T) {
 }
 
 func TestBasicModeFallback(t *testing.T) {
+	t.Parallel()
 	e, _, d, l := setup(t)
 	d.reject = true
 	e.Start()
@@ -329,6 +337,7 @@ func TestBasicModeFallback(t *testing.T) {
 }
 
 func TestDiscordLateAndReconnect(t *testing.T) {
+	t.Parallel()
 	m := newMPC(t)
 	path := fakePath(sockDir(t))
 	cfg := core.DefaultConfig()
@@ -376,6 +385,7 @@ func TestDiscordLateAndReconnect(t *testing.T) {
 }
 
 func TestApplySettingsRestarts(t *testing.T) {
+	t.Parallel()
 	e, _, d, l := setup(t)
 	e.Start()
 	eventually(t, "sent", func() bool { return len(d.list()) >= 1 })
@@ -435,6 +445,7 @@ func pauseUntilCleared(t *testing.T, e *Engine, m *mpc, d *disc) {
 }
 
 func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
+	t.Parallel()
 	e, m, d := pauseSetup(t, 1)
 	pause(t, m, d)
 	if isClear(d) {
@@ -459,6 +470,7 @@ func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
 }
 
 func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
+	t.Parallel()
 	e, m, d := pauseSetup(t, 1)
 	pauseUntilCleared(t, e, m, d)
 	n := len(d.list())
@@ -472,6 +484,7 @@ func TestPauseClearSeekWhilePausedBringsItBack(t *testing.T) {
 }
 
 func TestPauseClearZeroMeansNever(t *testing.T) {
+	t.Parallel()
 	e, m, d := pauseSetup(t, 0)
 	pause(t, m, d)
 	n := len(d.list())
@@ -482,6 +495,7 @@ func TestPauseClearZeroMeansNever(t *testing.T) {
 }
 
 func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
+	t.Parallel()
 	e, m, d := pauseSetup(t, 1)
 	pauseUntilCleared(t, e, m, d)
 	cfg := e.Config()
@@ -494,6 +508,7 @@ func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
 }
 
 func TestClearArtworkCache(t *testing.T) {
+	t.Parallel()
 	m := newMPC(t)
 	cache := filepath.Join(t.TempDir(), "c.json")
 	e, d, _ := newTestEngine(t, withPort(m.port), func(_ *core.Config, o *Options) { o.CacheFile = cache })
@@ -522,6 +537,7 @@ func TestClearArtworkCache(t *testing.T) {
 }
 
 func TestPreviewTracksWhatIsSent(t *testing.T) {
+	t.Parallel()
 	e, m, d, _ := setup(t)
 	if e.Status().Preview != nil {
 		t.Fatal("no preview before anything is shown")
@@ -553,6 +569,7 @@ func TestPreviewTracksWhatIsSent(t *testing.T) {
 }
 
 func TestPreviewShowsTheBasicModeFallback(t *testing.T) {
+	t.Parallel()
 	e, _, d, _ := setup(t)
 	d.reject = true // Discord refuses the Watching format, so the engine falls back
 	e.Start()
@@ -567,6 +584,7 @@ func TestPreviewShowsTheBasicModeFallback(t *testing.T) {
 }
 
 func TestPreviewClearsWhenDiscordGoesAway(t *testing.T) {
+	t.Parallel()
 	e, _, d, l := setup(t)
 	e.Start()
 	eventually(t, "preview", func() bool { return e.Status().Preview != nil })
@@ -612,6 +630,7 @@ func privacySetup(t *testing.T, edit func(*core.Config)) (*Engine, *mpc, *disc, 
 }
 
 func TestHideTitleRevealsNothingAndLooksNothingUp(t *testing.T) {
+	t.Parallel()
 	e, m, d, l, lc := privacySetup(t, func(c *core.Config) { c.HideTitle = true })
 	e.Start()
 	eventually(t, "a status is sent", func() bool { return len(d.list()) >= 1 })
@@ -652,6 +671,7 @@ func TestHideTitleRevealsNothingAndLooksNothingUp(t *testing.T) {
 }
 
 func TestDontShowListHidesAndLooksNothingUp(t *testing.T) {
+	t.Parallel()
 	// the fake player is playing C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv
 	e, m, d, l, lc := privacySetup(t, func(c *core.Config) { c.HideFiles = []string{"tv/show name"} })
 	e.Start()
@@ -687,6 +707,7 @@ func TestDontShowListHidesAndLooksNothingUp(t *testing.T) {
 }
 
 func TestDontShowListAddedWhileShowingClearsTheStatus(t *testing.T) {
+	t.Parallel()
 	e, _, d, _, _ := privacySetup(t, func(c *core.Config) { c.ShowArtwork = false })
 	e.Start()
 	eventually(t, "shown", func() bool { return len(d.list()) >= 1 && !isClear(d) })

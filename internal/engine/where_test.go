@@ -11,6 +11,7 @@ import (
 // The Never show list also matches where a server keeps the item: a Plex library's name, or a folder of the file's
 // path on the Plex, Jellyfin or Emby server. Nothing is shown then, and the path never reaches the log.
 func TestNeverShowMatchesServerLibraryAndPath(t *testing.T) {
+	t.Parallel()
 	hide := func(entries ...string) testMod {
 		return func(cfg *core.Config, _ *Options) { cfg.HideFiles = entries }
 	}

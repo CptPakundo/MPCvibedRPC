@@ -185,8 +185,10 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 - The workflows carry no version: `tools/ci/version.sh` reads it from `cmd/mpcvibedrpc/main.go` (VERSION, and NEXT for
   the smoke test's update) and, on a tag, fails when the tag does not match.
 - CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, `govulncheck` (pinned; a Go security fix
-  means bumping the exact Go patch in every `setup-go`), and the tests with `-race`; Windows and macOS run
-  the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
+  means bumping the exact Go patch in every `setup-go`), `staticcheck` (pinned; without ST1005, because the
+  program's error texts are sentences the window shows) and `deadcode -test` (every function must be reachable from
+  the program or a test: delete what is not, or say in a comment why it stays), and the tests with `-race`; Windows
+  and macOS run the tests. A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates,
   `.github/release-notes.md`) is not tested (`paths-ignore`); anything else runs everything. A pull request from this repository
   is tested by its branch's push run (the `pull_request` run skips itself; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
   a run still going on the same branch. Then: Windows builds the exe (from an LF checkout, `CGO_ENABLED=0`) and runs `tools/ci/smoke.ps1`; `reproduce` rebuilds that exe on
@@ -219,7 +221,15 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   Windows-only or opt-in must be added to `tools/ci/allowed-skips.sh` (ci.yml and release.yml both use it). The live
   test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
 - Engine tests use a fake Discord (Unix socket on Linux, named pipe on Windows) and fake players (`players_test.go`,
-  `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once.
+  `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once. They run
+  in parallel and poll every 25 ms (`newTestEngine` sets `Options.MinPoll`; `ReclearEvery` and `RecheckAfter` shorten
+  the other waits), so a test must never change a package variable; the one that has to (it shortens
+  `discord.RequestTimeout`) stays sequential. Pure timer logic is tested on `testing/synctest`'s clock
+  (`TestNudgesArePaced`).
+- Three tests tie the texts to the code: `TestEverySettingIsDocumented` (store: every setting has its row and default
+  in `docs/config.md`), `TestPlayersAreNamedEverywhere` (cmd: the texts that list players name every one) and
+  `TestReleaseNotesAreForThisVersion` (cmd: `.github/release-notes.md` starts with the version being built);
+  `TestPageScriptParses` (assets) runs `node --check` on the page's script.
   `Options.Pipes` keeps a real local MPC-QT/mpv/IINA out of the tests and `Options.MPRIS` the real session bus; VLC is
   only asked when a test sets a password. On macOS a socket path may only be 104 bytes, so test sockets go in a short
   folder under /tmp there (`sockDir`).
@@ -301,7 +311,8 @@ One branch and one PR per release: the change, the version bump and the release 
 1. Branch; change; in the same branch bump `var version` in `cmd/mpcvibedrpc/main.go` (nothing else carries the
    version: the workflows and smoke tests read it; docs use `X.Y.Z`), add the version's entry at the top of
    `internal/assets/changelog.json` (`TestChangelog` fails until it matches `main.go`) and rewrite
-   `.github/release-notes.md` (the release body). Screenshots (`docs/images/window-*.jpg`) are retaken only when the
+   `.github/release-notes.md` (the release body; `TestReleaseNotesAreForThisVersion` fails until its first line names the
+   version). Screenshots (`docs/images/window-*.jpg`) are retaken only when the
    part of the window they show changed, as `docs/development.md` > Screenshots describes (made-up titles only).
 2. Locally: `go vet ./...` (also `GOOS=linux`, `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...`, and a
    scan of the diff and new files for personal data (the owner's name, email, local paths) before the first push.

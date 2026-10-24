@@ -62,6 +62,7 @@ func vlcEngine(t *testing.T, port int, pipes []PlayerPipe, v *fakeVLCWeb, passwo
 }
 
 func TestVLCOverItsWebInterface(t *testing.T) {
+	t.Parallel()
 	v := newFakeVLCWeb(t, "secret")
 	e, d, l := vlcEngine(t, deadPort(t), nil, v, "secret")
 	e.Start()
@@ -89,6 +90,7 @@ func TestVLCOverItsWebInterface(t *testing.T) {
 }
 
 func TestVLCSpeed(t *testing.T) {
+	t.Parallel()
 	v := newFakeVLCWeb(t, "pw")
 	v.set(func(f *fakeVLCWeb) { f.rate = 2 })
 	e, d, _ := vlcEngine(t, deadPort(t), nil, v, "pw")
@@ -102,6 +104,7 @@ func TestVLCSpeed(t *testing.T) {
 
 // VLC is asked last: a playing MPC-HC or mpv wins, an idle one does not hide a playing VLC.
 func TestVLCInThePlayerOrder(t *testing.T) {
+	t.Parallel()
 	web := newMPC(t)
 	web.set(func(m *mpc) { m.state = -1 }) // MPC-HC open, nothing playing
 	m := newFakeMpv(t, map[string]any{"idle-active": true})
@@ -131,6 +134,7 @@ func TestVLCInThePlayerOrder(t *testing.T) {
 
 // Without a password VLC is never asked (that is the default).
 func TestVLCNotAskedWithoutPassword(t *testing.T) {
+	t.Parallel()
 	v := newFakeVLCWeb(t, "pw")
 	e, _, l := vlcEngine(t, deadPort(t), nil, v, "")
 	e.Start()
@@ -144,6 +148,7 @@ func TestVLCNotAskedWithoutPassword(t *testing.T) {
 }
 
 func TestVLCWrongPassword(t *testing.T) {
+	t.Parallel()
 	v := newFakeVLCWeb(t, "right")
 	e, _, l := vlcEngine(t, deadPort(t), nil, v, "wrong")
 	e.Start()

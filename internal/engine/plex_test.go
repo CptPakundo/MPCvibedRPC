@@ -87,6 +87,7 @@ func plexEngine(t *testing.T, port int, p *fakePlex) (*Engine, *disc, *logs) {
 }
 
 func TestPlexPlayback(t *testing.T) {
+	t.Parallel()
 	p := newFakePlex(t)
 	e, d, l := plexEngine(t, deadPort(t), p)
 	e.Start()
@@ -122,6 +123,7 @@ func TestPlexPlayback(t *testing.T) {
 }
 
 func TestPlexNotAskedWithoutSignIn(t *testing.T) {
+	t.Parallel()
 	p := newFakePlex(t)
 	e, _, l := plexEngine(t, deadPort(t), p)
 	e.cfg.PlexToken = ""
@@ -136,6 +138,7 @@ func TestPlexNotAskedWithoutSignIn(t *testing.T) {
 }
 
 func TestPlexProblemShownAndStoppedWithPresence(t *testing.T) {
+	t.Parallel()
 	p := newFakePlex(t)
 	e, _, _ := plexEngine(t, deadPort(t), p)
 	e.cfg.PlexServer = "gone"

@@ -56,6 +56,12 @@ type Options struct {
 	MayRest func() bool
 	// OnRest is called when the engine starts resting (the program hands memory back to the system).
 	OnRest func()
+	// The engine's pace, for tests (zero values are the real ones): MinPoll is the shortest interval between checks
+	// (250 ms), ReclearEvery how often an idle status is cleared again (a minute), RecheckAfter when an episode shown
+	// without its title is looked up again, in pause units after it was shown (2.5, 5 and 15 minutes).
+	MinPoll      time.Duration
+	ReclearEvery time.Duration
+	RecheckAfter []float64
 }
 
 // Status is what the settings window shows.
@@ -109,7 +115,6 @@ type Engine struct {
 	basicMode  bool
 	noLinks    bool // Discord refused the clickable title and cover: they are sent without links
 	art        *artwork.Artwork
-	mpcUp      bool
 	player     string // the player that answered last
 	vlc        *vlchttp.Reader
 	vlcProblem string             // why VLC's web interface did not answer (logged once; the window shows it)
@@ -133,6 +138,9 @@ type Engine struct {
 	pauseCleared bool
 	hidden       bool          // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
+	minPoll      time.Duration // the pace (see Options.MinPoll, ReclearEvery and RecheckAfter)
+	reclearEvery time.Duration
+	recheckAfter []float64
 
 	// the counts kept for the window (stats.go): what was shown and for how long; the key only tells videos apart
 	stats     Stats
@@ -161,9 +169,20 @@ func New(cfg core.Config, opts Options) *Engine {
 	if unit <= 0 {
 		unit = time.Minute
 	}
+	e := &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, minPoll: opts.MinPoll, reclearEvery: opts.ReclearEvery, recheckAfter: opts.RecheckAfter,
+		vlc: &vlchttp.Reader{Client: opts.HTTPClient}, kodi: &kodi.Reader{Client: opts.HTTPClient}, wake: make(chan struct{}, 1)}
+	if e.minPoll <= 0 {
+		e.minPoll = minPoll
+	}
+	if e.reclearEvery <= 0 {
+		e.reclearEvery = reclearEvery
+	}
+	if e.recheckAfter == nil {
+		e.recheckAfter = recheckAfter
+	}
 	now := time.Now()
-	return &Engine{opts: opts, log: lg, cfg: cfg, pauseUnit: unit, vlc: &vlchttp.Reader{Client: opts.HTTPClient}, kodi: &kodi.Reader{Client: opts.HTTPClient},
-		stats: loadStats(opts.StatsFile, now), statSaved: now, wake: make(chan struct{}, 1)}
+	e.stats, e.statSaved = loadStats(opts.StatsFile, now), now
+	return e
 }
 
 // Config returns the settings the engine is using.
@@ -218,7 +237,7 @@ func (e *Engine) start() {
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // the first check starts them (unless it rests)
 	e.mu.Unlock()
 	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
-	go e.loop(r, pollInterval(cfg)) // recovers from a panic in a check itself
+	go e.loop(r, e.pollInterval(cfg)) // recovers from a panic in a check itself
 	Go(e.log, "The player watch", func() { e.watchPlayers(r) })
 }
 

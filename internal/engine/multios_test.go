@@ -21,6 +21,7 @@ func largeText(d *disc) any {
 }
 
 func TestPlayerPipesPerSystem(t *testing.T) {
+	t.Parallel()
 	cfg := core.DefaultConfig()
 	names := func(cfg core.Config) map[string]string {
 		m := map[string]string{}
@@ -48,6 +49,7 @@ func TestPlayerPipesPerSystem(t *testing.T) {
 }
 
 func TestIinaNamedAsItself(t *testing.T) {
+	t.Parallel()
 	m := newFakeMpv(t, map[string]any{
 		"path": "/Users/someone/Movies/Sample Movie (2020).mp4", "filename": "Sample Movie (2020).mp4",
 		"pause": false, "time-pos": 10.0, "duration": 600.0, "speed": 1.0, "idle-active": false,
@@ -66,6 +68,7 @@ func TestIinaNamedAsItself(t *testing.T) {
 
 // MPRIS players come after every other player, only on the systems that have D-Bus, and only while the setting is on.
 func TestMPRISAskedLast(t *testing.T) {
+	t.Parallel()
 	web := newMPC(t)
 	var asked atomic.Int32
 	mprisPlaying := atomic.Bool{}

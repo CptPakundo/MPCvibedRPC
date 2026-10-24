@@ -39,6 +39,7 @@ func withKodi(address, password string) testMod {
 }
 
 func TestKodiPlayback(t *testing.T) {
+	t.Parallel()
 	k := newFakeKodi(t)
 	e, d, l := newTestEngine(t, withPort(deadPort(t)), withKodi(k.URL, "secret"))
 	e.Start()
@@ -57,6 +58,7 @@ func TestKodiPlayback(t *testing.T) {
 
 // A refused password is shown in the window (once in the log); without a password Kodi is not asked at all.
 func TestKodiProblemsAndOff(t *testing.T) {
+	t.Parallel()
 	k := newFakeKodi(t)
 	e, _, l := newTestEngine(t, withPort(deadPort(t)), withKodi(k.URL, "wrong"))
 	e.Start()

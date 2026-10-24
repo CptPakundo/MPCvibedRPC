@@ -20,6 +20,7 @@ func (m *mpc) count() int { m.mu.Lock(); defer m.mu.Unlock(); return m.asked }
 
 // While Discord is closed and the window is closed, nothing is asked; the window opening or Discord starting ends it.
 func TestRestWhileDiscordIsClosed(t *testing.T) {
+	t.Parallel()
 	m := newMPC(t)
 	path := fakePath(sockDir(t)) // the fake Discord starts later
 	var mayRest atomic.Bool
@@ -68,6 +69,7 @@ func TestRestWhileDiscordIsClosed(t *testing.T) {
 
 // Without MayRest (tests, and the behaviour before resting existed) the engine never rests.
 func TestNoRestWithoutMayRest(t *testing.T) {
+	t.Parallel()
 	m := newMPC(t)
 	cfg := core.DefaultConfig()
 	cfg.Port, cfg.PollInterval, cfg.ShowArtwork = m.port, 250, false
@@ -139,6 +141,7 @@ func withStremio(s *fakeStremioAPI) testMod {
 }
 
 func TestStremioPlayback(t *testing.T) {
+	t.Parallel()
 	s := newFakeStremio(t)
 	s.play("Sample Show", "tt0000002:1:2", 600_000)
 	e, d, l := newTestEngine(t, withPort(deadPort(t)), shortPause, withStremio(s))

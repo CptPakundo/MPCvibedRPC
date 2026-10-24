@@ -42,6 +42,7 @@ func lastActivity(d *disc) map[string]any {
 }
 
 func TestTitleAndCoverLinkToTheCatalogPage(t *testing.T) {
+	t.Parallel()
 	e, d, _ := linkSetup(t, nil)
 	e.Start()
 	const page = "https://www.imdb.com/title/tt0000001/"
@@ -68,6 +69,7 @@ func TestTitleAndCoverLinkToTheCatalogPage(t *testing.T) {
 }
 
 func TestNoLinksWithTheButtonSwitchOff(t *testing.T) {
+	t.Parallel()
 	e, d, _ := linkSetup(t, func(c *core.Config) { c.LinkButton = false })
 	e.Start()
 	eventually(t, "an activity with the cover", func() bool {
@@ -82,6 +84,7 @@ func TestNoLinksWithTheButtonSwitchOff(t *testing.T) {
 
 // A Discord that drops the connection is not a refusal: the engine keeps the Watching activity and sends it again.
 func TestDroppedConnectionKeepsWatchingMode(t *testing.T) {
+	t.Parallel()
 	e, d, l := linkSetup(t, nil)
 	d.mu.Lock()
 	d.dropNext = true
@@ -102,6 +105,7 @@ func TestDroppedConnectionKeepsWatchingMode(t *testing.T) {
 
 // A Discord that refuses the link fields gets the same Watching activity without them, not the basic one.
 func TestRefusedLinksAreLeftOut(t *testing.T) {
+	t.Parallel()
 	e, d, l := linkSetup(t, nil)
 	d.rejectLinks = true
 	e.Start()

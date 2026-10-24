@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
@@ -20,6 +21,7 @@ import (
 
 // With mpv's events, a pause shows at once although the next regular check is a minute away.
 func TestMpvPauseShowsAtOnce(t *testing.T) {
+	t.Parallel()
 	m := newFakeMpv(t, map[string]any{
 		"path": "/v/Sample Movie (2001).mkv", "filename": "Sample Movie (2001).mkv",
 		"pause": false, "time-pos": 60.0, "duration": 1500.0, "speed": 1.0, "idle-active": false,
@@ -44,37 +46,41 @@ func TestMpvPauseShowsAtOnce(t *testing.T) {
 	}
 }
 
-// A burst of events (seeking) makes one early check, and early checks are at least nudgeGap apart.
+// A burst of events (seeking) makes one early check, and early checks are at least nudgeGap apart. The nudger only
+// uses timers, so the test runs on synctest's clock: the seconds it waits through take no time.
 func TestNudgesArePaced(t *testing.T) {
-	e := &Engine{wake: make(chan struct{}, 1)}
-	wakes := 0
-	count := func(d time.Duration) {
-		deadline := time.After(d)
-		for {
-			select {
-			case <-e.wake:
-				wakes++
-			case <-deadline:
-				return
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := &Engine{wake: make(chan struct{}, 1)}
+		wakes := 0
+		count := func(d time.Duration) {
+			deadline := time.After(d)
+			for {
+				select {
+				case <-e.wake:
+					wakes++
+				case <-deadline:
+					return
+				}
 			}
 		}
-	}
-	for i := 0; i < 20; i++ {
-		e.nudge()
-	}
-	count(nudgeDelay + 500*time.Millisecond)
-	if wakes != 1 {
-		t.Fatalf("%d checks after a burst; want 1", wakes)
-	}
-	e.nudge() // right after: waits for the gap
-	count(time.Second)
-	if wakes != 1 {
-		t.Fatalf("an early check came within the gap (%d)", wakes)
-	}
-	count(nudgeGap)
-	if wakes != 2 {
-		t.Fatalf("%d checks; the waiting one should come after the gap", wakes)
-	}
+		for i := 0; i < 20; i++ {
+			e.nudge()
+		}
+		count(nudgeDelay + 500*time.Millisecond)
+		if wakes != 1 {
+			t.Fatalf("%d checks after a burst; want 1", wakes)
+		}
+		e.nudge() // right after: waits for the gap
+		count(time.Second)
+		if wakes != 1 {
+			t.Fatalf("an early check came within the gap (%d)", wakes)
+		}
+		count(nudgeGap)
+		if wakes != 2 {
+			t.Fatalf("%d checks; the waiting one should come after the gap", wakes)
+		}
+	})
 }
 
 // fakeKodiEvents is Kodi's web server (as newFakeKodi, with a speed that can change) and its notification port.
@@ -141,6 +147,7 @@ func (k *fakeKodiEvents) notify(method string) {
 
 // Kodi's notifications bring the check forward too.
 func TestKodiPauseShowsAtOnce(t *testing.T) {
+	t.Parallel()
 	k := newFakeKodiEvents(t)
 	e, d, _ := newTestEngine(t, withPort(deadPort(t)), withKodi(k.web.URL, "secret"), func(cfg *core.Config, o *Options) {
 		cfg.PollInterval = 60000
@@ -160,6 +167,7 @@ func TestKodiPauseShowsAtOnce(t *testing.T) {
 
 // MPRIS players' signals bring the check forward on the systems that read MPRIS; elsewhere the bus is never watched.
 func TestMPRISPauseShowsAtOnce(t *testing.T) {
+	t.Parallel()
 	bus := dbustest.New(t)
 	var paused atomic.Bool
 	e, d, _ := newTestEngine(t, withPort(deadPort(t)), func(cfg *core.Config, o *Options) {

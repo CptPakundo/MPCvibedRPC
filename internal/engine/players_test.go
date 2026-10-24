@@ -142,6 +142,7 @@ func lastDetails(d *disc) string {
 }
 
 func TestMpvOverItsPipe(t *testing.T) {
+	t.Parallel()
 	m := newFakeMpv(t, map[string]any{
 		"path": `D:\Videos\Movies\Sample Movie (2001).mkv`, "filename": "Sample Movie (2001).mkv",
 		"pause": false, "time-pos": 60.0, "duration": 1500.0, "speed": 1.0, "idle-active": false,
@@ -169,6 +170,7 @@ func TestMpvOverItsPipe(t *testing.T) {
 }
 
 func TestWebInterfaceWinsOverPipes(t *testing.T) {
+	t.Parallel()
 	web := newMPC(t)
 	m := newFakeMpv(t, map[string]any{"path": "/v/other.mkv", "pause": false, "idle-active": false})
 	e, _, _ := pipeEngine(t, web.port, []PlayerPipe{{"mpv", m.path}})
@@ -181,6 +183,7 @@ func TestWebInterfaceWinsOverPipes(t *testing.T) {
 
 // An idle player that is open must not hide another one that plays.
 func TestPlayingPlayerWinsOverIdleOnes(t *testing.T) {
+	t.Parallel()
 	web := newMPC(t)
 	web.set(func(m *mpc) { m.state = -1 }) // MPC-HC open, nothing playing
 	qt := newFakeMpv(t, map[string]any{"idle-active": true})
@@ -198,6 +201,7 @@ func TestPlayingPlayerWinsOverIdleOnes(t *testing.T) {
 
 // A paused player that is left open must not hide another one that plays; once nothing plays, the paused one is shown.
 func TestPlayingPlayerWinsOverPausedOne(t *testing.T) {
+	t.Parallel()
 	web := newMPC(t)
 	web.set(func(m *mpc) { m.state = 1 }) // MPC-HC open and paused
 	m := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
@@ -211,6 +215,7 @@ func TestPlayingPlayerWinsOverPausedOne(t *testing.T) {
 
 // A song in one player does not hide a video in another; alone, it is shown as "Listening to" with its own name.
 func TestMusicIsListening(t *testing.T) {
+	t.Parallel()
 	song := newFakeMpv(t, map[string]any{"path": `D:\Music\01 Sample Artist - Sample Song.flac`, "pause": false, "time-pos": 5.0, "duration": 200.0, "speed": 1.0, "idle-active": false})
 	video := newFakeMpv(t, map[string]any{"path": `D:\Videos\Sample Movie (2001).mkv`, "pause": false, "time-pos": 5.0, "duration": 600.0, "speed": 1.0, "idle-active": false})
 	e, d, _ := pipeEngine(t, deadPort(t), []PlayerPipe{{"mpv", song.path}, {"MPC-QT", video.path}})
@@ -231,6 +236,7 @@ func TestMusicIsListening(t *testing.T) {
 }
 
 func TestMissingPipesMeanNoPlayer(t *testing.T) {
+	t.Parallel()
 	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(sockDir(t)) + "-none"}})
 	e.Start()
 	time.Sleep(700 * time.Millisecond)
@@ -244,6 +250,7 @@ func TestMissingPipesMeanNoPlayer(t *testing.T) {
 
 // MPC-QT imitates MPC-HC's page with quirks: "playbackRate" (meaningless), state 3 while seeking, raw "&".
 func TestMpcQtWebPageQuirks(t *testing.T) {
+	t.Parallel()
 	var mu sync.Mutex
 	state := 2
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -289,6 +296,7 @@ func TestMpcQtWebPageQuirks(t *testing.T) {
 	}
 }
 func TestMpcQtPipePreferredOverItsWebPage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `<html><body class="page-variables"><p id="file">Web.Name.mkv</p><p id="state">2</p><p id="position">1000</p><p id="duration">900000</p><p id="playbackRate">1.24611e-306</p></body></html>`)
 	}))

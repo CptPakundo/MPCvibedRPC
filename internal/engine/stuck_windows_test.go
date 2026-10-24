@@ -17,6 +17,7 @@ import (
 // A Discord that answers the handshake and then stops reading, on an unbuffered pipe: our next write blocks inside
 // Windows, and closing the pipe would wait for it. Stopping (and so quitting) must still finish promptly.
 func TestStopDoesNotHangOnAStuckDiscord(t *testing.T) {
+	t.Parallel()
 	path := fakePath("")
 	name, _ := syscall.UTF16PtrFromString(path)
 	h, _, err := pCreateNamedPipe.Call(uintptr(unsafe.Pointer(name)), pipeAccessDuplex, 0, 1, 0, 0, 0, 0) // no buffers
