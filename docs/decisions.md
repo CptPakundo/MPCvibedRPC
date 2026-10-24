@@ -48,12 +48,21 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 - **Every online service can be switched off**, and one switch makes the program fully offline. *Why:* each lookup
   sends a title somewhere; the user decides where.
 
+## Code
+- **Standard library only, including the Windows plumbing** (reaffirmed 2026-10-25). The tray, window, registry and
+  process code in `internal/winsys` is written against Go's `syscall` package by hand rather than the Go team's
+  `golang.org/x/sys/windows`. *Why:* "standard library only" is a promise the README makes, and the hand-written code
+  was audited correct (layouts, handles, bounds) and is exercised by the Windows smoke test on every run. The question
+  comes back only if that code has to grow materially.
+
 ## Releases
 - **Versions stay 0.9.x, three-part.** *Why:* the updater compares three numbers; a fix takes the next number.
-- **The download counter counts people** (2026-10-18): program downloads only (not checksums or notices), counted
-  from a reset of GitHub's counts, minus every download the project makes itself (release checks and Claude agents
-  record theirs in a ledger on the `stats` branch). The program never reports anything; your own copy behaves like
-  everyone's. *Why:* GitHub's total was mostly the release checks' own downloads.
+- **The README shows GitHub's own download count** (2026-10-25); the project keeps its exact count of people on the
+  side. Since 2026-10-18 the `stats` branch holds that count: program downloads only (not checksums or notices), from a
+  reset of GitHub's counts, minus every download the project makes itself (release checks and Claude agents record
+  theirs in a ledger there). The program never reports anything; your own copy behaves like everyone's. *Why:* the
+  badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page; the exact
+  count stays readable (`summary.json` on the `stats` branch) for when it matters.
 - **Frequent releases while the program is young** (2026-10-18): each real improvement ships once its checks pass.
   *Why:* few people use it yet, so quick fixes and feedback count for more than the trust that calmer releases build
   with Windows SmartScreen and package managers. Bundling comes back once it has a wider audience.

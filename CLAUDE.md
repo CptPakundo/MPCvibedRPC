@@ -120,8 +120,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   run). Read and fix a canary issue like a bug report. **This is the only
   place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
   environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
-- The download counter (`.github/workflows/downloads.yml`, every three hours and ten minutes after each release)
-  updates the `stats` branch only; `master` is never written by a workflow. GitHub's counts were reset on 2026-10-18
+- The project's own download count (people, without the project's own downloads; `.github/workflows/downloads.yml`,
+  every three hours and ten minutes after each release) updates the `stats` branch only; `master` is never written by a
+  workflow. The README's badge shows GitHub's own count (decision of 2026-10-25); the exact one is `summary.json` there. GitHub's counts were reset on 2026-10-18
   (every release file replaced by its identical bytes) and counting started then; after another reset, run the
   workflow by hand with `baseline` ticked. Its summary's `notCountedYet` is a download recorded in the ledger that
   GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
