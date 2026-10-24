@@ -16,8 +16,8 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 <sub>Linux on ARM: <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC-linux-arm64">MPCvibedRPC-linux-arm64</a> · <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest">All files and what's new</a></sub>
 
 <p>
-<img alt="Downloads" title="GitHub's count of release downloads (it includes the project's own release checks)" src="https://img.shields.io/github/downloads/CptPakundo/MPCvibedRPC/total?color=444">
-<img alt="MIT license" src="https://img.shields.io/github/license/CptPakundo/MPCvibedRPC?color=444">
+<a href="https://github.com/CptPakundo/MPCvibedRPC/releases"><img alt="Downloads" title="GitHub's count of release downloads (it includes the project's own release checks)" src="https://img.shields.io/github/downloads/CptPakundo/MPCvibedRPC/total?color=444"></a>
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/CptPakundo/MPCvibedRPC?color=444"></a>
 </p>
 
 <p>
