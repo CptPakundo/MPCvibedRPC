@@ -1,16 +1,16 @@
 {
   "since": "2026-10-18T01:10:32Z",
-  "people": 12,
+  "people": 13,
   "development": 60,
   "notCountedYet": 0,
   "byFile": {
     "MPCvibedRPC-macos.zip": 1,
-    "MPCvibedRPC.exe": 11
+    "MPCvibedRPC.exe": 12
   },
   "byRelease": {
     "v0.9.39": 1,
     "v0.9.40": 7,
     "v0.9.41": 2,
-    "v0.9.44": 2
+    "v0.9.44": 3
   }
 }
