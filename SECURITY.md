@@ -60,6 +60,9 @@ a code that works once, for two minutes at most, so the key itself never appears
 of the computer could read. A settings file that cannot be read is never overwritten, and it is written to disk
 before it replaces the old one.
 
+To show the title on a stream only while one is on, the program reads (never writes) Windows' record of which program
+is capturing the screen, and only Discord's entry in it. Nothing of it is sent anywhere.
+
 MPC-HC's web interface has no password and lets any web page read it (it answers every origin). While it is on, a
 website open in your browser could see what you play and send the player commands. "Set up the player connection"
 limits it to this computer, which keeps other devices out but not web pages you open here. Switch it off in MPC-HC

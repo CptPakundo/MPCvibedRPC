@@ -85,8 +85,8 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
 
 ## The status stays after I stop watching
 
-The status is taken down at the next check after the player stops, closes, or stays paused at the very end of the
-file, and while nothing plays it is cleared again once a minute, so a clear Discord missed (it was busy, or answered
+The status is taken down at the next check after the player stops or stays paused at the very end of the file (a
+player that was closed, or does not answer, is asked once more a second later first), and while nothing plays it is cleared again once a minute, so a clear Discord missed (it was busy, or answered
 too late) cannot linger. Quitting the program always takes it down too: Discord drops a program's status when it
 disconnects. If one stays anyway:
 - **Another player still answers.** The program shows the first player that plays, else the first that is paused. A
@@ -98,11 +98,19 @@ disconnects. If one stays anyway:
 
 ## My stream doesn't say what I watch
 
-When you share your screen, Discord names the stream after your **Playing** status and after no other kind. The
-program's usual status is a *Watching* one, so Discord shows your stream without a title. Turn on **Look > Show the
-title on my streams**: the status is then sent as "Playing Sample Show", and viewers see "Streaming Sample Show". It
-has a timer instead of the progress bar. If a game is running too, Discord may name the stream after the game: it
-takes the first Playing status it finds.
+When you share your screen, Discord names the stream after your **Playing** status and after no other kind. So while
+Discord shares your screen the program sends "Playing Sample Show" instead of "Watching Sample Show", and viewers see
+"Streaming Sample Show". If they do not:
+- **Look > Show the title on my streams** must be *While Discord shares my screen* or *Always* (it also has a tick
+  in the tray menu).
+- **Help > Run a check** says in its Streams line whether the program can tell here, and whether Discord is sharing
+  now. It reads that from Windows' record of screen captures: an old Windows 10, or a Discord set not to use the
+  newer capture method (Discord's Voice & Video settings), leaves no record. *Always* works without it. macOS and
+  Linux have no such record, so the choice there is *Always* or *Never*.
+- The change takes a few seconds after the stream starts: Discord's own preview pictures in the share dialog count
+  as captures too, so the program waits three seconds before it believes one.
+- If a game is running as well, Discord may name the stream after the game: it takes the first Playing status it
+  finds.
 
 ## The window doesn't open
 
@@ -140,7 +148,9 @@ The program checks for new versions when it starts and every six hours (switch i
 an update waits, the tray icon (macOS: the menu bar icon) shows a red dot. On Windows and Linux it installs the update
 by itself as soon as nothing is playing and the settings window is closed, restarts in the tray and says so once
 (**Install updates automatically**, on by default); **Install** in the window does it at once. Every update is checked
-against its checksum, and if the new version does not start, the old one keeps running. On macOS the window links to
+against its checksum. The copy that installed it waits until the new version has come up; if it has not within half
+a minute, the old version is put back and started again, a notice says so, and that version is not installed by
+itself a second time (a newer one is). On macOS the window links to
 the download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
 an update the window shows what's new once; the version number at the top of the window shows every version.
 
