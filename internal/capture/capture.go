@@ -2,13 +2,19 @@
 //
 // Discord names a stream after the streamer's Playing activity, so the engine sends that form of the status while a
 // stream is on (core.Config.StreamTitle "auto"). Discord itself tells a local program nothing about a stream: its
-// SCREENSHARE_STATE_UPDATE event needs a permission Discord grants to approved applications only. Windows does: it
-// keeps, for every program, when it last started and stopped capturing the screen (Settings > Privacy & security >
-// Screenshots and screen recording shows the same record), and a stop time of zero means "still capturing".
+// SCREENSHARE_STATE_UPDATE event needs a permission Discord grants to approved applications only. Windows shows it
+// in two ways, and either one is enough:
 //
-// The record is read, never written. It exists on Windows 11 and on Windows 10 from the version that knows the
-// capture permission; where it is missing, or on another system, nothing is reported and the status keeps its
-// usual form.
+//   - Discord's threads. While it shares a screen or a window, Discord's app runs threads it has named for that work
+//     (shareThreads), and they end with the share. Windows tells every program the names and the start times of the
+//     threads of another program of the same user.
+//   - Windows' record of screen captures: for every program, when it last started and stopped capturing the screen
+//     (Settings > Privacy & security > Screenshots and screen recording shows the same record); a stop time of zero
+//     means "still capturing". Newer Windows 11 versions no longer keep this record where a program without
+//     administrator rights can read it (seen on 25H2 and later from October 2026), which is why the threads are
+//     looked at first.
+//
+// Both are read, never written. On another system nothing is reported and the status keeps its usual form.
 package capture
 
 import (
@@ -45,6 +51,28 @@ func sharing(entries []entry, now time.Time, exists func(path string) bool) bool
 			continue
 		}
 		if now.Sub(e.start) >= minLive && exists(e.path) {
+			return true
+		}
+	}
+	return false
+}
+
+// thread is one named thread of a Discord program.
+type thread struct {
+	name  string    // the name the program gave it
+	start time.Time // when it began (zero: unknown)
+}
+
+// shareThreads are the threads Discord's app runs only while it shares a screen or a window: its capture source. They
+// were read from a real stream (Discord 1.0.9267, November 2026): they began with the share and ended with it, twice.
+// A name Discord changes makes this way see nothing, never a stream that is not there.
+var shareThreads = map[string]bool{"RsVideoSource": true}
+
+// streaming decides from Discord's threads: one of shareThreads that began at least minLive ago (the picker's
+// previews must not count here either). A thread whose start is unknown counts.
+func streaming(threads []thread, now time.Time) bool {
+	for _, t := range threads {
+		if shareThreads[t.name] && now.Sub(t.start) >= minLive {
 			return true
 		}
 	}

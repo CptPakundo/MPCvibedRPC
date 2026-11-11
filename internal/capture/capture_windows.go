@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -13,8 +14,11 @@ import (
 // program file (its path with # for the separators), with the values LastUsedTimeStart and LastUsedTimeStop.
 const storePath = `Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\graphicsCaptureProgrammatic\NonPackaged`
 
-// Supported reports whether this system can tell (the record exists here).
-func Supported() bool {
+// Supported reports whether this system can tell: it names threads, or it keeps the record where it can be read.
+func Supported() bool { return threadsSupported() || recordExists() }
+
+// recordExists reports whether Windows' record of screen captures is there.
+func recordExists() bool {
 	h, ok := open(storePath)
 	if ok {
 		syscall.RegCloseKey(h)
@@ -22,9 +26,14 @@ func Supported() bool {
 	return ok
 }
 
-// DiscordSharing reports whether a Discord desktop app is capturing the screen right now.
+// DiscordSharing reports whether a Discord desktop app is sharing the screen right now: by its threads, or else by
+// Windows' record.
 func DiscordSharing() bool {
-	return sharing(read(), time.Now(), func(path string) bool {
+	now := time.Now()
+	if streaming(readThreads(discordProcesses()), now) {
+		return true
+	}
+	return sharing(read(), now, func(path string) bool {
 		_, err := os.Stat(path)
 		return err == nil
 	})
@@ -95,10 +104,45 @@ var (
 	notifyNameAndData = uintptr(0x1 | 0x4) // REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET
 )
 
-// Watch calls onChange whenever Windows writes to the capture records (a capture began or ended), until ctx ends, so
-// the status follows a stream at once instead of at the next check. It calls it a second time once minLive has
-// passed, because a capture only counts from then. It returns at once where there is no record to watch.
+// threadLook is how often Watch looks at Discord's threads. No look is taken while no Discord runs.
+const threadLook = 2 * time.Second
+
+// Watch calls onChange when a share may have begun or ended, until ctx ends, so the status follows a stream at once
+// instead of at the next check. It watches both signs: Discord's threads, looked at every threadLook, and Windows'
+// record.
 func Watch(ctx context.Context, onChange func()) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); watchThreads(ctx, onChange) }()
+	go func() { defer wg.Done(); watchRecord(ctx, onChange) }()
+	wg.Wait()
+}
+
+// watchThreads calls onChange when what Discord's threads say changes. It returns at once where threads have no names.
+func watchThreads(ctx context.Context, onChange func()) {
+	if !threadsSupported() {
+		return
+	}
+	tick := time.NewTicker(threadLook)
+	defer tick.Stop()
+	was := streaming(readThreads(discordProcesses()), time.Now())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+		}
+		if is := streaming(readThreads(discordProcesses()), time.Now()); is != was {
+			was = is
+			onChange()
+		}
+	}
+}
+
+// watchRecord calls onChange whenever Windows writes to the capture records (a capture began or ended). It calls it a
+// second time once minLive has passed, because a capture only counts from then. It returns at once where there is no
+// record to watch.
+func watchRecord(ctx context.Context, onChange func()) {
 	h, ok := open(storePath)
 	if !ok {
 		return
