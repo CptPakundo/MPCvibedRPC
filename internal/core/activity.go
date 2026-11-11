@@ -200,8 +200,10 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		}
 	}
 
-	watching := cfg.ActivityType != "playing"
-	titleInName := watching && cfg.TitleAsName
+	// StreamTitle: Discord labels a screen share with the streamer's Playing activity (its name), and with no other
+	// kind. So that setting sends "Playing <title>", laid out like the Playing style with the title as the name.
+	watching := cfg.ActivityType != "playing" && !cfg.StreamTitle
+	titleInName := (watching && cfg.TitleAsName) || cfg.StreamTitle
 	title := chooseTitle(media, cfg, art)
 
 	a := &Activity{Instance: false}
@@ -215,6 +217,8 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		} else {
 			a.StatusDisplayType = &two
 		}
+	} else if titleInName {
+		a.Name = clip(title) // type 0 (Playing) is Discord's default and is left out, as in the Playing style
 	}
 
 	genres, infoLine := infoParts(media, cfg, art)

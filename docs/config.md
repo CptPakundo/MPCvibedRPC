@@ -35,9 +35,10 @@ shown here.
 |---|---|---|
 | `activityType` | `'watching'` | `'watching'` is "Watching ..." with a real progress bar (elapsed and total time). `'playing'` is the classic "Playing ..." with an elapsed-time counter. |
 | `titleAsName` | `true` | Shows "Watching <title>" instead of "Watching Media Player Classic". |
+| `streamTitle` | `false` | **Show the title on my streams.** `true` sends the status as "Playing <title>", so that Discord says "Streaming <title>" while you share your screen. Discord labels a stream only with a Playing status, so this replaces the style above: a timer instead of the progress bar, and the episode number in the first line. Music stays "Listening to", and a hidden title stays hidden. |
 | `textProgressBar` | `true` | Shows a text bar (`▰▰▰▱▱▱ 12:34 / 45:00`) while paused, because Discord can't freeze its own bar. |
 | `progressWidth` | `12` | Width of that text bar (0 to 40). |
-| `showRemainingTime` | `false` | Only used when `activityType` is `'playing'`. |
+| `showRemainingTime` | `false` | Counts down instead of up. Only used when `activityType` is `'playing'` or `streamTitle` is on. |
 | `episodeInDetails` | `false` | `true` repeats the season and episode number in the title line too (Discord already shows a badge when the card is expanded). |
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
 | `linkButton` | `true` | Link to the title's page (IMDb, AniList, ...): adds a "View on IMDb" style button and makes both text lines and the cover clickable (others can click them on your profile; Discord doesn't let you click your own). If Discord refuses these links, they are left out from then on. |

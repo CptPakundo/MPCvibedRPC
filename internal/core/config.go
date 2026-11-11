@@ -48,6 +48,7 @@ type Config struct {
 	// Presentation
 	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
 	TitleAsName       bool   `json:"titleAsName"`
+	StreamTitle       bool   `json:"streamTitle"` // "Playing <title>": the only kind of status Discord shows on a stream
 	TextProgressBar   bool   `json:"textProgressBar"`
 	ProgressWidth     int    `json:"progressWidth"`
 	ShowRemainingTime bool   `json:"showRemainingTime"`
@@ -120,6 +121,7 @@ func DefaultConfig() Config {
 
 		ActivityType:      "watching",
 		TitleAsName:       true,
+		StreamTitle:       false,
 		TextProgressBar:   true,
 		ProgressWidth:     12,
 		ShowRemainingTime: false,

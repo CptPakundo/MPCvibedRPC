@@ -62,7 +62,9 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork) buil
 	case b.music:
 		// a song: shown as it is named, as "Listening to"; never sent to the movie and TV catalogs
 		media := core.MusicMedia(info.File)
-		b.activity = core.BuildActivity(info, cfg, time.Now().UnixMilli(), media, nil)
+		c := *cfg
+		c.StreamTitle = false // a song stays "Listening to": the stream title is for videos
+		b.activity = core.BuildActivity(info, &c, time.Now().UnixMilli(), media, nil)
 		core.Listening(b.activity)
 		b.display = media.Display
 	default:
