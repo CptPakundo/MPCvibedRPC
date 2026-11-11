@@ -137,6 +137,7 @@ type Tray struct {
 	created uint32  // the "TaskbarCreated" broadcast: Explorer restarted, add the icon again
 	tip     string
 	added   bool // the icon is on the taskbar (only touched on the tray's own thread)
+	ticks   int  // timer ticks since the icon was last probed (only touched on the tray's own thread)
 	ready   chan struct{}
 	done    chan struct{}
 	once    sync.Once
@@ -356,15 +357,25 @@ func wndProc(hwnd, m, wParam, lParam uintptr) uintptr {
 			if !t.added {
 				// the first try failed (at login the taskbar may come up later, without a TaskbarCreated broadcast)
 				t.tip = t.tooltip()
-				if t.added = t.notify(nimAdd); t.added {
+				// A failed add may mean the icon exists already (a modify then works), so that counts as added.
+				if t.notify(nimAdd) || t.notify(nimModify) {
+					t.added = true
+					t.ticks = 0
 					t.o.Log("INFO", "Tray icon ready.")
 				}
 			} else {
 				tip := t.tooltip()
 				badge := t.o.Badge != nil && t.o.Badge()
-				if tip != t.tip || badge != t.badge {
+				t.ticks++
+				// The timer fires every 3 s. If Explorer restarted and we missed its TaskbarCreated broadcast, the icon
+				// is gone while added is still true; a modify of an icon that is not there fails, so a probe about once
+				// a minute (and every change) finds that out and the next tick adds the icon again.
+				if tip != t.tip || badge != t.badge || t.ticks >= 20 {
 					t.tip, t.badge = tip, badge
-					t.notify(nimModify)
+					t.ticks = 0
+					if !t.notify(nimModify) {
+						t.added = false
+					}
 				}
 			}
 			return 0

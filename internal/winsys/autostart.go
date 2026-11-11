@@ -44,8 +44,24 @@ func GetAutoStart(exe string) bool {
 		return getLoginItem(exe)
 	}
 	data, ok := registryRunValue(runName())
-	return ok && runEntryNames(data, exe)
+	return ok && runEntryNames(data, exe) && !startupDisabled(approvedData(runName()))
 }
+
+// approvedData is Windows' own startup switch for a Run value (nil when there is none).
+func approvedData(name string) []byte {
+	d, _ := registryStartupApproved(name)
+	return d
+}
+
+// startupDisabled reads the value Windows keeps under StartupApproved\Run when the user switches an entry off in Task
+// Manager > Startup apps: the first byte is even (0x02, 0x06) when the entry is enabled and odd (0x03, 0x07) when it
+// is disabled. No value, or an empty one, means enabled.
+func startupDisabled(data []byte) bool {
+	return len(data) > 0 && data[0]&1 == 1
+}
+
+// startupApprovedKey is the key where Windows keeps that switch, one value per Run value.
+const startupApprovedKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run`
 
 // runEntryNames says whether the Run entry's command line names a program file with the same name as exe (case does
 // not matter; the folder is not compared).
@@ -60,9 +76,23 @@ func SetAutoStart(enabled bool, exe string) bool {
 	if !IsWindows {
 		return setLoginItem(enabled, exe)
 	}
+	name := runName()
 	if enabled {
-		return run("reg", "add", runKey, "/v", runName(), "/t", "REG_SZ", "/d", runCommand(exe, os.Getenv("MPCRPC_HOME")), "/f").ok
+		want := runCommand(exe, os.Getenv("MPCRPC_HOME"))
+		ok := true
+		// already there as it should be: no helper process at every start of the program
+		if cur, found := registryRunValue(name); !found || cur != want {
+			ok = run("reg", "add", runKey, "/v", name, "/t", "REG_SZ", "/d", want, "/f").ok
+		}
+		// switched off in Task Manager: whoever turns the setting on here wants it on
+		if startupDisabled(approvedData(name)) {
+			run("reg", "delete", startupApprovedKey, "/v", name, "/f")
+		}
+		return ok
 	}
-	run("reg", "delete", runKey, "/v", runName(), "/f")
+	run("reg", "delete", runKey, "/v", name, "/f")
+	if _, found := registryStartupApproved(name); found {
+		run("reg", "delete", startupApprovedKey, "/v", name, "/f") // nothing of ours is left behind
+	}
 	return true
 }

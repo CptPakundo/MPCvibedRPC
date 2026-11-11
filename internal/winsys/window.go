@@ -1,6 +1,7 @@
 package winsys
 
 import (
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,6 +79,12 @@ func OpenWindow(url, profileDir string) string {
 	return ""
 }
 
+// webAddress says whether u is an http or https address with a host.
+func webAddress(u string) bool {
+	p, err := url.Parse(u)
+	return err == nil && (p.Scheme == "http" || p.Scheme == "https") && p.Host != ""
+}
+
 // OpenFolder shows a folder in Explorer (macOS: the Finder; Linux: the file manager).
 func OpenFolder(dir string) {
 	switch {
@@ -91,7 +98,11 @@ func OpenFolder(dir string) {
 }
 
 // OpenURL shows a web page in the default browser (the sign-ins of Plex and Stremio, where the user is likely signed in already).
+// Only http and https addresses are opened: the system would otherwise run any other scheme or a file path.
 func OpenURL(u string) bool {
+	if !webAddress(u) {
+		return false
+	}
 	switch {
 	case IsWindows:
 		return start(proc.Hide(exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", u)))
