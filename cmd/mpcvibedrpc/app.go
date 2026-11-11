@@ -33,11 +33,12 @@ type app struct {
 	token          string // the window's key to the local API (new each launch)
 	srv            *server.Server
 
-	plex     *plexAccount
-	stremio  *stremioAccount
-	jellyfin *jellyfinAccount
-	upd      updates
-	windows  atomic.Int32 // settings windows open now: presence never rests while one is
+	plex      *plexAccount
+	stremio   *stremioAccount
+	jellyfin  *jellyfinAccount
+	upd       updates
+	windows   atomic.Int32 // settings windows open now: presence never rests while one is
+	busyUntil atomic.Int64 // until then (Unix nanoseconds) no update installs itself: see settle
 
 	mu   sync.Mutex
 	tray *winsys.Tray
@@ -86,6 +87,7 @@ func run() error {
 	defer lg.close()
 	a := &app{st: st, lg: lg, log: lg.log, exe: exe, ipcFile: ipcFile, browserProfile: filepath.Join(st.Dir, "window"),
 		token: server.NewToken(), quitDone: make(chan struct{})}
+	a.busy()
 
 	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
 	// An automatic update leaves a marker for the copy it starts: that copy starts quietly in the tray and says so once.
@@ -172,7 +174,10 @@ func run() error {
 	if st.App().StartPresence {
 		a.eng.Start()
 	}
-	if firstRun || (!background && st.App().OpenWindow) {
+	// An update installed from the window comes back with its window (and what's new in it), whatever "Show this
+	// window when I open the app" says: the window the user pressed Update in must not just vanish. An update that
+	// installed itself set background above.
+	if firstRun || (!background && (st.App().OpenWindow || afterUpdate)) {
 		a.openWindow()
 	}
 	a.scheduleUpdateChecks()
@@ -225,6 +230,7 @@ func removeIPC(path string) error {
 }
 
 func (a *app) openWindow() {
+	a.busy()
 	// a window that is open already comes to the front: two windows would each keep their own copy of the values
 	if a.windows.Load() > 0 && winsys.FocusWindow(a.browserProfile) {
 		return

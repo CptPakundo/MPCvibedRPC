@@ -22,6 +22,7 @@ import (
 type updates struct {
 	mu         sync.Mutex
 	last       *updater.Info // the last check's answer
+	next       time.Time     // when the next check by itself is due (wall clock; zero: now)
 	notified   string        // the newest version the user was told about (once per version per run)
 	installing atomic.Bool   // an update is being downloaded or swapped in
 	auto       atomic.Bool   // an automatic install waits for a quiet moment
@@ -46,6 +47,7 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 		return nil, nil
 	}
 	r, err := updater.Check(nil, s.UpdateRepo, version)
+	a.upd.checked(time.Now(), err == nil)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +84,18 @@ func quietMoment(windows int32, s engine.Status) bool {
 	return windows == 0 && (s.NowPlaying == nil || s.PauseCleared)
 }
 
+// settle is how long after the program started, or a settings window was asked for, no update installs itself. At the
+// start the players have not been asked yet, so nothing seems to play; and a window that is opening does not count as
+// open until its page has loaded. Without it an update found by the check at the start would restart the program
+// under a window that is just coming up, or under a video.
+var settle = 10 * time.Second
+
+// busy makes the next settle no quiet moment.
+func (a *app) busy() { a.busyUntil.Store(time.Now().Add(settle).UnixNano()) }
+
+// settleLeft is how much of that time is left (zero or less: none).
+func (a *app) settleLeft() time.Duration { return time.Until(time.Unix(0, a.busyUntil.Load())) }
+
 // autoInstall installs a found update by itself, at the next quiet moment, when "Install updates automatically" is
 // on (with checks on, and where the program can replace itself: Windows and Linux). It reports whether it will. It
 // waits in the background, looking again every autoWait; a failed install is left to the next check.
@@ -98,12 +112,16 @@ func (a *app) autoInstall() bool {
 	if !a.upd.auto.CompareAndSwap(false, true) {
 		return true // already waiting
 	}
-	quiet := func() bool { return quietMoment(a.windows.Load(), a.eng.Status()) }
+	quiet := func() bool { return a.settleLeft() <= 0 && quietMoment(a.windows.Load(), a.eng.Status()) }
 	engine.Go(a.log, "The automatic update", func() {
 		defer a.upd.auto.Store(false)
 		for {
 			for !quiet() {
-				time.Sleep(autoWait)
+				wait := autoWait
+				if left := a.settleLeft(); left > 0 && left < wait {
+					wait = left // the start is over sooner than the next look would be
+				}
+				time.Sleep(wait)
 				if !enabled() {
 					return // switched off meanwhile, or installed by hand
 				}
@@ -147,24 +165,68 @@ func takeAutoMarker(dir string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// scheduleUpdateChecks looks for a new version shortly after starting (an open window shows it as soon as it is
-// known), then every six hours. A copy started at login may have no network yet, so a failed first check is tried
-// again a minute later.
+var (
+	// checkEvery is how often the program looks for a newer version while it runs. One small request: GitHub answers
+	// "unchanged" to all but the first after a release.
+	checkEvery = 6 * time.Hour
+	// checkRetry is how long a check that failed (no network) waits for its next try.
+	checkRetry = 30 * time.Minute
+	// checkLook is how often the program looks at the clock for that. It reads the wall clock rather than counting
+	// six hours itself: a timer does not count the same on every system while the computer sleeps, and a laptop that
+	// sleeps most of the day would otherwise go days without a check.
+	checkLook = 10 * time.Minute
+	// firstRetries are the waits before the check at the start is tried again: a copy started at login may have no
+	// network yet.
+	firstRetries = []time.Duration{10 * time.Second, time.Minute, 5 * time.Minute}
+)
+
+// checked books a check that went out at now: the next one by itself is due checkEvery later, or checkRetry later
+// when it failed.
+func (u *updates) checked(now time.Time, ok bool) {
+	wait := checkEvery
+	if !ok {
+		wait = checkRetry
+	}
+	u.mu.Lock()
+	u.next = now.Round(0).Add(wait) // Round(0): the wall clock alone
+	u.mu.Unlock()
+}
+
+// due says whether a check by itself is due at now: none went out yet, its time has come, or the clock was set far
+// back (the time booked is then further away than a wait can be; the two hours leave the end of summer time alone).
+func (u *updates) due(now time.Time) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	now = now.Round(0)
+	return !now.Before(u.next) || u.next.Sub(now) > checkEvery+2*time.Hour
+}
+
+// scheduleUpdateChecks looks for a new version as the program starts (an open window offers it as soon as it is
+// known), then every six hours while it runs. The check at the start is tried again a few times when it fails.
 func (a *app) scheduleUpdateChecks() {
-	engine.Go(a.log, "The first update check", func() {
-		time.Sleep(5 * time.Second)
-		if _, err := a.checkUpdates(false); err != nil {
-			time.Sleep(time.Minute)
-			if _, err := a.checkUpdates(false); err != nil {
-				a.log("WARN", "Update check failed: "+err.Error())
+	engine.Go(a.log, "The update check", func() {
+		if err := tryCheck(func() error { _, err := a.checkUpdates(false); return err }, firstRetries, time.Sleep); err != nil {
+			a.log("WARN", "Update check failed: "+err.Error())
+		}
+		for range time.Tick(checkLook) {
+			if a.upd.due(time.Now()) {
+				_, _ = a.checkUpdates(false)
 			}
 		}
 	})
-	engine.Go(a.log, "The update check", func() {
-		for range time.Tick(6 * time.Hour) {
-			_, _ = a.checkUpdates(false)
+}
+
+// tryCheck runs check, and again after each of waits while it fails; it gives the last error.
+func tryCheck(check func() error, waits []time.Duration, sleep func(time.Duration)) error {
+	err := check()
+	for _, w := range waits {
+		if err == nil {
+			break
 		}
-	})
+		sleep(w)
+		err = check()
+	}
+	return err
 }
 
 // errNotQuiet is installUpdate's answer when the moment stopped being quiet while the update was downloaded.

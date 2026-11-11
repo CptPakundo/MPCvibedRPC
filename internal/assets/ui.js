@@ -47,11 +47,24 @@
   const players = () => (osText() ? osText().players : 'MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer or Kodi');
   // an in-page dialog (the browser's confirm() and alert() would head the box with this page's address). buttons are
   // [label, class] pairs, the first being the safe choice that has the focus; it resolves to the index of the button
-  // pressed, or -1 for Escape or a click outside. body is text or an element.
+  // pressed, or -1 for Escape or a click outside. body is text or an element. opt.focus is the button that has the
+  // focus instead of the first. opt.hold(i) runs when button i is pressed, with the dialog's buttons switched off
+  // until it has answered: the dialog closes when it answers true and stays open otherwise.
   let modalCount = 0;
-  const modal = (title, body, buttons, wide) => new Promise((resolve) => {
+  const modal = (title, body, buttons, wide, opt = {}) => new Promise((resolve) => {
     const prev = document.activeElement;
-    const btns = buttons.map(([label, cls], i) => { const b = el('button', { textContent: label, className: cls || '' }); b.onclick = () => done(i); return b; });
+    let busy = false;
+    const pick = async (i) => {
+      if (busy) return;
+      if (opt.hold) {
+        busy = true; btns.forEach((b) => { b.disabled = true; });
+        let close = true;
+        try { close = await opt.hold(i); } finally { busy = false; btns.forEach((b) => { b.disabled = false; }); }
+        if (!close) { btns[opt.focus || 0].focus(); return; }
+      }
+      done(i);
+    };
+    const btns = buttons.map(([label, cls], i) => { const b = el('button', { textContent: label, className: cls || '' }); b.onclick = () => pick(i); return b; });
     const content = typeof body === 'string' ? el('p', { textContent: body }) : body;
     const uid = 'dlg' + (++modalCount);
     const box = el('div', { className: 'dlg' + (wide ? ' wide' : '') }, el('h2', { textContent: title, id: uid + '-title' }), content, el('div', { className: 'row' }, ...btns));
@@ -60,14 +73,16 @@
     const back = el('div', { className: 'dlg-back' }, box);
     const done = (v) => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
     const key = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); done(-1); }
+      if (e.key === 'Escape') { e.preventDefault(); if (!busy) done(-1); }
       else if (e.key === 'Tab') { e.preventDefault(); const i = btns.indexOf(document.activeElement); btns[(i + (e.shiftKey ? btns.length - 1 : 1)) % btns.length].focus(); }
     };
     document.addEventListener('keydown', key, true);
-    back.onmousedown = (e) => { if (e.target === back) done(-1); };
+    back.onmousedown = (e) => { if (e.target === back && !busy) done(-1); };
     document.body.append(back);
-    btns[0].focus();
+    btns[opt.focus || 0].focus();
   });
+  // resolves once no dialog is open
+  const noDialog = async () => { while (document.querySelector('.dlg-back')) await new Promise((r) => setTimeout(r, 300)); };
   // a yes/no question (Cancel first); with cancel set to null it is a message with a single button
   const ask = async (title, text, yes, danger, cancel = 'Cancel') => {
     const ok = [yes, danger ? 'primary danger' : 'primary'];
@@ -573,13 +588,15 @@
     if (s.update && s.update.newer && s.update.latest !== updShown && $('installUpd').disabled === false) showUpdate(s.update, false);
     paintUpdBanner(s.update);
   }
-  // a one-line notice at the top while an update is available
+  // a one-line notice at the top while an update is available; its button brings the update's dialog back
+  let updInfo = null;
   function paintUpdBanner(u) {
     const on = !!(u && u.newer);
+    updInfo = on ? u : null;
     $('updBanner').classList.toggle('hidden', !on);
     if (on) $('updBannerText').textContent = 'MPCvibedRPC ' + u.latest + ' is available.';
   }
-  $('updBannerBtn').onclick = () => { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); };
+  $('updBannerBtn').onclick = async () => { if (!await askUpdate(updInfo, true)) { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); } };
 
   // The program has quit: nothing is asked any more (a window the browser does not let close would go on asking a
   // port that another program, or the next start, may listen on by then).
@@ -707,8 +724,8 @@
     return box;
   }
   function setNotes(md) { const n = $('updNotes'); n.textContent = ''; if (md) n.append(notesOf(md)); }
-  // A newer version: shown once per version, whether the window found it (Check now) or the program did in the
-  // background (at start, then daily) while the window is open.
+  // A newer version: shown once per version, whether the window found it (Check now) or the program did by itself
+  // (as it starts, then every six hours) while the window is open.
   let updShown = '';
   function showUpdate(u, explain) {
     if (!u || !u.newer) return;
@@ -718,6 +735,44 @@
     offerUpdate(u, explain);
     flagUpdate();
     paintUpdBanner(u);
+    if (!explain) askUpdate(u, false); // found by the program: ask at once (Check now shows its answer in its card)
+  }
+  // The dialog for a newer version: what is new in it, and Update now or Not now. It comes up by itself once for each
+  // version (after Not now the notice at the top and the Updates card keep offering it), and from the notice's
+  // button. It answers whether it was shown.
+  let updAsked = '', updAsking = false;
+  try { updAsked = localStorage.getItem('updAsked') || ''; } catch (_) {}
+  async function askUpdate(u, byHand) {
+    if (!u || !u.newer || updAsking || $('installUpd').disabled) return false;
+    if (!byHand && updAsked === u.latest) return false;
+    const install = !!(u.canInstall || (!osText() && u.url));
+    if (!install && !u.page) return false; // nothing to press: the card says why
+    updAsking = true;
+    try {
+      await noDialog(); // what's new in this version, or a question, goes first
+      updAsked = u.latest;
+      try { localStorage.setItem('updAsked', u.latest); } catch (_) {}
+      const say = el('p', { textContent: 'You have ' + u.current + '.' });
+      const body = el('div', {}, say);
+      if (u.notes) body.append(el('div', { className: 'chg' }, notesOf(u.notes)));
+      const self = install && model && model.os !== 'darwin' && model.app.checkUpdates && model.app.autoUpdate;
+      if (self) body.append(el('p', { textContent: 'Not now: it installs by itself later, when nothing is playing and this window is closed.' }));
+      await modal('MPCvibedRPC ' + u.latest + ' is available', body, [['Not now'], [install ? 'Update now' : 'Open the download page', 'primary']], true, {
+        focus: 1,
+        hold: async (i) => {
+          if (i !== 1) return true;
+          if (!install) { window.open(u.page, '_blank', 'noopener'); return true; }
+          if (!await installUpdate((t) => { say.textContent = t; $('updText').textContent = t; })) return false;
+          return new Promise(() => {}); // the program restarts and closes this window
+        },
+      });
+    } finally { updAsking = false; }
+    return true;
+  }
+  // Install: download, check, swap, restart. say gets the progress, and the reason when it fails.
+  async function installUpdate(say) {
+    $('installUpd').disabled = true; say('Downloading… MPCvibedRPC restarts by itself.');
+    try { await api('update-install', {}); return true; } catch (e) { say('Could not update: ' + e.message); $('installUpd').disabled = false; return false; }
   }
   $('checkUpd').onclick = async () => {
     $('updText').textContent = 'Checking…'; $('installUpd').classList.add('hidden'); $('pageUpd').classList.add('hidden'); $('updNotes').textContent = '';
@@ -738,7 +793,7 @@
     else if (explain) $('updNotes').textContent = 'That release has no program file attached.';
   }
   $('pageUpd').onclick = () => { if (updPage) window.open(updPage, '_blank', 'noopener'); };
-  $('installUpd').onclick = async () => { $('updText').textContent = 'Downloading… the program will restart.'; $('installUpd').disabled = true; try { await api('update-install', {}); } catch (e) { $('updText').textContent = e.message; $('installUpd').disabled = false; } };
+  $('installUpd').onclick = () => installUpdate((t) => { $('updText').textContent = t; });
   $('copyDiag').onclick = async () => {
     const msg = $('diagMsg'), box = $('diagText');
     try {
