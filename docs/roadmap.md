@@ -111,9 +111,9 @@ Each of these sank or burdened a similar tool, or breaks a principle:
   AI-generated apps and its sandbox), unless real demand appears.
 
 ## Open decisions (the owner's)
-1. Release rhythm: monthly stable releases with pre-releases in between? For now (2026-10-18): frequent releases,
-   each improvement as soon as its checks pass, since few people use the program yet. Calmer releases (goal 4) come
-   back with a wider audience; pre-releases are not decided.
+1. Release rhythm: monthly stable releases with pre-releases in between? Since 2026-11-11 releases are bundles of
+   several changes, and only a fix for something broken ships alone (`docs/decisions.md`). A fixed rhythm and
+   pre-releases are not decided.
 2. Register a project-owned Discord application.
 3. Turn on immutable releases (a repository setting).
 4. Keep an offline signing key and sign each stable release (one manual step each).
