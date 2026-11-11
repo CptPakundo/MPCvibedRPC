@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
@@ -19,6 +20,16 @@ func (e *Engine) connectDiscord(r *run) {
 	e.mu.Unlock()
 
 	Go(e.log, "The Discord connection", func() {
+		tried := false
+		defer func() {
+			if !tried { // a panic while connecting (Go logs it) must not leave the flag set: nothing would connect again
+				e.mu.Lock()
+				if e.cur == r {
+					e.connecting = false
+				}
+				e.mu.Unlock()
+			}
+		}()
 		var client *discord.Client
 		if e.opts.NewDiscord != nil {
 			client = e.opts.NewDiscord()
@@ -26,6 +37,7 @@ func (e *Engine) connectDiscord(r *run) {
 			client = discord.New(e.opts.DiscordPaths)
 		}
 		err := client.Login(cfg.ClientID, 0)
+		tried = true
 
 		e.mu.Lock()
 		// A run that ended has had its flag reset by stop; a newer run may be connecting now, so only the current run's
@@ -57,6 +69,7 @@ func (e *Engine) connectDiscord(r *run) {
 		e.warnedDisc = false
 		e.discRefused = false
 		e.prev = nil
+		e.sendFails, e.retryAt = 0, time.Time{} // a new connection starts without the last one's waits
 		e.mu.Unlock()
 		e.log("INFO", "Connected to Discord.")
 		e.Wake() // the status goes up now, not at the next check
