@@ -36,6 +36,29 @@ func TestSharing(t *testing.T) {
 	}
 }
 
+func TestStreaming(t *testing.T) {
+	now := time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC)
+	usual := []thread{{"CrRendererMain", now.Add(-time.Hour)}, {"Voice", now.Add(-time.Hour)}, {"WindowPreviews", now.Add(-time.Hour)}}
+	with := func(more ...thread) []thread { return append(append([]thread{}, usual...), more...) }
+	for _, c := range []struct {
+		name    string
+		threads []thread
+		want    bool
+	}{
+		{"no Discord", nil, false},
+		{"Discord in a voice channel, no share", usual, false},
+		{"a share that is on", with(thread{"RsVideoSource", now.Add(-time.Minute)}), true},
+		{"a share a second old", with(thread{"RsVideoSource", now.Add(-time.Second)}), false},
+		{"just past the wait", with(thread{"RsVideoSource", now.Add(-minLive)}), true},
+		{"a share whose start is unknown", with(thread{"RsVideoSource", time.Time{}}), true},
+		{"a name that only resembles it", with(thread{"RsVideoSourceHelper", now.Add(-time.Minute)}, thread{"rsvideosource", now.Add(-time.Minute)}), false},
+	} {
+		if got := streaming(c.threads, now); got != c.want {
+			t.Errorf("%s: streaming = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestIsDiscord(t *testing.T) {
 	for path, want := range map[string]bool{
 		`C:\Users\someone\AppData\Local\Discord\app-1.0.9300\Discord.exe`: true,
