@@ -32,17 +32,18 @@ func TestMpvPauseShowsAtOnce(t *testing.T) {
 	e.Start()
 	// the first check finds mpv and connects to Discord; the next regular one would be a minute later
 	eventually(t, "connected and watching", func() bool { return e.Status().Discord == "connected" && m.watchers() == 1 })
+	// the playing status goes out on its own: it must be sent before the pause, or it is taken for the pause's
+	eventually(t, "playing shown", func() bool { return len(d.list()) > 0 && !isClear(d) && e.Status().NowPlaying != nil })
 	n := len(d.list())
 
 	m.set("pause", true)
 	start := time.Now()
 	m.event(`{"event":"property-change","id":1,"name":"pause","data":true}`)
-	eventually(t, "the pause sent", func() bool { return len(d.list()) > n && e.Status().Paused })
+	eventually(t, "the pause sent", func() bool {
+		return len(d.list()) > n && e.Status().Paused && strings.Contains(lastDetails(d), "1:00 / 25:00")
+	})
 	if d := time.Since(start); d > 2*time.Second {
 		t.Fatalf("the pause took %v to show", d)
-	}
-	if s := lastDetails(d); !strings.Contains(s, "1:00 / 25:00") {
-		t.Errorf("last status: %q", s)
 	}
 }
 
