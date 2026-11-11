@@ -74,7 +74,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   when a pull request is opened, reopened or marked ready, by hand, and in the weekly canary; every push runs the unit
   tests (with the race detector on Linux), the builds, the smoke tests and the reproducible-build check. *Why:* the
   live jobs were half of every push's CI minutes and ran about three times per branch; once per pull request keeps the
-  "live tests before a release" guarantee, since every release goes through a pull request.
+  "live tests before a release" guarantee, since every release goes through a pull request. Commits pushed after the
+  pull request was opened are covered by running `ci.yml` by hand (`workflow_dispatch`) on the branch before a
+  release, when they touch the engine or a player reader.
 - **A release stays a draft until it checks out**: its files, checksums, build records, a rebuild from the tag that
   must match byte for byte, and then a real self-update from the release before. *Why:* nobody's updater should ever
   see a broken release.

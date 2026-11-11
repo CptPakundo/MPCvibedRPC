@@ -91,11 +91,14 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 ```
 - The workflows carry no version: `tools/ci/version.sh` reads it from `cmd/mpcvibedrpc/main.go` (VERSION, and NEXT for
   the smoke test's update) and, on a tag, fails when the tag does not match.
-- CI (`.github/workflows/ci.yml`): Linux runs vet, a **gofmt gate**, `govulncheck` (pinned; a Go security fix
-  means bumping the exact Go patch in every `setup-go`), `staticcheck` (pinned; without ST1005, because the
-  program's error texts are sentences the window shows) and `deadcode -test` (every function must be reachable from
-  the program or a test: delete what is not, or say in a comment why it stays), and the tests with `-race`; Windows
-  and macOS run the tests. The Go patch lives in `go.mod` alone (`go 1.27.3`; every `setup-go` reads `go-version-file`).
+- CI (`.github/workflows/ci.yml`): the `test` job runs vet and the tests on Linux (with `-race`), Windows and macOS.
+  The `lint` job (Linux; no job needs it, so the builds start when the tests pass, but a failing gate fails the run
+  and the canary) runs a **gofmt gate**, `govulncheck` and `staticcheck` (pinned, installed once with `go install`;
+  run for Linux and for `GOOS=windows`, staticcheck also for `GOOS=darwin`; without ST1005, because the program's
+  error texts are sentences the window shows) and `deadcode -test` (Linux only; every function must be reachable
+  from the program or a test: delete what is not, or say in a comment why it stays). A Go security fix means
+  bumping the Go patch in `go.mod` alone (`go 1.27.3`; every `setup-go` reads `go-version-file`). `release.yml`
+  runs the tests but not the lint gates; those gate the pull request's CI before the merge.
   A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates) is not tested
   (`paths-ignore`); anything else runs the fast jobs. A pull request from this repository
   is tested by its branch's push run (the `pull_request` run skips the test job; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
@@ -230,7 +233,9 @@ One branch and one PR per release: the change, the version bump and the release 
    part of the window they show changed, as `docs/development.md` > Screenshots describes (made-up titles only).
 2. Locally: `go vet ./...` (also `GOOS=linux`, `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...`, and a
    scan of the diff and new files for personal data (the owner's name, email, local paths) before the first push.
-   Then push, `gh pr create`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps ran.
+   Then push, `gh pr create`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps ran. The
+   live jobs ran when the pull request was opened: if later commits touch the engine or a player reader, run `ci.yml`
+   by hand (`workflow_dispatch`) on the branch before the release.
 3. With the owner's go-ahead: `gh pr merge <n> --rebase --delete-branch` (GitHub refuses to rebase a branch that holds
    merge commits, such as merged agent branches: use `--merge` then, or rebase the branch locally first), then
    `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`

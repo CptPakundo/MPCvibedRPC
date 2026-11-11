@@ -67,13 +67,13 @@ Release files come with a SHA-256 checksum and a signed build record from GitHub
 release workflow:
 
 ```
-gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC
+gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC --signer-workflow CptPakundo/MPCvibedRPC/.github/workflows/release.yml
 ```
 
 You can also rebuild `MPCvibedRPC.exe` and the Linux programs yourself and compare: every release is published only
 after a second runner rebuilt them from the tag byte for byte. Check out the tag with the files as committed (LF line
 endings, for example `git clone -c core.autocrlf=false`), install the Go version named in
-`.github/workflows/release.yml`, run `tools/ci/reproduce.sh X.Y.Z out` and compare the files' SHA-256 with the
+`go.mod` (the `go` line), run `tools/ci/reproduce.sh X.Y.Z out` and compare the files' SHA-256 with the
 release's `.sha256` files. The macOS app is built with Apple's tools and cannot be rebuilt this way.
 
 The program itself is not code-signed, so Windows SmartScreen may warn about it. The macOS app only has an ad-hoc

@@ -42,7 +42,7 @@ echo "sample episode: $rk"
 (
   t=0
   while :; do
-    curl -s -o /dev/null "${player[@]}" "$P/:/timeline?ratingKey=$rk&key=%2Flibrary%2Fmetadata%2F$rk&state=playing&time=$t&duration=300000"
+    curl -s -m 5 -o /dev/null "${player[@]}" "$P/:/timeline?ratingKey=$rk&key=%2Flibrary%2Fmetadata%2F$rk&state=playing&time=$t&duration=300000" || true
     t=$((t + 3000)); sleep 3
   done
 ) &

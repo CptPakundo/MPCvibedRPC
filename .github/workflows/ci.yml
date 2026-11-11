@@ -1,6 +1,6 @@
-# Every push: tests on Linux (with the race detector, gofmt, govulncheck, staticcheck and deadcode), Windows and macOS,
-# then the programs built for each system and smoke-tested for real, and the Windows exe rebuilt on Linux to prove it
-# is reproducible. Once per pull request (when it is opened, reopened or marked ready; also by hand, and in the weekly
+# Every push: tests on Linux (with the race detector), Windows and macOS, and a lint job (gofmt, govulncheck,
+# staticcheck and deadcode); then the programs built for each system and smoke-tested for real, and the Windows exe
+# rebuilt on Linux to prove it is reproducible. Once per pull request (when it is opened, reopened or marked ready; also by hand, and in the weekly
 # canary): the live jobs, which install real players and real media servers on throwaway runners and run the engine
 # against them. A pull request's later pushes run only the fast jobs; the canary runs everything against the newest
 # players and servers every week.
@@ -40,26 +40,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/run-annotated.sh "go vet" go vet ./...
-        shell: bash
-      - name: gofmt
-        if: runner.os == 'Linux'
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run gofmt -w on the files above.'; exit 1; }
-        shell: bash
-      - name: govulncheck
-        if: runner.os == 'Linux'
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
-        shell: bash
-      # staticcheck without ST1005: the program's error texts are sentences, because the window shows them to the user.
-      # deadcode: every function must be reachable from the program or a test; delete what is not, or say why it stays.
-      - name: staticcheck and deadcode
-        if: runner.os == 'Linux'
-        run: |
-          go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 -checks inherit,-ST1005 ./...
-          dead="$(go run golang.org/x/tools/cmd/deadcode@v0.52.0 -test ./...)"
-          test -z "$dead" || { echo "$dead"; echo 'Unreachable code: delete it, or explain in a comment why it must stay.'; exit 1; }
         shell: bash
       - name: Test (with the race detector)
         if: runner.os == 'Linux'
@@ -68,6 +53,55 @@ jobs:
       - name: Test
         if: runner.os != 'Linux'
         run: ./tools/ci/run-annotated.sh "go test" ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
+        shell: bash
+
+  # The gates that need no test run: formatting, known vulnerabilities, static analysis and unreachable code. A job of
+  # its own, so the build jobs (which need only the tests) start without waiting for it. No other job needs this one,
+  # but it is part of the run: a failing gate fails the run (and the canary, which calls this file).
+  lint:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version-file: go.mod, cache: false }
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run gofmt -w on the files above.'; exit 1; }
+        shell: bash
+      # Installed once into a folder of its own and run from there, so that GOOS can be set for the analysed code
+      # without building the tools for that system (a Windows tool cannot start on this runner).
+      - name: Install govulncheck, staticcheck and deadcode
+        env:
+          TOOLS: ${{ runner.temp }}/bin
+        run: |
+          mkdir -p "$TOOLS"
+          GOBIN="$TOOLS" go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          GOBIN="$TOOLS" go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
+          GOBIN="$TOOLS" go install golang.org/x/tools/cmd/deadcode@v0.52.0
+          echo "$TOOLS" >> "$GITHUB_PATH"
+        shell: bash
+      # Each for the Linux code, then the Windows code (the main system); staticcheck also for macOS.
+      - name: govulncheck
+        run: |
+          govulncheck ./...
+          GOOS=windows govulncheck ./...
+        shell: bash
+      # staticcheck without ST1005: the program's error texts are sentences, because the window shows them to the user.
+      - name: staticcheck
+        run: |
+          staticcheck -checks inherit,-ST1005 ./...
+          GOOS=windows staticcheck -checks inherit,-ST1005 ./...
+          GOOS=darwin staticcheck -checks inherit,-ST1005 ./...
+        shell: bash
+      # deadcode: every function must be reachable from the program or a test; delete what is not, or say why it stays.
+      # Linux only: Windows-only helpers are reached from Windows-only tests; a second run for Windows can come later.
+      - name: deadcode
+        run: |
+          dead="$(deadcode -test ./...)"
+          test -z "$dead" || { echo "$dead"; echo 'Unreachable code: delete it, or explain in a comment why it must stay.'; exit 1; }
         shell: bash
 
   # The Windows exe as a release builds it (.github/actions/build-windows), smoke-tested for real.
@@ -79,6 +113,8 @@ jobs:
       # the files as the repository has them (LF), and no cgo: the same input and build as the Linux rebuild below
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
@@ -98,6 +134,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
@@ -122,6 +160,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh
@@ -154,6 +194,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - name: Install players (Linux)
@@ -185,6 +227,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - name: Live tests (PotPlayer, Kodi)
@@ -197,6 +241,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - name: Install ffmpeg
@@ -218,6 +264,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
       - name: Install ffmpeg

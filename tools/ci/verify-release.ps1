@@ -38,7 +38,7 @@ try {
       $line = (Get-Content "$path.sha256" -Raw).Trim()
       $hash = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower()
       Check ($line -eq "$hash  $f") "$f matches its checksum"
-      gh attestation verify $path --repo $repo | Out-Host
+      gh attestation verify $path --repo $repo --signer-workflow "$repo/.github/workflows/release.yml" | Out-Host
       Check ($LASTEXITCODE -eq 0) "$f has a valid build record from this repository"
     }
     $vi = (Get-Item (Join-Path $rel 'MPCvibedRPC.exe')).VersionInfo
