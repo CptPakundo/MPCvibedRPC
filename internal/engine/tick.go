@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
@@ -53,8 +52,8 @@ type built struct {
 // buildActivity makes the activity for what plays: titles are parsed and looked up (art may be nil) unless the title
 // is hidden; songs are shown as they are named. at is when the player reported its position: the progress bar is
 // counted from it, not from the moment the lookup is done (a first lookup can take seconds). It touches no engine
-// state.
-func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) built {
+// state but folders, the folder listing kept for folderEpisodeNumbers (nil: none is kept).
+func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, folders *folderNames, at time.Time) built {
 	b := built{music: core.IsAudioFile(info.File)}
 	switch {
 	case cfg.HideTitle:
@@ -79,14 +78,8 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, at t
 			media.DurationMin = int(math.Floor(float64(info.Duration)/60000 + 0.5))
 		}
 		if cfg.FolderEpisodeNumbers && media.Code != "" && info.FullDir != "" {
-			if ents, err := os.ReadDir(info.FullDir); err == nil {
-				names := make([]string, len(ents))
-				for i, en := range ents {
-					names[i] = en.Name()
-				}
-				if n := core.FolderEpisode(media, names); n != 0 && n != core.NA {
-					media.BadgeEpisode = n
-				}
+			if n := core.FolderEpisode(media, folders.list(info.FullDir, info.File)); n != 0 && n != core.NA {
+				media.BadgeEpisode = n
 			}
 		}
 		if art != nil {
@@ -368,7 +361,7 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 // limits a status to five changes in 20 seconds), and the log names a repeated failure once. Called with e.mu
 // released (it takes it only for the bookkeeping).
 func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
-	b := buildActivity(info, cfg, art, at)
+	b := buildActivity(info, cfg, art, &e.folders, at)
 	if !e.isCurrent(r) {
 		return
 	}

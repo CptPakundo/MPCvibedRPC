@@ -50,7 +50,7 @@ func TestProgressCountsFromWhenThePlayerAnswered(t *testing.T) {
 	for _, hide := range []bool{false, true} {
 		cfg := core.DefaultConfig()
 		cfg.HideTitle = hide
-		b := buildActivity(info, &cfg, nil, at)
+		b := buildActivity(info, &cfg, nil, nil, at)
 		if b.activity == nil || b.activity.Timestamps == nil {
 			t.Fatalf("hidden=%v: %+v", hide, b.activity)
 		}
