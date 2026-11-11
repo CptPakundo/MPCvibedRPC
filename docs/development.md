@@ -46,6 +46,60 @@ To publish a version:
    the ten files, each program's checksum and build record, the exe's version. Only then is the release made public,
    and a real self-update from the release before it is tried.
 
+## Updates
+Updates are looked for as the program starts, then every six hours by the wall clock
+(`scheduleUpdateChecks`). A version found while a settings window is open is offered there at once by a dialog
+(`askUpdate` in `ui.js`: Update now or Not now, once per version; the notice at the top brings it back). With
+`autoUpdate` (on by default; Windows
+and Linux) a found update installs itself at a quiet moment (`quietMoment`: nothing shown on Discord, no settings
+window; and never in the first ten seconds after the start or after a window was asked for, `settle`), and the new
+copy starts in the tray (`auto-updated` marker in the data folder) and says so once. The copy
+that installed an update waits for the new one to come up and puts the old program file back if it does not
+(`handOverTo` in `update.go`; `update-failed` in the data folder names the version, which is not installed by itself
+again). While an
+update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, made by `tools/mkico -dot`; macOS:
+`winsys.menuBarIcon`).
+
+## CI
+- CI (`.github/workflows/ci.yml`): the `test` job runs vet and the tests on Linux (with `-race`), Windows and macOS.
+  The `lint` job (Linux; no job needs it, so the builds start when the tests pass, but a failing gate fails the run
+  and the canary) runs a **gofmt gate**, `govulncheck` and `staticcheck` (pinned, installed once with `go install`;
+  run for Linux and for `GOOS=windows`, staticcheck also for `GOOS=darwin`; without ST1005, because the program's
+  error texts are sentences the window shows) and `deadcode -test` (Linux only; every function must be reachable
+  from the program or a test: delete what is not, or say in a comment why it stays). A Go security fix means
+  bumping the Go patch in `go.mod` alone (`go 1.27.4`; every `setup-go` reads `go-version-file`). `release.yml`
+  runs the tests but not the lint gates; those gate the pull request's CI before the merge.
+  A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates) is not tested
+  (`paths-ignore`); anything else runs the fast jobs. A pull request from this repository
+  is tested by its branch's push run (the `pull_request` run skips the test job; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
+  a run still going on the same branch. Then: Windows builds the exe (from an LF checkout, `CGO_ENABLED=0`) and runs `tools/ci/smoke.ps1`; `reproduce` rebuilds that exe on
+  Linux with `tools/ci/reproduce.sh` and fails unless it is the same file byte for byte; `unix` builds the Linux binaries and the macOS
+  app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
+  through LaunchServices). The build-and-smoke steps are the composite actions `.github/actions/build-windows` and
+  `build-unix`, shared with `release.yml`. **The live jobs run once per pull request** (when it is opened, reopened or
+  marked ready; also `workflow_dispatch`, and the canary), not on every push (`docs/decisions.md`): `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
+  mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
+  `tools/ci/live-plex.sh`: the live engine test against the official Plex Media Server image (unclaimed, no account)
+  with a stand-in player that reports playback through `/:/timeline`. `jellyfin` runs `tools/ci/live-jellyfin.sh` for
+  the official Jellyfin and Emby images (a matrix): the first-run wizard with a made-up user, a stand-in player (`/Sessions/Playing`),
+  the real sign-in (password and Quick Connect) and the live engine test. `players-windows` runs `tools/ci/live-windows.sh`: real
+  PotPlayer and Kodi from Chocolatey (PotPlayer without its stale package checksum), a generated video in each, the live
+  engine test, and `TestLivePotPlayer` (the real PotPlayer sends the file's path). The weekly canary
+  (`.github/workflows/canary.yml`, Mondays) runs all of `ci.yml` (`workflow_call`) against the newest players and
+  server images, mpv, VLC and Celluloid from Flathub (`live-flathub.sh`: their newest releases), plus `TestLiveCatalogs` (`internal/artwork/live_test.go`, opt-in `MPCRPC_LIVE_CATALOGS=1`: one
+  long-known title per keyless catalog, through the program's own search and episode code; it needs real titles, kept
+  in that file); `tools/ci/canary-report.sh` opens an issue labelled `canary` on a failure and closes it once a run
+  passes (only on the schedule or a by-hand run with `report` ticked; a pull request that changes the canary does a dry
+  run). Read and fix a canary issue like a bug report. **This is the only
+  place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
+  environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
+- The project's own download count (people, without the project's own downloads; `.github/workflows/downloads.yml`,
+  every three hours and ten minutes after each release) updates the `stats` branch only; `master` is never written by a
+  workflow. The README's badge shows GitHub's own count (decision of 2026-10-25); the exact one is `summary.json` there. GitHub's counts were reset on 2026-10-18
+  (every release file replaced by its identical bytes) and counting started then; after another reset, run the
+  workflow by hand with `baseline` ticked. Its summary's `notCountedYet` is a download recorded in the ledger that
+  GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
+
 ## Screenshots
 The README's pictures (`docs/images/window-*.jpg`) are taken again when the part of the window they show changes:
 
