@@ -54,6 +54,7 @@ type Artwork struct {
 
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
+	dirty     bool // put added an answer that save has not written yet
 	misses    map[string]time.Time
 	soft      map[string]bool     // misses set by softMiss
 	closest   map[string][]string // the closest results of a title nothing matched (Explain)
@@ -94,9 +95,13 @@ func New(cfg *core.Config, opts Options) *Artwork {
 // keyVersion starts every key of the saved answers; a key of another version is an old format and is not loaded.
 const keyVersion = "v3|"
 
-// Close marks this finder as replaced (the settings changed and a new one took over). Lookups still running go on
-// and finish, but they no longer write to the log or call OnResolved.
-func (a *Artwork) Close() { a.closed.Store(true) }
+// Close marks this finder as replaced (the settings changed and a new one took over). Lookups still running send
+// nothing more (the title may be hidden now, or a service switched off) and end quietly: they no longer write to the
+// log, save or call OnResolved.
+func (a *Artwork) Close() {
+	a.closed.Store(true)
+	a.net.closed.Store(true)
+}
 
 func (a *Artwork) log(level, msg string) {
 	if a.closed.Load() {
@@ -159,6 +164,7 @@ func (a *Artwork) put(key string, e *diskEntry) {
 	a.seq++
 	e.seq = a.seq
 	a.disk[key] = e
+	a.dirty = true
 }
 
 func (a *Artwork) save() {
@@ -169,6 +175,11 @@ func (a *Artwork) save() {
 	a.saveMu.Lock()
 	defer a.saveMu.Unlock()
 	a.mu.Lock()
+	if !a.dirty {
+		a.mu.Unlock() // nothing was added since the last save: a lookup that found nothing new writes no file
+		return
+	}
+	a.dirty = false
 	keys := make([]string, 0, len(a.disk))
 	for k := range a.disk {
 		keys = append(keys, k)
@@ -1229,12 +1240,15 @@ func (j *lookupJob) infoIDOf(b *core.Art) string {
 // needInfo and needAlt say what a cached entry still lacks; the caller holds a.mu.
 func (j *lookupJob) needInfo(b *core.Art) bool {
 	cfg := j.a.cfg
-	return b != nil && cfg.RichInfo && b.Info == nil && b.Source != "override" && !j.a.missed(j.infoKey)
+	// richInfo can only fill it from Cinemeta, or from what AniList sent along: with neither there is nothing to wait
+	// for, and the lookup must not be started again at every update for it
+	possible := cfg.SourceOn("cinemeta") || (b != nil && b.Source == "AniList" && hasInfoData(b.AniInfo))
+	return b != nil && cfg.RichInfo && b.Info == nil && b.Source != "override" && possible && !j.a.missed(j.infoKey)
 }
 
 func (j *lookupJob) needAlt(b *core.Art) bool {
 	cfg := j.a.cfg
-	return b != nil && cfg.AnimeTitles != "file" && b.Source != "AniList" && b.Source != "override" && b.Alt == nil && !b.AltChecked &&
+	return b != nil && cfg.AnimeTitles != "file" && cfg.SourceOn("anilist") && b.Source != "AniList" && b.Source != "override" && b.Alt == nil && !b.AltChecked &&
 		b.Info != nil && slices.Contains(b.Info.Genres, "Animation") && !j.a.missed(j.aniKey)
 }
 
@@ -1520,6 +1534,13 @@ func (j *lookupJob) episode(base *core.Art) *core.ArtEpisode {
 	a.mu.Lock()
 	if epMedia == nil && base != nil {
 		a.put(j.epKey, &diskEntry{isEp: true}) // a movie: the list number is not an episode
+	}
+	if epMedia == nil && base == nil {
+		// Nothing was found, so there is no show to ask an episode of. That holds for as long as the title's own miss:
+		// without it Lookup would start a lookup again at every update ("03 - Sample.mp4" has a number, so it wants one).
+		if until, ok := a.misses[j.key]; ok {
+			a.misses[j.epKey] = until
+		}
 	}
 	if ep != nil {
 		a.put(j.epKey, &diskEntry{isEp: true, ep: ep})

@@ -297,28 +297,23 @@ func (e *Engine) pausedLongEnough(info *core.Info, cfg *core.Config, now time.Ti
 
 // clearWhenPausedLong takes the status down after a long pause, until something changes. Called with e.mu held;
 // returns with it released.
+//
+// The state changes once Discord took the clear, not before: while it is asked (a Discord that hangs takes ten
+// seconds to fail), and when it refuses, the status is still up and the window goes on showing it; the next check
+// tries again.
 func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
-	var clear *discord.Client
-	preview := e.preview
-	if !e.pauseCleared {
-		e.pauseCleared = true
-		if e.shown {
-			clear = rpc
-		}
-		e.shown = false
-		e.preview = nil
-	}
-	e.mu.Unlock()
-	if clear == nil {
+	if e.pauseCleared || !e.shown {
+		e.pauseCleared, e.preview = true, nil // nothing is up (any more): there is nothing to ask Discord
+		e.mu.Unlock()
 		return
 	}
+	e.mu.Unlock()
 	first := false
-	err := e.clearStatus(r, clear, func(err error) {
+	err := e.clearStatus(r, rpc, func(err error) {
 		first = err != nil && !e.clearStuck
 		e.clearStuck = err != nil
-		if err != nil && e.rpc == clear {
-			// not cleared: the next check tries again, and the window goes on showing what Discord still shows
-			e.pauseCleared, e.shown, e.preview = false, true, preview
+		if err == nil {
+			e.pauseCleared, e.shown, e.preview = true, false, nil
 		}
 	})
 	if err == errStale || e.logClearResult(err, first) {

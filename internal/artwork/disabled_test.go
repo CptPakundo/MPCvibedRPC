@@ -175,7 +175,7 @@ func TestClearCache(t *testing.T) {
 	art := core.NewArt()
 	art.Name = "Something"
 	aw.mu.Lock()
-	aw.disk["k"] = &diskEntry{art: art}
+	aw.put("k", &diskEntry{art: art}) // put, as the lookups do: only what was put is saved
 	aw.misses["m"] = time.Now().Add(time.Hour)
 	aw.runtimes["tt1"] = 90
 	aw.mu.Unlock()

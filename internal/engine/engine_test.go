@@ -482,7 +482,8 @@ func TestPauseClearsAfterTheLimitAndReturnsOnResume(t *testing.T) {
 	if isClear(d) {
 		t.Fatal("the pause itself must still show the status")
 	}
-	eventually(t, "status cleared after the limit", func() bool { return isClear(d) })
+	// the engine books the clear when Discord's answer is there, a moment after Discord got the request
+	eventually(t, "status cleared after the limit", func() bool { return isClear(d) && e.Status().PauseCleared })
 	if s := e.Status(); !s.PauseCleared || s.NowPlaying == nil || !s.Paused {
 		t.Fatalf("status while cleared: %+v", s)
 	}
