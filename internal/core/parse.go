@@ -759,6 +759,32 @@ var (
 	reDotUnder  = re(`[._]+`, "g")
 )
 
+// maxNameLen is the most characters of a name that ParseMedia reads (a file name has at most 255).
+const maxNameLen = 1024
+
+// markerLen is how many UTF-16 units of base the first n units of its collapsed form cover (namelessRe is matched on
+// the name with every run of dots and underscores turned into one space, so "Ep__05" is one unit longer than its match).
+// The match ends on a digit, never inside a run.
+func markerLen(base string, n int) int {
+	got, used, inRun := 0, 0, false
+	for _, r := range base {
+		if got >= n {
+			break
+		}
+		w := 1
+		if r > 0xFFFF {
+			w = 2
+		}
+		sep := r == '.' || r == '_'
+		if !(sep && inRun) {
+			got += w // a run counts once: as the one space it became
+		}
+		inRun = sep
+		used += w
+	}
+	return used
+}
+
 // withFolder prepends the folder's show name to a nameless filename. Returns the new base name and true, or "", false.
 func withFolder(base string, dirs []string) (string, bool) {
 	m := namelessRe.Exec(reDotUnder.ReplaceStr(base, " "))
@@ -810,7 +836,7 @@ func withFolder(base string, dirs []string) (string, bool) {
 		}
 	}
 	if !m.Has(1) && !m.Has(3) && !m.Has(7) && has(season) && epSet {
-		rest = "S" + pad2n(season) + "E" + pad2n(atoi(epv)) + u16slice(base, u16len(m.Str(0)), 1<<30) // season comes from "Season 2/"
+		rest = "S" + pad2n(season) + "E" + pad2n(atoi(epv)) + u16slice(base, markerLen(base, u16len(m.Str(0))), 1<<30) // season comes from "Season 2/"
 	}
 	dash := ""
 	if m.Has(9) && rest == base {
@@ -836,6 +862,13 @@ var (
 
 // ParseMedia works out what is playing from a filename (and, when useFolderName is on, its folders).
 func ParseMedia(file string, cfg *Config, dirs []string) *Media {
+	// A name is a file name or a short title. Something far longer (a stream's signed address) is cut: several of the
+	// patterns below look behind at every position, which costs the square of the length.
+	if len(file) > maxNameLen {
+		if r := []rune(file); len(r) > maxNameLen {
+			file = string(r[:maxNameLen])
+		}
+	}
 	base := file
 	ext := ""
 	if m := mediaExtRe.Exec(base); m != nil {
