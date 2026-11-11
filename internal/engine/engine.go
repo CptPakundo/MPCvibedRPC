@@ -171,6 +171,9 @@ type Engine struct {
 	statFileMu  sync.Mutex
 	statWritten uint64
 
+	// the folder last listed for folderEpisodeNumbers (folder.go; it has its own lock)
+	folders folderNames
+
 	// an episode shown without its title (a catalog did not answer) is asked about again a few times while it plays
 	recheckKey string
 	recheckAt  time.Time
@@ -346,6 +349,7 @@ func (e *Engine) stop() {
 	}
 	e.mu.Unlock()
 	e.writeStats(save)
+	e.folders.forget()
 	e.log("INFO", "Presence stopped.")
 }
 
