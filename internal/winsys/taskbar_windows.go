@@ -4,6 +4,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -82,9 +83,17 @@ func NameWindow(profileDir string) bool {
 	for deadline := time.Now().Add(nameWindowFor); ; time.Sleep(nameWindowEvery) {
 		if w, ok := findWindow(profileDir); ok {
 			// the ID first: the other three belong to it
-			return setWindowStrings(w.Handle, []windowString{
+			named := setWindowStrings(w.Handle, []windowString{
 				{propAppID, id}, {propRelaunchCommand, command}, {propRelaunchDisplayName, name}, {propRelaunchIcon, icon},
 			})
+			// The browser gives its window the page's icon in a small size, which the taskbar enlarges. It does so
+			// when the page has loaded, which may be after the window was found: the program's icon is set now and
+			// twice more.
+			for _, wait := range []time.Duration{0, time.Second, 3 * time.Second} {
+				time.Sleep(wait)
+				setWindowIcons(w.Handle, exe)
+			}
+			return named
 		}
 		if time.Now().After(deadline) {
 			return false
@@ -129,4 +138,43 @@ func setWindowStrings(hwnd uintptr, values []windowString) bool {
 		ok = false
 	}
 	return ok
+}
+
+var (
+	pPrivateExtractIcons = user32.NewProc("PrivateExtractIconsW")
+
+	// the icons the window was last given: they must outlive the call (the window only keeps their handles), and the
+	// ones before them are freed when new ones are set
+	windowIconMu sync.Mutex
+	windowIcons  [2]uintptr
+)
+
+const (
+	wmSetIcon = 0x0080
+	smCxIcon  = 11 // the width of a large icon on this screen; smCxSmIcon (tray_windows.go) is the small one's
+)
+
+// setWindowIcons gives the window the program file's own icon in the two sizes Windows asks a window for, each read
+// at exactly that size (the taskbar button and Alt+Tab use the large one, the title bar the small one). An icon
+// handle is valid in every process of the session, so the browser's window can use one this program holds.
+func setWindowIcons(hwnd uintptr, exe string) {
+	path, err := syscall.UTF16PtrFromString(exe)
+	if err != nil {
+		return
+	}
+	windowIconMu.Lock()
+	defer windowIconMu.Unlock()
+	for i, metric := range []uintptr{smCxSmIcon, smCxIcon} { // i is also WM_SETICON's ICON_SMALL (0) and ICON_BIG (1)
+		size, _, _ := pGetSystemMetrics.Call(metric)
+		var icon uintptr
+		if n, _, _ := pPrivateExtractIcons.Call(uintptr(unsafe.Pointer(path)), 0, size, size, uintptr(unsafe.Pointer(&icon)), 0, 1, 0); int32(n) < 1 || icon == 0 {
+			continue // a program file without an icon (a plain development build): the browser's stays
+		}
+		pPostMessage.Call(hwnd, wmSetIcon, uintptr(i), icon)
+		if old := windowIcons[i]; old != 0 {
+			// freed a moment later: the window may still be drawing with it
+			time.AfterFunc(5*time.Second, func() { pDestroyIcon.Call(old) })
+		}
+		windowIcons[i] = icon
+	}
 }
