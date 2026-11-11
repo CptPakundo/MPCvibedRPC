@@ -72,7 +72,7 @@ func TestStremioSignInFlow(t *testing.T) {
 	if err != nil || got["waiting"] != true || got["url"] != f.page || got["signedIn"] != false || opened != f.page {
 		t.Fatalf("sign-in started: %v %v (opened %q)", got, err, opened)
 	}
-	waitFor(t, "signed in", func() bool { return s.state()["signedIn"] == true })
+	waitFor(t, "signed in", func() bool { st := s.state(); return st["signedIn"] == true && st["waiting"] == false }) // saved first, the wait ends a moment later
 	got = s.state()
 	if got["waiting"] != false || got["problem"] != "" {
 		t.Errorf("state %v", got)

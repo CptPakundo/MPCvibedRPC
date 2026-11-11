@@ -90,7 +90,7 @@ func TestPlexSignInFlow(t *testing.T) {
 	if len(id) != 32 || saw != id {
 		t.Fatalf("client identifier %q (plex.tv saw %q)", id, saw)
 	}
-	waitFor(t, "signed in", func() bool { return p.state()["signedIn"] == true })
+	waitFor(t, "signed in", func() bool { s := p.state(); return s["signedIn"] == true && s["waiting"] == false }) // saved first, the wait ends a moment later
 	s = p.state()
 	if s["waiting"] != false || s["user"] != "SampleUser" || s["server"] != "srv-a" || s["serverName"] != "My server" || s["problem"] != "" {
 		t.Errorf("state %v", s)
@@ -229,7 +229,7 @@ func TestPlexKeySignInAndRenewal(t *testing.T) {
 	if _, err := p.signIn(); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "signed in", func() bool { return p.state()["signedIn"] == true })
+	waitFor(t, "signed in", func() bool { s := p.state(); return s["signedIn"] == true && s["waiting"] == false }) // saved first, the wait ends a moment later
 	c := st.Config()
 	mu.Lock()
 	sent := jwk

@@ -96,7 +96,7 @@ func TestJellyfinQuickConnectSignIn(t *testing.T) {
 	if err != nil || s["waiting"] != true || s["code"] != "654321" || s["product"] != "Jellyfin" || s["server"] != "Sample Server" {
 		t.Fatalf("%v %v", s, err)
 	}
-	waitFor(t, "signed in", func() bool { return j.state()["signedIn"] == true })
+	waitFor(t, "signed in", func() bool { s := j.state(); return s["signedIn"] == true && s["waiting"] == false }) // saved first, the wait ends a moment later
 	cfg := st.Config()
 	if cfg.JellyfinToken != "tok-qc" || cfg.JellyfinUser != "u1" || cfg.JellyfinAddress != f.URL || cfg.JellyfinProduct != "Jellyfin" ||
 		cfg.JellyfinUserName != "sample" || cfg.JellyfinServerName != "Sample Server" || cfg.JellyfinDevice == "" {
