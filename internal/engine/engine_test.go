@@ -67,6 +67,8 @@ type disc struct {
 	dropNext bool
 	// slow answers every SET_ACTIVITY this late (it is applied at once, like a busy Discord that answers after the timeout)
 	slow time.Duration
+	// rejectAll refuses every status (a Discord that takes nothing); change it through set while the engine runs
+	rejectAll bool
 	// failClears answers a clearing SET_ACTIVITY (no activity) with an error, as if Discord did not take it
 	failClears bool
 	ln         fakeListener
@@ -136,12 +138,15 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		rej := (d.reject && act != nil && act["type"] != nil) || (d.rejectLinks && act != nil && act["details_url"] != nil)
 		drop := d.dropNext
 		d.dropNext = false
-		slow, failClear := d.slow, d.failClears && m["cmd"] == "SET_ACTIVITY" && act == nil
+		slow, failClear, rejectAll := d.slow, d.failClears && m["cmd"] == "SET_ACTIVITY" && act == nil, d.rejectAll
 		d.mu.Unlock()
 		if slow > 0 {
 			time.Sleep(slow)
 		}
 		if failClear {
+			rej = true
+		}
+		if rejectAll && act != nil {
 			rej = true
 		}
 		if drop {
@@ -155,6 +160,9 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		}
 	}
 }
+
+// set changes how the fake Discord answers while the engine runs.
+func (d *disc) set(f func(*disc)) { d.mu.Lock(); f(d); d.mu.Unlock() }
 
 func (d *disc) list() []map[string]any {
 	d.mu.Lock()
@@ -199,7 +207,7 @@ func newTestEngine(t *testing.T, mods ...testMod) (*Engine, *disc, *logs) {
 	cfg.PollInterval = int(testPoll / time.Millisecond)
 	cfg.ShowArtwork = false
 	l := &logs{}
-	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, KodiEvents: "none", Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), MinPoll: testPoll}
+	opts := Options{Pipes: noPipes, MPRIS: noMPRIS, PotPlayer: noPotPlayer, KodiEvents: "none", Log: l.add, DiscordPaths: []string{d.path}, CacheFile: filepath.Join(t.TempDir(), "c.json"), MinPoll: testPoll, RetryAfter: 4 * testPoll}
 	for _, mod := range mods {
 		mod(&cfg, &opts)
 	}

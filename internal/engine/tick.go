@@ -15,7 +15,7 @@ import (
 // players are called what they are and get their own logo as the icon (see core.PlayerIcon). A name the user chose
 // is kept.
 func appNameFor(cfg core.Config, player string) core.Config {
-	def := core.DefaultConfig()
+	def := &defaultConfig
 	if cfg.AppName != def.AppName {
 		return cfg
 	}
@@ -35,6 +35,9 @@ func appNameFor(cfg core.Config, player string) core.Config {
 	return cfg
 }
 
+// defaultConfig is what appNameFor compares with at every check. Read-only.
+var defaultConfig = core.DefaultConfig()
+
 // built is an activity ready to send and what the log, the window and the stats need to know about it.
 type built struct {
 	activity   *core.Activity
@@ -47,13 +50,15 @@ type built struct {
 }
 
 // buildActivity makes the activity for what plays: titles are parsed and looked up (art may be nil) unless the title
-// is hidden; songs are shown as they are named. It touches no engine state.
-func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork) built {
+// is hidden; songs are shown as they are named. at is when the player reported its position: the progress bar is
+// counted from it, not from the moment the lookup is done (a first lookup can take seconds). It touches no engine
+// state.
+func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) built {
 	b := built{music: core.IsAudioFile(info.File)}
 	switch {
 	case cfg.HideTitle:
 		// nothing about the file is used: no parsing, no lookups, and no title in the status, the window or the log
-		b.activity = core.HiddenActivity(info, cfg, time.Now().UnixMilli())
+		b.activity = core.HiddenActivity(info, cfg, at.UnixMilli())
 		b.display = "A video (title hidden)"
 		if b.music && b.activity != nil {
 			core.Listening(b.activity)
@@ -64,7 +69,7 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork) buil
 		media := core.MusicMedia(info.File)
 		c := *cfg
 		c.StreamTitle = false // a song stays "Listening to": the stream title is for videos
-		b.activity = core.BuildActivity(info, &c, time.Now().UnixMilli(), media, nil)
+		b.activity = core.BuildActivity(info, &c, at.UnixMilli(), media, nil)
 		core.Listening(b.activity)
 		b.display = media.Display
 	default:
@@ -86,7 +91,7 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork) buil
 		if art != nil {
 			b.found = art.Lookup(media)
 		}
-		b.activity = core.BuildActivity(info, cfg, time.Now().UnixMilli(), media, b.found)
+		b.activity = core.BuildActivity(info, cfg, at.UnixMilli(), media, b.found)
 		core.AddLinks(b.activity, cfg, b.found)
 		b.noEpTitle = cfg.ShowArtwork && cfg.EpisodeTitles && media.IsEpisode && media.Episode != core.NA && media.EpTitle == "" &&
 			(b.found == nil || b.found.Episode == nil)
@@ -110,18 +115,21 @@ func (e *Engine) tick(r *run) {
 	e.mu.Unlock()
 
 	info := e.fetchPlayer(r.ctx, cfg)
-	if !e.isCurrent(r) {
-		return
-	}
+	now := time.Now() // when the player reported its position
 	if info != nil {
 		cfg = appNameFor(cfg, info.Player)
 	}
-
-	e.mu.Lock()
-	e.notePlayer(info)
+	// worked out before the lock is taken: a panic in here is logged by the loop and must not leave e.mu held
 	ended := endedAt(info)
 	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2) && !ended
 	hidden := active && (core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles) || hiddenWhere(info.Where, cfg.HideFiles))
+
+	e.mu.Lock()
+	if e.cur != r {
+		e.mu.Unlock() // stopped, or started again, while the players were asked: the answer is not this run's
+		return
+	}
+	e.notePlayer(info)
 
 	if !active || hidden {
 		e.clearWhenIdle(hidden, ended)
@@ -134,18 +142,21 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 	rpc := e.rpc
-	now := time.Now()
 	update := e.notePlayback(info, &cfg, now)
 	if !update && e.pausedLongEnough(info, &cfg, now) {
 		e.clearWhenPausedLong(rpc, cfg.PauseClearMinutes)
 		return
+	}
+	if update && now.Before(e.retryAt) {
+		e.prev = nil // Discord did not take the last status: this one waits its turn (sendUpdate) and stays due
+		update = false
 	}
 	art := e.art
 	e.mu.Unlock()
 	if !update {
 		return
 	}
-	e.sendUpdate(r, rpc, info, &cfg, art)
+	e.sendUpdate(r, rpc, info, &cfg, art, now)
 }
 
 // notePlayer remembers which player answers (none: "") and logs when it changes. Called with e.mu held; it is
@@ -285,10 +296,13 @@ func (e *Engine) clearWhenPausedLong(rpc *discord.Client, minutes int) {
 	e.log("INFO", fmt.Sprintf("Paused for %d min - presence cleared (it returns when you resume).", minutes))
 }
 
-// sendUpdate builds the activity for what plays, sends it, and records and logs what was shown. Called with e.mu
+// sendUpdate builds the activity for what plays (at: when the player reported it), sends it, and records and logs
+// what was shown. A status Discord did not take stays due, but the next try waits: retryAfter, doubling up to twelve
+// times that while Discord keeps failing, so a Discord that refuses everything is not asked at every check (it
+// limits a status to five changes in 20 seconds), and the log names a repeated failure once. Called with e.mu
 // released (it takes it only for the bookkeeping).
-func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork) {
-	b := buildActivity(info, cfg, art)
+func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
+	b := buildActivity(info, cfg, art, at)
 	if !e.isCurrent(r) {
 		return
 	}
@@ -296,11 +310,17 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	if err != nil {
 		msg := err.Error()
 		e.mu.Lock()
+		again := e.lastError != nil && *e.lastError == msg
 		e.lastError = &msg
 		e.prev = nil
 		e.shown = true // Discord may have applied it although its answer did not come: it must be cleared later
+		wait := e.retryAfter << min(e.sendFails, 4)
+		e.sendFails++
+		e.retryAt = time.Now().Add(min(wait, 12*e.retryAfter))
 		e.mu.Unlock()
-		e.log("ERROR", "Failed to update presence: "+msg)
+		if !again {
+			e.log("ERROR", "Failed to update presence: "+msg)
+		}
 		return
 	}
 	e.recordShown(info, cfg, b, sent)
@@ -313,6 +333,7 @@ func (e *Engine) recordShown(info *core.Info, cfg *core.Config, b built, sent *c
 	e.mu.Lock()
 	e.shown = true
 	e.lastError = nil
+	e.sendFails, e.retryAt = 0, time.Time{}
 	d := b.display
 	if !b.music {
 		e.statShown(info.Player+"/"+info.File, info.Player, b.found != nil) // player names have no slash; songs are not videos
@@ -394,6 +415,9 @@ const minPoll = 250 * time.Millisecond
 // reclearEvery is how often the status is cleared again while nothing plays and Discord is connected (tests shorten
 // it: Options.ReclearEvery): Discord limits a status to five changes in 20 seconds, and once a minute keeps far below that.
 const reclearEvery = time.Minute
+
+// retryAfter is the first wait after a status Discord did not take (tests shorten it: Options.RetryAfter).
+const retryAfter = 5 * time.Second
 
 // endSlack: a player paused this close to the end of the file has finished it (some stay paused on the last frame).
 const endSlack = 3000 // ms

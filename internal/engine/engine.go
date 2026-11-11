@@ -62,6 +62,9 @@ type Options struct {
 	MinPoll      time.Duration
 	ReclearEvery time.Duration
 	RecheckAfter []float64
+	// RetryAfter is how long the engine waits before it sends a status again after Discord did not take one (5 s; it
+	// doubles up to a minute while Discord keeps failing).
+	RetryAfter time.Duration
 }
 
 // Status is what the settings window shows.
@@ -141,6 +144,9 @@ type Engine struct {
 	minPoll      time.Duration // the pace (see Options.MinPoll, ReclearEvery and RecheckAfter)
 	reclearEvery time.Duration
 	recheckAfter []float64
+	retryAfter   time.Duration
+	sendFails    int       // sends in a row that Discord did not take, and when the next one may go (sendUpdate)
+	retryAt      time.Time
 
 	// the counts kept for the window (stats.go): what was shown and for how long; the key only tells videos apart
 	stats     Stats
@@ -179,6 +185,9 @@ func New(cfg core.Config, opts Options) *Engine {
 	}
 	if e.recheckAfter == nil {
 		e.recheckAfter = recheckAfter
+	}
+	if e.retryAfter = opts.RetryAfter; e.retryAfter <= 0 {
+		e.retryAfter = retryAfter
 	}
 	now := time.Now()
 	e.stats, e.statSaved = loadStats(opts.StatsFile, now), now

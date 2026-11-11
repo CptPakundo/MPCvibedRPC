@@ -45,6 +45,10 @@ const HasMPRIS = runtime.GOOS != "windows" && runtime.GOOS != "darwin"
 func QueryMPRIS(timeout time.Duration) []*core.Info {
 	return mpris.Query(dbus.SessionAddress(), timeout)
 }
+// mpcPageMax is the most that is read of the MPC web interface's page. The real one is about 2 KB; whatever else
+// answers on that port must not hand the page parser megabytes.
+const mpcPageMax = 256 << 10
+
 func (e *Engine) fetchMPC(ctx context.Context, port int) *core.Info {
 	ctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
 	defer cancel()
@@ -60,7 +64,7 @@ func (e *Engine) fetchMPC(ctx context.Context, port int) *core.Info {
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return nil
 	}
-	body, err := io.ReadAll(io.LimitReader(res.Body, 4<<20))
+	body, err := io.ReadAll(io.LimitReader(res.Body, mpcPageMax))
 	if err != nil {
 		return nil
 	}
