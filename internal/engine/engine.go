@@ -165,6 +165,11 @@ type Engine struct {
 	statTick  time.Time
 	statKey   string
 	statFound bool
+	statSeq   uint64 // the last state of the counts taken for the file (statSnapshot)
+	// statFileMu serialises the writes of the stats file and guards statWritten, the last state that reached it.
+	// It is taken without e.mu and may take e.mu, never the other way round.
+	statFileMu  sync.Mutex
+	statWritten uint64
 
 	// an episode shown without its title (a catalog did not answer) is asked about again a few times while it plays
 	recheckKey string
@@ -334,12 +339,13 @@ func (e *Engine) stop() {
 	e.nowPlaying, e.preview = nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
-	e.saveStats(time.Now())
+	save := e.statSnapshot(time.Now())
 	e.statTick = time.Time{}
 	if e.art != nil {
 		e.art.Close() // lookups still under way finish quietly: no title in the log, no refresh (hideTitle may be on now)
 	}
 	e.mu.Unlock()
+	e.writeStats(save)
 	e.log("INFO", "Presence stopped.")
 }
 

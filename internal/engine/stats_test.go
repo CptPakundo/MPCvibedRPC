@@ -80,6 +80,59 @@ func TestStatsFileThatIsBrokenStartsOver(t *testing.T) {
 	}
 }
 
+// The file is written after the engine's lock is released, so two writes can arrive in the wrong order: the older
+// counts must not replace the newer ones.
+func TestStatsFileNeverGoesBackToOlderCounts(t *testing.T) {
+	t.Parallel()
+	file := filepath.Join(t.TempDir(), "stats.json")
+	e := New(core.DefaultConfig(), Options{StatsFile: file})
+	snapshot := func(videos int) *statWrite {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		e.stats.Videos, e.statDirty = videos, true
+		return e.statSnapshot(time.Now())
+	}
+	older, newer := snapshot(1), snapshot(2)
+	e.writeStats(newer)
+	e.writeStats(older)
+	if s := New(core.DefaultConfig(), Options{StatsFile: file}).Stats(); s.Videos != 2 {
+		t.Errorf("the file holds %d videos, want the newer 2", s.Videos)
+	}
+	e.mu.Lock()
+	again := e.statSnapshot(time.Now())
+	e.mu.Unlock()
+	if again != nil {
+		t.Error("counts that were written are due again")
+	}
+}
+
+// A write that fails (here: the data folder is missing) is not waited for under the engine's lock, leaves the
+// counts due, and the next write brings them to the file.
+func TestStatsWriteThatFailsIsTriedAgain(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "gone")
+	file := filepath.Join(dir, "stats.json")
+	e := New(core.DefaultConfig(), Options{StatsFile: file})
+	e.ResetStats() // fails: there is no such folder
+	e.mu.Lock()
+	e.stats.Videos = 3
+	due := e.statDirty
+	e.mu.Unlock()
+	if !due {
+		t.Fatal("after a failed write the counts are not due")
+	}
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e.mu.Lock()
+	save := e.statSnapshot(time.Now())
+	e.mu.Unlock()
+	e.writeStats(save)
+	if s := New(core.DefaultConfig(), Options{StatsFile: file}).Stats(); s.Videos != 3 {
+		t.Errorf("the file holds %d videos, want 3", s.Videos)
+	}
+}
+
 // failingCatalogs answers no catalog request (the fake player on this computer is reached as usual).
 type failingCatalogs struct {
 	mu sync.Mutex

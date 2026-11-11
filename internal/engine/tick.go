@@ -112,8 +112,9 @@ func (e *Engine) tick(r *run) {
 	}
 	e.mu.Lock()
 	cfg := e.cfg
-	e.statTime(time.Now(), e.pollInterval(cfg))
+	save := e.statTime(time.Now(), e.pollInterval(cfg))
 	e.mu.Unlock()
+	e.writeStats(save)
 
 	info := e.fetchPlayer(r.ctx, cfg)
 	now := time.Now() // when the player reported its position
