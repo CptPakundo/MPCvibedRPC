@@ -1,7 +1,8 @@
 // Package server is the local control surface: a tiny HTTP server on 127.0.0.1 that serves the settings page and
-// its API. It is guarded by a random per-launch token (header X-Token, or ?t= for the page itself) and a Host check,
-// so no website can drive it. The page's style sheet and script are public files (no token): they hold nothing secret,
-// and the page hands the token to its script in a meta tag.
+// its API. It is guarded by a random per-launch token (header X-Token) and a Host check, so no website can drive it.
+// The page, its style sheet and its script are public files: they hold nothing secret. The page hands the token to
+// its script in a meta tag when it is asked for with a one-time code (?c=, what the program opens its window with) or
+// with the token itself (?t=, for tests and development); without either the script has no token and says so.
 package server
 
 import (
@@ -16,6 +17,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
 )
@@ -53,6 +56,44 @@ type Server struct {
 	o    Options
 	port int
 	srv  *http.Server
+
+	mu    sync.Mutex
+	codes map[string]time.Time // one-time codes for the page and when each stops being good (NewCode)
+}
+
+// codeLife is how long a one-time code is good for: the time a browser may take to start and ask for the page.
+const codeLife = 2 * time.Minute
+
+// NewCode makes a code that opens the page with its token once. The program starts the browser with it instead of
+// the token: a browser's command line can be read by other users of the computer (ps), and the token is good for as
+// long as the program runs, while a code is spent by the browser's first request.
+func (s *Server) NewCode() string {
+	code := NewToken()
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.codes == nil {
+		s.codes = map[string]time.Time{}
+	}
+	for c, end := range s.codes {
+		if now.After(end) {
+			delete(s.codes, c)
+		}
+	}
+	s.codes[code] = now.Add(codeLife)
+	return code
+}
+
+// spend reports whether code is a good one-time code, and uses it up.
+func (s *Server) spend(code string) bool {
+	if code == "" {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	end, ok := s.codes[code]
+	delete(s.codes, code)
+	return ok && time.Now().Before(end)
 }
 
 // Validation is implemented by errors that should be answered as a 400.
@@ -114,11 +155,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, s.o.JS, "text/javascript; charset=utf-8")
 		return
 	case r.Method == "GET" && p == "/":
-		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("t")), []byte(s.o.Token)) != 1 {
-			send(w, 403, "<h3>Open MPCvibedRPC from its tray icon or by launching the program again.</h3>", "text/html; charset=utf-8")
-			return
+		q := r.URL.Query()
+		token := ""
+		if s.spend(q.Get("c")) || subtle.ConstantTimeCompare([]byte(q.Get("t")), []byte(s.o.Token)) == 1 {
+			token = s.o.Token
 		}
-		send(w, 200, strings.Replace(s.o.Page, "__TOKEN__", s.o.Token, 1), "text/html; charset=utf-8")
+		// Without a code the page still comes, with no token in it: a window that reloads has kept its token (the
+		// script takes the code out of its address), and anyone else is told how to open the window.
+		send(w, 200, strings.Replace(s.o.Page, "__TOKEN__", token, 1), "text/html; charset=utf-8")
 		return
 	}
 	if !strings.HasPrefix(p, "/api/") {
@@ -142,6 +186,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			defer s.o.OnWindow(false)
 		}
 		<-r.Context().Done()
+		return
+	}
+	if r.Method != "GET" && r.Method != "POST" {
+		send(w, 405, map[string]string{"error": "Method not allowed"}, jsonType)
 		return
 	}
 	h, ok := s.o.Handlers[p[5:]]

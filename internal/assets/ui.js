@@ -1,7 +1,13 @@
 (() => {
-  const TOKEN = document.querySelector('meta[name="token"]').content;
+  // The page gets its token when it is opened with a one-time code. It keeps the token for this window (a reload
+  // comes without one) and takes the code, or a token, out of its address.
+  let TOKEN = document.querySelector('meta[name="token"]').content;
+  try {
+    if (TOKEN) { sessionStorage.setItem('token', TOKEN); history.replaceState(null, '', location.pathname); }
+    else TOKEN = sessionStorage.getItem('token') || '';
+  } catch (_) {}
   const $ = (id) => document.getElementById(id);
-  let model = null, queue = Promise.resolve(), clearTimer = null, saving = 0;
+  let model = null, queue = Promise.resolve(), queued = 0, clearTimer = null, saving = 0, gone = false, timers = [];
 
   async function api(name, body, method) {
     const res = await fetch('/api/' + name, { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -17,7 +23,11 @@
     clearTimeout(clearTimer); $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').textContent = text;
     if (!err) clearTimer = setTimeout(() => { $('msg').textContent = 'Changes are saved as you make them.'; }, 2500);
   };
-  const later = (task) => { queue = queue.then(task, task); }; // one change at a time, in order
+  // one change at a time, in order
+  const later = (task) => { queued++; const run = async () => { try { await task(); } finally { queued--; } }; queue = queue.then(run, run); };
+  // a setting changed while something else is still under way (a sign-in can wait on its server for seconds): say at
+  // once that the change was taken, it is saved when its turn comes
+  const saveLater = (run) => { if (queued > 0) note('Saving…'); later(run); };
   const readValue = (i) => (i.type === 'checkbox' ? i.checked : i.value);
   const showValue = (i, v) => { if (i.type === 'checkbox') i.checked = !!v; else i.value = v == null ? '' : v; };
   const appValue = (key) => (key === 'autoStart' ? !!model.autoStart : model.app[key]);
@@ -130,7 +140,7 @@
   }
   function autosave(input, scope, key) {
     const run = saver(scope, key, () => readValue(input), (v) => showValue(input, v));
-    input.addEventListener('change', () => later(run));
+    input.addEventListener('change', () => saveLater(run));
     if (input.tagName === 'INPUT' && input.type !== 'checkbox') input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
   }
 
@@ -153,7 +163,7 @@
       list.setAttribute('role', 'group'); list.setAttribute('aria-labelledby', name.id);
       wrap.append(name, ...h, list);
       const run = saver('settings', f.key, () => boxes.filter((c) => !c.checked).map((c) => c.dataset.id), (ids) => { const o = new Set(ids || []); boxes.forEach((c) => { c.checked = !o.has(c.dataset.id); }); });
-      boxes.forEach((c) => c.addEventListener('change', () => later(run)));
+      boxes.forEach((c) => c.addEventListener('change', () => saveLater(run)));
       return wrap;
     }
     if (f.type === 'lines') {
@@ -161,7 +171,7 @@
       ta.dataset.key = f.key;
       wrap.append(nameOf(f, ta, helpEl), el('div', { className: 'ctl' }, ta), ...h);
       const run = saver('settings', f.key, () => ta.value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean), (arr) => { ta.value = (arr || []).join('\n'); });
-      ta.addEventListener('change', () => later(run));
+      ta.addEventListener('change', () => saveLater(run));
       return wrap;
     }
     let input;
@@ -292,7 +302,7 @@
   }
   async function pollConns() {
     const box = $('conns');
-    if (tab !== 'privacy' || !box || document.hidden) return;
+    if (tab !== 'privacy' || !box || document.hidden || gone) return;
     try {
       const { hosts } = await api('connections');
       const rows = (hosts || []).map((h) => [h.host, ' (' + (h.label || 'an address you entered') + '): ' + h.count + (h.count === 1 ? ' time, ' : ' times, ') + 'last ' + ago(h.last) + '.']);
@@ -571,21 +581,38 @@
   }
   $('updBannerBtn').onclick = () => { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); };
 
-  function closeWindow() { document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>'; try { window.close(); } catch (_) {} }
-  async function poll() { if (document.hidden) return; try { paint(await api('status')); } catch (_) {} }
+  // The program has quit: nothing is asked any more (a window the browser does not let close would go on asking a
+  // port that another program, or the next start, may listen on by then).
+  function closeWindow() {
+    gone = true; timers.forEach(clearInterval);
+    document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>';
+    try { window.close(); } catch (_) {}
+  }
+  let polling = false;
+  async function poll() {
+    if (document.hidden || polling || gone) return;
+    polling = true; // one at a time: a slow answer must not pile requests up
+    try { paint(await api('status')); } catch (_) {}
+    polling = false;
+  }
   // A connection the program holds open while it runs: when it ends the program has quit, so the window closes at once.
+  // Unless only the connection broke: a program that still answers gets a new one.
   async function watchAlive() {
-    try {
-      const res = await fetch('/api/alive', { headers: { 'X-Token': TOKEN } });
-      if (!res.ok) return;
-      const reader = res.body.getReader();
-      while (!(await reader.read()).done) {}
-    } catch (_) {}
+    for (;;) {
+      try {
+        const res = await fetch('/api/alive', { headers: { 'X-Token': TOKEN } });
+        if (!res.ok) break; // another start of the program answers there now: this window is not its window
+        const reader = res.body.getReader();
+        while (!(await reader.read()).done) {}
+      } catch (_) {}
+      if (gone) return;
+      try { if (!(await fetch('/api/ping')).ok) break; } catch (_) { break; }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     closeWindow();
   }
-  watchAlive();
   async function pollLog() {
-    if (tab !== 'help' || document.hidden) return;
+    if (tab !== 'help' || document.hidden || gone) return;
     try {
       const { lines } = await api('log'); const box = $('log'); const sig = lines.join('\n');
       if (box.dataset.sig === sig) return; // unchanged: leave the list alone, so a selection in it survives
@@ -620,7 +647,9 @@
       if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { msgEl.textContent = ''; btn.disabled = false; return; } r = await api('mpc-web', { closeMpc: true }); }
       msgEl.textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
       if (r.settingsChanged) { // the mpv name or VLC's password may have been taken over; the window is drawn again, so say it here too
-        try { fill(await api('state')); note(msgEl.textContent); } catch (_) {}
+        // in the queue, like every other change of the window's values: an answer that left before a save still
+        // under way must not draw the older values over it
+        later(async () => { try { fill(await api('state')); note(msgEl.textContent); } catch (_) {} });
       }
     } catch (e) { msgEl.textContent = e.message; }
     btn.disabled = false;
@@ -715,13 +744,15 @@
   };
   $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord stops showing what you watch.', 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
+  if (!TOKEN) { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Open MPCvibedRPC from its tray icon or by launching the program again.' }))); return; }
+  watchAlive();
   api('state').then((m) => {
     fill(m); paint(m.status);
     // the changelog shows once for each new version (a new install too); the version button shows it any time
     if (m.app.seenVersion !== m.version) { showChangelog(false); later(async () => { try { model = await api('save', { app: { seenVersion: m.version } }); } catch (_) {} }); }
     showUpdate(m.update, false);
   }).catch((e) => { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Could not reach the program: ' + e.message }))); });
-  setInterval(poll, 1000); setInterval(pollLog, 3000); setInterval(pollConns, 5000);
+  timers = [setInterval(poll, 1000), setInterval(pollLog, 3000), setInterval(pollConns, 5000)];
   // a hidden window asks for nothing; when it shows again it catches up at once
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(); pollLog(); pollConns(); } });
 })();
