@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
+	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
 	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
 	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
 )
@@ -86,7 +89,8 @@ func (a *app) autoInstall() bool {
 	enabled := func() bool {
 		s := a.st.App()
 		i := a.upd.newer()
-		return s.CheckUpdates && s.AutoUpdate && i != nil && i.CanInstall
+		// a version that was installed and did not start is not tried by itself again
+		return s.CheckUpdates && s.AutoUpdate && i != nil && i.CanInstall && i.Latest != failedVersion(a.st.Dir)
 	}
 	if !enabled() {
 		return false
@@ -202,26 +206,140 @@ func (a *app) installUpdate(quiet func() bool) error {
 	a.eng.Stop()
 	a.log("INFO", "Update downloaded; restarting.")
 	_ = removeIPC(a.ipcFile)
-	// the new copy is started right away (it waits for this one to let go); we leave a moment later so the settings
-	// window still gets its answer
-	err = updater.SwapAndRestart(a.exe, next, nil, func() {
-		time.AfterFunc(400*time.Millisecond, func() {
-			winsys.CloseWindowBrowser(a.browserProfile)
-			a.getTray().Close()
-			a.lg.close()
-			os.Exit(0)
-		})
-	})
-	if err != nil {
-		a.log("ERROR", "Update failed: "+err.Error())
+	// goOn puts this copy back to work when the new one cannot take over
+	goOn := func() {
 		if !a.quitting.Load() { // a quit that began meanwhile has closed the server and stopped the engine for good
 			a.writeIPC(a.srv.Port())
 			if wasRunning {
 				a.eng.Start()
 			}
 		}
+	}
+	if err := updater.Swap(a.exe, next); err != nil {
+		a.log("ERROR", "Update failed: "+err.Error())
+		goOn()
+		return err
+	}
+	child, err := startCopy(a.exe, "--after-update")
+	if err != nil {
+		if rerr := updater.Restore(a.exe); rerr != nil {
+			a.log("ERROR", "The old version could not be put back: "+rerr.Error())
+		}
+		err = fmt.Errorf("The new version could not be started: %v", err)
+		a.log("ERROR", "Update failed: "+err.Error())
+		goOn()
 		return err
 	}
 	failed = false // the new copy takes over: further installs stay refused until this one exits
+	engine.Go(a.log, "The hand-over to the new version", func() { a.handOverTo(child, info.Latest, quiet != nil) })
 	return nil
+}
+
+// startCopy starts the program file exe, detached, and gives its process. A variable: tests start a stand-in.
+var startCopy = func(exe string, args ...string) (*os.Process, error) {
+	c := proc.Detach(exec.Command(exe, args...))
+	if err := c.Start(); err != nil {
+		return nil, err
+	}
+	return c.Process, nil
+}
+
+// exitProgram ends this copy (a variable: tests look at the code instead).
+var exitProgram = os.Exit
+
+var (
+	// handOverDelay is how long the old copy still serves after the new one was started, so the settings window gets
+	// the answer to its install request.
+	handOverDelay = 400 * time.Millisecond
+	// proofWait is how long the new copy has to show that it runs. It starts in a second or two; a virus scanner that
+	// reads a program file it has not seen before can add several.
+	proofWait = 30 * time.Second
+)
+
+// failedMarker is the file in the data folder that names a version that was installed and did not start. That
+// version is not installed by itself again (a newer one is); an update that starts removes the file.
+const failedMarker = "update-failed"
+
+// failedVersion is the version failedMarker names, or "".
+func failedVersion(dir string) string {
+	b, err := os.ReadFile(filepath.Join(dir, failedMarker))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// handOverTo is the old copy's last task after an update: it gets out of the new copy's way, then waits until that
+// copy has shown that it runs (it wrote ipc.json, which it does once its server listens and its tray icon is up) and
+// only then leaves. A new version that ends at once, or never gets that far, would otherwise leave the user with a
+// program that does not start any more, at this start and at every login. In that case the old program file is put
+// back and started again, and the version is remembered so it is not installed by itself a second time.
+func (a *app) handOverTo(child *os.Process, latest string, auto bool) {
+	time.Sleep(handOverDelay)
+	if a.srv != nil {
+		a.srv.Close() // the window closes; the port is free for the new copy
+	}
+	winsys.CloseWindowBrowser(a.browserProfile)
+	a.getTray().Close()
+	winsys.ReleaseSingleInstance() // the new copy waits for this
+	leave := func(code int) {
+		if a.lg != nil {
+			a.lg.close()
+		}
+		exitProgram(code)
+	}
+	gone := make(chan struct{})
+	go func() { _, _ = child.Wait(); close(gone) }()
+	if copyCameUp(a.ipcFile, child.Pid, gone, proofWait) {
+		leave(0)
+		return
+	}
+	a.log("ERROR", "The new version "+latest+" did not start. Going back to "+version+".")
+	_ = child.Kill() // it may hang instead of having ended; its file can only be moved once it is gone
+	select {
+	case <-gone:
+	case <-time.After(5 * time.Second):
+	}
+	if err := updater.Restore(a.exe); err != nil {
+		a.log("ERROR", "The old version could not be put back: "+err.Error())
+		leave(1)
+		return
+	}
+	_ = os.WriteFile(filepath.Join(a.st.Dir, failedMarker), []byte(latest), 0o644)
+	_ = os.Remove(filepath.Join(a.st.Dir, autoMarker))
+	args := []string{"--update-failed"}
+	if auto {
+		args = append(args, "--background") // it updated itself in the background, so it comes back there
+	}
+	if _, err := startCopy(a.exe, args...); err != nil {
+		a.log("ERROR", "The old version is back in place but could not be started: "+err.Error())
+		leave(1)
+		return
+	}
+	leave(0)
+}
+
+// copyCameUp waits until the copy with process id pid has written ipc.json (true), or has ended or let limit pass
+// without doing so (false).
+func copyCameUp(ipcFile string, pid int, gone <-chan struct{}, limit time.Duration) bool {
+	deadline := time.After(limit)
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	up := func() bool {
+		raw, err := os.ReadFile(ipcFile)
+		var i ipcInfo
+		return err == nil && json.Unmarshal(raw, &i) == nil && i.Pid == pid && i.Port != 0
+	}
+	for {
+		if up() {
+			return true
+		}
+		select {
+		case <-gone:
+			return up() // ended: it cannot come up any more
+		case <-deadline:
+			return false
+		case <-tick.C:
+		}
+	}
 }

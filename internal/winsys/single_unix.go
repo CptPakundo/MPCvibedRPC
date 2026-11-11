@@ -27,3 +27,12 @@ func AcquireSingleInstance(dir string) bool {
 	lockFile = f
 	return true
 }
+
+// ReleaseSingleInstance lets another copy start while this one still runs: after an update the old copy stays for a
+// moment to see that the new one comes up, and the new one waits for the lock.
+func ReleaseSingleInstance() {
+	if lockFile != nil {
+		lockFile.Close()
+		lockFile = nil
+	}
+}

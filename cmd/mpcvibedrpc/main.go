@@ -35,6 +35,8 @@ const preferredPort = 47654
 var (
 	background  bool
 	afterUpdate bool
+	// updateFailed: this is the old version, started again because the update it installed did not start
+	updateFailed bool
 	//lint:ignore U1000 set here for every system, read by launch_darwin.go only
 	serve bool // macOS: this is the copy that does the work (see detach in launch_darwin.go)
 )
@@ -52,6 +54,8 @@ func main() {
 			background = true
 		case "--after-update":
 			afterUpdate = true
+		case "--update-failed":
+			updateFailed = true
 		case "--serve":
 			serve = true
 		case "--version":

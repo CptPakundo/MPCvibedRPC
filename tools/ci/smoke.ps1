@@ -173,6 +173,36 @@ try {
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]3, [IntPtr]::Zero)
   Check (WaitFor { $null -eq (Ipc) } 15 'ipc gone') 'tray menu "Quit" shuts the program down'
   Check (WaitFor { -not (Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue) } 15 'process gone') 'no program process is left'
+
+  # an update that does not start: the copy that installed it must put the old version back and start it again
+  $brokenDir = Join-Path $work 'broken'; New-Item -ItemType Directory -Path $brokenDir | Out-Null
+  Set-Content (Join-Path $brokenDir 'main.go') "package main`n`nimport `"os`"`n`nfunc main() { os.Exit(3) }`n"
+  $broken = Join-Path $work 'broken.exe'
+  & go build -o $broken (Join-Path $brokenDir 'main.go')
+  Check ($LASTEXITCODE -eq 0 -and (Test-Path $broken)) 'a program that ends at once is built as the broken update'
+  # the updater refuses a download of under a megabyte; bytes after a program's end do it no harm
+  $pad = New-Object byte[] 2097152
+  $fs = [IO.File]::Open($broken, [IO.FileMode]::Append); $fs.Write($pad, 0, $pad.Length); $fs.Close()
+  $port2 = 13592
+  [void]$procs.Add((Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-http.ps1'), '-Port', $port2, '-StateFile', $stateFile, '-NewExe', $broken, '-Tag', '99.0.0'))
+  Check (WaitFor { (Invoke-WebRequest "http://127.0.0.1:$port2/variables.html" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } 20 'second fake http up') 'the server with the broken update is up'
+  $env:MPCRPC_UPDATE_API = "http://127.0.0.1:$port2"
+  $env:MPCRPC_BROWSER = 'none'  # the old version comes back as started by hand: it must not open a window here
+  $p3 = Start-Process $app -ArgumentList '--background' -PassThru
+  Check (WaitFor { $null -ne (Ipc) } 20 'ipc again') 'the program starts again'
+  $pidBefore = (Ipc).pid
+  $u = Api 'Post' 'update-check'
+  Check ($u.newer -eq $true -and $u.latest -eq '99.0.0') 'the broken update is offered'
+  Api 'Post' 'update-install' | Out-Null
+  Check ($p3.WaitForExit(60000)) 'the program that installed the broken update leaves'
+  Check (WaitFor { $j = Ipc; if ($null -eq $j -or $j.pid -eq $pidBefore) { return $false }; (Invoke-RestMethod "http://127.0.0.1:$($j.port)/api/ping" -TimeoutSec 2).version -eq $NextVersion } 60 'old version back') 'the old version runs again after an update that did not start'
+  Check ((Get-FileHash $app).Hash -eq (Get-FileHash $NewExe).Hash) 'the old program file is back in place'
+  $failed = Get-Content (Join-Path $home_ 'update-failed') -Raw -ErrorAction SilentlyContinue
+  Check ($null -ne $failed -and $failed.Trim() -eq '99.0.0') 'the version that did not start is remembered'
+  Check ((AppLog) -match 'The new version 99\.0\.0 did not start') 'the log says that the new version did not start'
+  Api 'Post' 'quit' | Out-Null
+  Check (WaitFor { $null -eq (Ipc) } 15 'ipc gone again') 'the old version quits'
+  Check (WaitFor { -not (Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue) } 15 'process gone again') 'no program process is left after the rollback'
 }
 catch { Write-Host "ERROR $_"; [void]$failures.Add("exception: $_") }
 finally {
