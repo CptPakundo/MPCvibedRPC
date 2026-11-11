@@ -1,13 +1,13 @@
 {
   "since": "2026-10-18T01:10:32Z",
-  "people": 141,
-  "development": 72,
+  "people": 147,
+  "development": 82,
   "notCountedYet": 0,
   "byFile": {
-    "MPCvibedRPC-linux-amd64": 26,
-    "MPCvibedRPC-linux-arm64": 26,
-    "MPCvibedRPC-macos.zip": 27,
-    "MPCvibedRPC.exe": 62
+    "MPCvibedRPC-linux-amd64": 28,
+    "MPCvibedRPC-linux-arm64": 27,
+    "MPCvibedRPC-macos.zip": 28,
+    "MPCvibedRPC.exe": 64
   },
   "byRelease": {
     "v0.9.0": 1,
@@ -40,7 +40,8 @@
     "v0.9.43": 4,
     "v0.9.44": 20,
     "v0.9.5": 1,
-    "v0.9.50": 4,
+    "v0.9.50": 5,
+    "v0.9.51": 5,
     "v0.9.6": 1,
     "v0.9.7": 3,
     "v0.9.8": 1,
