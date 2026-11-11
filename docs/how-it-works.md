@@ -113,6 +113,9 @@ names come from, and how each player is read.
   played and with which player. Numbers only, never titles, kept in `stats.json` on this computer; nothing is sent
   anywhere. **Reset stats** starts over. (The download count in the README is GitHub's public count of release
   downloads.)
+- **Updates.** The program looks for a new version as it starts and every six hours. With the window open it asks at
+  once (**Update now** or **Not now**); otherwise it installs the update by itself when nothing is playing (Windows
+  and Linux; on macOS the window links to the download). Details are in Troubleshooting > Updates.
 - **What's new.** After an update (and on a new install) the window shows the new version's changes once; the
   version number at the top shows every version's.
 - Clears itself when you stop or close the player (a player that misses one answer, busy for a moment, is asked again

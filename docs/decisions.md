@@ -64,6 +64,11 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   versions miss fixes; a restart while nothing plays interrupts nobody, and every update is checksummed. The copy that
   installed an update stays until the new version has come up, and puts the old one back if it has not (2026-11-11):
   a version that does not start must not leave anyone without the program, and is not installed by itself again.
+- **A found update asks in the open window** (2026-11-11): what is new, Update now or Not now, once for each version;
+  the check goes out as the program starts. With no window open nothing is asked: the update installs itself as
+  above, though never in the first ten seconds after the start. *Why:* a line at the top and a button on a tab were
+  easy to miss; whoever has the window open can decide on the spot, and a program that has only just started cannot
+  know yet whether something plays or a window is about to open.
 
 ## Privacy
 - **Copy diagnostics keeps titles and file names**, and leaves out folder paths, web address details, server names,

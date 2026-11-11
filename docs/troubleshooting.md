@@ -144,14 +144,17 @@ To uninstall:
 
 ## Updates
 
-The program checks for new versions when it starts and every six hours (switch it off under **General > Updates**). While
+The program checks for new versions as it starts and every six hours while it runs (switch it off under
+**General > Updates**). When it finds one while the settings window is open, the window asks at once: what is new,
+**Update now** or **Not now**. It asks once for each version; after **Not now** a line at the top of the window keeps
+saying so, and its **See what's new** button brings the question back. While
 an update waits, the tray icon (macOS: the menu bar icon) shows a red dot. On Windows and Linux it installs the update
 by itself as soon as nothing is playing and the settings window is closed, restarts in the tray and says so once
-(**Install updates automatically**, on by default); **Install** in the window does it at once. Every update is checked
+(**Install updates automatically**, on by default); **Update now** in the window does it at once. Every update is checked
 against its checksum. The copy that installed it waits until the new version has come up; if it has not within half
 a minute, the old version is put back and started again, a notice says so, and that version is not installed by
 itself a second time (a newer one is). On macOS the window links to
-the download. When an update is available, a line at the top of the window says so, with a **See what's new** button. After
+the download. After
 an update the window shows what's new once; the version number at the top of the window shows every version.
 
 ## Is the download safe?
