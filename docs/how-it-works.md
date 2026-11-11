@@ -24,7 +24,7 @@ names come from, and how each player is read.
   catalog lists under a translated name, or whose catalog entries are split into several parts, still resolves.
   A wrong cover is worse than none, so loose guesses are rejected. If a lookup is slow the
   presence appears right away and refreshes with the cover when it arrives. Results are cached
-  in `artwork-cache.json`.
+  in `artwork-cache.json`, and an answer is forgotten 90 days after the title was last played.
   - **Seasons that are different titles.** When a file names a season (`S04`) or a production
     code, the season is resolved in two ways. (1) Catalogs that list each season as its
     own title: a file marked `S04` resolves to the entry named like "<Show>: Fourth Stage" (movies

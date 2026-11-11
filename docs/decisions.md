@@ -66,6 +66,8 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   everything else that could name a person stays out.
 - **Stats are counts and times only, on your computer.** *Why:* a history of titles is exactly what a privacy-minded
   user does not want stored, and nothing about it is ever sent.
+- **The cover cache forgets a title 90 days after it was last played.** *Why:* the cache speeds up lookups, but it
+  must not turn into a list of everything ever watched.
 - **Every online service can be switched off**, and one switch makes the program fully offline. *Why:* each lookup
   sends a title somewhere; the user decides where.
 

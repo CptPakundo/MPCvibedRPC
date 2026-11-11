@@ -31,6 +31,7 @@ type diskEntry struct {
 	ep   *core.ArtEpisode
 	isEp bool
 	seq  int64 // when it was added in this run (0 = read from the file): the oldest go first when the file is trimmed
+	used int   // the day (since the Unix epoch) it was last put or hit: see cacheDays
 }
 
 type lookupFlight struct {
@@ -51,6 +52,7 @@ type Artwork struct {
 	unavail atomic.Int64 // provider searches that failed because a service was down, slow or paused (see search)
 	seq     int64        // the last diskEntry.seq handed out (a.mu)
 	saveMu  sync.Mutex   // one cache write at a time (and none while the cache is being cleared)
+	today   func() int   // the current day since the Unix epoch (tests replace it)
 
 	mu        sync.Mutex
 	disk      map[string]*diskEntry
@@ -82,7 +84,7 @@ func New(cfg *core.Config, opts Options) *Artwork {
 	if opts.OnResolved == nil {
 		opts.OnResolved = func(*core.Art) {}
 	}
-	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(),
+	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(), today: unixDay,
 		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, soft: map[string]bool{}, closest: map[string][]string{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
 		warned: map[string]bool{}, runtimes: map[string]int{}, aliases: mapByTitle(cfg.ArtworkAliases), overrides: mapByTitle(cfg.ArtworkOverrides)}
 	a.net.blocked = blockedHostFilter(cfg)
@@ -94,6 +96,16 @@ func New(cfg *core.Config, opts Options) *Artwork {
 
 // keyVersion starts every key of the saved answers; a key of another version is an old format and is not loaded.
 const keyVersion = "v3|"
+
+// cacheDays is how long an answer stays in the saved cache after the title was last played. The cache speeds up
+// lookups, but it must not become a history of everything that was ever watched.
+const cacheDays = 90
+
+// usedKey is the one reserved key of the cache file: it maps each answer's key to the day it was last used. It does
+// not start with keyVersion, so an older version of the program skips it and loads the answers as before.
+const usedKey = "@used"
+
+func unixDay() int { return int(time.Now().Unix() / 86400) }
 
 // Close marks this finder as replaced (the settings changed and a new one took over). Lookups still running send
 // nothing more (the title may be hidden now, or a service switched off) and end quietly: they no longer write to the
@@ -134,12 +146,26 @@ func (a *Artwork) load() {
 	if json.Unmarshal(b, &raw) != nil {
 		return
 	}
+	// A file from an older version has no days: every answer in it counts as used today.
+	today := a.today()
+	days := map[string]int{}
+	if v, ok := raw[usedKey]; ok {
+		_ = json.Unmarshal(v, &days)
+	}
 	for k, v := range raw {
 		if !strings.HasPrefix(k, keyVersion) && !strings.HasPrefix(k, "ep|"+keyVersion) {
 			continue // another key version: not used any more, so it must not take one of the saved places
 		}
+		used, ok := days[k]
+		if !ok {
+			used = today
+		}
+		if today-used > cacheDays {
+			a.dirty = true // forgotten: the file is rewritten without it at the next save
+			continue
+		}
 		if strings.HasPrefix(k, "ep|") {
-			e := &diskEntry{isEp: true}
+			e := &diskEntry{isEp: true, used: used}
 			if string(v) != "null" {
 				var ep core.ArtEpisode
 				if json.Unmarshal(v, &ep) == nil {
@@ -153,7 +179,7 @@ func (a *Artwork) load() {
 		} else {
 			var art core.Art
 			if json.Unmarshal(v, &art) == nil {
-				a.disk[k] = &diskEntry{art: &art}
+				a.disk[k] = &diskEntry{art: &art, used: used}
 			}
 		}
 	}
@@ -163,8 +189,21 @@ func (a *Artwork) load() {
 func (a *Artwork) put(key string, e *diskEntry) {
 	a.seq++
 	e.seq = a.seq
+	e.used = a.today()
 	a.disk[key] = e
 	a.dirty = true
+}
+
+// touch counts a hit as a use today (a.mu held). The first use on a new day must reach the file even when no lookup
+// follows, so it is saved in the background; a title that keeps playing costs one small save a day.
+func (a *Artwork) touch(e *diskEntry) {
+	if day := a.today(); e.used != day {
+		e.used = day
+		a.dirty = true
+		if a.opts.CacheFile != "" {
+			go a.save()
+		}
+	}
 }
 
 func (a *Artwork) save() {
@@ -180,12 +219,21 @@ func (a *Artwork) save() {
 		return
 	}
 	a.dirty = false
+	today := a.today()
 	keys := make([]string, 0, len(a.disk))
-	for k := range a.disk {
+	for k, e := range a.disk {
+		if today-e.used > cacheDays {
+			delete(a.disk, k) // not played for cacheDays: forgotten
+			continue
+		}
 		keys = append(keys, k)
 	}
-	// when huge, the entries read from the file go first (in a fixed order), then the oldest of this run
+	// when huge, the entries used longest ago go first; among those, the ones read from the file (in a fixed
+	// order), then the oldest of this run. The title playing now was used today, so it is never the one dropped.
 	sort.Slice(keys, func(i, j int) bool {
+		if ui, uj := a.disk[keys[i]].used, a.disk[keys[j]].used; ui != uj {
+			return ui < uj
+		}
 		if si, sj := a.disk[keys[i]].seq, a.disk[keys[j]].seq; si != sj {
 			return si < sj
 		}
@@ -196,8 +244,11 @@ func (a *Artwork) save() {
 			delete(a.disk, k)
 		}
 	}
-	out := make(map[string]any, len(a.disk))
+	out := make(map[string]any, len(a.disk)+1)
+	usedDays := make(map[string]int, len(a.disk))
+	out[usedKey] = usedDays
 	for k, e := range a.disk {
+		usedDays[k] = e.used
 		switch {
 		case e.isEp && e.ep == nil:
 			out[k] = nil
@@ -251,6 +302,7 @@ func (a *Artwork) ClearCache() {
 	defer a.saveMu.Unlock()
 	a.mu.Lock()
 	a.disk = map[string]*diskEntry{}
+	a.dirty = false // a background save of a day change must not write the cleared cache back as an empty file
 	a.misses = map[string]time.Time{}
 	a.soft = map[string]bool{}
 	a.closest = map[string][]string{}
@@ -1054,6 +1106,7 @@ func (a *Artwork) findImdbId(b *core.Art, media *core.Media) (*imdbFound, error)
 
 func (a *Artwork) getBase(key string) *core.Art {
 	if e := a.disk[key]; e != nil && !e.isEp {
+		a.touch(e)
 		return e.art
 	}
 	return nil
@@ -1064,6 +1117,7 @@ func (a *Artwork) getEp(key string) (*diskEntry, bool) {
 	if !ok || !e.isEp {
 		return nil, false
 	}
+	a.touch(e)
 	return e, true
 }
 

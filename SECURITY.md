@@ -51,6 +51,9 @@ own server once and is never stored. The Plex sign-in goes only to plex.tv and t
 it, that it is the chosen server; a server shared with you gets the key plex.tv made for it, never your account's.
 Kodi's password is kept in `config.json` as plain text too, as VLC's is.
 
+The cover cache (`artwork-cache.json`) holds the looked-up answers for the titles played in the last 90 days, at most
+2000; **Clear cover cache** (Privacy tab) empties it.
+
 The settings window is a page the program serves on this computer only (127.0.0.1). Its API needs a key made at
 every start, and answers no other website (a Host check, and no cross-origin permission). The browser is started with
 a code that works once, for two minutes at most, so the key itself never appears on a command line that other users
