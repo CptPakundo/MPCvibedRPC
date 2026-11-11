@@ -26,8 +26,9 @@ One branch and one PR per release: the change, the version bump and the release 
    with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
    against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
    awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
-   publishes it as a **draft**, then `reproduce` rebuilds the exe and both Linux programs from the tag on another
-   runner (they must match the release byte for byte), and then runs `verify` (`tools/ci/verify-release.ps1`): on the draft the ten assets,
+   publishes it as a **draft**; `reproduce` rebuilds the exe and both Linux programs from the tag on another
+   runner at the same time (no job waits for it but `verify`), and `verify` first checks that their checksums equal the
+   release's (they must match byte for byte), then runs `tools/ci/verify-release.ps1`: on the draft the ten assets,
    every checksum and build record and the exe's version; only if they pass is the release made public (and latest),
    followed by the checks that need it public: that it is the latest release, and a real self-update from the previous
    release. A release whose draft checks fail stays a draft (nobody's updater sees it): fix, then delete the draft and

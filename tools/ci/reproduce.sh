@@ -3,6 +3,8 @@
 #   reproduce.sh <version> <out-dir>        builds MPCvibedRPC.exe, MPCvibedRPC-linux-amd64 and -arm64 into out-dir
 #   reproduce.sh compare <file> <file>      fails unless both files are the same
 #   reproduce.sh hash <file> <sha256>       fails unless the file has that SHA-256
+#   reproduce.sh sums <out-dir>             prints exe=, linux_amd64= and linux_arm64= with the SHA-256 of the files built there
+#   reproduce.sh same <name> <sha> <sha>    fails unless both checksums are the same (and not empty)
 # The build needs the repository's files as they are committed (LF line endings) and the same Go version; no cgo.
 set -euo pipefail
 
@@ -29,6 +31,18 @@ case "${1:-}" in
     echo "$got  $2 (release: $3)"
     if [ "$got" != "$3" ]; then
       echo "::error title=not reproducible::the rebuilt $(basename "$2") differs from the release's"
+      exit 1
+    fi
+    ;;
+  sums)
+    echo "exe=$(sha "$2/MPCvibedRPC.exe")"
+    echo "linux_amd64=$(sha "$2/MPCvibedRPC-linux-amd64")"
+    echo "linux_arm64=$(sha "$2/MPCvibedRPC-linux-arm64")"
+    ;;
+  same)
+    echo "$2: release $3, rebuilt $4"
+    if [ -z "$3" ] || [ -z "$4" ] || [ "$3" != "$4" ]; then
+      echo "::error title=not reproducible::the rebuilt $2 differs from the release's (or a checksum is missing)"
       exit 1
     fi
     ;;
