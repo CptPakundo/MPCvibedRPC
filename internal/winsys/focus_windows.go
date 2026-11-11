@@ -64,24 +64,7 @@ func collectWindow(hwnd uintptr, _ uintptr) uintptr {
 // never touched. It returns true when such a window was found, even if Windows only flashed its taskbar button
 // because this process may not take the foreground (AllowForeground lets it).
 func FocusWindow(profileDir string) bool {
-	if profileDir == "" {
-		return false
-	}
-	pids := map[uint32]bool{}
-	forProfileProcesses(profileDir, processQueryLimitedInformation, func(pid uint32, _ syscall.Handle) bool {
-		pids[pid] = true
-		return false
-	})
-	if len(pids) == 0 {
-		return false
-	}
-	enumMu.Lock()
-	enumFound = nil
-	pEnumWindows.Call(enumWindowsCallback, 0)
-	wins := enumFound
-	enumFound = nil
-	enumMu.Unlock()
-	w, ok := pickWindow(wins, pids)
+	w, ok := findWindow(profileDir)
 	if !ok {
 		return false
 	}
@@ -90,6 +73,28 @@ func FocusWindow(profileDir string) bool {
 	}
 	pSetForegroundWindow.Call(w.Handle)
 	return true
+}
+
+// findWindow finds the settings window: the top-level window of the browser processes that use profileDir.
+func findWindow(profileDir string) (topWindow, bool) {
+	if profileDir == "" {
+		return topWindow{}, false
+	}
+	pids := map[uint32]bool{}
+	forProfileProcesses(profileDir, processQueryLimitedInformation, func(pid uint32, _ syscall.Handle) bool {
+		pids[pid] = true
+		return false
+	})
+	if len(pids) == 0 {
+		return topWindow{}, false
+	}
+	enumMu.Lock()
+	enumFound = nil
+	pEnumWindows.Call(enumWindowsCallback, 0)
+	wins := enumFound
+	enumFound = nil
+	enumMu.Unlock()
+	return pickWindow(wins, pids)
 }
 
 // AllowForeground lets the process pid take the foreground. A second start of the program was launched by the user
