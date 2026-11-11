@@ -20,6 +20,17 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   TVmaze, AniList, Kitsu, Wikipedia, Bulbapedia), each with its own switch. *Why:* every show, film, special or the
   like should be found, and no single catalog has them all; a slow or closed service must not leave a title without
   its cover. A catalog is only removed when it stops answering for good.
+- **The title on a stream is a switch, off by default** (2026-11-11). Discord names a screen share after the
+  streamer's *Playing* status and no other kind, so the switch sends "Playing <title>" all the time. *Why:* the
+  Watching status with its progress bar is what most people want on their profile; a program like this one cannot
+  see whether you are streaming, so it cannot switch only then; and showing both at once would put two cards on the
+  profile.
+- **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
+  Discord restarts or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
+  its own.
+- **Discord's refusals hold for one title.** A title Discord refuses as a Watching status, or with its links, gets
+  the simpler form; the next title is tried in full again. *Why:* a refusal can be about one title's text or
+  address, and must not cost every later title its look.
 - **New behaviour that changes things for existing users is off by default** unless decided otherwise. *Why:* an update
   should not surprise anyone.
 
@@ -31,6 +42,12 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   action that loses settings needs a confirmation.
 - **The window closes the instant the program quits**, and quitting leaves no browser processes behind. *Why:* a
   settings page that outlives its program only confuses.
+- **"Start with Windows" follows Windows' own switch too.** An entry turned off in Task Manager > Startup apps shows
+  as off, and only turning the setting on in the window turns it back on; the program's own refresh of the entry at
+  each start never does. *Why:* the user's choice in Windows is a choice.
+- **The window is opened with a one-time code**, not with the key that guards the local API. *Why:* a browser's
+  command line can be read by other users of the same computer for as long as it runs; a code is spent by the
+  browser's first request.
 - **On macOS the program lives in the menu bar and shows its settings in a window of its own**, never in a browser.
   *Why:* a browser window behaved badly for a tester, and a menu bar app is what a Mac user expects.
 - **Updates install themselves by default** (2026-10-18; Windows and Linux): checks every six hours, and a found

@@ -131,6 +131,10 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 	e.notePlayer(info)
+	if e.cur != r {
+		e.mu.Unlock() // notePlayer lets go of the lock for its log line
+		return
+	}
 
 	if !active || hidden {
 		e.clearWhenIdle(r, hidden, ended)

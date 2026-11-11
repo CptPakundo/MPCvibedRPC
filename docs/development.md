@@ -159,6 +159,18 @@ come (it may have been applied: a late answer once left statuses up for good); a
 `reclearEvery` (a minute, quietly); a file paused within `endSlack` (3 s) of its end has ended. Tests:
 `internal/engine/stale_test.go` (the fake Discord's `slow` and `failClears`).
 
+**The engine's state** is many fields under `e.mu`, changed by the tick, the connect goroutine, the connection watch,
+the cover finder and the API. The rules that keep them in step: a status is due when the player reports a change
+(`core.NeedsUpdate`) or when `resend` is set (a new connection, a late cover, a send Discord did not take), and only
+a change by the player restarts the pause limit or brings back a status cleared after a long pause; every place
+that takes `e.mu` again after asking Discord checks that its run is still the current one (`e.cur == r`) before it
+books anything; the clear after a long pause is booked when Discord took it, not before; a send Discord did not take
+waits `retryAfter` (5 s, doubling to a minute) before the next try; `basicMode` and `noLinks` hold for the file they
+were found out for (`modeKey`). Tests: `internal/engine/state_test.go`, with `TestStatusConverges`, which runs random
+orders of player, Discord and settings events against the fakes and checks that Discord ends up showing exactly
+what the player's last state calls for (`MPCRPC_CONVERGE_SEEDS=500` tries that many orders; run it after a change
+to the tick).
+
 Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
 state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
 playlist. With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's

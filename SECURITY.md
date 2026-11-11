@@ -51,6 +51,12 @@ own server once and is never stored. The Plex sign-in goes only to plex.tv and t
 it, that it is the chosen server; a server shared with you gets the key plex.tv made for it, never your account's.
 Kodi's password is kept in `config.json` as plain text too, as VLC's is.
 
+The settings window is a page the program serves on this computer only (127.0.0.1). Its API needs a key made at
+every start, and answers no other website (a Host check, and no cross-origin permission). The browser is started with
+a code that works once, for two minutes at most, so the key itself never appears on a command line that other users
+of the computer could read. A settings file that cannot be read is never overwritten, and it is written to disk
+before it replaces the old one.
+
 MPC-HC's web interface has no password and lets any web page read it (it answers every origin). While it is on, a
 website open in your browser could see what you play and send the player commands. "Set up the player connection"
 limits it to this computer, which keeps other devices out but not web pages you open here. Switch it off in MPC-HC

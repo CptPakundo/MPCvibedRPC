@@ -205,7 +205,9 @@ func removeIPC(path string) error {
 	}
 }
 
-func (a *app) openWindow() { winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile) }
+func (a *app) openWindow() {
+	winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
+}
 
 // quit shuts the program down once (the window's Quit, the tray's Quit, or a signal).
 func (a *app) quit() {

@@ -1,4 +1,21 @@
 [
+  {"version": "0.9.45", "date": "2026-11-11", "items": [
+    "📡 New: Look > Show the title on my streams. Discord then says \"Streaming <title>\" when you share your screen.",
+    "💤 A status cleared after a long pause stays cleared when Discord restarts; it used to come back.",
+    "🔁 A status Discord does not take is tried again after a growing wait, not at every check.",
+    "⏱️ The progress bar no longer starts a few seconds late when a cover is looked up for the first time.",
+    "🧷 One title Discord refuses no longer costs the titles after it their Watching look or their links.",
+    "💾 A settings file that cannot be read for a moment is never overwritten: it could wipe every setting and sign-in.",
+    "🪟 Start with Windows respects \"disabled\" in Task Manager; the tray icon returns by itself after Explorer restarts.",
+    "🚪 A second start while the first is still starting no longer runs two copies.",
+    "🔄 An update that installs itself waits again if something started playing during the download.",
+    "🔑 The window opens with a one-time code: the local API's key is no longer on the browser's command line.",
+    "🛡️ Built with Go 1.27.4, which fixes a crash in the kind of local server the settings window uses (GO-2026-6859).",
+    "🙈 Hiding titles or switching a service off also stops lookups under way; a stream's address loses its signed query.",
+    "🧯 New limits: over-long answers from players and servers, hopeless title searches, line breaks in text settings.",
+    "🩺 Copy diagnostics hides more: paths with apostrophes, network paths, host names and IPv6 addresses.",
+    "🧰 CI: the analysers read the Windows and macOS code too; a test runs random event orders against the status logic."
+  ]},
   {"version": "0.9.44", "date": "2026-10-25", "items": [
     "🧵 Plex, Stremio and Jellyfin / Emby share one web client: requests have a time limit; a redirect elsewhere is refused.",
     "⏱️ Plex: a plex.tv or a server that accepts the connection and then stays silent no longer stalls the watcher.",
