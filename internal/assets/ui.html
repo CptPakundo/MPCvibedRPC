@@ -90,6 +90,10 @@
 
     <section class="panel" id="p-help" role="tabpanel">
       <div class="group">
+        <div class="row"><button id="runCheck">Run a check</button><span class="help grow" id="checkMsg">Finds out what works: Discord, your players, the covers and updates. It never shows a title.</span></div>
+        <ul class="checks hidden" id="checkList" aria-label="Result of the check"></ul>
+      </div>
+      <div class="group">
         <div class="row"><button id="copyDiag">Copy diagnostics</button><button id="reportBtn">Report a problem</button></div>
         <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults, how the current title was found and the recent log. Titles and file names are included, so a wrong title can be traced; folder paths, sign-ins and keys are left out.</div>
         <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>

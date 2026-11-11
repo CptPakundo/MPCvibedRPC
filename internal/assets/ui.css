@@ -85,6 +85,11 @@
   #p-help .group { padding: 10px 14px; }
   #log { flex: 1; min-height: 200px; background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 ui-monospace, Consolas, monospace; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
   .L-WARN { color: var(--warn); } .L-ERROR { color: var(--bad); }
+  .checks { list-style: none; margin: 8px 0 0; padding: 0; }
+  .checks li { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--line); }
+  .checks .mark { flex: none; width: 62px; font-size: 12px; font-weight: 650; color: var(--muted); }
+  .checks .ok .mark { color: var(--good); } .checks .problem .mark { color: var(--bad); }
+  .checks .what { min-width: 0; overflow-wrap: anywhere; }
   #diagText { min-height: 120px; margin-top: 8px; }
   .credits { font-size: 12.5px; } .credits a { color: var(--accent); }
   .credits .cr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }

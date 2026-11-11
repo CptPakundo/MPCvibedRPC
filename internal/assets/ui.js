@@ -624,6 +624,25 @@
     } catch (_) {}
   }
 
+  // Help > Run a check: the program says what works. Every word comes from the program and goes in as text. The state
+  // is a word as well as a colour.
+  $('runCheck').onclick = async () => {
+    const btn = $('runCheck'), list = $('checkList'), msg = $('checkMsg');
+    btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+      const { items } = await api('selfcheck', {});
+      list.textContent = '';
+      (items || []).forEach((it) => {
+        const mark = { ok: 'OK', problem: 'Problem' }[it.state] || 'Note';
+        list.append(el('li', { className: it.state }, el('span', { className: 'mark', textContent: mark }),
+          el('span', { className: 'what' }, el('b', { textContent: it.group + ': ' }), document.createTextNode(it.text))));
+      });
+      list.classList.remove('hidden');
+      msg.classList.remove('bad'); msg.textContent = 'Checked just now.';
+    } catch (e) { msg.classList.add('bad'); msg.textContent = e.message; }
+    btn.disabled = false; btn.textContent = 'Run a check';
+  };
+
   // the welcome card: dismissing it is remembered, so it only ever greets a new install
   $('welcomeOk').onclick = () => {
     $('welcome').classList.add('hidden');

@@ -50,6 +50,7 @@ func (a *app) handlers() map[string]server.Handler {
 		"save":        {Fn: a.save},
 		"reset":       {Fn: func(*jsonx.Obj) (any, error) { return a.reset() }},
 		"mpc-web":     {Fn: a.setUpPlayers},
+		"selfcheck":   {Fn: a.selfCheck},
 
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := a.checkUpdates(true)

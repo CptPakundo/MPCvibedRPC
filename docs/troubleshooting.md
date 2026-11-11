@@ -1,7 +1,8 @@
 # Troubleshooting
 
 Problems and questions, by player and service. The [README](../README.md) has the first checks, and every setting is
-listed in [All settings](config.md).
+listed in [All settings](config.md). **Help > Run a check** tells you in a few lines what works and what does not
+(Discord, your players, the cover catalogs and updates); it never shows a title.
 
 ## Nothing shows on Discord
 
