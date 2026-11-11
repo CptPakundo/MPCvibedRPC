@@ -64,12 +64,14 @@ type thread struct {
 }
 
 // shareThreads are the threads Discord's app runs only while it shares a screen or a window: its capture source. They
-// were read from a real stream (Discord 1.0.9267, November 2026): they began with the share and ended with it, twice.
-// A name Discord changes makes this way see nothing, never a stream that is not there.
+// were read from a real Discord (1.0.9267, November 2026): the thread began and ended with a screen share (three
+// times) and with a share of one window; the share picker's previews did not start it (they run RsPrintWindow for
+// a second each), and neither did a camera in a call (webrtc_video_capture). A name Discord changes makes this way
+// see nothing, never a stream that is not there.
 var shareThreads = map[string]bool{"RsVideoSource": true}
 
-// streaming decides from Discord's threads: one of shareThreads that began at least minLive ago (the picker's
-// previews must not count here either). A thread whose start is unknown counts.
+// streaming decides from Discord's threads: one of shareThreads that began at least minLive ago, the same wait as for
+// the record, so that both signs agree on when a share counts. A thread whose start is unknown counts.
 func streaming(threads []thread, now time.Time) bool {
 	for _, t := range threads {
 		if shareThreads[t.name] && now.Sub(t.start) >= minLive {
