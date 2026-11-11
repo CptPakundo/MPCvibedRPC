@@ -71,6 +71,27 @@ func runEntryNames(command, exe string) bool {
 	return name != "" && strings.Contains(strings.ToLower(command), strings.ToLower(name))
 }
 
+// writeRunValue makes the Run value name start exe. A value that is already right is left alone: no helper process
+// at every start of the program.
+func writeRunValue(name, exe string) bool {
+	want := runCommand(exe, os.Getenv("MPCRPC_HOME"))
+	if cur, found := registryRunValue(name); found && cur == want {
+		return true
+	}
+	return run("reg", "add", runKey, "/v", name, "/t", "REG_SZ", "/d", want, "/f").ok
+}
+
+// RefreshAutoStart keeps the run-at-login entry pointing at this copy of the program, which may have been moved: the
+// program calls it at every start while the setting is on. Unlike SetAutoStart(true, ...) it leaves Windows' own
+// switch alone: a user who turned the entry off in Task Manager meant it, and only turning the setting on in the
+// window turns it back on.
+func RefreshAutoStart(exe string) bool {
+	if !IsWindows {
+		return setLoginItem(true, exe)
+	}
+	return writeRunValue(runName(), exe)
+}
+
 // SetAutoStart adds or removes the registry entry (or the login item).
 func SetAutoStart(enabled bool, exe string) bool {
 	if !IsWindows {
@@ -78,12 +99,7 @@ func SetAutoStart(enabled bool, exe string) bool {
 	}
 	name := runName()
 	if enabled {
-		want := runCommand(exe, os.Getenv("MPCRPC_HOME"))
-		ok := true
-		// already there as it should be: no helper process at every start of the program
-		if cur, found := registryRunValue(name); !found || cur != want {
-			ok = run("reg", "add", runKey, "/v", name, "/t", "REG_SZ", "/d", want, "/f").ok
-		}
+		ok := writeRunValue(name, exe)
 		// switched off in Task Manager: whoever turns the setting on here wants it on
 		if startupDisabled(approvedData(name)) {
 			run("reg", "delete", startupApprovedKey, "/v", name, "/f")
