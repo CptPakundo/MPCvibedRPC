@@ -144,6 +144,10 @@ func (a *app) save(body *jsonx.Obj) (any, error) {
 	if after.UpdateRepo != before.UpdateRepo {
 		a.upd.set(nil)
 	}
+	if after.CheckUpdates && !before.CheckUpdates {
+		// switched on: look now, not at the next turn of the clock
+		engine.Go(a.log, "The update check", func() { _, _ = a.checkUpdates(false) })
+	}
 	a.log("INFO", "Settings saved.")
 	return a.fullState(), nil
 }
