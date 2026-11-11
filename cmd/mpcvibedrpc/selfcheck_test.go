@@ -141,3 +141,23 @@ func TestPlayerLines(t *testing.T) {
 		t.Error("the hint should name the players of each system")
 	}
 }
+
+// The Streams line says what the setting does on this system and whether a stream is on.
+func TestStreamLine(t *testing.T) {
+	for _, c := range []struct {
+		mode               string
+		supported, sharing bool
+		state, has         string
+	}{
+		{"always", true, false, "info", "all the time"},
+		{"off", true, true, "info", "is off"},
+		{"auto", false, false, "info", "cannot tell"},
+		{"auto", true, true, "ok", "sharing your screen now"},
+		{"auto", true, false, "ok", "not sharing"},
+	} {
+		got := streamLine(c.mode, c.supported, c.sharing)
+		if got.Group != "Streams" || got.State != c.state || !strings.Contains(got.Text, c.has) {
+			t.Errorf("%s supported=%v sharing=%v: %+v", c.mode, c.supported, c.sharing, got)
+		}
+	}
+}

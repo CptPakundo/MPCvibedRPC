@@ -10,7 +10,7 @@ import (
 // The stream title is for videos: a song stays "Listening to" with it on.
 func TestStreamTitleLeavesMusicAlone(t *testing.T) {
 	cfg := core.DefaultConfig()
-	cfg.StreamTitle = true
+	cfg.StreamTitle = "always"
 	song := &core.Info{File: "Sample Song.mp3", State: 2, Position: 1000, Duration: 200000, Rate: 1}
 	if b := buildActivity(song, &cfg, nil, time.Now()); b.activity == nil || b.activity.Type != 2 {
 		t.Errorf("a song: %+v, want a Listening activity", b.activity)

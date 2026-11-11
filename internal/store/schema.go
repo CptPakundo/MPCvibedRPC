@@ -49,7 +49,15 @@ var Sections = []Section{
 	{ID: "look", Title: "Look", Fields: []Field{
 		{Key: "activityType", Type: "choice", Label: "Style", Options: [][2]string{{"watching", "Watching (with progress bar)"}, {"playing", "Playing (classic timer)"}}},
 		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
-		{Key: "streamTitle", Type: "bool", Label: "Show the title on my streams", Help: `When you share your screen, Discord then says "Streaming <title>". It does that only for a Playing status, so yours reads "Playing <title>" with a timer and no progress bar.`},
+		// Discord names a stream after a Playing status only. Windows can tell when Discord shares the screen, so the
+		// status changes by itself there; the other systems cannot, and offer all the time or never ("auto" is never
+		// there, so the setting's default needs no second value).
+		{Key: "streamTitle", Type: "choice", Label: "Show the title on my streams", OS: []string{"windows"},
+			Options: [][2]string{{"auto", "While Discord shares my screen"}, {"always", "Always"}, {"off", "Never"}},
+			Help:    `Discord names a stream after a Playing status only. While it shares your screen, yours reads "Playing <title>" (a timer, no progress bar) and viewers see "Streaming <title>".`},
+		{Key: "streamTitle", Type: "choice", Label: "Show the title on my streams", OS: []string{"darwin", "linux"},
+			Options: [][2]string{{"auto", "Never"}, {"always", "Always"}},
+			Help:    `Discord names a stream after a Playing status only: "Playing <title>", with a timer and no progress bar. This system cannot tell when Discord shares your screen, so it is always or never.`},
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the text lines and the cover clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
