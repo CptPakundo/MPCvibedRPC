@@ -40,7 +40,9 @@ func (u *updates) newer() *updater.Info {
 }
 
 // checkUpdates asks GitHub for a newer version: when the window asks (manual), or in the background while
-// "Check for updates automatically" is on. A version found in the background is announced next to the tray icon once.
+// "Check for updates automatically" is on. A version found in the background is offered by an open settings window
+// at once (its page asks for the state every second); with no window open, and when it will not install itself, it is
+// announced next to the tray icon once.
 func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	s := a.st.App()
 	if !manual && !(s.CheckUpdates && s.UpdateRepo != "") {
@@ -57,8 +59,9 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	}
 	a.upd.set(r)
 	a.log("INFO", fmt.Sprintf("Update available: %s (you have %s).", r.Latest, version))
-	if a.autoInstall() || manual {
-		return r, nil // installed by itself at a quiet moment: it says so afterwards instead
+	if a.autoInstall() || manual || a.windows.Load() > 0 {
+		// installed by itself at a quiet moment (it says so afterwards instead), or the window says it
+		return r, nil
 	}
 	a.upd.mu.Lock()
 	first := a.upd.notified != r.Latest
