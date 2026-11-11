@@ -58,7 +58,8 @@ func (e *Engine) statSnapshot(now time.Time) *statWrite {
 	}
 	e.statDirty = false
 	e.statSeq++
-	return &statWrite{e.statSeq, b}
+	e.statLast = &statWrite{e.statSeq, b}
+	return e.statLast
 }
 
 // writeStats writes a state of the counts to the file (e.mu released; nil: nothing to do). Writes go one at a
@@ -70,7 +71,7 @@ func (e *Engine) writeStats(w *statWrite) {
 	}
 	e.statFileMu.Lock()
 	defer e.statFileMu.Unlock()
-	if w.seq < e.statWritten {
+	if w.seq <= e.statWritten {
 		return
 	}
 	tmp := e.opts.StatsFile + ".tmp"

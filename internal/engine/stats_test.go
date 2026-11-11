@@ -170,3 +170,25 @@ func TestEpisodeWithoutTitleIsAskedAgainWhilePlaying(t *testing.T) {
 		t.Errorf("sent %d times after the first, want 3", n-first)
 	}
 }
+
+// A stop brings a state another goroutine took but has not written yet (statLast), and writing a state twice is
+// harmless.
+func TestStatsStopFlushesAStateStillOnItsWay(t *testing.T) {
+	t.Parallel()
+	file := filepath.Join(t.TempDir(), "stats.json")
+	e := New(core.DefaultConfig(), Options{StatsFile: file})
+	e.mu.Lock()
+	e.stats.Videos, e.statDirty = 4, true
+	taken := e.statSnapshot(time.Now()) // taken, not yet written
+	again := e.statSnapshot(time.Now()) // what stop() sees: nothing new...
+	last := e.statLast                  // ...so it writes the newest state taken
+	e.mu.Unlock()
+	if again != nil || last != taken {
+		t.Fatalf("again=%v last==taken:%v", again, last == taken)
+	}
+	e.writeStats(last)
+	e.writeStats(taken) // the other goroutine arrives later: nothing to do
+	if s := New(core.DefaultConfig(), Options{StatsFile: file}).Stats(); s.Videos != 4 {
+		t.Errorf("the file holds %d videos, want 4", s.Videos)
+	}
+}

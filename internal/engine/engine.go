@@ -170,6 +170,7 @@ type Engine struct {
 	// It is taken without e.mu and may take e.mu, never the other way round.
 	statFileMu  sync.Mutex
 	statWritten uint64
+	statLast    *statWrite // the newest state taken (e.mu), so a stop can bring a write still on its way to the file
 
 	// the folder last listed for folderEpisodeNumbers (folder.go; it has its own lock)
 	folders folderNames
@@ -343,6 +344,9 @@ func (e *Engine) stop() {
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
 	save := e.statSnapshot(time.Now())
+	if save == nil {
+		save = e.statLast // a write another goroutine took but has not finished: wait for it, so Quit loses nothing
+	}
 	e.statTick = time.Time{}
 	if e.art != nil {
 		e.art.Close() // lookups still under way finish quietly: no title in the log, no refresh (hideTitle may be on now)
