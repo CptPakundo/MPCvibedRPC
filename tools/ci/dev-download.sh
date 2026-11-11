@@ -36,14 +36,21 @@ case "${1:-}" in
   download)
     by="$2"; tag="$3"; dir="$4"; pattern="${5:-}"
     mkdir -p "$dir"
+    # a download that fails halfway still leaves the files that arrived: record them, then fail with its status
+    status=0
     if [ -n "$pattern" ]; then
-      gh release download "$tag" --repo "$repo" --dir "$dir" --pattern "$pattern"
+      gh release download "$tag" --repo "$repo" --dir "$dir" --pattern "$pattern" || status=$?
     else
-      gh release download "$tag" --repo "$repo" --dir "$dir"
+      gh release download "$tag" --repo "$repo" --dir "$dir" || status=$?
     fi
     items=()
-    for f in "$dir"/*; do items+=("$tag/$(basename "$f")"); done
-    record "$by" "${items[@]}"
+    for f in "$dir"/*; do
+      if [ -f "$f" ]; then items+=("$tag/$(basename "$f")"); fi
+    done
+    if [ "${#items[@]}" -gt 0 ]; then
+      record "$by" "${items[@]}" || { [ "$status" -ne 0 ] || status=1; }
+    fi
+    exit "$status"
     ;;
   record)
     shift

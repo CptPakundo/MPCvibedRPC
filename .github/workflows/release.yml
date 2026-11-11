@@ -21,10 +21,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
-      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+      - run: ./tools/ci/version.sh "$TAG"
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
         shell: bash
       - uses: ./.github/actions/build-unix # the same build and smoke test as ci.yml
@@ -51,10 +55,14 @@ jobs:
       # the files as the repository has them (LF), as reproduce builds them
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
-      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+      - run: ./tools/ci/version.sh "$TAG"
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
       - run: ./tools/ci/test-noskip.sh "$(./tools/ci/allowed-skips.sh)" go test -count=1 ./...
         shell: bash
       - uses: ./.github/actions/build-windows # the same build and smoke test as ci.yml
@@ -95,6 +103,23 @@ jobs:
             dist/MPCvibedRPC-linux-amd64
             dist/MPCvibedRPC-linux-arm64
             dist/MPCvibedRPC-macos.zip
+      # A re-run after the release went public would turn it back into a draft and replace its files: refuse. A draft
+      # (or no release at all) is fine. (gh finds a release by its tag only once it is public.)
+      - name: The release must not be public yet
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2> "$RUNNER_TEMP/view.err")"; then
+            if [ "$state" != "true" ]; then
+              echo "::error title=release::$TAG is already a public release; re-running this job would turn it back into a draft and replace its files"
+              exit 1
+            fi
+          else
+            grep -qi 'not found' "$RUNNER_TEMP/view.err" || { cat "$RUNNER_TEMP/view.err"; exit 1; }
+            echo "no release for $TAG yet"
+          fi
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
@@ -120,10 +145,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version-file: go.mod, cache: false }
-      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+      - run: ./tools/ci/version.sh "$TAG"
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
       - name: Rebuild and compare
         shell: bash
         run: |
@@ -146,8 +175,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: ./tools/ci/version.sh '${{ github.ref_name }}'
+        with:
+          persist-credentials: false
+      - run: ./tools/ci/version.sh "$TAG"
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
       - name: Check the draft
         shell: pwsh
         run: ./tools/ci/verify-release.ps1 -Version $env:VERSION -Stage draft

@@ -26,7 +26,7 @@ live() { # live NAME [VAR=value ...]: the live engine test, which must really ru
 }
 
 echo "::group::PotPlayer"
-pot="$(ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files*/DAUM/PotPlayer/PotPlayerMini*.exe 2>/dev/null | head -1)"
+pot="$(ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files*/DAUM/PotPlayer/PotPlayerMini*.exe 2>/dev/null | head -1 || true)"
 [ -n "$pot" ] || { echo "PotPlayer was not installed where expected"; ls "/c/Program Files" "/c/Program Files (x86)"; exit 1; }
 "$pot" "$win_video" &
 sleep 10
@@ -47,7 +47,7 @@ cat > "$userdata/guisettings.xml" <<'XML'
     <setting id="services.webserverpassword">ci-secret</setting>
 </settings>
 XML
-kodi="$(ls /c/Program\ Files/Kodi/kodi.exe /c/Program\ Files*/Kodi/kodi.exe 2>/dev/null | head -1)"
+kodi="$(ls /c/Program\ Files/Kodi/kodi.exe /c/Program\ Files*/Kodi/kodi.exe 2>/dev/null | head -1 || true)"
 [ -n "$kodi" ] || { echo "Kodi was not installed where expected"; exit 1; }
 "$kodi" &
 rpc() { curl -s -m 5 -u kodi:ci-secret -H 'Content-Type: application/json' -d "$1" http://127.0.0.1:8080/jsonrpc; }

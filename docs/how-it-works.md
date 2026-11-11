@@ -111,7 +111,7 @@ names come from, and how each player is read.
   in [SECURITY.md](../SECURITY.md#where-it-connects).
 - **Your stats** (General tab): how many videos were shown on Discord, how many were found in a catalog, how long they
   played and with which player. Numbers only, never titles, kept in `stats.json` on this computer; nothing is sent
-  anywhere. **Reset stats** starts over. (The download count at the top of this page is GitHub's public count of release
+  anywhere. **Reset stats** starts over. (The download count in the README is GitHub's public count of release
   downloads.)
 - **What's new.** After an update (and on a new install) the window shows the new version's changes once; the
   version number at the top shows every version's.

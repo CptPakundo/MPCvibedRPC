@@ -94,8 +94,6 @@ disconnects. If one stays anyway:
 - **A server player hasn't reported yet.** Plex, Jellyfin, Emby and Stremio learn that an app on another device was
   closed only when its reports stop or the server drops its session: a Plex player goes after 3 minutes without a
   report, a Jellyfin session that still says it plays after 5, a Stremio one after up to 4.
-- **An old version.** Versions before 0.9.40 could leave a status up when Discord answered slowly. Update (General >
-  Updates).
 
 ## The window doesn't open
 

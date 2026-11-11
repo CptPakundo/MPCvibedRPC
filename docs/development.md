@@ -7,12 +7,12 @@ The program is written in Go and uses only the standard library: one small file 
 running and about 3 MB while resting), no runtime, nothing to install. Building needs [Go 1.27+](https://go.dev/dl/) and no internet beyond that.
 
     go run ./tools/mkrsrc -version X.Y.Z -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso    (icon + version details, optional)
-    go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build from any OS (`GOOS=windows`).
 Discord's local protocol is implemented in `internal/discord`.
 
-The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w"
+The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=X.Y.Z"
 -o MPCvibedRPC-linux-amd64 ./cmd/mpcvibedrpc`). The macOS app is put together on a Mac by
 `tools/ci/package-macos.sh VERSION OUTDIR` (both processor types in one program, the app icon, an ad-hoc signature, a zip).
 
@@ -87,7 +87,7 @@ One row per package; the rules that go with them are in the repository's CLAUDE.
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `tools/downloads` | the project's own count of people who downloaded the program (the README shows GitHub's count): GitHub's counts of the program files since `baseline.json`, minus the ledger of development downloads (both on the `stats` branch, kept by `.github/workflows/downloads.yml`, which writes `downloads.json` and `summary.json`) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one; its downloads go into the ledger), `dev-download.sh` (every development download of a release file, recorded in the ledger), `version.sh`, `live-players.sh` (real players on CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one; its downloads go into the ledger), `dev-download.sh` (every development download of a release file, recorded in the ledger), `version.sh`, `lib.sh` (shared by the CI scripts: the test video, waiting for sockets), `reproduce.sh` (rebuilds the programs from a tag and compares them byte for byte), `live-players.sh` (real players on CI), `live-windows.sh` (real PotPlayer and Kodi on Windows CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
 | `docs/config.md` | every setting with its default |
 | `docs/` | the settings reference (`config.md`), how it works (`how-it-works.md`), troubleshooting (`troubleshooting.md`), the roadmap (`roadmap.md`), the decisions (`decisions.md`), how AI is used (`ai.md`), this file, the README's images (`images/`) and the player logos (`players/`) |
 
