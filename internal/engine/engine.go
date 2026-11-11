@@ -121,6 +121,7 @@ type Engine struct {
 	clearedAt  time.Time // when the status was last cleared: while nothing plays it is cleared again now and then
 	clearStuck bool      // the last clear failed (logged once until one works)
 	prev       *core.Prev
+	missed     bool // the last check got no answer from any player while a status was up (see tick)
 	live       bool // the status is in its stream form: Discord shares the screen (StreamTitle "auto")
 	resend     bool // the status must go out again although the player reports no change (a new connection, a cover that arrived, a send that failed)
 	basicMode  bool
@@ -267,7 +268,7 @@ func (e *Engine) start() {
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
 	e.lastError, e.nowPlaying, e.why = nil, nil, nil
-	e.resend, e.modeKey, e.sendFails, e.retryAt, e.live = false, "", 0, time.Time{}, false
+	e.resend, e.modeKey, e.sendFails, e.retryAt, e.live, e.missed = false, "", 0, time.Time{}, false, false
 	e.clearStuck, e.clearedAt = false, time.Time{}
 	e.recheckKey, e.recheckAt, e.rechecks = "", time.Time{}, 0
 	cfg := e.cfg

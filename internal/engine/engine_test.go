@@ -27,6 +27,7 @@ type mpc struct {
 	srv             *httptest.Server
 	port            int
 	asked           int // requests of any kind
+	skip            int // this many of the next requests get no answer (a player that is busy for a moment)
 }
 
 func newMPC(t *testing.T) *mpc {
@@ -35,6 +36,11 @@ func newMPC(t *testing.T) *mpc {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		m.asked++
+		if m.skip > 0 {
+			m.skip--
+			http.NotFound(w, r)
+			return
+		}
 		if m.down || r.URL.Path != "/variables.html" {
 			http.NotFound(w, r)
 			return

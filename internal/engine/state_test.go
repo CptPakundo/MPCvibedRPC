@@ -294,3 +294,28 @@ func TestStatusConverges(t *testing.T) {
 		})
 	}
 }
+
+// One check in which no player answers does not take the status down (a player that is busy for a moment); the
+// players are asked again at once, and only a second silent check clears it.
+func TestOneMissedAnswerKeepsTheStatus(t *testing.T) {
+	t.Parallel()
+	e, m, d, l := setup(t)
+	e.Start()
+	eventually(t, "a status", func() bool { return len(d.showing()) == 1 })
+	sent := len(d.list())
+	asked := func() (n int) { m.set(func(m *mpc) { n = m.asked }); return n }
+
+	before := asked()
+	m.set(func(m *mpc) { m.skip = 1 })
+	eventually(t, "the player asked again after the miss", func() bool { return asked() >= before+3 })
+	if n := len(d.list()); n != sent || len(d.showing()) != 1 {
+		t.Fatalf("one missed answer sent %d requests to Discord; it should change nothing", n-sent)
+	}
+	if l.has("No player reachable") || e.Status().NowPlaying == nil {
+		t.Errorf("one missed answer was taken for a closed player")
+	}
+
+	m.set(func(m *mpc) { m.skip = 4 })
+	eventually(t, "the status cleared after two silent checks", func() bool { return len(d.showing()) == 0 })
+	eventually(t, "the status back when the player answers again", func() bool { return len(d.showing()) == 1 })
+}
