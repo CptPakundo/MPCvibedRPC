@@ -149,7 +149,7 @@ func run() error {
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
 	if st.App().AutoStart {
-		engine.Go(a.log, "The run-at-login entry", func() { winsys.SetAutoStart(true, exe) })
+		engine.Go(a.log, "The run-at-login entry", func() { winsys.RefreshAutoStart(exe) })
 	}
 	if st.App().StartPresence {
 		a.eng.Start()
