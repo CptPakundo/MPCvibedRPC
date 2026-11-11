@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -102,6 +103,10 @@ type Net struct {
 	blocked func(host string) bool
 	// onLate, when set, is called after a LateMs request's answer arrived in the background and was cached.
 	onLate func()
+	// closed is set when the finder was replaced (the settings changed): nothing more is sent. A lookup that is
+	// still trying title after title would otherwise go on naming the title to services under the old settings,
+	// after the user hid it or switched a service off.
+	closed atomic.Bool
 
 	mu       sync.Mutex
 	cache    map[string]cacheEntry
@@ -153,6 +158,9 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 	}
 	if n.blocked != nil && n.blocked(hostOf(u)) {
 		return nil, &FetchError{Name: "Disabled", Msg: "turned off in the privacy settings"}
+	}
+	if n.closed.Load() {
+		return nil, &FetchError{Name: "Disabled", Msg: "the settings changed"}
 	}
 	var body io.Reader
 	if in.Body != "" {
