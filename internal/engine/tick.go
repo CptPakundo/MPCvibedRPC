@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -132,7 +133,7 @@ func (e *Engine) tick(r *run) {
 	e.notePlayer(info)
 
 	if !active || hidden {
-		e.clearWhenIdle(hidden, ended)
+		e.clearWhenIdle(r, hidden, ended)
 		return
 	}
 	e.hidden = false
@@ -144,11 +145,11 @@ func (e *Engine) tick(r *run) {
 	rpc := e.rpc
 	update := e.notePlayback(info, &cfg, now)
 	if !update && e.pausedLongEnough(info, &cfg, now) {
-		e.clearWhenPausedLong(rpc, cfg.PauseClearMinutes)
+		e.clearWhenPausedLong(r, rpc, cfg.PauseClearMinutes)
 		return
 	}
 	if update && now.Before(e.retryAt) {
-		e.prev = nil // Discord did not take the last status: this one waits its turn (sendUpdate) and stays due
+		e.resend = true // Discord did not take the last status: this one waits its turn (sendUpdate) and stays due
 		update = false
 	}
 	art := e.art
@@ -178,20 +179,34 @@ func (e *Engine) notePlayer(info *core.Info) {
 	}
 }
 
+// errStale is clearStatus's answer when the run ended while Discord was asked: nothing is booked or logged for it.
+var errStale = errors.New("the run has ended")
+
 // clearStatus asks Discord to take the status down and returns its answer. Called with e.mu released (Discord is
-// asked without it); it takes e.mu for the bookkeeping, sets clearedAt when Discord took the clear, runs result (if
-// not nil) with e.mu held, and releases e.mu before it returns. The caller logs.
-func (e *Engine) clearStatus(c *discord.Client, result func(err error)) error {
+// asked without it); it takes e.mu for the bookkeeping, sets clearedAt when Discord took the clear, runs result
+// with e.mu held, and releases e.mu before it returns. The caller logs. A run that ended meanwhile (r is no longer
+// the current one) books nothing: the state belongs to the next run by then, and errStale says so.
+func (e *Engine) clearStatus(r *run, c *discord.Client, result func(err error)) error {
 	err := c.ClearActivity()
 	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != r {
+		return errStale
+	}
 	if err == nil {
 		e.clearedAt = time.Now()
 	}
-	if result != nil {
-		result(err)
-	}
-	e.mu.Unlock()
+	result(err)
 	return err
+}
+
+// logClearResult logs a failed clear once until one works (clearStuck; e.mu released), and reports whether the
+// clear failed.
+func (e *Engine) logClearResult(err error, first bool) (failed bool) {
+	if err != nil && first {
+		e.logClearFailed(err)
+	}
+	return err != nil
 }
 
 // logClearFailed is the warning for a clear that Discord did not take.
@@ -202,7 +217,7 @@ func (e *Engine) logClearFailed(err error) {
 // clearWhenIdle is the tick when nothing plays, or the file is on the Never show list: it clears what is shown, and
 // while nothing plays it clears again now and then (reclearEvery), so a clear Discord missed, or a status it applied
 // although its answer never came, cannot stay up. Called with e.mu held; returns with it released.
-func (e *Engine) clearWhenIdle(hidden, ended bool) {
+func (e *Engine) clearWhenIdle(r *run, hidden, ended bool) {
 	var clear *discord.Client
 	shown := e.shown
 	if e.ready && (shown || time.Since(e.clearedAt) >= e.reclearEvery) {
@@ -212,14 +227,14 @@ func (e *Engine) clearWhenIdle(hidden, ended bool) {
 	failed := false
 	if clear != nil {
 		first := false
-		err := e.clearStatus(clear, func(err error) {
-			failed = err != nil
-			first = failed && !e.clearStuck
-			e.clearStuck = failed
+		err := e.clearStatus(r, clear, func(err error) {
+			first = err != nil && !e.clearStuck
+			e.clearStuck = err != nil
 		})
-		switch {
-		case first:
-			e.logClearFailed(err)
+		if err == errStale {
+			return
+		}
+		switch failed = e.logClearResult(err, first); {
 		case failed || !shown:
 		case hidden:
 			e.log("INFO", "This file is on your don't-show list - presence cleared.")
@@ -230,31 +245,43 @@ func (e *Engine) clearWhenIdle(hidden, ended bool) {
 		}
 	}
 	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != r {
+		return
+	}
 	e.hidden, e.paused = hidden, false
-	e.shown = shown && failed // a clear Discord did not take is tried again at the next check
-	e.prev, e.nowPlaying, e.preview = nil, nil, nil
+	// A clear Discord did not take is tried again at the next check, unless that connection is gone meanwhile: then
+	// Discord dropped the status with it.
+	e.shown = shown && failed && e.rpc == clear
+	e.prev, e.resend, e.nowPlaying, e.preview = nil, false, nil, nil
 	e.pausedSince, e.pauseCleared = time.Time{}, false
-	e.mu.Unlock()
+	e.lastError = nil // an error about a status that is no longer wanted says nothing any more
 }
 
 // notePlayback books what the player reports (a playing or paused video) and says whether the status must be sent
 // again. Called with e.mu held; returns with it held.
+//
+// Two things make a status due: the player reports a change (changed), or the same status must go out again (resend:
+// a new connection to Discord, a cover that arrived late, a send Discord did not take). Only a change by the player
+// restarts the pause clock and brings back a status that was cleared after a long pause: a Discord that restarts
+// must not put a status back that the user left cleared.
 func (e *Engine) notePlayback(info *core.Info, cfg *core.Config, now time.Time) (update bool) {
-	if e.pauseCleared && (cfg.PauseClearMinutes <= 0 || info.State != 1) {
-		// the setting was switched off, or playback resumed: show the status again
-		e.pauseCleared = false
-		e.prev = nil
-	}
-	update, next := core.NeedsUpdate(e.prev, info, now.UnixMilli())
+	changed, next := core.NeedsUpdate(e.prev, info, now.UnixMilli())
+	e.prev = next
+	update = changed || e.resend
+	e.resend = false
 	if !update && info.State == 2 && !e.recheckAt.IsZero() && now.After(e.recheckAt) && e.recheckKey == info.Player+"/"+info.File {
 		update = true // look the episode title up again (see after sending)
 		e.recheckAt = time.Time{}
 	}
-	e.prev = next
+	if e.pauseCleared {
+		// the setting was switched off, or playback resumed: show the status again. Otherwise it stays cleared.
+		update = changed || cfg.PauseClearMinutes <= 0 || info.State != 1
+	}
 	e.paused = info.State == 1
 	if info.State != 1 {
 		e.pausedSince = time.Time{}
-	} else if update || e.pausedSince.IsZero() {
+	} else if changed || e.pausedSince.IsZero() {
 		e.pausedSince = now // pausing, seeking or switching file restarts the wait
 	}
 	if update {
@@ -270,8 +297,9 @@ func (e *Engine) pausedLongEnough(info *core.Info, cfg *core.Config, now time.Ti
 
 // clearWhenPausedLong takes the status down after a long pause, until something changes. Called with e.mu held;
 // returns with it released.
-func (e *Engine) clearWhenPausedLong(rpc *discord.Client, minutes int) {
+func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 	var clear *discord.Client
+	preview := e.preview
 	if !e.pauseCleared {
 		e.pauseCleared = true
 		if e.shown {
@@ -284,13 +312,16 @@ func (e *Engine) clearWhenPausedLong(rpc *discord.Client, minutes int) {
 	if clear == nil {
 		return
 	}
-	err := e.clearStatus(clear, func(err error) {
-		if err != nil {
-			e.pauseCleared, e.shown = false, true // not cleared: the next check tries again
+	first := false
+	err := e.clearStatus(r, clear, func(err error) {
+		first = err != nil && !e.clearStuck
+		e.clearStuck = err != nil
+		if err != nil && e.rpc == clear {
+			// not cleared: the next check tries again, and the window goes on showing what Discord still shows
+			e.pauseCleared, e.shown, e.preview = false, true, preview
 		}
 	})
-	if err != nil {
-		e.logClearFailed(err)
+	if err == errStale || e.logClearResult(err, first) {
 		return
 	}
 	e.log("INFO", fmt.Sprintf("Paused for %d min - presence cleared (it returns when you resume).", minutes))
@@ -306,14 +337,20 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	if !e.isCurrent(r) {
 		return
 	}
-	sent, err := e.sendActivity(rpc, cfg, b.activity)
+	sent, err := e.sendActivity(rpc, cfg, b.activity, info.Player+"/"+info.File)
 	if err != nil {
 		msg := err.Error()
 		e.mu.Lock()
+		if e.cur != r {
+			e.mu.Unlock() // the run ended while Discord was asked (its connection was closed): not the next run's error
+			return
+		}
 		again := e.lastError != nil && *e.lastError == msg
 		e.lastError = &msg
-		e.prev = nil
-		e.shown = true // Discord may have applied it although its answer did not come: it must be cleared later
+		e.resend = true
+		if e.rpc == rpc {
+			e.shown = true // Discord may have applied it although its answer did not come: it must be cleared later
+		}
 		wait := e.retryAfter << min(e.sendFails, 4)
 		e.sendFails++
 		e.retryAt = time.Now().Add(min(wait, 12*e.retryAfter))
@@ -323,14 +360,19 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 		}
 		return
 	}
-	e.recordShown(info, cfg, b, sent)
-	e.logShown(info, cfg, b)
+	if e.recordShown(r, info, cfg, b, sent) {
+		e.logShown(info, cfg, b)
+	}
 }
 
 // recordShown books a status Discord took: what is shown, the stats, and when to look an episode title up again.
-// Called with e.mu released (it takes it itself).
-func (e *Engine) recordShown(info *core.Info, cfg *core.Config, b built, sent *core.Activity) {
+// Called with e.mu released (it takes it itself). It books nothing, and says so, when the run ended meanwhile.
+func (e *Engine) recordShown(r *run, info *core.Info, cfg *core.Config, b built, sent *core.Activity) bool {
 	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != r {
+		return false
+	}
 	e.shown = true
 	e.lastError = nil
 	e.sendFails, e.retryAt = 0, time.Time{}
@@ -353,7 +395,7 @@ func (e *Engine) recordShown(info *core.Info, cfg *core.Config, b built, sent *c
 	e.why = b.why
 	e.paused = info.State == 1
 	e.preview = core.PreviewOf(sent, cfg) // what Discord actually got (the basic fallback carries less)
-	e.mu.Unlock()
+	return true
 }
 
 // logShown logs what was sent. Called with e.mu released.

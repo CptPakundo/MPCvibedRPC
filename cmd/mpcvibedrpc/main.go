@@ -116,8 +116,14 @@ func pingExisting(ipcFile string) *ipcInfo {
 	defer res.Body.Close()
 	var p struct {
 		App string `json:"app"`
+		Pid int    `json:"pid"`
 	}
 	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&p) != nil || p.App != "MPCvibedRPC" {
+		return nil
+	}
+	// A file left by a copy that crashed can name a port that another copy (one with its own data folder) answers on
+	// now: that is not ours to hand over to.
+	if p.Pid != 0 && info.Pid != 0 && p.Pid != info.Pid {
 		return nil
 	}
 	return &info

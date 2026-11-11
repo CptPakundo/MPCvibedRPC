@@ -24,6 +24,7 @@ type approval struct {
 	shown   string     // what the window shows meanwhile: the page to approve it on, or the code
 	problem string     // why the last sign-in did not work
 	cancel  context.CancelFunc
+	cur     context.Context // the sign-in that owns the state above (nil: none)
 }
 
 // begin starts waiting for an approval of shown, for at most limit; a sign-in still waiting is replaced.
@@ -33,7 +34,20 @@ func (a *approval) begin(limit time.Duration, shown string) (context.Context, co
 	if a.cancel != nil {
 		a.cancel()
 	}
-	a.cancel, a.waiting, a.shown, a.problem = cancel, true, shown, ""
+	a.cancel, a.cur, a.waiting, a.shown, a.problem = cancel, ctx, true, shown, ""
+	a.mu.Unlock()
+	return ctx, cancel
+}
+
+// during registers a sign-in that does not wait for an approval (a password sent to the server): like begin it
+// replaces a sign-in that waits, and a sign-out or a newer sign-in cancels it, but the window shows no waiting.
+func (a *approval) during(limit time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	a.mu.Lock()
+	if a.cancel != nil {
+		a.cancel()
+	}
+	a.cancel, a.cur, a.waiting, a.shown = cancel, ctx, false, ""
 	a.mu.Unlock()
 	return ctx, cancel
 }
@@ -43,9 +57,12 @@ func (a *approval) begin(limit time.Duration, shown string) (context.Context, co
 func (a *approval) finish(ctx context.Context, problem string, log func(level, msg string)) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if ctx.Err() == context.Canceled {
+	// Not by the context's error: a sign-in whose time ran out is not "cancelled" by the newer one that replaces it,
+	// and would write its "not approved in time" over the newer one's state.
+	if a.cur != ctx {
 		return
 	}
+	a.cur = nil
 	a.waiting, a.shown, a.problem = false, "", problem
 	if problem != "" {
 		log("WARN", problem)
@@ -58,6 +75,7 @@ func (a *approval) end() {
 		a.cancel()
 		a.cancel = nil
 	}
+	a.cur = nil
 	a.waiting, a.shown = false, ""
 }
 

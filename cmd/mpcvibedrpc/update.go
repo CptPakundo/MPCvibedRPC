@@ -94,25 +94,35 @@ func (a *app) autoInstall() bool {
 	if !a.upd.auto.CompareAndSwap(false, true) {
 		return true // already waiting
 	}
+	quiet := func() bool { return quietMoment(a.windows.Load(), a.eng.Status()) }
 	engine.Go(a.log, "The automatic update", func() {
 		defer a.upd.auto.Store(false)
-		for !quietMoment(a.windows.Load(), a.eng.Status()) {
-			time.Sleep(autoWait)
-			if !enabled() {
-				return // switched off meanwhile, or installed by hand
+		for {
+			for !quiet() {
+				time.Sleep(autoWait)
+				if !enabled() {
+					return // switched off meanwhile, or installed by hand
+				}
 			}
-		}
-		i := a.upd.newer()
-		if i == nil {
-			return // gone meanwhile: a check found nothing newer, or the settings were restored
-		}
-		latest := i.Latest
-		a.log("INFO", "Installing "+latest+" by itself (Install updates automatically is on).")
-		marker := filepath.Join(a.st.Dir, autoMarker)
-		_ = os.WriteFile(marker, []byte(version), 0o644)
-		if err := a.installUpdate(); err != nil {
+			i := a.upd.newer()
+			if i == nil {
+				return // gone meanwhile: a check found nothing newer, or the settings were restored
+			}
+			latest := i.Latest
+			a.log("INFO", "Installing "+latest+" by itself (Install updates automatically is on).")
+			marker := filepath.Join(a.st.Dir, autoMarker)
+			_ = os.WriteFile(marker, []byte(version), 0o644)
+			err := a.installUpdate(quiet)
+			if err == nil {
+				return
+			}
 			_ = os.Remove(marker)
+			if errors.Is(err, errNotQuiet) {
+				a.log("INFO", "Something started while "+latest+" was downloaded: the update waits for the next quiet moment.")
+				continue
+			}
 			a.log("WARN", "The automatic update to "+latest+" failed: "+err.Error()+" The next check tries again.")
+			return
 		}
 	})
 	return true
@@ -137,13 +147,13 @@ func takeAutoMarker(dir string) string {
 // known), then every six hours. A copy started at login may have no network yet, so a failed first check is tried
 // again a minute later.
 func (a *app) scheduleUpdateChecks() {
-	time.AfterFunc(5*time.Second, func() {
+	engine.Go(a.log, "The first update check", func() {
+		time.Sleep(5 * time.Second)
 		if _, err := a.checkUpdates(false); err != nil {
-			time.AfterFunc(time.Minute, func() {
-				if _, err := a.checkUpdates(false); err != nil {
-					a.log("WARN", "Update check failed: "+err.Error())
-				}
-			})
+			time.Sleep(time.Minute)
+			if _, err := a.checkUpdates(false); err != nil {
+				a.log("WARN", "Update check failed: "+err.Error())
+			}
 		}
 	})
 	engine.Go(a.log, "The update check", func() {
@@ -153,8 +163,13 @@ func (a *app) scheduleUpdateChecks() {
 	})
 }
 
-// installUpdate downloads the newer version, swaps it in and restarts into it.
-func (a *app) installUpdate() error {
+// errNotQuiet is installUpdate's answer when the moment stopped being quiet while the update was downloaded.
+var errNotQuiet = errors.New("Something is being shown now.")
+
+// installUpdate downloads the newer version, swaps it in and restarts into it. An update that installs itself passes
+// quiet, which is asked again once the download is there (it can take minutes on a slow line): a status that went up
+// meanwhile, or a window that was opened, is not interrupted (errNotQuiet). An install by hand passes nil.
+func (a *app) installUpdate(quiet func() bool) error {
 	if !a.upd.installing.CompareAndSwap(false, true) {
 		return errors.New("An update is already being installed.")
 	}
@@ -179,6 +194,10 @@ func (a *app) installUpdate() error {
 	if err != nil {
 		return err
 	}
+	if quiet != nil && !quiet() {
+		_ = os.Remove(next)
+		return errNotQuiet
+	}
 	wasRunning := a.eng.Status().Running
 	a.eng.Stop()
 	a.log("INFO", "Update downloaded; restarting.")
@@ -195,9 +214,11 @@ func (a *app) installUpdate() error {
 	})
 	if err != nil {
 		a.log("ERROR", "Update failed: "+err.Error())
-		a.writeIPC(a.srv.Port())
-		if wasRunning {
-			a.eng.Start()
+		if !a.quitting.Load() { // a quit that began meanwhile has closed the server and stopped the engine for good
+			a.writeIPC(a.srv.Port())
+			if wasRunning {
+				a.eng.Start()
+			}
 		}
 		return err
 	}
