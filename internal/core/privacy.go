@@ -133,7 +133,7 @@ func HiddenActivity(info *Info, cfg *Config, now int64) *Activity {
 	}
 	c := *cfg
 	c.TitleAsName, c.RichInfo, c.LinkButton, c.EpisodeInDetails, c.CatalogTitle, c.ShowArtwork = false, false, false, false, false, false
-	c.StreamTitle = false // a hidden title names nothing, on a stream either
+	c.StreamTitle = "off" // a hidden title names nothing, on a stream either
 	plain := &Info{File: "video", State: info.State, Position: info.Position, Duration: info.Duration, Rate: info.Rate}
 	a := BuildActivity(plain, &c, now, nil, nil)
 	if a == nil {

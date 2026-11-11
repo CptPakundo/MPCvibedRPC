@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
@@ -45,9 +46,27 @@ func (a *app) selfCheck(*jsonx.Obj) (any, error) {
 	items := discordLines(a.eng.DiscordRunning(), a.eng.Status())
 	wg.Wait()
 	items = append(items, playerLines(players, runtime.GOOS)...)
+	items = append(items, streamLine(cfg.StreamTitle, capture.Supported(), capture.DiscordSharing()))
 	items = append(items, covers...)
 	items = append(items, updates...)
 	return map[string]any{"items": items}, nil
+}
+
+// streamLine says what "Show the title on my streams" does here: whether this system can tell when Discord shares the
+// screen, and whether it does so now.
+func streamLine(mode string, supported, sharing bool) checkItem {
+	line := func(state, text string) checkItem { return checkItem{"Streams", state, text} }
+	switch {
+	case mode == "always":
+		return line("info", "The title is shown on your streams all the time (your status reads Playing).")
+	case mode != "auto":
+		return line("info", "Show the title on my streams is off.")
+	case !supported:
+		return line("info", "This system cannot tell when Discord shares your screen, so the title is not shown on streams. Choose Always (Look tab) to show it.")
+	case sharing:
+		return line("ok", "Discord is sharing your screen now: your status is sent as Playing, so the stream is named after the title.")
+	}
+	return line("ok", "Discord is not sharing your screen now. When it does, the stream is named after the title.")
 }
 
 // discordLines says whether Discord's app is there and what the engine knows of the connection.

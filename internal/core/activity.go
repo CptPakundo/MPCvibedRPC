@@ -201,9 +201,11 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	}
 
 	// StreamTitle: Discord labels a screen share with the streamer's Playing activity (its name), and with no other
-	// kind. So that setting sends "Playing <title>", laid out like the Playing style with the title as the name.
-	watching := cfg.ActivityType != "playing" && !cfg.StreamTitle
-	titleInName := (watching && cfg.TitleAsName) || cfg.StreamTitle
+	// kind. So the stream form is "Playing <title>", laid out like the Playing style with the title as the name. It is
+	// built for "always"; the engine turns "auto" into "always" while Discord shares the screen, and into "off" else.
+	stream := cfg.StreamTitle == "always"
+	watching := cfg.ActivityType != "playing" && !stream
+	titleInName := (watching && cfg.TitleAsName) || stream
 	title := chooseTitle(media, cfg, art)
 
 	a := &Activity{Instance: false}

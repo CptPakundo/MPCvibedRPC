@@ -78,6 +78,7 @@ const (
 	cmdToggle           = 2
 	cmdQuit             = 3
 	cmdHide             = 4
+	cmdStream           = 5
 	timerID             = 1
 	className           = "MPCvibedRPC.Tray"
 )
@@ -311,6 +312,13 @@ func (t *Tray) showMenu() {
 		}
 		pAppendMenu.Call(menu, flags, cmdHide, uintptr(unsafe.Pointer(utf16Ptr("Hide what I'm watching"))))
 	}
+	if t.o.OnStream != nil {
+		flags := uintptr(mfString)
+		if t.o.Streams != nil && t.o.Streams() {
+			flags |= mfChecked
+		}
+		pAppendMenu.Call(menu, flags, cmdStream, uintptr(unsafe.Pointer(utf16Ptr("Show the title on my streams"))))
+	}
 	pAppendMenu.Call(menu, mfSeparator, 0, 0)
 	pAppendMenu.Call(menu, mfString, cmdQuit, uintptr(unsafe.Pointer(utf16Ptr("Quit"))))
 	pSetMenuDefaultItem.Call(menu, cmdOpen, 0)
@@ -332,6 +340,8 @@ func (t *Tray) command(id uintptr) {
 		f = t.o.OnQuit
 	case cmdHide:
 		f = t.o.OnHide
+	case cmdStream:
+		f = t.o.OnStream
 	}
 	if f != nil {
 		go f() // never block the message loop on the app's work

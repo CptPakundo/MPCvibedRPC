@@ -12,6 +12,8 @@ type TrayOptions struct {
 	OnToggle func()
 	Hidden   func() bool // whether "Hide what I'm watching" is on (its menu item is ticked)
 	OnHide   func()      // switches "Hide what I'm watching" over
+	Streams  func() bool // whether "Show the title on my streams" is on (its menu item is ticked)
+	OnStream func()      // switches "Show the title on my streams" over
 	OnQuit   func()
 	Log      func(level, msg string)
 }

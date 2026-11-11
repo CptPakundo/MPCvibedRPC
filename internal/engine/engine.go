@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
+	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
 	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
@@ -62,6 +63,11 @@ type Options struct {
 	MinPoll      time.Duration
 	ReclearEvery time.Duration
 	RecheckAfter []float64
+	// Sharing reports whether Discord is sharing the screen right now (nil: capture.DiscordSharing, Windows' own
+	// record). WatchSharing calls its function when that may have changed, until the context ends (nil:
+	// capture.Watch). Tests replace both, so that no test reads this computer's record.
+	Sharing      func() bool
+	WatchSharing func(ctx context.Context, changed func())
 	// RetryAfter is how long the engine waits before it sends a status again after Discord did not take one (5 s; it
 	// doubles up to a minute while Discord keeps failing).
 	RetryAfter time.Duration
@@ -115,6 +121,7 @@ type Engine struct {
 	clearedAt  time.Time // when the status was last cleared: while nothing plays it is cleared again now and then
 	clearStuck bool      // the last clear failed (logged once until one works)
 	prev       *core.Prev
+	live       bool // the status is in its stream form: Discord shares the screen (StreamTitle "auto")
 	resend     bool // the status must go out again although the player reports no change (a new connection, a cover that arrived, a send that failed)
 	basicMode  bool
 	modeKey    string // the file basicMode and noLinks were found out for: the next file is tried in full again
@@ -196,6 +203,29 @@ func New(cfg core.Config, opts Options) *Engine {
 	return e
 }
 
+// sharing and watchSharing are Options.Sharing and Options.WatchSharing, or what they stand for.
+func (e *Engine) sharing() bool {
+	if e.opts.Sharing != nil {
+		return e.opts.Sharing()
+	}
+	return defaultSharing()
+}
+
+func (e *Engine) watchSharing(ctx context.Context, changed func()) {
+	if e.opts.WatchSharing != nil {
+		e.opts.WatchSharing(ctx, changed)
+		return
+	}
+	defaultWatchSharing(ctx, changed)
+}
+
+// defaultSharing and defaultWatchSharing read Windows' record of Discord's screen capture. Variables only so that the
+// package's tests can put stand-ins there once, before any test runs: no test reads this computer's record.
+var (
+	defaultSharing      = capture.DiscordSharing
+	defaultWatchSharing = capture.Watch
+)
+
 // Config returns the settings the engine is using.
 func (e *Engine) Config() core.Config {
 	e.mu.Lock()
@@ -237,7 +267,7 @@ func (e *Engine) start() {
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
 	e.lastError, e.nowPlaying, e.why = nil, nil, nil
-	e.resend, e.modeKey, e.sendFails, e.retryAt = false, "", 0, time.Time{}
+	e.resend, e.modeKey, e.sendFails, e.retryAt, e.live = false, "", 0, time.Time{}, false
 	e.clearStuck, e.clearedAt = false, time.Time{}
 	e.recheckKey, e.recheckAt, e.rechecks = "", time.Time{}, 0
 	cfg := e.cfg
@@ -253,6 +283,10 @@ func (e *Engine) start() {
 	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
 	go e.loop(r, e.pollInterval(cfg)) // recovers from a panic in a check itself
 	Go(e.log, "The player watch", func() { e.watchPlayers(r) })
+	if cfg.StreamTitle == "auto" {
+		// a stream that begins or ends shows at once, not at the next check
+		Go(e.log, "The screen share watch", func() { e.watchSharing(r.ctx, e.Wake) })
+	}
 }
 
 // Stop clears the presence (waiting at most 1.5 s for Discord) and disconnects.

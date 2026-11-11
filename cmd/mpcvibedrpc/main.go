@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
 	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
 	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
 	"github.com/CptPakundo/MPCvibedRPC/internal/store"
@@ -161,6 +162,36 @@ func applySettings(st *store.Store, eng *engine.Engine) {
 }
 
 // setHideTitle switches "Hide what I'm watching" from the tray or the menu bar, saved like a switch in the window.
+// streamTitleOn says whether the setting does anything on this system: "auto" only where the program can tell when
+// Discord shares the screen.
+func streamTitleOn(mode string) bool {
+	return mode == "always" || (mode == "auto" && capture.Supported())
+}
+
+// setStreamTitle switches "Show the title on my streams" from the menu, between the two values this system's window
+// offers: by itself while Discord shares the screen and never, where that can be told; all the time and never (which
+// "auto" is there) elsewhere.
+func setStreamTitle(st *store.Store, eng *engine.Engine, log func(level, msg string), on bool) {
+	supported := capture.Supported()
+	mode := "auto" // by itself where the program can tell; never where it cannot
+	switch {
+	case on && !supported:
+		mode = "always"
+	case !on && supported:
+		mode = "off"
+	}
+	if err := st.SetSettings(map[string]any{"streamTitle": mode}); err != nil {
+		log("ERROR", "Could not save Show the title on my streams: "+err.Error())
+		return
+	}
+	applySettings(st, eng)
+	if on {
+		log("INFO", "Show the title on my streams turned on from the menu.")
+	} else {
+		log("INFO", "Show the title on my streams turned off from the menu.")
+	}
+}
+
 func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg string), on bool) {
 	if err := st.SetSettings(map[string]any{"hideTitle": on}); err != nil {
 		log("ERROR", "Could not save Hide what I'm watching: "+err.Error())

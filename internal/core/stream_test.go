@@ -11,7 +11,7 @@ import (
 func TestStreamTitleIsAPlayingActivityNamedAfterTheTitle(t *testing.T) {
 	for _, style := range []string{"watching", "playing"} {
 		cfg := DefaultConfig()
-		cfg.ActivityType, cfg.StreamTitle = style, true
+		cfg.ActivityType, cfg.StreamTitle = style, "always"
 		info := &Info{File: "Sample.Show.S01E02.mkv", State: 2, Position: 600000, Duration: 2700000, Rate: 1}
 		a := BuildActivity(info, &cfg, 1_700_000_000_000, nil, nil)
 		if a == nil {
@@ -48,7 +48,7 @@ func TestStreamTitleIsAPlayingActivityNamedAfterTheTitle(t *testing.T) {
 
 func TestStreamTitleOfAFilm(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.StreamTitle = true
+	cfg.StreamTitle = "always"
 	info := &Info{File: "Sample Movie (2020).mkv", State: 2, Position: 1000, Duration: 6000000, Rate: 1}
 	a := BuildActivity(info, &cfg, 1_700_000_000_000, nil, nil)
 	if a == nil || a.Type != 0 || a.Name != "Sample Movie" || a.Details != "2020" {
@@ -56,12 +56,20 @@ func TestStreamTitleOfAFilm(t *testing.T) {
 	}
 }
 
-// Off, which is the default, changes nothing: the title is the name only in the Watching style.
-func TestStreamTitleIsOffByDefault(t *testing.T) {
+// The default is "auto": the stream form only while Discord shares the screen, which the engine finds out. On its own
+// "auto" builds the usual status, and so does "off": the title is the name only in the Watching style.
+func TestStreamTitleIsAutomaticByDefault(t *testing.T) {
 	cfg := DefaultConfig()
-	if cfg.StreamTitle {
-		t.Fatal("the stream title changes how the status reads, so it is off until the user turns it on")
+	if cfg.StreamTitle != "auto" {
+		t.Fatalf("the default is %q, want auto: the status changes only while a stream is on", cfg.StreamTitle)
 	}
+	for _, mode := range []string{"auto", "off", "", "something else"} {
+		cfg.StreamTitle = mode
+		if a := BuildActivity(&Info{File: "Sample.Show.S01E02.mkv", State: 2, Position: 600000, Duration: 2700000, Rate: 1}, &cfg, 1_700_000_000_000, nil, nil); a.Type != 3 {
+			t.Errorf("%q builds type %d, want the Watching status", mode, a.Type)
+		}
+	}
+	cfg.StreamTitle = "auto"
 	info := &Info{File: "Sample.Show.S01E02.mkv", State: 2, Position: 600000, Duration: 2700000, Rate: 1}
 	if a := BuildActivity(info, &cfg, 1_700_000_000_000, nil, nil); a.Type != 3 || a.Name != "Sample Show" {
 		t.Errorf("watching: type=%d name=%q", a.Type, a.Name)
@@ -75,7 +83,7 @@ func TestStreamTitleIsOffByDefault(t *testing.T) {
 // A hidden title is hidden on a stream too: the status keeps its style and names nothing.
 func TestHiddenActivityIgnoresTheStreamTitle(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.StreamTitle = true
+	cfg.StreamTitle = "always"
 	info := &Info{File: "Very.Private.Show.S03E04.mkv", State: 2, Position: 600000, Duration: 2700000, Rate: 1}
 	a := HiddenActivity(info, &cfg, 1_700_000_000_000)
 	if a == nil || a.Type != 3 || a.Name != "" {

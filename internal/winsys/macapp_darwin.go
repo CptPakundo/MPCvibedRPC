@@ -14,10 +14,10 @@ package winsys
 #include <stdlib.h>
 
 static NSStatusItem *item;
-static NSMenuItem *statusLine, *toggleItem, *hideItem;
+static NSMenuItem *statusLine, *toggleItem, *hideItem, *streamItem;
 static NSWindow *window;
 static WKWebView *web;
-static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit, 4 hide what is watched
+static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit, 4 hide what is watched, 5 the title on streams
 
 @interface MRController : NSObject <NSApplicationDelegate, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate>
 @end
@@ -128,13 +128,14 @@ static void macTrayCreate(const void *png, int len, const char *tip) {
 		menuItem(m, @"Open settings", @",", 1);
 		toggleItem = menuItem(m, @"Stop showing on Discord", @"", 2);
 		hideItem = menuItem(m, @"Hide what I'm watching", @"", 4);
+		streamItem = menuItem(m, @"Show the title on my streams", @"", 5);
 		[m addItem:[NSMenuItem separatorItem]];
 		menuItem(m, @"Quit MPCvibedRPC", @"q", 3);
 		item.menu = m;
 	});
 }
 
-static void macTraySetState(const char *tip, int running, int hidden) {
+static void macTraySetState(const char *tip, int running, int hidden, int streams) {
 	NSString *text = [NSString stringWithUTF8String:tip];
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (!item) return;
@@ -142,6 +143,7 @@ static void macTraySetState(const char *tip, int running, int hidden) {
 		statusLine.title = text;
 		toggleItem.title = running ? @"Stop showing on Discord" : @"Show on Discord";
 		hideItem.state = hidden ? NSControlStateValueOn : NSControlStateValueOff;
+		streamItem.state = streams ? NSControlStateValueOn : NSControlStateValueOff;
 	});
 }
 
@@ -245,17 +247,17 @@ type Tray struct {
 }
 
 // StartTray puts the icon in the menu bar. Its menu shows the status, Open settings, Show on Discord / Stop showing on Discord,
-// Hide what I'm watching and Quit.
+// Hide what I'm watching, Show the title on my streams and Quit.
 func StartTray(o TrayOptions) *Tray {
 	t := &Tray{o: o, stop: make(chan struct{})}
 	icon := menuBarIcon(36, t.badge())
 	p := C.CBytes(icon)
 	defer C.free(p)
-	tip, running, hidden := t.state()
-	c := C.CString(tip)
+	st := t.state()
+	c := C.CString(st.tip)
 	defer C.free(unsafe.Pointer(c))
 	C.macTrayCreate(p, C.int(len(icon)), c)
-	t.push(tip, running, hidden)
+	t.push(st)
 	go t.loop()
 	return t
 }
@@ -270,39 +272,47 @@ func (t *Tray) setIcon(dot bool) {
 	C.macTraySetImage(p, C.int(len(icon)))
 }
 
-func (t *Tray) state() (string, bool, bool) {
-	tip, running, hidden := "MPCvibedRPC", false, false
-	if t.o.Tooltip != nil {
-		tip = t.o.Tooltip()
-	}
-	if t.o.Running != nil {
-		running = t.o.Running()
-	}
-	if t.o.Hidden != nil {
-		hidden = t.o.Hidden()
-	}
-	return tip, running, hidden
+// menuState is what the menu shows: the status line and the three things its items say or tick.
+type menuState struct {
+	tip                      string
+	running, hidden, streams bool
 }
 
-func (t *Tray) push(tip string, running, hidden bool) {
-	c := C.CString(tip)
+func (t *Tray) state() menuState {
+	st := menuState{tip: "MPCvibedRPC"}
+	if t.o.Tooltip != nil {
+		st.tip = t.o.Tooltip()
+	}
+	if t.o.Running != nil {
+		st.running = t.o.Running()
+	}
+	if t.o.Hidden != nil {
+		st.hidden = t.o.Hidden()
+	}
+	if t.o.Streams != nil {
+		st.streams = t.o.Streams()
+	}
+	return st
+}
+
+func (t *Tray) push(st menuState) {
+	c := C.CString(st.tip)
 	defer C.free(unsafe.Pointer(c))
-	r := C.int(0)
-	if running {
-		r = 1
+	flag := func(on bool) C.int {
+		if on {
+			return 1
+		}
+		return 0
 	}
-	h := C.int(0)
-	if hidden {
-		h = 1
-	}
-	C.macTraySetState(c, r, h)
+	C.macTraySetState(c, flag(st.running), flag(st.hidden), flag(st.streams))
 }
 
 // loop hands menu commands to the program and keeps the status line current.
 func (t *Tray) loop() {
 	tick := time.NewTicker(250 * time.Millisecond) // menu commands wait at most this long; the status refreshes every fourth tick
 	defer tick.Stop()
-	lastTip, lastRunning, lastHidden, n := "", false, false, 0
+	var last menuState
+	n := 0
 	lastBadge := t.badge()
 	for {
 		select {
@@ -320,6 +330,8 @@ func (t *Tray) loop() {
 			f = t.o.OnQuit
 		case 4:
 			f = t.o.OnHide
+		case 5:
+			f = t.o.OnStream
 		}
 		if f != nil {
 			go f()
@@ -327,9 +339,9 @@ func (t *Tray) loop() {
 		}
 		if n++; n >= 4 {
 			n = 0
-			if tip, running, hidden := t.state(); tip != lastTip || running != lastRunning || hidden != lastHidden {
-				lastTip, lastRunning, lastHidden = tip, running, hidden
-				t.push(tip, running, hidden)
+			if st := t.state(); st != last {
+				last = st
+				t.push(st)
 			}
 			if b := t.badge(); b != lastBadge {
 				lastBadge = b

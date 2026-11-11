@@ -69,7 +69,7 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, at t
 		// a song: shown as it is named, as "Listening to"; never sent to the movie and TV catalogs
 		media := core.MusicMedia(info.File)
 		c := *cfg
-		c.StreamTitle = false // a song stays "Listening to": the stream title is for videos
+		c.StreamTitle = "off" // a song stays "Listening to": the stream title is for videos
 		b.activity = core.BuildActivity(info, &c, at.UnixMilli(), media, nil)
 		core.Listening(b.activity)
 		b.display = media.Display
@@ -124,6 +124,15 @@ func (e *Engine) tick(r *run) {
 	ended := endedAt(info)
 	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2) && !ended
 	hidden := active && (core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles) || hiddenWhere(info.Where, cfg.HideFiles))
+	// "auto": the stream form of the status while Discord shares the screen, the usual one otherwise
+	live := false
+	if cfg.StreamTitle == "auto" {
+		live = active && !hidden && !cfg.HideTitle && e.sharing() // a hidden title has no stream form
+		cfg.StreamTitle = "off"
+		if live {
+			cfg.StreamTitle = "always"
+		}
+	}
 
 	e.mu.Lock()
 	if e.cur != r {
@@ -147,6 +156,21 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 	rpc := e.rpc
+	if live != e.live {
+		// a stream began or ended: the same file goes out again in the other form
+		e.live, e.resend = live, true
+		word := "ended: the usual status is back."
+		if live {
+			word = "began: the status is sent as Playing, so Discord names the stream after the title."
+		}
+		e.mu.Unlock()
+		e.log("INFO", "Discord's screen share "+word)
+		e.mu.Lock()
+		if e.cur != r {
+			e.mu.Unlock()
+			return
+		}
+	}
 	update := e.notePlayback(info, &cfg, now)
 	if !update && e.pausedLongEnough(info, &cfg, now) {
 		e.clearWhenPausedLong(r, rpc, cfg.PauseClearMinutes)
