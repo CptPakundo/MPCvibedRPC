@@ -125,7 +125,7 @@ func ToInfo(props map[string]any) *core.Info {
 		i := strings.LastIndex(filePath, "/")
 		dir, file = filePath[:i], filePath[i+1:]
 	} else if file == "" {
-		file = link // a stream without a title: its address is the best name there is
+		file = core.StreamName(link) // a stream without a title: its address is the best name there is, without a signed query
 	}
 	pos, _ := number(props["Position"])
 	dur, _ := number(meta["mpris:length"])

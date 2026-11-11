@@ -89,7 +89,9 @@ var (
 	found     []uintptr
 	path      string // the path PotPlayer sent back (WM_COPYDATA)
 	gotPath   bool
-	noPath    = map[uintptr]bool{} // windows that did not send the path when asked (an older PotPlayer): not asked again
+	// noPath holds, per window, the window text at the time it did not send the path when asked (an older PotPlayer,
+	// or one still loading). The window is not asked again while it shows the same text; a new file changes the text.
+	noPath = map[uintptr]string{}
 )
 
 func setup() {
@@ -144,6 +146,16 @@ func Query() []*core.Info {
 	setupOnce.Do(setup)
 	found = nil
 	pEnumWindows.Call(enumCB, 0)
+	// handles are reused by Windows: forget the windows that are gone
+	open := make(map[uintptr]bool, len(found))
+	for _, hwnd := range found {
+		open[hwnd] = true
+	}
+	for hwnd := range noPath {
+		if !open[hwnd] {
+			delete(noPath, hwnd)
+		}
+	}
 	if len(found) == 0 {
 		return nil
 	}
@@ -165,7 +177,8 @@ func Query() []*core.Info {
 		pos, _ := ask(hwnd, getCurrentTime, 0)
 		speed, _ := ask(hwnd, getSpeed, 0)
 		path, gotPath = "", false
-		if reply != 0 && status != 0 && !noPath[hwnd] {
+		text := windowText(hwnd)
+		if missedAt, missed := noPath[hwnd]; reply != 0 && status != 0 && !(missed && missedAt == text) {
 			ask(hwnd, getFileName, reply)
 			for end := time.Now().Add(200 * time.Millisecond); !gotPath && time.Now().Before(end); {
 				var m msg // a copy sent after the answer is handled here
@@ -173,9 +186,13 @@ func Query() []*core.Info {
 					time.Sleep(10 * time.Millisecond)
 				}
 			}
-			noPath[hwnd] = !gotPath
+			if gotPath {
+				delete(noPath, hwnd)
+			} else {
+				noPath[hwnd] = text
+			}
 		}
-		out = append(out, info(status, pos, dur, speed, path, windowText(hwnd)))
+		out = append(out, info(status, pos, dur, speed, path, text))
 	}
 	return out
 }

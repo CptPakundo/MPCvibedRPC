@@ -97,8 +97,12 @@ func toInfo(got map[string]reply) *core.Info {
 	file, filePath, dir := str(got, "filename"), "", ""
 	if i := strings.Index(path, "://"); i > 0 && !strings.HasPrefix(strings.ToLower(path), "file://") {
 		// a stream: the title is the best name there is, and there is no folder
-		if t := str(got, "media-title"); t != "" {
+		// mpv's media-title falls back to filename (the address's last part, query included) when the stream has no
+		// title tag; that is not a title, so its query is cut. A different media-title is a real one and stays as is.
+		if t := str(got, "media-title"); t != "" && t != file {
 			file = t
+		} else {
+			file = core.StreamName(file)
 		}
 	} else {
 		filePath = strings.TrimPrefix(path, "file://")

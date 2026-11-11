@@ -88,6 +88,15 @@ func TestToInfo(t *testing.T) {
 	if in.File != "https://example.com/v.mp4" {
 		t.Errorf("untitled stream: %+v", in)
 	}
+	// a signed address without a title shows no token; a title keeps its question mark
+	in = ToInfo(map[string]any{"PlaybackStatus": "Playing", "Metadata": meta("xesam:url", "https://example.com/v.mp4?token=abc123#t=5")})
+	if in.File != "https://example.com/v.mp4" {
+		t.Errorf("signed untitled stream: %+v", in)
+	}
+	in = ToInfo(map[string]any{"PlaybackStatus": "Playing", "Metadata": meta("xesam:url", "https://example.com/v.mp4?token=abc123", "xesam:title", "Sample Movie (2020)?")})
+	if in.File != "Sample Movie (2020)?" {
+		t.Errorf("titled stream: %+v", in)
+	}
 	// a title without a URL (some players leave the URL out)
 	in = ToInfo(map[string]any{"PlaybackStatus": "Playing", "Metadata": meta("xesam:title", "Sample Show S01E03")})
 	if in.File != "Sample Show S01E03" || in.State != 2 {

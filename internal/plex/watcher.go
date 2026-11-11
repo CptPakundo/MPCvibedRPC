@@ -232,6 +232,9 @@ func quoted(name string) string {
 	return ` "` + name + `"`
 }
 
+// maxEvent bounds the data of one notification event (several data lines make one).
+const maxEvent = 1 << 20
+
 // follow connects and reads the event stream until it ends.
 func (w *Watcher) follow(ctx context.Context) error {
 	var s Server
@@ -347,6 +350,10 @@ func (w *Watcher) follow(ctx context.Context) error {
 				data += "\n" // several data lines make one message
 			}
 			data += strings.TrimPrefix(line[5:], " ")
+			if len(data) > maxEvent {
+				// data lines with no blank line after them would grow for ever; the caller reconnects
+				return errors.New("The Plex server sent a notification that is too large; reconnecting.")
+			}
 		}
 	}
 	if ctx.Err() != nil {

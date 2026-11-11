@@ -33,8 +33,9 @@ type Variant struct {
 	Value any
 }
 
-// maxMessage bounds what is read from the bus (the protocol allows 128 MiB; nothing we ask about comes close).
-const maxMessage = 16 << 20
+// maxMessage bounds what is read from the bus (the protocol allows 128 MiB; nothing we ask about comes close). The
+// decoder makes a 16-byte value of every array byte, so a large message costs many times its size in memory.
+const maxMessage = 4 << 20
 
 // header field codes
 const (

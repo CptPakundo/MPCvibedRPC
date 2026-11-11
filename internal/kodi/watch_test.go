@@ -1,7 +1,9 @@
 package kodi
 
 import (
+	"errors"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -19,6 +21,32 @@ func TestEventAddress(t *testing.T) {
 			t.Errorf("EventAddress(%q) = %q; want %q", in, got, want)
 		}
 	}
+}
+
+// A notification that never ends is not buffered without limit: Watch returns an error instead.
+func TestWatchBoundsANotification(t *testing.T) {
+	kodi, ours := net.Pipe()
+	done := make(chan error, 1)
+	go func() { done <- Watch(ours, func() {}) }()
+	go func() {
+		kodi.Write([]byte(`{"jsonrpc":"2.0","method":"Player.OnPlay","params":{"pad":"`))
+		chunk := []byte(strings.Repeat("x", 64<<10))
+		for i := 0; i < 40; i++ { // 2.5 MiB inside one string
+			if _, err := kodi.Write(chunk); err != nil {
+				return
+			}
+		}
+		kodi.Close()
+	}()
+	select {
+	case err := <-done:
+		if !errors.Is(err, errTooLarge) {
+			t.Fatalf("got %v; want the too-large error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Watch keeps buffering a notification that never ends")
+	}
+	kodi.Close()
 }
 
 // Watch reports play, pause, seek and stop notifications, which Kodi sends back to back, and returns at the end.

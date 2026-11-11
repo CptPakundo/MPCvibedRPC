@@ -2,9 +2,12 @@ package potplayer
 
 import (
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"unsafe"
+
+	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
 
 var (
@@ -14,7 +17,10 @@ var (
 	pSendMessage    = user32.NewProc("SendMessageW")
 	pGetThreadID    = kernel32.NewProc("GetCurrentThreadId")
 	fakeProcPointer = syscall.NewCallback(fakeProc)
+	pSetWindowText  = user32.NewProc("SetWindowTextW")
 	fakePath        = []byte(`D:\Videos\Sample Show\Sample Show - S01E02.mkv`)
+	fakeMute        atomic.Bool // the fake does not send the path while set
+	fakeHwnd        uintptr     // the window startFake opened; set before startFake returns
 )
 
 // fakeProc answers like PotPlayer's main window: the numbers as results, the path as WM_COPYDATA to the window in
@@ -34,6 +40,9 @@ func fakeProc(hwnd, m, wParam, lParam uintptr) uintptr {
 	case getSpeed:
 		return 1000
 	case getFileName:
+		if fakeMute.Load() {
+			return 0 // a PotPlayer that is still loading, or too old: no path comes back
+		}
 		cds := copyData{dwData: getFileName, cbData: uint32(len(fakePath)), lpData: &fakePath[0]}
 		pSendMessage.Call(lParam, wmCopyData, hwnd, uintptr(unsafe.Pointer(&cds)))
 	}
@@ -53,6 +62,7 @@ func startFake(t *testing.T) {
 		title, _ := syscall.UTF16PtrFromString("Sample Show - S01E02.mkv - PotPlayer")
 		hwnd, _, _ := pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(cls)), uintptr(unsafe.Pointer(title)), 0, 0, 0, 0, 0, 0, 0, h, 0)
 		tid, _, _ := pGetThreadID.Call()
+		fakeHwnd = hwnd
 		ready <- tid
 		if hwnd == 0 {
 			return
@@ -87,5 +97,33 @@ func TestQueryFakePotPlayer(t *testing.T) {
 	}
 	if got.dir != `D:\Videos\Sample Show` {
 		t.Fatalf("the path did not come back (folder %q)", got.dir)
+	}
+}
+
+// A window that did not send the path once (PotPlayer still loading) is asked again when it shows something else.
+func TestPathAskedAgainWhenTheTitleChanges(t *testing.T) {
+	fakeMute.Store(true)
+	t.Cleanup(func() { fakeMute.Store(false) })
+	startFake(t)
+	find := func(title string) *core.Info {
+		for _, in := range Query() {
+			if in.State == 2 && in.Duration == 1440000 && windowText(fakeHwnd) == title {
+				return in
+			}
+		}
+		return nil
+	}
+	if in := find("Sample Show - S01E02.mkv - PotPlayer"); in == nil || in.FullDir != "" {
+		t.Fatalf("no answer should give no folder: %+v", in)
+	}
+	// still the same text: not asked again, even though the player could answer now
+	fakeMute.Store(false)
+	if in := find("Sample Show - S01E02.mkv - PotPlayer"); in == nil || in.FullDir != "" {
+		t.Fatalf("asked again without a change: %+v", in)
+	}
+	title, _ := syscall.UTF16PtrFromString("Sample Show - S01E03.mkv - PotPlayer")
+	pSetWindowText.Call(fakeHwnd, uintptr(unsafe.Pointer(title)))
+	if in := find("Sample Show - S01E03.mkv - PotPlayer"); in == nil || in.FullDir != `D:\Videos\Sample Show` {
+		t.Fatalf("a new title should ask again: %+v", in)
 	}
 }

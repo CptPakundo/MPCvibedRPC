@@ -61,6 +61,16 @@ func withoutQuery(file string) string {
 	return file
 }
 
+// StreamName cuts the query or fragment off a name that a reader took from a stream's address, so that a signed
+// address does not put its token on Discord or into the catalog searches. A name that is nothing but a query stays
+// as it is, because an empty name would hide the stream altogether.
+func StreamName(name string) string {
+	if i := strings.IndexAny(name, "?#"); i > 0 {
+		return name[:i]
+	}
+	return name
+}
+
 // MusicMedia is a song's title: its file name without folder and ending, as it is. The file-name rules for videos are
 // not used ("01 Sample Song" is a track number, not an episode).
 func MusicMedia(file string) *Media {
