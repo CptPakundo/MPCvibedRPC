@@ -118,7 +118,7 @@ type Engine struct {
 	resend     bool // the status must go out again although the player reports no change (a new connection, a cover that arrived, a send that failed)
 	basicMode  bool
 	modeKey    string // the file basicMode and noLinks were found out for: the next file is tried in full again
-	noLinks    bool // Discord refused the clickable title and cover: they are sent without links
+	noLinks    bool   // Discord refused the clickable title and cover: they are sent without links
 	art        *artwork.Artwork
 	player     string // the player that answered last
 	vlc        *vlchttp.Reader
@@ -147,7 +147,7 @@ type Engine struct {
 	reclearEvery time.Duration
 	recheckAfter []float64
 	retryAfter   time.Duration
-	sendFails    int       // sends in a row that Discord did not take, and when the next one may go (sendUpdate)
+	sendFails    int // sends in a row that Discord did not take, and when the next one may go (sendUpdate)
 	retryAt      time.Time
 
 	// the counts kept for the window (stats.go): what was shown and for how long; the key only tells videos apart

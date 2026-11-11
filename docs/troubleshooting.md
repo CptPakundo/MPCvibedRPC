@@ -95,6 +95,14 @@ disconnects. If one stays anyway:
   closed only when its reports stop or the server drops its session: a Plex player goes after 3 minutes without a
   report, a Jellyfin session that still says it plays after 5, a Stremio one after up to 4.
 
+## My stream doesn't say what I watch
+
+When you share your screen, Discord names the stream after your **Playing** status and after no other kind. The
+program's usual status is a *Watching* one, so Discord shows your stream without a title. Turn on **Look > Show the
+title on my streams**: the status is then sent as "Playing Sample Show", and viewers see "Streaming Sample Show". It
+has a timer instead of the progress bar. If a game is running too, Discord may name the stream after the game: it
+takes the first Playing status it finds.
+
 ## The window doesn't open
 
 Run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings

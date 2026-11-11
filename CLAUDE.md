@@ -80,7 +80,9 @@ The rules every change must respect:
   services, from tests or by hand without the owner's OK; every reader has fakes (see "Running the real program safely").
 - Resting (`engine.rest`: Discord's endpoint absent and no window open) asks no player and stops the watchers; tests get
   no resting unless they set `MayRest`. Clearing (`tick.go`): a sent status counts as shown until a clear is confirmed,
-  and an idle status is cleared again every minute; `internal/engine/stale_test.go` pins it.
+  and an idle status is cleared again every minute; `internal/engine/stale_test.go` pins it. The engine's state rules
+  (what makes a status due, what a stale run may write, the retry wait) are in `docs/development.md` > The engine's
+  state; after a change to the tick run `MPCRPC_CONVERGE_SEEDS=500 go test -run TestStatusConverges ./internal/engine`.
 - The default Discord application (`clientId`) was registered by the upstream project; every install depends on it.
 
 ## Build and test
@@ -97,7 +99,7 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   run for Linux and for `GOOS=windows`, staticcheck also for `GOOS=darwin`; without ST1005, because the program's
   error texts are sentences the window shows) and `deadcode -test` (Linux only; every function must be reachable
   from the program or a test: delete what is not, or say in a comment why it stays). A Go security fix means
-  bumping the Go patch in `go.mod` alone (`go 1.27.3`; every `setup-go` reads `go-version-file`). `release.yml`
+  bumping the Go patch in `go.mod` alone (`go 1.27.4`; every `setup-go` reads `go-version-file`). `release.yml`
   runs the tests but not the lint gates; those gate the pull request's CI before the merge.
   A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates) is not tested
   (`paths-ignore`); anything else runs the fast jobs. A pull request from this repository
@@ -136,8 +138,8 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
 - Engine tests use a fake Discord (Unix socket on Linux, named pipe on Windows) and fake players (`players_test.go`,
   `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once. They run
-  in parallel and poll every 25 ms (`newTestEngine` sets `Options.MinPoll`; `ReclearEvery` and `RecheckAfter` shorten
-  the other waits), so a test must never change a package variable; the one that has to (it shortens
+  in parallel and poll every 25 ms (`newTestEngine` sets `Options.MinPoll`; `ReclearEvery`, `RecheckAfter` and
+  `RetryAfter` shorten the other waits), so a test must never change a package variable; the one that has to (it shortens
   `discord.RequestTimeout`) stays sequential. Pure timer logic is tested on `testing/synctest`'s clock
   (`TestNudgesArePaced`).
 - Tests tie the texts to the code: `TestEverySettingIsDocumented` (store: every setting has its row and default in
@@ -161,7 +163,9 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 - `MPCRPC_HOME=<scratch folder>` gives a copy its own data folder **and its own autostart value name**, so it can never
   touch an installed copy. A config such as
   `{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}` keeps it quiet.
-- The API port and token are in `<MPCRPC_HOME>/ipc.json`; the page is `http://127.0.0.1:<port>/?t=<token>`. To test window
+- The API port and token are in `<MPCRPC_HOME>/ipc.json`; the page is `http://127.0.0.1:<port>/?t=<token>` (the
+  program itself opens its window with a one-time code, `?c=`, so the token is not on the browser's command line;
+  the page keeps the token in `sessionStorage` and takes it out of its address). To test window
   states without Discord, override `window.fetch` for `/api/status` in the page.
 - `api/start` with nothing playing is safe: Discord is only contacted once something plays ("standby"). To keep a real
   player from being picked up, point `port` at an unused port and leave `mpvPipe`/`vlcPassword` empty.
