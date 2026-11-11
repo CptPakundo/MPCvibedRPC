@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
@@ -136,6 +137,9 @@ var (
 	vlcPlayer   = player{name: "VLC", procs: []string{"vlc"}, installDirs: []string{"VideoLAN\\VLC"}, userIniDir: "vlc"}
 )
 
+// setupLock lets one player setup run at a time (Windows and the other systems alike).
+var setupLock sync.Mutex
+
 // EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed), sets mpv up to
 // accept our connection (mpvPipe; empty skips mpv) and switches VLC's web interface on (vlcPort, vlcPassword: used
 // unless VLC already has its own). MPC-HC, MPC-BE and VLC rewrite their settings when they exit, so they have to be
@@ -146,6 +150,12 @@ var (
 // The steps run in this order: look for the running players, close them, set up MPC-HC and MPC-BE, reopen them, set
 // up mpv, set up VLC (and reopen it), and word the result.
 func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) WebResult {
+	// A double click sends two requests: a second setup would close and reopen the players again and write the same
+	// files at the same time.
+	if !setupLock.TryLock() {
+		return WebResult{Message: "Player setup is already running. Wait a moment and look at the result."}
+	}
+	defer setupLock.Unlock()
 	if !IsWindows {
 		return enableUnix(port, closeMpc, mpvPipe, vlcPort, vlcPassword, iinaPipe)
 	}
@@ -240,16 +250,34 @@ func closePlayers(exes []string, vlc *vlcSpot) {
 		for _, n := range procs {
 			run("taskkill", "/IM", n+".exe")
 		}
-		time.Sleep(3 * time.Second)
-		if len(runningPlayers()) > 0 || (len(vlc.exes) > 0 && len(runningExes([]player{vlcPlayer})) > 0) {
+		stillOpen := func() bool {
+			return len(runningPlayers()) > 0 || (len(vlc.exes) > 0 && len(runningExes([]player{vlcPlayer})) > 0)
+		}
+		// The players write their settings while they exit, so a slow exit gets time before it is forced.
+		if !waitUntilGone(stillOpen, 500*time.Millisecond, 10*time.Second) {
 			for _, n := range procs {
 				run("taskkill", "/F", "/IM", n+".exe")
 			}
-			time.Sleep(time.Second)
+			waitUntilGone(stillOpen, 500*time.Millisecond, 3*time.Second)
 		}
 		if len(vlc.exes) > 0 {
 			vlc.read() // VLC may have saved its settings on the way out
 		}
+	}
+}
+
+// waitUntilGone checks every step whether stillOpen has become false and gives up after limit. It reports whether the
+// players are gone. The first check comes at once, so players that are gone already cost no time.
+func waitUntilGone(stillOpen func() bool, step, limit time.Duration) bool {
+	deadline := time.Now().Add(limit)
+	for {
+		if !stillOpen() {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		time.Sleep(step)
 	}
 }
 
