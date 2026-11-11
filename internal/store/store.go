@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -108,6 +109,10 @@ type Store struct {
 
 	mu     sync.Mutex // guards config.json: reads and changes are serialised (the window and a sign-in can save at the same moment)
 	broken []byte     // the unreadable config.json last kept as a .broken copy (it is kept once, not at every read)
+	last   []byte     // the text of config.json as last read or written successfully (nil: none, or no file)
+
+	readFile  func(string) ([]byte, error) // os.ReadFile; tests replace it to make reading fail
+	retryWait time.Duration                // the pause between tries to read a file that fails
 }
 
 // New opens (and creates) the data folder.
@@ -115,7 +120,7 @@ func New(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	return &Store{Dir: dir, File: filepath.Join(dir, "config.json")}, nil
+	return &Store{Dir: dir, File: filepath.Join(dir, "config.json"), readFile: os.ReadFile, retryWait: 50 * time.Millisecond}, nil
 }
 
 func (s *Store) CachePath() string { return filepath.Join(s.Dir, "artwork-cache.json") }
@@ -129,12 +134,57 @@ func (s *Store) FirstRun() bool {
 	return err != nil
 }
 
-// read parses config.json. The caller holds s.mu.
-func (s *Store) read() *jsonx.Obj {
-	b, err := os.ReadFile(s.File)
-	if err != nil {
-		return jsonx.NewObj()
+// load reads config.json. A file that fails for any other reason than not existing (on Windows a scanner or indexer
+// can hold it for a moment) is tried a few times.
+func (s *Store) load() ([]byte, error) {
+	read := s.readFile
+	if read == nil {
+		read = os.ReadFile
 	}
+	var b []byte
+	var err error
+	for i := 0; i < 5; i++ {
+		if b, err = read(s.File); err == nil || errors.Is(err, fs.ErrNotExist) {
+			return b, err
+		}
+		if i < 4 {
+			time.Sleep(s.retryWait)
+		}
+	}
+	return nil, err
+}
+
+// readOrLast is read for callers that only look: when the file cannot be read it gives the last configuration that
+// was read or written (the defaults before any), never a made-up empty one. The caller holds s.mu.
+func (s *Store) readOrLast() *jsonx.Obj {
+	if o, err := s.read(); err == nil {
+		return o
+	}
+	if v, err := jsonx.Parse(strings.TrimPrefix(string(s.last), "\ufeff")); err == nil {
+		if o, ok := v.(*jsonx.Obj); ok {
+			return o
+		}
+	}
+	return jsonx.NewObj()
+}
+
+// read parses config.json. A missing file is an empty configuration; a file that cannot be read is an error, so a
+// caller that is about to write never replaces a real file with "empty plus one change". The caller holds s.mu.
+func (s *Store) read() (*jsonx.Obj, error) {
+	b, err := s.load()
+	if errors.Is(err, fs.ErrNotExist) {
+		s.last = nil
+		return jsonx.NewObj(), nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.last = b
+	return s.parse(b), nil
+}
+
+// parse reads config.json's text; text that is not a JSON object is kept as a .broken copy and counts as empty.
+func (s *Store) parse(b []byte) *jsonx.Obj {
 	txt := strings.TrimPrefix(string(b), "\ufeff")
 	v, perr := jsonx.Parse(txt)
 	o, ok := v.(*jsonx.Obj)
@@ -166,14 +216,28 @@ func (s *Store) brokenName() string {
 // write saves config.json. The caller holds s.mu.
 func (s *Store) write(o *jsonx.Obj) error {
 	tmp := s.File + ".tmp"
-	if err := os.WriteFile(tmp, []byte(jsonx.Stringify(o, 2)), 0o600); err != nil {
+	text := []byte(jsonx.Stringify(o, 2))
+	// Flushed before the rename: after a power loss the rename can survive while unflushed data does not, which
+	// would leave an empty config.json.
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err = f.Write(text); err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
 	// Atomic: a crash never leaves half a file. On Windows a scanner or a reader can hold the file for a moment
 	// ("access denied"), so the rename is tried a few times.
-	var err error
 	for i := 0; i < 5; i++ {
 		if err = os.Rename(tmp, s.File); err == nil {
+			s.last = text
 			return nil
 		}
 		if runtime.GOOS != "windows" {
@@ -191,7 +255,11 @@ func (s *Store) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	fresh := jsonx.NewObj()
-	if cur, ok := s.read().M["app"].(*jsonx.Obj); ok {
+	old, err := s.read()
+	if err != nil {
+		return err
+	}
+	if cur, ok := old.M["app"].(*jsonx.Obj); ok {
 		keep := jsonx.NewObj()
 		for _, k := range []string{"seenVersion"} {
 			if v, ok := cur.M[k]; ok {
@@ -213,7 +281,7 @@ func (s *Store) SettingsObj() *jsonx.Obj {
 }
 
 func (s *Store) settingsObj() *jsonx.Obj {
-	o := s.read()
+	o := s.readOrLast()
 	out := jsonx.NewObj()
 	for _, k := range o.Keys {
 		if k != "app" {
@@ -231,7 +299,7 @@ func (s *Store) Config() core.Config {
 // App returns the program's own settings.
 func (s *Store) App() App {
 	s.mu.Lock()
-	o := s.read()
+	o := s.readOrLast()
 	s.mu.Unlock()
 	cur, _ := o.M["app"].(*jsonx.Obj)
 	d := defaultApp
@@ -274,7 +342,10 @@ func (s *Store) Values() map[string]any {
 func (s *Store) Update(patch *jsonx.Obj) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cur := s.read()
+	cur, err := s.read()
+	if err != nil {
+		return err
+	}
 	next := jsonx.NewObj()
 	for _, k := range cur.Keys {
 		next.Set(k, cur.M[k])
@@ -355,7 +426,10 @@ func (s *Store) SetHidden(keys []string, values map[string]any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	known := core.ConfigAsMap(&core.Config{})
-	cur := s.read()
+	cur, err := s.read()
+	if err != nil {
+		return err
+	}
 	for _, k := range keys {
 		if _, ok := known[k]; !ok {
 			continue
