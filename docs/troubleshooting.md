@@ -110,8 +110,10 @@ Discord shares your screen the program sends "Playing Sample Show" instead of "W
   *Never*.
 - The change takes a few seconds after the stream starts: Discord's own preview pictures in the share dialog count
   as captures too, so the program waits three seconds before it believes one.
-- If a game is running as well, Discord may name the stream after the game: it takes the first Playing status it
-  finds.
+- If a game or an emulator is running as well, Discord may name the stream after it instead. Discord does not say
+  which Playing status wins when there are two (nothing public says, and the program cannot choose): once a stream
+  was named after an emulator's status about four minutes older than this program's. Closing the other program, or
+  starting the video first and the other program after, is the only thing that can help.
 
 ## The window doesn't open
 
