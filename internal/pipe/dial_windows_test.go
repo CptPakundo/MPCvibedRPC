@@ -28,6 +28,7 @@ func TestDialWaitsForAFreeInstance(t *testing.T) {
 	type result struct {
 		err  error
 		took time.Duration
+		at   time.Time // when the dial ended
 	}
 	started, done := make(chan struct{}), make(chan result, 1)
 	go func() {
@@ -37,17 +38,20 @@ func TestDialWaitsForAFreeInstance(t *testing.T) {
 		if err == nil {
 			b.Close()
 		}
-		done <- result{err, time.Since(start)}
+		done <- result{err, time.Since(start), time.Now()}
 	}()
 	<-started
 	time.Sleep(200 * time.Millisecond) // the server is slow to make its next instance
+	listening := time.Now() // before the instance exists: a dial that ended earlier got in without waiting
 	defer listenPipe(t, path)()
 	r := <-done
 	if r.err != nil {
 		t.Fatalf("the second client did not get in: %v", r.err)
 	}
-	if r.took < 150*time.Millisecond {
-		t.Errorf("the second client got in after %v: the pipe was not busy", r.took)
+	// Not a timing: a loaded machine may start the helper goroutine late, but a client that got in before the
+	// second instance existed found the pipe free.
+	if r.at.Before(listening) {
+		t.Errorf("the second client got in after %v, before a free instance existed: the pipe was not busy", r.took)
 	}
 }
 

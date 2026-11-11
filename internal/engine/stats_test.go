@@ -21,6 +21,20 @@ func TestStatsCountWhatIsShownAndStayOnThisComputer(t *testing.T) {
 	e.stats = loadStats(file, time.Now())
 	e.Start()
 	eventually(t, "shown", func() bool { return len(d.list()) > 0 && !isClear(d) })
+	// A real player's position advances; a fake that stands still reads as a seek after three seconds, which a slow
+	// run of this test reached (that was the flake).
+	stop, begun := make(chan struct{}), time.Now()
+	t.Cleanup(func() { close(stop) })
+	go func() {
+		for {
+			select {
+			case <-stop:
+				return
+			case <-time.After(50 * time.Millisecond):
+				m.set(func(m *mpc) { m.pos = 60000 + int(time.Since(begun).Milliseconds()) })
+			}
+		}
+	}()
 	eventually(t, "time counted", func() bool { return e.Stats().WatchedMs >= 250 })
 	s := e.Stats()
 	if s.Videos != 1 || s.Players["MPC-HC"] != 1 || s.Matched != 0 || s.Since != time.Now().Format("2006-01-02") {
@@ -160,6 +174,20 @@ func TestEpisodeWithoutTitleIsAskedAgainWhilePlaying(t *testing.T) {
 	e.cfg = cfg
 	e.opts.HTTPClient = &http.Client{Transport: &failingCatalogs{}}
 	m.set(func(m *mpc) { m.file = "Sample.Show.S01E02.mkv"; m.filepath = `C:\Videos\Sample.Show.S01E02.mkv` })
+	// A real player's position advances. A fake that stands still reads as a seek after three seconds (a send of
+	// its own), which a slow run of this test reached: that was the flake.
+	stop, begun := make(chan struct{}), time.Now()
+	t.Cleanup(func() { close(stop) })
+	go func() {
+		for {
+			m.set(func(m *mpc) { m.pos = 60000 + int(time.Since(begun).Milliseconds()) })
+			select {
+			case <-stop:
+				return
+			case <-time.After(20 * time.Millisecond):
+			}
+		}
+	}()
 	e.Start()
 	eventually(t, "shown", func() bool { return len(d.list()) > 0 && !isClear(d) })
 	sent := func() int { return len(d.list()) }
