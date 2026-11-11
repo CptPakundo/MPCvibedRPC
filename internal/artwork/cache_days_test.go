@@ -161,7 +161,14 @@ func TestCacheHitOnANewDayIsSavedInTheBackground(t *testing.T) {
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		_, days := readCacheFile(t, file)
+		// the save may be writing the file at this very moment (on Windows the read then fails): look again
+		days := map[string]int{}
+		if b, err := os.ReadFile(file); err == nil {
+			var raw map[string]json.RawMessage
+			if json.Unmarshal(b, &raw) == nil {
+				_ = json.Unmarshal(raw[usedKey], &days)
+			}
+		}
 		if days[key] == day {
 			break
 		}
