@@ -4,7 +4,7 @@ Guidance for Claude Code sessions working on this repository. Keep it current: u
 whenever a change makes something here wrong (a new player, setting, CI step, release step or rule).
 
 ## What this is
-MPCvibedRPC is a small Windows tray app (Go, standard library only, one ~8 MB exe, nothing to install) that shows what
+MPCvibedRPC is a small Windows tray app (Go, standard library only, one exe of under 10 MB, nothing to install) that shows what
 a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art, episode titles,
 ratings, and each player's logo. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer**, **Kodi**, and **Plex**, **Stremio**, **Jellyfin** and
 **Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
