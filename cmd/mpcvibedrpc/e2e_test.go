@@ -190,7 +190,8 @@ func TestEndToEnd(t *testing.T) {
 	defer rel.Close()
 
 	os.MkdirAll(home, 0o755)
-	cfg := fmt.Sprintf(`{"port":%d,"pollInterval":250,"showArtwork":false,"clientId":"1"}`, mpcPort)
+	// automatic installs off: the update is installed by hand below, at a known moment
+	cfg := fmt.Sprintf(`{"port":%d,"pollInterval":250,"showArtwork":false,"clientId":"1","app":{"autoUpdate":false}}`, mpcPort)
 	os.WriteFile(filepath.Join(home, "config.json"), []byte(cfg), 0o644)
 
 	env := append(os.Environ(), "MPCRPC_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPCRPC_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPCRPC_BROWSER=none", "MPCRPC_FOREGROUND=1")
@@ -240,9 +241,8 @@ func TestEndToEnd(t *testing.T) {
 	if st["version"] != "3.0.0" || status["running"] != true || status["discord"] != "connected" || len(st["schema"].([]any)) == 0 || st["values"].(map[string]any)["pollInterval"] != float64(250) {
 		t.Fatalf("state %v", st)
 	}
-	if st["update"] != nil {
-		t.Fatal("no update expected yet")
-	}
+	// the check as the program starts has found the update by itself: the window offers it without being asked
+	waitFor(t, "the update found at the start", func() bool { _, st := a.call(t, "GET", "state", ""); return st["update"] != nil })
 
 	// stop / start via the API clears and resumes
 	n := disc.n()

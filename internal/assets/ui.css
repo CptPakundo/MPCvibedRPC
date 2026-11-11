@@ -128,6 +128,7 @@
   .dlg p { margin: 0 0 16px; color: var(--muted); white-space: pre-line; }
   .dlg .row { justify-content: flex-end; }
   .chg { max-height: 60vh; overflow: auto; margin: 0 0 14px; }
+  .dlg p + .chg { margin-top: -8px; }
   .chg h3 { font-size: 13px; font-weight: 600; margin: 14px 0 0; }
   .chg h3:first-child { margin-top: 0; }
   .chg ul { list-style: none; margin: 4px 0 12px; padding: 0; }
