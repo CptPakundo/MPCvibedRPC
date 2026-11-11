@@ -1,4 +1,7 @@
 [
+  {"version": "0.9.52", "date": "2026-11-11", "items": [
+    "📡 Fixed: \"Streaming <title>\" now shows by itself on newer Windows 11 versions too, where the program could not see a stream."
+  ]},
   {"version": "0.9.51", "date": "2026-11-11", "items": [
     "⚡ Windows: a pause or seek in mpv right after the program starts shows at once, not a few seconds later."
   ]},

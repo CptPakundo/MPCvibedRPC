@@ -220,8 +220,9 @@ func (e *Engine) watchSharing(ctx context.Context, changed func()) {
 	defaultWatchSharing(ctx, changed)
 }
 
-// defaultSharing and defaultWatchSharing read Windows' record of Discord's screen capture. Variables only so that the
-// package's tests can put stand-ins there once, before any test runs: no test reads this computer's record.
+// defaultSharing and defaultWatchSharing look at this computer's Discord (its threads, Windows' capture record).
+// Variables only so that the package's tests can put stand-ins there once, before any test runs: no test looks at
+// this computer's Discord.
 var (
 	defaultSharing      = capture.DiscordSharing
 	defaultWatchSharing = capture.Watch

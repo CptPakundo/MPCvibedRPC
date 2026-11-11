@@ -22,8 +22,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   its cover. A catalog is only removed when it stops answering for good.
 - **The title is shown on a stream by itself** (2026-11-11). Discord names a screen share after the streamer's
   *Playing* status and no other kind, so while Discord shares the screen the status is sent as "Playing <title>", and
-  as the usual Watching status the rest of the time. The program reads that from Windows' record of screen captures;
-  where there is none (macOS, Linux, an old Windows 10) the choice is always or never. *Why:* a switch to remember
+  as the usual Watching status the rest of the time. On Windows the program tells that from the threads Discord's app
+  runs while it shares, and from Windows' record of screen captures where that can be read; where it cannot tell
+  (macOS, Linux) the choice is always or never. *Why:* a switch to remember
   before every stream is friction; the Watching status with its progress bar is what belongs on a profile; showing
   both at once would put two cards there. It is on by default because it changes nothing until a stream starts.
 - **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player

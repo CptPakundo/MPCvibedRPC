@@ -104,9 +104,10 @@ Discord shares your screen the program sends "Playing Sample Show" instead of "W
 - **Look > Show the title on my streams** must be *While Discord shares my screen* or *Always* (it also has a tick
   in the tray menu).
 - **Help > Run a check** says in its Streams line whether the program can tell here, and whether Discord is sharing
-  now. It reads that from Windows' record of screen captures: an old Windows 10, or a Discord set not to use the
-  newer capture method (Discord's Voice & Video settings), leaves no record. *Always* works without it. macOS and
-  Linux have no such record, so the choice there is *Always* or *Never*.
+  now. It tells that from the Discord app's own threads, which Windows lists by name. If the line says Discord is
+  not sharing while it is, a new Discord version may name them differently: choose *Always* until the program is
+  updated, and please report it. On macOS and Linux the program cannot tell, so the choice there is *Always* or
+  *Never*.
 - The change takes a few seconds after the stream starts: Discord's own preview pictures in the share dialog count
   as captures too, so the program waits three seconds before it believes one.
 - If a game is running as well, Discord may name the stream after the game: it takes the first Playing status it
