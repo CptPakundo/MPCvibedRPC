@@ -46,8 +46,8 @@ type Config struct {
 	JellyfinDevice     string `json:"jellyfinDevice"`     // this install's device id towards the server (made at the first sign-in)
 
 	// Presentation
-	ActivityType      string `json:"activityType"` // "watching" (progress bar) or "playing"
-	TitleAsName       bool   `json:"titleAsName"`
+	ActivityType string `json:"activityType"` // "watching" (progress bar) or "playing"
+	TitleAsName  bool   `json:"titleAsName"`
 	// StreamTitle says when the status is sent as "Playing <title>", the only kind Discord names a stream after: "off",
 	// "auto" (while Discord shares the screen; the engine finds that out and builds with "always" or "off") or "always".
 	StreamTitle       string `json:"streamTitle"`

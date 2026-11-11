@@ -21,11 +21,11 @@ func (a *app) startTray() *winsys.Tray {
 				a.eng.Start()
 			}
 		},
-		Hidden: func() bool { return a.eng.Config().HideTitle },
-		OnHide: func() { setHideTitle(a.st, a.eng, a.log, !a.eng.Config().HideTitle) },
+		Hidden:   func() bool { return a.eng.Config().HideTitle },
+		OnHide:   func() { setHideTitle(a.st, a.eng, a.log, !a.eng.Config().HideTitle) },
 		Streams:  func() bool { return streamTitleOn(a.eng.Config().StreamTitle) },
 		OnStream: func() { setStreamTitle(a.st, a.eng, a.log, !streamTitleOn(a.eng.Config().StreamTitle)) },
-		OnQuit: a.quit,
+		OnQuit:   a.quit,
 	})
 }
 
