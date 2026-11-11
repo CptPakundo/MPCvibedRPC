@@ -50,17 +50,24 @@ type pipeListener struct {
 	name    *uint16
 	mu      sync.Mutex
 	closed  bool
-	waiting bool // an instance is waiting for a client
+	waiting bool           // an Accept is blocked in ConnectNamedPipe
+	next    syscall.Handle // an instance that is free for the next client, made before it is needed
 }
 
-// listenFake starts the fake Discord's listener. Each Accept creates a pipe instance and waits for a client; the
-// engine simply retries until one is there.
+// listenFake starts the fake's listener. Like a listening socket, the pipe exists, with a free instance, when it
+// returns, and a client that connects makes the next free instance at once (Accept makes it before it waits): a
+// client never finds the pipe missing or busy, however late the accepting goroutine runs. (A real server, mpv's
+// included, makes its next instance only after it accepted a client; the program's Dial waits for it.)
 func listenFake(path string) (fakeListener, error) {
 	name, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return nil, err
 	}
-	return &pipeListener{path: path, name: name}, nil
+	l := &pipeListener{path: path, name: name}
+	if l.next, err = l.create(); err != nil {
+		return nil, err
+	}
+	return l, nil
 }
 
 func (l *pipeListener) create() (syscall.Handle, error) {
@@ -77,13 +84,13 @@ func (l *pipeListener) Accept() (io.ReadWriteCloser, error) {
 		l.mu.Unlock()
 		return nil, net.ErrClosed
 	}
-	l.mu.Unlock()
-	h, err := l.create()
+	h := l.next // free now: a client may connect to it before ConnectNamedPipe is called
+	next, err := l.create()
 	if err != nil {
+		l.mu.Unlock()
 		return nil, err
 	}
-	l.mu.Lock()
-	l.waiting = true
+	l.next, l.waiting = next, true
 	l.mu.Unlock()
 	r, _, cerr := pConnectNamedPipe.Call(uintptr(h), 0)
 	l.mu.Lock()
@@ -101,8 +108,12 @@ func (l *pipeListener) Accept() (io.ReadWriteCloser, error) {
 func (l *pipeListener) Close() error {
 	l.mu.Lock()
 	l.closed = true
-	waiting := l.waiting
+	waiting, next := l.waiting, l.next
+	l.next = 0
 	l.mu.Unlock()
+	if next != 0 {
+		syscall.CloseHandle(next) // so the client below can only connect to the instance that is waited on
+	}
 	if waiting {
 		if h, err := syscall.CreateFile(l.name, syscall.GENERIC_READ|syscall.GENERIC_WRITE, 0, nil, syscall.OPEN_EXISTING, 0, 0); err == nil {
 			syscall.CloseHandle(h)

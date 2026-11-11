@@ -15,6 +15,7 @@ import (
 var (
 	kernel32          = syscall.NewLazyDLL("kernel32.dll")
 	procPeekNamedPipe = kernel32.NewProc("PeekNamedPipe")
+	procWaitNamedPipe = kernel32.NewProc("WaitNamedPipeW")
 )
 
 // pipeConn reads a named pipe without ever blocking inside ReadFile: a synchronous handle serialises reads and
@@ -29,17 +30,43 @@ type pipeConn struct {
 	freed  bool // h is closed
 }
 
-// Dial opens a named pipe (\.\pipe\name).
+// errorPipeBusy is what CreateFile answers while every instance of the pipe has a client: a server makes its next
+// instance only after it has accepted one, so a second client that comes at the same moment finds none free.
+const errorPipeBusy = syscall.Errno(231)
+
+// busyWait is how long Dial waits for the server to make a free instance.
+const busyWait = time.Second
+
+// Dial opens a named pipe (\.\pipe\name). A pipe whose instances are all taken is waited for (WaitNamedPipe, as the
+// documentation of CreateFile asks), so that two programs that connect at the same moment both get in.
 func Dial(path string) (io.ReadWriteCloser, error) {
 	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return nil, err
 	}
-	h, err := syscall.CreateFile(p, syscall.GENERIC_READ|syscall.GENERIC_WRITE, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_NORMAL, 0)
-	if err != nil {
-		return nil, err
+	wait := p // WaitNamedPipe only takes the \\.\pipe\ form
+	if rest, ok := strings.CutPrefix(path, `\\?\pipe\`); ok {
+		if wait, err = syscall.UTF16PtrFromString(`\\.\pipe\` + rest); err != nil {
+			return nil, err
+		}
 	}
-	return &pipeConn{h: h}, nil
+	deadline := time.Now().Add(busyWait)
+	for {
+		h, err := syscall.CreateFile(p, syscall.GENERIC_READ|syscall.GENERIC_WRITE, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_ATTRIBUTE_NORMAL, 0)
+		if err == nil {
+			return &pipeConn{h: h}, nil
+		}
+		left := time.Until(deadline)
+		if err != errorPipeBusy || left <= 0 {
+			return nil, err
+		}
+		// returns as soon as an instance is free (or the pipe is gone); a short slice keeps the deadline exact
+		slice := min(left, 100*time.Millisecond)
+		start := time.Now()
+		if ok, _, _ := procWaitNamedPipe.Call(uintptr(unsafe.Pointer(wait)), uintptr(slice.Milliseconds()+1)); ok == 0 && time.Since(start) < time.Millisecond {
+			time.Sleep(time.Millisecond) // the wait failed at once (no such pipe any more): do not spin
+		}
+	}
 }
 
 // acquire marks h as in use; false once the connection is closed.
