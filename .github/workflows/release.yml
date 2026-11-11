@@ -47,7 +47,7 @@ jobs:
       id-token: write          # for the build provenance attestation
       attestations: write
       artifact-metadata: write
-    outputs: # the files' SHA-256, for reproduce
+    outputs: # the files' SHA-256, for the verify job to compare with the rebuild
       exe: ${{ steps.sums.outputs.exe }}
       linux_amd64: ${{ steps.sums.outputs.linux_amd64 }}
       linux_arm64: ${{ steps.sums.outputs.linux_arm64 }}
@@ -137,12 +137,17 @@ jobs:
           fail_on_unmatched_files: true
           draft: true # made public by the verify job, once the files check out
 
-  # Every program file again, built on another runner from the tag: each must match the release's byte for byte, or
-  # the draft is not published. Anyone can do the same with tools/ci/reproduce.sh (LF checkout, the same Go).
+  # Every program file again, built on another runner from the tag, at the same time as the release job (it needs nothing
+  # from it). Its files' SHA-256 go to the verify job, which compares them with the release's before it publishes the
+  # draft: each must match byte for byte, or the draft stays a draft. Anyone can do the same with
+  # tools/ci/reproduce.sh (LF checkout, the same Go).
   reproduce:
-    needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs: # the rebuilt files' SHA-256, compared with the release's in the verify job
+      exe: ${{ steps.sums.outputs.exe }}
+      linux_amd64: ${{ steps.sums.outputs.linux_amd64 }}
+      linux_arm64: ${{ steps.sums.outputs.linux_arm64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -153,13 +158,14 @@ jobs:
         shell: bash
         env:
           TAG: ${{ github.ref_name }}
-      - name: Rebuild and compare
+      - name: Rebuild
         shell: bash
         run: |
           ./tools/ci/reproduce.sh "$VERSION" rebuilt
-          ./tools/ci/reproduce.sh hash rebuilt/MPCvibedRPC.exe '${{ needs.release.outputs.exe }}'
-          ./tools/ci/reproduce.sh hash rebuilt/MPCvibedRPC-linux-amd64 '${{ needs.release.outputs.linux_amd64 }}'
-          ./tools/ci/reproduce.sh hash rebuilt/MPCvibedRPC-linux-arm64 '${{ needs.release.outputs.linux_arm64 }}'
+      - name: Rebuilt files' checksums
+        id: sums
+        shell: bash
+        run: ./tools/ci/reproduce.sh sums rebuilt >> "$GITHUB_OUTPUT"
 
   # The release as a user downloads it. While it is still a draft: the files, their checksums and build records, the
   # exe's version. Only then is it made public, and the program's own update path is tried on it: that it is the latest
@@ -181,6 +187,13 @@ jobs:
         shell: bash
         env:
           TAG: ${{ github.ref_name }}
+      # the release's files against the rebuild: no file may differ, or nothing below runs and the draft is not published
+      - name: The rebuild matches the release
+        shell: bash
+        run: |
+          ./tools/ci/reproduce.sh same MPCvibedRPC.exe '${{ needs.release.outputs.exe }}' '${{ needs.reproduce.outputs.exe }}'
+          ./tools/ci/reproduce.sh same MPCvibedRPC-linux-amd64 '${{ needs.release.outputs.linux_amd64 }}' '${{ needs.reproduce.outputs.linux_amd64 }}'
+          ./tools/ci/reproduce.sh same MPCvibedRPC-linux-arm64 '${{ needs.release.outputs.linux_arm64 }}' '${{ needs.reproduce.outputs.linux_arm64 }}'
       - name: Check the draft
         shell: pwsh
         run: ./tools/ci/verify-release.ps1 -Version $env:VERSION -Stage draft
