@@ -97,9 +97,11 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   theirs in a ledger there). The program never reports anything; your own copy behaves like everyone's. *Why:* the
   badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page; the exact
   count stays readable (`summary.json` on the `stats` branch) for when it matters.
-- **Frequent releases while the program is young** (2026-10-18): each real improvement ships once its checks pass.
-  *Why:* few people use it yet, so quick fixes and feedback count for more than the trust that calmer releases build
-  with Windows SmartScreen and package managers. Bundling comes back once it has a wider audience.
+- **Releases are bundles** (2026-11-11): a version collects several changes; only a fix for something broken, or a
+  security fix, ships alone and at once. *Why:* every release takes checks, attention and a restart of each install,
+  and three versions in one evening showed that single small improvements are not worth that. Windows SmartScreen and
+  package managers also trust calm releases more. (From 2026-10-18 until then, each improvement shipped as soon as
+  its checks passed.)
 - **The release text is the changelog** (2026-10-24): the GitHub release's body is rendered from the in-app changelog's
   newest entry (`tools/relnotes`), plus a hand-written block only when a release needs one (a security note). *Why:*
   the same facts were written twice, in two wordings, for every release, and nothing checked that the second text was
