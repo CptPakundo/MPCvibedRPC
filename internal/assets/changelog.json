@@ -2,6 +2,7 @@
   {"version": "0.9.50", "date": "2026-11-11", "items": [
     "📡 New: while you share your screen, Discord says \"Streaming <title>\" (Windows; a choice under Look, a tick in the tray).",
     "🩺 New: Help > Run a check says in one click what works: Discord, your players, the catalogs, updates, streams.",
+    "🔔 New: a found update asks in the window at once: what's new, Update now or Not now. The check runs as the program starts.",
     "🛟 An update that does not start is undone: the old version comes back by itself and that update is not retried.",
     "💤 A status cleared after a long pause stays cleared when Discord restarts; it used to come back.",
     "⏳ A player that misses one answer no longer makes the status flicker: it is asked again a second later.",

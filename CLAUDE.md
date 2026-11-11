@@ -13,14 +13,20 @@ Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the 
 shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
 on Discord, Hide what I'm watching (`hideTitle`, ticked), Show the title on my streams (`streamTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
-"presence". Updates are looked for 5 s after start, then every six hours; with `autoUpdate` (on by default; Windows
+"presence". Updates are looked for as the program starts, then every six hours by the wall clock
+(`scheduleUpdateChecks`). A version found while a settings window is open is offered there at once by a dialog
+(`askUpdate` in `ui.js`: Update now or Not now, once per version; the notice at the top brings it back). With
+`autoUpdate` (on by default; Windows
 and Linux) a found update installs itself at a quiet moment (`quietMoment`: nothing shown on Discord, no settings
-window), and the new copy starts in the tray (`auto-updated` marker in the data folder) and says so once. The copy
+window; and never in the first ten seconds after the start or after a window was asked for, `settle`), and the new
+copy starts in the tray (`auto-updated` marker in the data folder) and says so once. The copy
 that installed an update waits for the new one to come up and puts the old program file back if it does not
 (`handOverTo` in `update.go`; `update-failed` in the data folder names the version, which is not installed by itself
 again). While an
 update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, made by `tools/mkico -dot`; macOS:
-`winsys.menuBarIcon`). Test copies keep `checkUpdates` off, which also keeps them from installing anything.
+`winsys.menuBarIcon`). Test copies keep `checkUpdates` off, which also keeps them from installing anything: with it
+on, a copy without a window installs what its update server offers ten seconds after its start and shows a real
+notification. To try the dialog, start with it off, open the page, then switch it on there (that looks at once).
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
