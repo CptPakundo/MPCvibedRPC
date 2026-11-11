@@ -31,6 +31,14 @@ var browserExes = map[string]bool{"msedge.exe": true, "chrome.exe": true, "brave
 // user's regular browser. It returns how many processes it ended. Quitting the program calls it so that no
 // browser is left running in the background, and the next start calls it to clear up after a crash.
 func CloseWindowBrowser(profileDir string) int {
+	return forProfileProcesses(profileDir, processQueryLimitedInformation|processTerminate, func(_ uint32, h syscall.Handle) bool {
+		return syscall.TerminateProcess(h, 0) == nil
+	})
+}
+
+// forProfileProcesses calls fn for each browser process that runs with the window profile profileDir (never this
+// program itself), with a handle opened with the given access. It returns how many calls answered true.
+func forProfileProcesses(profileDir string, access uint32, fn func(pid uint32, h syscall.Handle) bool) int {
 	if profileDir == "" {
 		return 0
 	}
@@ -46,11 +54,11 @@ func CloseWindowBrowser(profileDir string) int {
 		if !browserExes[strings.ToLower(syscall.UTF16ToString(pe.ExeFile[:]))] || int(pe.ProcessID) == os.Getpid() {
 			continue
 		}
-		h, oerr := syscall.OpenProcess(processQueryLimitedInformation|processTerminate, false, pe.ProcessID)
+		h, oerr := syscall.OpenProcess(access, false, pe.ProcessID)
 		if oerr != nil {
 			continue
 		}
-		if usesProfile(commandLine(h), profileDir) && syscall.TerminateProcess(h, 0) == nil {
+		if usesProfile(commandLine(h), profileDir) && fn(pe.ProcessID, h) {
 			n++
 		}
 		syscall.CloseHandle(h)

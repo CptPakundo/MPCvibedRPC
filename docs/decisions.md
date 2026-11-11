@@ -40,6 +40,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   sign-in should be silent, and opening it yourself means you want to see it.
 - **Settings save as they change**; Restore defaults asks first. *Why:* no Save button to forget, and only the one
   action that loses settings needs a confirmation.
+- **Opening the settings while they are open brings that window to the front** (Windows; also from the tray and
+  from starting the program a second time) instead of opening another. On Linux, and on a macOS build without the
+  native window, a second window still opens. *Why:* two windows each keep their own copy of the values, and a change
+  in one does not show in the other.
 - **The window closes the instant the program quits**, and quitting leaves no browser processes behind. *Why:* a
   settings page that outlives its program only confuses.
 - **"Start with Windows" follows Windows' own switch too.** An entry turned off in Task Manager > Startup apps shows

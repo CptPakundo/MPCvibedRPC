@@ -206,6 +206,10 @@ func removeIPC(path string) error {
 }
 
 func (a *app) openWindow() {
+	// a window that is open already comes to the front: two windows would each keep their own copy of the values
+	if a.windows.Load() > 0 && winsys.FocusWindow(a.browserProfile) {
+		return
+	}
 	winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
 }
 

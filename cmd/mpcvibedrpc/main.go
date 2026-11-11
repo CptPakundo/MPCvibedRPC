@@ -134,6 +134,8 @@ func handOver(other *ipcInfo) {
 	if background {
 		return
 	}
+	// this start was made by the user and may take the foreground; the running copy may not unless we allow it
+	winsys.AllowForeground(other.Pid)
 	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/open", other.Port), strings.NewReader("{}"))
 	req.Header.Set("X-Token", other.Token)
 	c := &http.Client{Timeout: 3 * time.Second}
