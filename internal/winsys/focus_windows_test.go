@@ -28,3 +28,21 @@ func TestPickWindow(t *testing.T) {
 		t.Fatalf("a minimised window is still found and reported as minimised: %+v %v", w, ok)
 	}
 }
+
+// The enumeration runs for real (it only reads): the callback must work with Windows' calling convention, and a
+// folder no browser uses as its profile has no window to bring forward.
+func TestEnumeratingWindowsWorks(t *testing.T) {
+	enumMu.Lock()
+	enumFound = nil
+	r, _, _ := pEnumWindows.Call(enumWindowsCallback, 0)
+	n := len(enumFound)
+	enumFound = nil
+	enumMu.Unlock()
+	if r == 0 {
+		t.Fatal("EnumWindows failed")
+	}
+	t.Logf("%d top-level windows", n)
+	if FocusWindow(t.TempDir()) {
+		t.Error("no browser uses a new folder as its profile: there is nothing to bring forward")
+	}
+}

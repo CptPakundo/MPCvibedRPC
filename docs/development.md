@@ -75,6 +75,7 @@ One row per package; the rules that go with them are in the repository's CLAUDE.
 | `internal/stremio` | Stremio: the link-code sign-in and sign-out (`account.go`), the account's library as Stremio's player updates it (`watcher.go`); read-only |
 | `internal/jellyfin` | Jellyfin and Emby: the server lookup, Quick Connect and password sign-in, sign-out (`account.go`), the session list (`watcher.go`), item to a file-like name (`meta.go`); read-only |
 | `internal/remote` | what the Plex, Stremio and Jellyfin readers share: the problem text, nil-safe log and clock types, the OS name, network-error wording, the same-origin redirect check (their titles are written like file names by `core/names.go`) |
+| `internal/capture` | whether Discord shares the screen right now: Windows' record of screen captures per program (read-only, `HKCU\...\ConsentStore\graphicsCaptureProgrammatic\NonPackaged`; a stop time of zero means a capture runs), with a watch for changes; nothing on other systems. The engine uses it for `streamTitle` "auto" |
 | `internal/conns` | Recent connections (Privacy tab): `main` wraps `http.DefaultTransport`, so every web request to another computer is counted by host (count, last time, in memory; never a path or a title). A new HTTP client must keep using the default transport |
 | `internal/proc` | starting a helper process hidden (Windows: no console) or detached from this one (`Detach`, `DetachVisible`: the window's browser, the macOS `--serve` copy) |
 | `internal/discord` | Discord's local IPC protocol |
@@ -83,7 +84,7 @@ One row per package; the rules that go with them are in the repository's CLAUDE.
 | `internal/server`, `internal/assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP) and the whole page (`ui.html`, `ui.css`, `ui.js`, each embedded), the changelog (`changelog.json`) |
 | `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`); by topic: `run.go`, `mpcsetup.go` (`EnableMpcWebInterface`), `window.go` (browser, open URL/folder), `autostart.go`, `tray.go` (`TrayOptions`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
 | `internal/diag` | "Copy diagnostics": titles and file names kept (a wrong title is traced back to its file name); folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list left out |
-| `internal/updater` | GitHub release check, download, checksum, swap, restart |
+| `internal/updater` | GitHub release check, download, checksum, swap and restore of the program file. The hand-over is in `cmd/mpcvibedrpc/update.go` (`handOverTo`): the old copy frees the window, tray, port and single-instance lock, waits for the new copy's `ipc.json`, and otherwise puts the old file back, writes `update-failed` (the version) and starts itself again with `--update-failed` |
 | `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
 | `tools/downloads` | the project's own count of people who downloaded the program (the README shows GitHub's count): GitHub's counts of the program files since `baseline.json`, minus the ledger of development downloads (both on the `stats` branch, kept by `.github/workflows/downloads.yml`, which writes `downloads.json` and `summary.json`) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
@@ -166,7 +167,10 @@ a change by the player restarts the pause limit or brings back a status cleared 
 that takes `e.mu` again after asking Discord checks that its run is still the current one (`e.cur == r`) before it
 books anything; the clear after a long pause is booked when Discord took it, not before; a send Discord did not take
 waits `retryAfter` (5 s, doubling to a minute) before the next try; `basicMode` and `noLinks` hold for the file they
-were found out for (`modeKey`). Tests: `internal/engine/state_test.go`, with `TestStatusConverges`, which runs random
+were found out for (`modeKey`); a check in which no player answers while a status is up changes nothing once
+and asks again after `missWait` (a second); with `streamTitle` "auto" the tick asks `capture` whether Discord shares
+the screen and builds the stream form ("always") or the usual one ("off"), and a change of that sends the same file
+again. Tests: `internal/engine/state_test.go`, with `TestStatusConverges`, which runs random
 orders of player, Discord and settings events against the fakes and checks that Discord ends up showing exactly
 what the player's last state calls for (`MPCRPC_CONVERGE_SEEDS=500` tries that many orders; run it after a change
 to the tick).

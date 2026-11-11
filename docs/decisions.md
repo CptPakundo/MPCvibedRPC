@@ -20,11 +20,15 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   TVmaze, AniList, Kitsu, Wikipedia, Bulbapedia), each with its own switch. *Why:* every show, film, special or the
   like should be found, and no single catalog has them all; a slow or closed service must not leave a title without
   its cover. A catalog is only removed when it stops answering for good.
-- **The title on a stream is a switch, off by default** (2026-11-11). Discord names a screen share after the
-  streamer's *Playing* status and no other kind, so the switch sends "Playing <title>" all the time. *Why:* the
-  Watching status with its progress bar is what most people want on their profile; a program like this one cannot
-  see whether you are streaming, so it cannot switch only then; and showing both at once would put two cards on the
-  profile.
+- **The title is shown on a stream by itself** (2026-11-11). Discord names a screen share after the streamer's
+  *Playing* status and no other kind, so while Discord shares the screen the status is sent as "Playing <title>", and
+  as the usual Watching status the rest of the time. The program reads that from Windows' record of screen captures;
+  where there is none (macOS, Linux, an old Windows 10) the choice is always or never. *Why:* a switch to remember
+  before every stream is friction; the Watching status with its progress bar is what belongs on a profile; showing
+  both at once would put two cards there. It is on by default because it changes nothing until a stream starts.
+- **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player
+  answers is repeated a second later before the status is taken down. *Why:* a player that loads a file or seeks on
+  a slow disk misses an answer now and then, and the status should not flicker for it; a second is a small price.
 - **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
   Discord restarts or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
   its own.
@@ -57,8 +61,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 - **Updates install themselves by default** (2026-10-18; Windows and Linux): checks every six hours, and a found
   update is installed at the next quiet moment (nothing playing, no settings window open), then a notice says so once.
   The tray and menu bar icon show a red dot while an update waits. One switch turns it off. *Why:* users on old
-  versions miss fixes; a restart while nothing plays interrupts nobody, and every update is checksummed and falls back
-  to the old version if the new one does not start.
+  versions miss fixes; a restart while nothing plays interrupts nobody, and every update is checksummed. The copy that
+  installed an update stays until the new version has come up, and puts the old one back if it has not (2026-11-11):
+  a version that does not start must not leave anyone without the program, and is not installed by itself again.
 
 ## Privacy
 - **Copy diagnostics keeps titles and file names**, and leaves out folder paths, web address details, server names,

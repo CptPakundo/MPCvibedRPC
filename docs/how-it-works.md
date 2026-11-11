@@ -115,16 +115,20 @@ names come from, and how each player is read.
   downloads.)
 - **What's new.** After an update (and on a new install) the window shows the new version's changes once; the
   version number at the top shows every version's.
-- Clears itself when you stop or close the player; reconnects on its own if Discord restarts (a status that was
-  cleared after a long pause stays cleared then: only the player brings it back).
+- Clears itself when you stop or close the player (a player that misses one answer, busy for a moment, is asked again
+  a second later before the status goes); reconnects on its own if Discord restarts (a status that was cleared after
+  a long pause stays cleared then: only the player brings it back).
   If Discord ever rejects the Watching format for a title, that title falls back to a basic presence automatically;
   a status Discord does not take at all is tried again after a growing wait (5 seconds, up to a minute).
-- **On your streams** (Look tab, off by default): when you share your screen, Discord names what you stream after
-  your *Playing* status and after no other kind, so "Watching Sample Show" never reaches a stream. **Show the title on
-  my streams** sends the status as "Playing Sample Show" instead: viewers then see "Streaming Sample Show". The price
-  is the Watching look: a timer in place of the progress bar, and the season and episode in the first line. Music
-  stays "Listening to", and a hidden title stays hidden. The program cannot tell whether you are streaming (Discord
-  does not say so to a program like this one), so the switch holds all the time, not only while you stream.
+- **On your streams.** When you share your screen, Discord names what you stream after your *Playing* status and
+  after no other kind, so "Watching Sample Show" never reaches a stream. So while Discord shares your screen, and only
+  then, the status is sent as "Playing Sample Show": viewers see "Streaming Sample Show". It has a timer in place of
+  the progress bar and the season and episode in the first line, and it turns back into the usual status when the
+  stream ends. The program finds out from Windows' own record of which program is capturing the screen (it only reads
+  it), so this works on Windows 11 and on Windows 10 versions that keep that record; on macOS and Linux the program
+  cannot tell, and **Look > Show the title on my streams** offers *Always* or *Never* there. On Windows the choice
+  is *While Discord shares my screen* (the default), *Always* or *Never*, and the tray menu has a tick for it. Music
+  stays "Listening to", and a hidden title stays hidden.
 - Options live in the settings window and save as you change them (**Restore defaults** resets them all); the full list with defaults is in [`docs/config.md`](config.md) (extra ones go in
   `config.json`). Set `activityType` to `playing` for the classic look. Log: `mpcvibedrpc.log` (also on the **Help** tab).
 

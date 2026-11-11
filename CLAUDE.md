@@ -12,10 +12,13 @@ their Stremio library after "Sign in to Stremio", or from their own Jellyfin or 
 Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
 shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
-on Discord, Hide what I'm watching (`hideTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
+on Discord, Hide what I'm watching (`hideTitle`, ticked), Show the title on my streams (`streamTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
 "presence". Updates are looked for 5 s after start, then every six hours; with `autoUpdate` (on by default; Windows
 and Linux) a found update installs itself at a quiet moment (`quietMoment`: nothing shown on Discord, no settings
-window), and the new copy starts in the tray (`auto-updated` marker in the data folder) and says so once. While an
+window), and the new copy starts in the tray (`auto-updated` marker in the data folder) and says so once. The copy
+that installed an update waits for the new one to come up and puts the old program file back if it does not
+(`handOverTo` in `update.go`; `update-failed` in the data folder names the version, which is not installed by itself
+again). While an
 update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, made by `tools/mkico -dot`; macOS:
 `winsys.menuBarIcon`). Test copies keep `checkUpdates` off, which also keeps them from installing anything.
 
@@ -195,6 +198,12 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 - Leave nothing running: quit test copies, and only stop processes you started.
 
 ## Recipes
+**The stream title** (`streamTitle`: "auto", "always", "off"): Discord names a stream after a Playing activity only.
+`internal/capture` tells from Windows' record of screen captures whether Discord shares the screen; the engine
+builds the Playing form only then. Tests never read this computer's record (`Options.Sharing`; the engine tests'
+`init` replaces the default). It cannot be tried against a real Discord in tests: the owner checks it on a real
+stream.
+
 **New setting:** a field with a `json` tag in `core.Config` and its default in `DefaultConfig()`; a `Field` in
 `store/schema.go` if it belongs in the window (int fields need Min/Max; `secret` for passwords and keys); a row in
 `docs/config.md`; `diag.summarise` if the value is private (shown as "(set)"). Defaults that change behaviour for
