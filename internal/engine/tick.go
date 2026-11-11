@@ -139,6 +139,17 @@ func (e *Engine) tick(r *run) {
 		e.mu.Unlock() // stopped, or started again, while the players were asked: the answer is not this run's
 		return
 	}
+	// One check without any answer is not yet "the player is gone": a player that loads a file or seeks on a slow disk
+	// can miss one. While a status is up, the first silent check changes nothing and the players are asked again a
+	// moment later; only a second silent check in a row takes the status down. (A player that answers "stopped" is
+	// believed at once.)
+	if info == nil && e.shown && !e.missed {
+		e.missed = true
+		e.mu.Unlock()
+		time.AfterFunc(min(missWait, e.pollInterval(cfg)), e.Wake)
+		return
+	}
+	e.missed = false
 	e.notePlayer(info)
 	if e.cur != r {
 		e.mu.Unlock() // notePlayer lets go of the lock for its log line
@@ -480,6 +491,9 @@ const minPoll = 250 * time.Millisecond
 // reclearEvery is how often the status is cleared again while nothing plays and Discord is connected (tests shorten
 // it: Options.ReclearEvery): Discord limits a status to five changes in 20 seconds, and once a minute keeps far below that.
 const reclearEvery = time.Minute
+
+// missWait is how soon the players are asked again after a check in which none answered while a status is up.
+const missWait = time.Second
 
 // retryAfter is the first wait after a status Discord did not take (tests shorten it: Options.RetryAfter).
 const retryAfter = 5 * time.Second

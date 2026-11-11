@@ -31,9 +31,8 @@ func TestStatusFollowsTheScreenShare(t *testing.T) {
 		s := d.showing()
 		return len(s) == 1 && s[0]["type"] == nil && s[0]["name"] == "Show Name" && l.has("screen share began")
 	})
-	if p := e.Status().Preview; p == nil || p.Watching {
-		t.Errorf("the window's preview should show the Playing form: %+v", p)
-	}
+	// booked when Discord's answer is there, a moment after Discord has the status
+	eventually(t, "the window's preview in the Playing form", func() bool { p := e.Status().Preview; return p != nil && !p.Watching })
 	sharing.Store(false)
 	eventually(t, "the Watching status again", func() bool {
 		s := d.showing()
