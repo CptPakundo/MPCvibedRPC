@@ -163,7 +163,7 @@ anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDi
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. Players that report changes are also watched
 (`engine/events.go`): mpv and IINA (`mpvipc.Watch`: one more IPC connection that observes `pause` and listens for seek
-and file events), MPRIS players (`mpris.Watch`: D-Bus `PropertiesChanged` and `Seeked` signals) and Kodi
+and file events; on Windows `pipe.Dial` waits up to a second for a pipe whose instances are all taken, which happens when the check and the watch connect at the same moment), MPRIS players (`mpris.Watch`: D-Bus `PropertiesChanged` and `Seeked` signals) and Kodi
 (`kodi.Watch`: its JSON-RPC over TCP on port 9090, on by default in Kodi). An event wakes the loop early (`nudge`:
 250 ms later, at most every 4 s), and the check still reads what plays; tests set `Options.KodiEvents` and
 `Options.MPRISBus` so no real Kodi or bus is reached. MPC-QT's pipe is only asked. MPRIS only reads players on the allowlist in
