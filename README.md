@@ -40,7 +40,7 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 - 🔗 **Clickable**: both text lines and the cover open the title's page (IMDb, AniList, ...), next to the "View on IMDb" button. **Hide what I'm watching** is also in the tray / menu bar menu.
 - 📡 **On your streams**: while you share your screen, Discord says "Streaming Sample Show" instead of showing a stream without a name (Windows; elsewhere it is a switch).
 - 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
-- 🪶 **Tiny and tidy**: one ~8 MB file, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it rests and asks no player at all.
+- 🪶 **Tiny and tidy**: one file of under 10 MB, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it rests and asks no player at all.
 
 ## 🚀 Getting started
 
