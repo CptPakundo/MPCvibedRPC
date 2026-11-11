@@ -533,6 +533,14 @@ type state struct {
 	in    []rune
 	caps  []int
 	steps int
+	scans int // see scanLimit
+}
+
+// scan counts n cheap steps of the search (see scanLimit).
+func (s *state) scan(n int) {
+	if s.scans += n; s.scans > scanLimit {
+		panic(errComplex)
+	}
 }
 
 type matcher func(s *state, i int, k func(int) bool) bool
@@ -540,6 +548,19 @@ type matcher func(s *state, i int, k func(int) bool) bool
 // stepLimit caps the repetition steps of one search (ExecAt). A pattern that exceeds it stops and reports no match,
 // rather than hanging on catastrophic backtracking.
 const stepLimit = 5_000_000
+
+// scanLimit caps the cheap steps of one search, which stepLimit does not see: the characters a one-character
+// repetition runs over, the start positions tried, and the positions a lookbehind tries. Each costs little, but a
+// lazy "anything" that finds no end is run again from every start, which is the square of the input: megabytes of
+// that would keep a processor busy for minutes. The limit is several times what a search without a match needs on
+// the longest page the program reads (16 MB of text: one step for every start), and about two seconds of work.
+// A variable only so that its test need not spend those seconds; nothing else writes it.
+var scanLimit = 100_000_000
+
+// depthLimit caps how often one general repetition repeats in a single match. Every repetition nests a few calls
+// (the matcher passes its continuation on), so a run of a million would need a stack of a gigabyte, which ends the
+// whole program: that cannot be recovered from the way stepLimit's stop can.
+const depthLimit = 100_000
 
 // Compile parses a pattern with JavaScript flags ("g", "i", "u") and returns the compiled regexp. Other flags and
 // pattern features the package does not implement give an "unsupported" error.
@@ -742,6 +763,7 @@ func (re *Regexp) compile(n *node) matcher {
 				matched = inner(s, i, func(int) bool { return true })
 			} else {
 				for j := i; j >= 0 && !matched; j-- {
+					s.scan(1)
 					matched = inner(s, j, func(e int) bool { return e == i })
 				}
 			}
@@ -783,6 +805,7 @@ func (re *Regexp) compileQuant(n *node) matcher {
 				for c < limit && pred(s.in[i+c]) {
 					c++
 				}
+				s.scan(c)
 				for ; c >= min; c-- {
 					if k(i + c) {
 						return true
@@ -804,6 +827,7 @@ func (re *Regexp) compileQuant(n *node) matcher {
 					return false
 				}
 				c++
+				s.scan(1)
 			}
 		}
 	}
@@ -812,7 +836,7 @@ func (re *Regexp) compileQuant(n *node) matcher {
 	var rep func(s *state, i int, k func(int) bool, count int) bool
 	rep = func(s *state, i int, k func(int) bool, count int) bool {
 		s.steps++
-		if s.steps > stepLimit {
+		if s.steps > stepLimit || count > depthLimit {
 			panic(errComplex)
 		}
 		tryMore := func() bool {
@@ -893,6 +917,7 @@ func (re *Regexp) execAt(in []rune, from int) *Match {
 		last = from
 	}
 	for st := from; st <= last; st++ {
+		s.scan(1)
 		for x := range s.caps {
 			s.caps[x] = -1
 		}
