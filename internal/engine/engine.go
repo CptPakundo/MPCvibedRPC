@@ -115,7 +115,9 @@ type Engine struct {
 	clearedAt  time.Time // when the status was last cleared: while nothing plays it is cleared again now and then
 	clearStuck bool      // the last clear failed (logged once until one works)
 	prev       *core.Prev
+	resend     bool // the status must go out again although the player reports no change (a new connection, a cover that arrived, a send that failed)
 	basicMode  bool
+	modeKey    string // the file basicMode and noLinks were found out for: the next file is tried in full again
 	noLinks    bool // Discord refused the clickable title and cover: they are sent without links
 	art        *artwork.Artwork
 	player     string // the player that answered last
@@ -234,14 +236,17 @@ func (e *Engine) start() {
 	e.basicMode, e.noLinks, e.prev, e.shown, e.warnedDisc, e.player = false, false, nil, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
-	e.lastError, e.nowPlaying = nil, nil
+	e.lastError, e.nowPlaying, e.why = nil, nil, nil
+	e.resend, e.modeKey, e.sendFails, e.retryAt = false, "", 0, time.Time{}
+	e.clearStuck, e.clearedAt = false, time.Time{}
+	e.recheckKey, e.recheckAt, e.rechecks = "", time.Time{}, 0
 	cfg := e.cfg
 	cfgCopy := cfg
 	e.art = artwork.New(&cfgCopy, artwork.Options{
 		CacheFile:  e.opts.CacheFile,
 		Log:        e.log,
 		Client:     e.opts.HTTPClient,
-		OnResolved: func(*core.Art) { e.mu.Lock(); e.prev = nil; e.mu.Unlock() },
+		OnResolved: func(*core.Art) { e.mu.Lock(); e.resend = true; e.mu.Unlock() },
 	})
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // the first check starts them (unless it rests)
 	e.mu.Unlock()
@@ -289,7 +294,7 @@ func (e *Engine) stop() {
 		}
 	}
 	e.mu.Lock()
-	e.rpc, e.ready, e.connecting, e.shown, e.prev = nil, false, false, false, nil
+	e.rpc, e.ready, e.connecting, e.shown, e.prev, e.resend = nil, false, false, false, nil, false
 	e.nowPlaying, e.preview = nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
@@ -330,7 +335,7 @@ func (e *Engine) ApplySettings(cfg core.Config) {
 func (e *Engine) ClearArtworkCache() {
 	e.mu.Lock()
 	art := e.art
-	e.prev = nil
+	e.resend = true
 	e.mu.Unlock()
 	if art != nil {
 		art.ClearCache()

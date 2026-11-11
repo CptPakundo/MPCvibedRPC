@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -101,7 +102,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	switch {
 	case r.Method == "GET" && p == "/api/ping":
-		send(w, 200, map[string]string{"app": "MPCvibedRPC", "version": s.o.Version}, jsonType)
+		send(w, 200, map[string]any{"app": "MPCvibedRPC", "version": s.o.Version, "pid": os.Getpid()}, jsonType)
 		return
 	case r.Method == "GET" && p == "/icon.ico":
 		send(w, 200, s.o.Icon, "image/x-icon")

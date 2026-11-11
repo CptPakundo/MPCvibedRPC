@@ -132,11 +132,6 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	if user == "" {
 		return nil, errors.New("Enter your user name.")
 	}
-	// Only a Quick Connect that is waiting ends here: stopWaiting would also forget the server found and the password
-	// form, and after a wrong password the box would fall back to the address form.
-	j.mu.Lock()
-	j.end()
-	j.mu.Unlock()
 	base, err := jellyfin.Address(address)
 	if err != nil {
 		return nil, err
@@ -145,7 +140,10 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// Only a Quick Connect that is waiting ends here: stopWaiting would also forget the server found and the password
+	// form, and after a wrong password the box would fall back to the address form. This sign-in takes its place, so
+	// a sign-out, Cancel or a newer sign-in ends it too, and nothing of it is saved after that.
+	ctx, cancel := j.during(15 * time.Second)
 	defer cancel()
 	srv, err := c.Find(ctx)
 	if err != nil {
@@ -157,8 +155,10 @@ func (j *jellyfinAccount) signInPassword(address, user, password string) (map[st
 	} else if err != nil {
 		return nil, fmt.Errorf("Could not sign in (%s).", jellyfin.Reason(err))
 	}
-	if err := j.keep(c, srv, a); err != nil {
+	if saved, err := j.save(ctx, func() error { return j.keep(c, srv, a) }); err != nil {
 		return nil, errors.New("Could not save the sign-in: " + err.Error())
+	} else if !saved {
+		return nil, errors.New("The sign-in was cancelled.")
 	}
 	j.clearProblem()
 	return j.state(), nil

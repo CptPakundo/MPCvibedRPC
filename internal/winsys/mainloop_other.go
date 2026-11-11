@@ -9,5 +9,3 @@ const macApp = false
 func RunMain(f func()) { f() }
 
 func openNativeWindow(string) bool { return false }
-
-func closeNativeWindow() {}

@@ -43,6 +43,7 @@ type app struct {
 	tray *winsys.Tray
 
 	quitOnce sync.Once
+	quitting atomic.Bool // quit has begun: an install that fails now must not bring the server's file or the engine back
 	quitDone chan struct{}
 }
 
@@ -55,12 +56,10 @@ func run() error {
 	firstRun := st.FirstRun()
 
 	// Already running? Ask it to show its window and leave (a background start at login just leaves quietly).
-	// The named mutex closes the race of two copies starting at the same moment; after an update the old copy is
-	// still on its way out, so wait for it.
-	deadline := time.Now().Add(1500 * time.Millisecond)
-	if afterUpdate {
-		deadline = time.Now().Add(10 * time.Second)
-	}
+	// The named mutex closes the race of two copies starting at the same moment. Its holder may not answer yet: it is
+	// still starting (ipc.json is written once its server listens; a start at login can take seconds), or, after an
+	// update, the old copy is still on its way out. So wait for it.
+	deadline := time.Now().Add(10 * time.Second)
 	for !winsys.AcquireSingleInstance(st.Dir) {
 		if other := pingExisting(ipcFile); other != nil {
 			handOver(other)
@@ -179,7 +178,12 @@ func (a *app) getTray() *winsys.Tray {
 
 func (a *app) writeIPC(port int) {
 	b, _ := json.Marshal(ipcInfo{Port: port, Token: a.token, Pid: os.Getpid()})
-	_ = os.WriteFile(a.ipcFile, b, 0o600)
+	// in one step: a second start that reads the file meanwhile must not find half of it and take it for "none running"
+	tmp := a.ipcFile + ".tmp"
+	if os.WriteFile(tmp, b, 0o600) != nil || os.Rename(tmp, a.ipcFile) != nil {
+		_ = os.Remove(tmp)
+		_ = os.WriteFile(a.ipcFile, b, 0o600)
+	}
 }
 
 // ipcRemoveWait is how long removeIPC keeps trying.
@@ -206,6 +210,7 @@ func (a *app) openWindow() { winsys.OpenWindow(windowURL(a.srv.Port(), a.token),
 // quit shuts the program down once (the window's Quit, the tray's Quit, or a signal).
 func (a *app) quit() {
 	a.quitOnce.Do(func() {
+		a.quitting.Store(true)
 		go func() {
 			a.srv.Close() // ends the page's keep-alive connection, so an open window closes right away
 			// the port and token are gone with the server: a new copy must not find them while this one winds down

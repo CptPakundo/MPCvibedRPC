@@ -73,13 +73,16 @@ type disc struct {
 	failClears bool
 	ln         fakeListener
 	conns      []io.ReadWriteCloser
+	// up is what each live connection shows: the last status it took, until it is cleared or the connection ends
+	// (Discord drops a status with its connection)
+	up map[io.ReadWriteCloser]map[string]any
 }
 
 func newDisc(t *testing.T) *disc { return newDiscAt(t, fakePath(sockDir(t))) }
 
 // newDiscAt starts the fake Discord at a given path (a test that starts it later picks the path first).
 func newDiscAt(t *testing.T, path string) *disc {
-	d := &disc{path: path}
+	d := &disc{path: path, up: map[io.ReadWriteCloser]map[string]any{}}
 	ln, err := listenFake(d.path)
 	if err != nil {
 		t.Skip("cannot listen for the fake Discord: " + err.Error())
@@ -117,6 +120,7 @@ func reply(c io.Writer, v any) {
 }
 
 func (d *disc) serve(c io.ReadWriteCloser) {
+	defer func() { d.mu.Lock(); delete(d.up, c); d.mu.Unlock() }()
 	h := make([]byte, 8)
 	for {
 		if _, err := io.ReadFull(c, h); err != nil {
@@ -138,16 +142,23 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		rej := (d.reject && act != nil && act["type"] != nil) || (d.rejectLinks && act != nil && act["details_url"] != nil)
 		drop := d.dropNext
 		d.dropNext = false
-		slow, failClear, rejectAll := d.slow, d.failClears && m["cmd"] == "SET_ACTIVITY" && act == nil, d.rejectAll
+		slow := d.slow
+		if (d.failClears && m["cmd"] == "SET_ACTIVITY" && act == nil) || (d.rejectAll && act != nil) {
+			rej = true
+		}
+		if !rej && !drop && m["cmd"] == "SET_ACTIVITY" {
+			if d.up == nil {
+				d.up = map[io.ReadWriteCloser]map[string]any{} // a fake a test built by hand
+			}
+			if act != nil {
+				d.up[c] = act
+			} else {
+				delete(d.up, c)
+			}
+		}
 		d.mu.Unlock()
 		if slow > 0 {
 			time.Sleep(slow)
-		}
-		if failClear {
-			rej = true
-		}
-		if rejectAll && act != nil {
-			rej = true
 		}
 		if drop {
 			c.Close()
@@ -159,6 +170,18 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 			reply(c, map[string]any{"evt": nil, "nonce": m["nonce"], "data": nil})
 		}
 	}
+}
+
+// showing is what the fake Discord displays: the statuses its live connections hold (none: nothing is shown; more
+// than one: a connection was left behind with a status on it).
+func (d *disc) showing() []map[string]any {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var out []map[string]any
+	for _, a := range d.up {
+		out = append(out, a)
+	}
+	return out
 }
 
 // set changes how the fake Discord answers while the engine runs.

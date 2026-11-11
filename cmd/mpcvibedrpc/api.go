@@ -58,7 +58,7 @@ func (a *app) handlers() map[string]server.Handler {
 			}
 			return r, nil
 		}},
-		"update-install": {Fn: func(*jsonx.Obj) (any, error) { return nil, a.installUpdate() }},
+		"update-install": {Fn: func(*jsonx.Obj) (any, error) { return nil, a.installUpdate(nil) }},
 
 		"plex-signin": {Fn: func(*jsonx.Obj) (any, error) { return a.plex.signIn() }},
 		"plex-servers": {Fn: func(*jsonx.Obj) (any, error) {

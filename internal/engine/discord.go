@@ -68,7 +68,8 @@ func (e *Engine) connectDiscord(r *run) {
 		e.connecting = false
 		e.warnedDisc = false
 		e.discRefused = false
-		e.prev = nil
+		e.resend = true // what plays goes up on the new connection (a status cleared after a long pause stays cleared)
+		e.lastError = nil
 		e.sendFails, e.retryAt = 0, time.Time{} // a new connection starts without the last one's waits
 		e.mu.Unlock()
 		e.log("INFO", "Connected to Discord.")
@@ -85,7 +86,7 @@ func (e *Engine) connectDiscord(r *run) {
 				e.mu.Unlock()
 				return
 			}
-			e.ready, e.rpc, e.shown, e.prev, e.preview = false, nil, false, nil, nil
+			e.ready, e.rpc, e.shown, e.preview = false, nil, false, nil
 			e.mu.Unlock()
 			e.log("WARN", "Lost connection to Discord. Will reconnect when needed.")
 		})
@@ -95,9 +96,14 @@ func (e *Engine) connectDiscord(r *run) {
 // sendActivity shows a on Discord and returns what was sent. Only a refusal by Discord changes the mode: one that
 // refuses the clickable title and cover gets them without links from then on; a refused button is left out of that
 // update; one that refuses the Watching activity gets the basic one. Any other error (a timeout, a closed
-// connection) changes nothing; the next tick retries.
-func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity) (*core.Activity, error) {
+// connection) changes nothing; the next tick retries. "From then on" is for the file that plays (key): a refusal may
+// be about that one title (a text or an address Discord does not like), so the next file is tried in full again. A
+// Discord that takes none of it costs one refused request per file.
+func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Activity, key string) (*core.Activity, error) {
 	e.mu.Lock()
+	if e.modeKey != key {
+		e.modeKey, e.basicMode, e.noLinks = key, false, false
+	}
 	basic, noLinks := e.basicMode, e.noLinks
 	e.mu.Unlock()
 	if !basic {
@@ -141,10 +147,13 @@ func (e *Engine) sendActivity(rpc *discord.Client, cfg *core.Config, a *core.Act
 			}
 		}
 		e.log("WARN", fmt.Sprintf("Discord rejected the Watching activity (%s). Falling back to basic mode.", err.Error()))
-		e.mu.Lock()
-		e.basicMode = true
-		e.mu.Unlock()
 	}
 	l := core.LegacyActivity(a, cfg)
-	return l, rpc.SetActivity(l)
+	err := rpc.SetActivity(l)
+	if err == nil && !basic {
+		e.mu.Lock()
+		e.basicMode = true // only once the basic one was taken: a Discord that refuses that too is not in "basic mode"
+		e.mu.Unlock()
+	}
+	return l, err
 }
