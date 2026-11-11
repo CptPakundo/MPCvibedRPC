@@ -235,7 +235,10 @@ func (a *app) openWindow() {
 	if a.windows.Load() > 0 && winsys.FocusWindow(a.browserProfile) {
 		return
 	}
-	winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
+	if winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile) == "app" {
+		// the window is a browser's: its taskbar button gets the program's name, icon and command (Windows)
+		engine.Go(a.log, "Naming the window", func() { winsys.NameWindow(a.browserProfile) })
+	}
 }
 
 // quit shuts the program down once (the window's Quit, the tray's Quit, or a signal).
