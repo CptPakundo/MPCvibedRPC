@@ -1,5 +1,5 @@
 [
-  {"version": "0.9.45", "date": "2026-11-11", "items": [
+  {"version": "0.9.50", "date": "2026-11-11", "items": [
     "📡 New: while you share your screen, Discord says \"Streaming <title>\" (Windows; a choice under Look, a tick in the tray).",
     "🩺 New: Help > Run a check says in one click what works: Discord, your players, the catalogs, updates, streams.",
     "🛟 An update that does not start is undone: the old version comes back by itself and that update is not retried.",
