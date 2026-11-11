@@ -103,7 +103,23 @@ func run() error {
 		msg += " in the background"
 	}
 	a.log("INFO", msg+".")
-	updater.CleanupOld(exe)
+	failedUpdate := ""
+	if updateFailed {
+		if failedUpdate = failedVersion(st.Dir); failedUpdate != "" {
+			a.log("WARN", "The update to "+failedUpdate+" did not start, so "+version+" is back. That version is not installed by itself again; a newer one will be.")
+		}
+	}
+	if afterUpdate {
+		// The copy that started this one keeps the old program file until this one has shown that it runs, to put it
+		// back otherwise. So the leftovers go a little later, once that copy is gone.
+		engine.Go(a.log, "The clean-up after the update", func() {
+			time.Sleep(proofWait + 30*time.Second)
+			updater.CleanupOld(exe)
+			_ = os.Remove(filepath.Join(st.Dir, failedMarker))
+		})
+	} else {
+		updater.CleanupOld(exe)
+	}
 	if !firstRun && !st.App().WelcomeSeen {
 		// an install that existed before the welcome card was added has no need of it
 		if p, err := jsonx.Parse(`{"app":{"welcomeSeen":true}}`); err == nil {
@@ -140,6 +156,9 @@ func run() error {
 	a.mu.Lock()
 	a.tray = t
 	a.mu.Unlock()
+	if failedUpdate != "" && t != nil {
+		t.Balloon("MPCvibedRPC could not update to "+failedUpdate, "The new version did not start, so "+version+" is back.")
+	}
 	if autoFrom != "" && t != nil {
 		if !t.Balloon("MPCvibedRPC updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
 			a.log("INFO", "No notice of the automatic update was shown (no tray notifications here).")

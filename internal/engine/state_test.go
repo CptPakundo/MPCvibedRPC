@@ -73,26 +73,31 @@ func TestReconnectKeepsAPauseClearedStatusCleared(t *testing.T) {
 	eventually(t, "the status back on resume", func() bool { return len(d.showing()) == 1 && !e.Status().PauseCleared })
 }
 
-// A reconnect during a pause that is still shown sends the status again, but does not start the pause limit anew.
+// A reconnect during a pause that is still shown sends the status again, but does not start the pause limit anew:
+// the moment the pause began stays what it was.
 func TestReconnectDoesNotRestartThePauseLimit(t *testing.T) {
 	t.Parallel()
 	e, m, d, l := setup(t)
 	cfg := e.Config()
-	cfg.PauseClearMinutes = 3 // 900 ms in the test
+	cfg.PauseClearMinutes = 10 // three seconds in the test: long enough for a reconnect on a busy machine
 	e.ApplySettings(cfg)
 	e.Start()
 	eventually(t, "playing update", func() bool { return len(d.list()) >= 1 })
 	pause(t, m, d)
-	paused := time.Now()
-	time.Sleep(400 * time.Millisecond)
+	since := func() time.Time { e.mu.Lock(); defer e.mu.Unlock(); return e.pausedSince }
+	began := since()
+	if began.IsZero() {
+		t.Fatal("the pause was not noted")
+	}
+	before := statuses(d)
 	dropConnections(d)
 	eventually(t, "the paused status back on the new connection", func() bool {
-		return l.count("Connected to Discord") >= 2 && len(d.showing()) == 1
+		return l.count("Connected to Discord") >= 2 && len(d.showing()) == 1 && statuses(d) > before
 	})
-	eventually(t, "cleared after the limit", func() bool { return e.Status().PauseCleared && len(d.showing()) == 0 })
-	if took := time.Since(paused); took > 1300*time.Millisecond+10*testPoll {
-		t.Errorf("the status was cleared %v after the pause: the reconnect restarted the 900 ms limit", took)
+	if now := since(); !now.Equal(began) {
+		t.Errorf("the reconnect moved the start of the pause by %v: the limit would start anew", now.Sub(began))
 	}
+	eventually(t, "cleared after the limit", func() bool { return e.Status().PauseCleared && len(d.showing()) == 0 })
 }
 
 // A title Discord refuses as a Watching activity gets the basic one; the next title is tried in full again.

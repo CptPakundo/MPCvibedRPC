@@ -16,15 +16,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
 )
 
 // Asset is the file a release has to carry for this system to update itself ("" where it does not: on macOS the
@@ -403,9 +400,10 @@ func Download(client *http.Client, info *Info, exe string) (string, error) {
 	return next, nil
 }
 
-// SwapAndRestart: current -> .old, new -> current, start it, then call exit. Windows lets a running program be renamed.
-// start can be replaced in tests.
-func SwapAndRestart(exe, next string, start func(exe string, args ...string) error, exit func()) error {
+// Swap puts the new program file next in exe's place and keeps the running one as exe + ".old" (Windows lets a
+// running program's file be renamed). The caller starts the new copy; until that copy has shown that it runs, Restore
+// can put the old one back.
+func Swap(exe, next string) error {
 	old := exe + ".old"
 	_ = os.Remove(old) // leftover from a previous update; if it is still locked the rename below fails loudly
 	if err := os.Rename(exe, old); err != nil {
@@ -415,22 +413,24 @@ func SwapAndRestart(exe, next string, start func(exe string, args ...string) err
 		_ = os.Rename(old, exe)
 		return err
 	}
-	if start == nil {
-		start = func(exe string, args ...string) error {
-			c := proc.Detach(exec.Command(exe, args...))
-			if err := c.Start(); err != nil {
-				return err
-			}
-			return c.Process.Release()
-		}
+	return nil
+}
+
+// Restore undoes Swap: the new program file is moved aside (as exe + ".new", which CleanupOld removes later) and the
+// old one is back at exe. A new copy that still runs must have been ended first, or its file cannot be moved.
+func Restore(exe string) error {
+	old := exe + ".old"
+	if _, err := os.Stat(old); err != nil {
+		return err
 	}
-	if err := start(exe, "--after-update"); err != nil {
-		// the new program could not start; keep the old copy running
-		_ = os.Rename(exe, next)
-		_ = os.Rename(old, exe)
-		return fmt.Errorf("The new version could not be started: %v", err)
+	_ = os.Remove(exe + ".new")
+	if err := os.Rename(exe, exe+".new"); err != nil {
+		return err
 	}
-	exit()
+	if err := os.Rename(old, exe); err != nil {
+		_ = os.Rename(exe+".new", exe) // better the new file than none
+		return err
+	}
 	return nil
 }
 

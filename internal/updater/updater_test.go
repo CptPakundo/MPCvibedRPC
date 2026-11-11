@@ -92,15 +92,8 @@ func TestCheckAndDownload(t *testing.T) {
 		t.Fatal("content differs")
 	}
 
-	var started []string
-	exited := false
-	err = SwapAndRestart(target, next, func(e string, args ...string) error {
-		started = append(started, e)
-		started = append(started, args...)
-		return nil
-	}, func() { exited = true })
-	if err != nil || !exited || len(started) != 2 || started[1] != "--after-update" {
-		t.Fatalf("%v %v %v", err, exited, started)
+	if err = Swap(target, next); err != nil {
+		t.Fatal(err)
 	}
 	now, _ := os.ReadFile(target)
 	oldc, _ := os.ReadFile(target + ".old")
@@ -222,17 +215,35 @@ func TestDownloadRejects(t *testing.T) {
 	})
 }
 
-func TestSwapRollsBackWhenStartFails(t *testing.T) {
+// Restore undoes Swap: the old program is back, the new file is set aside where CleanupOld finds it.
+func TestRestorePutsTheOldProgramBack(t *testing.T) {
 	dir := t.TempDir()
 	exe, next := filepath.Join(dir, "a.exe"), filepath.Join(dir, "a.exe.new")
 	os.WriteFile(exe, []byte("old"), 0o755)
 	os.WriteFile(next, []byte("new"), 0o755)
-	err := SwapAndRestart(exe, next, func(string, ...string) error { return fmt.Errorf("boom") }, func() { t.Fatal("must not exit") })
-	if err == nil {
-		t.Fatal("expected error")
+	if err := Restore(exe); err == nil {
+		t.Fatal("nothing was swapped: nothing to restore")
+	}
+	if err := Swap(exe, next); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(exe); string(b) != "new" {
+		t.Fatal("the new program must be in place after the swap")
+	}
+	if err := Restore(exe); err != nil {
+		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(exe); string(b) != "old" {
 		t.Fatal("old program must be back")
+	}
+	if b, _ := os.ReadFile(exe + ".new"); string(b) != "new" {
+		t.Fatal("the new file is set aside")
+	}
+	CleanupOld(exe)
+	for _, left := range []string{exe + ".new", exe + ".old"} {
+		if _, err := os.Stat(left); err == nil {
+			t.Fatalf("%s left behind", filepath.Base(left))
+		}
 	}
 }
 
