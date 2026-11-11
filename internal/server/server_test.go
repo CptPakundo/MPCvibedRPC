@@ -71,8 +71,32 @@ func TestServer(t *testing.T) {
 	if c, b, _ := do(t, "GET", base+"/?t=tok", "", nil, ""); c != 200 || b != "<html>tok</html>" {
 		t.Fatal(c, b)
 	}
-	if c, _, _ := do(t, "GET", base+"/", "", nil, ""); c != 403 {
-		t.Fatal(c)
+	// without the token or a code the page comes without a token in it (its script then says how to open the window)
+	for _, q := range []string{"/", "/?t=wrong", "/?c=wrong", "/?c="} {
+		if c, b, _ := do(t, "GET", base+q, "", nil, ""); c != 200 || b != "<html></html>" {
+			t.Fatal(q, c, b)
+		}
+	}
+	// a one-time code hands the token out once
+	code := s.NewCode()
+	if c, b, _ := do(t, "GET", base+"/?c="+code, "", nil, ""); c != 200 || b != "<html>tok</html>" {
+		t.Fatal("a fresh code:", c, b)
+	}
+	if c, b, _ := do(t, "GET", base+"/?c="+code, "", nil, ""); c != 200 || b != "<html></html>" {
+		t.Fatal("a spent code:", c, b)
+	}
+	old := s.NewCode()
+	s.mu.Lock()
+	s.codes[old] = time.Now().Add(-time.Second)
+	s.mu.Unlock()
+	if c, b, _ := do(t, "GET", base+"/?c="+old, "", nil, ""); c != 200 || b != "<html></html>" {
+		t.Fatal("a code past its time:", c, b)
+	}
+	// only GET and POST reach an action
+	for _, m := range []string{"PUT", "DELETE", "HEAD", "PATCH"} {
+		if c, _, _ := do(t, m, base+"/api/state", "", tok, ""); c != 405 {
+			t.Fatal(m, c)
+		}
 	}
 	// the style sheet and the script are public (no token) but follow the page's other rules
 	for _, f := range []struct{ path, body, ctype string }{

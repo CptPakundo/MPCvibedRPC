@@ -142,8 +142,9 @@ func handOver(other *ipcInfo) {
 	}
 }
 
-func windowURL(port int, token string) string {
-	return fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
+// windowURL is the address the settings window is opened with: code is a one-time code of the server (NewCode).
+func windowURL(port int, code string) string {
+	return fmt.Sprintf("http://127.0.0.1:%d/?c=%s", port, code)
 }
 
 // applyMu makes "read the saved settings, hand them to the engine" one step: two saves at once (the window and the

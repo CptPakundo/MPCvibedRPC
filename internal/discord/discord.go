@@ -140,12 +140,22 @@ func (c *Client) Login(clientID string, timeout time.Duration) error {
 	c.conn = conn
 	go c.readLoop()
 	hs, _ := encode(opHandshake, map[string]any{"v": 1, "client_id": clientID})
-	if err := c.write(hs); err != nil {
-		c.Close()
-		return err
-	}
 	t := time.NewTimer(timeout)
 	defer t.Stop()
+	// The write is bounded like a request's: a Discord that accepted the connection but does not read would hold the
+	// caller for good, and the engine would never try to connect again.
+	wrote := make(chan error, 1)
+	go func() { wrote <- c.write(hs) }()
+	select {
+	case err := <-wrote:
+		if err != nil {
+			c.Close()
+			return err
+		}
+	case <-t.C:
+		go c.Close()
+		return errors.New("Discord did not take the handshake")
+	}
 	select {
 	case <-c.ready:
 		return nil
