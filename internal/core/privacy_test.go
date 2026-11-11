@@ -110,6 +110,21 @@ func TestIsAudioFile(t *testing.T) {
 	}
 }
 
+func TestStreamName(t *testing.T) {
+	for in, want := range map[string]string{
+		"video.mp4?token=abc123":                "video.mp4",
+		"https://example.com/v.mp4?token=x#t=5": "https://example.com/v.mp4",
+		"video.mp4#frag":                        "video.mp4",
+		"Sample Movie (2020)":                   "Sample Movie (2020)",
+		"?token=abc123":                         "?token=abc123",
+		"":                                      "",
+	} {
+		if got := StreamName(in); got != want {
+			t.Errorf("StreamName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestMusicMedia(t *testing.T) {
 	for file, want := range map[string]string{
 		`D:\Music\01 Sample Artist - Sample Song.flac`: "01 Sample Artist - Sample Song",

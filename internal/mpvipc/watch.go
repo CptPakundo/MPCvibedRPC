@@ -20,7 +20,17 @@ func Watch(conn io.ReadWriteCloser, onChange func()) error {
 	r := bufio.NewReaderSize(conn, 64*1024)
 	seenPause := false
 	for {
-		line, err := r.ReadBytes('\n')
+		// ReadSlice never stores more than the buffer: a longer line (no event of ours is) is skipped up to its end
+		line, err := r.ReadSlice('\n')
+		if err == bufio.ErrBufferFull {
+			for err == bufio.ErrBufferFull {
+				_, err = r.ReadSlice('\n')
+			}
+			if err != nil {
+				return err
+			}
+			continue
+		}
 		if len(line) > 0 {
 			var ev struct {
 				Event string `json:"event"`

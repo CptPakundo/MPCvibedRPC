@@ -94,6 +94,15 @@ func TestQueryProperties(t *testing.T) {
 		}, func(got *Info) bool {
 			return got.File == "Sample Stream Title" && got.FullDir == "" && len(got.Dir) == 0 && got.Duration == 0
 		}},
+		// mpv's media-title is the file name when the stream has no tag: that name must not carry a signed query
+		{"untitled stream drops its query", map[string]any{
+			"path": "https://example.com/video.mp4?token=abc123", "filename": "video.mp4?token=abc123",
+			"media-title": "video.mp4?token=abc123", "pause": false, "speed": 1.0, "idle-active": false,
+		}, func(got *Info) bool { return got.File == "video.mp4" }},
+		{"stream title with a question mark stays", map[string]any{
+			"path": "https://example.com/video.mp4?token=abc123", "filename": "video.mp4?token=abc123",
+			"media-title": "Sample Movie (2020)?", "pause": false, "speed": 1.0, "idle-active": false,
+		}, func(got *Info) bool { return got.File == "Sample Movie (2020)?" }},
 		{"bad speed falls back to one", map[string]any{"path": "/v/a.mkv", "pause": false, "speed": 0.0, "idle-active": false}, func(got *Info) bool {
 			return got.Rate == 1 && got.File == "a.mkv"
 		}},

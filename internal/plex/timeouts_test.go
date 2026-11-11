@@ -42,6 +42,40 @@ func TestStalledStreamConnectGivesUp(t *testing.T) {
 	}
 }
 
+// Data lines with no blank line after them must not be collected without limit: the stream ends with an error, and
+// the caller reconnects.
+func TestOversizedEventEndsTheStream(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.Write([]byte(`{"MediaContainer":{"machineIdentifier":""}}`))
+			return
+		}
+		rw.Header().Set("Content-Type", "text/event-stream")
+		rw.Write([]byte("event: playing\n"))
+		line := "data: " + strings.Repeat("x", 60<<10) + "\n"
+		for i := 0; i < 40 && r.Context().Err() == nil; i++ { // 2.4 MiB, never a blank line
+			if _, err := rw.Write([]byte(line)); err != nil {
+				return
+			}
+			rw.(http.Flusher).Flush()
+		}
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+	w := &Watcher{Client: &Client{ClientID: "test-client"}, Address: srv.URL}
+	done := make(chan error, 1)
+	go func() { done <- w.follow(context.Background()) }()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "too large") {
+			t.Fatalf("got %v; want the too-large error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the watcher keeps collecting an event that never ends")
+	}
+}
+
 // plex.tv's server list is asked under a time limit of its own.
 func TestServersLookupTimesOut(t *testing.T) {
 	tv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {

@@ -150,6 +150,27 @@ func TestStream(t *testing.T) {
 	}
 }
 
+// An untitled stream shows its name without the signed query; a title with a question mark stays whole.
+func TestStreamQuery(t *testing.T) {
+	pl := `{"type":"node","id":"0","children":[{"type":"node","id":"1","name":"Playlist","children":[
+		{"type":"leaf","id":"5","name":"video.mp4","uri":"https://example.com/video.mp4?token=abc123","current":"current","duration":-1}]}]}`
+	for _, c := range []struct{ meta, want string }{
+		{`{"filename":"video.mp4?token=abc123"}`, "video.mp4"},
+		{`{"filename":"video.mp4?token=abc123","title":"Sample Movie (2020)?"}`, "Sample Movie (2020)?"},
+	} {
+		st := `{"apiversion":3,"state":"playing","time":12,"length":0,"position":0,"rate":1,"currentplid":5,
+			"information":{"category":{"meta":` + c.meta + `}}}`
+		f := newFakeVLC(t, "pw", st, pl)
+		in, err := (&Reader{}).Query(context.Background(), f.port(), "pw")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if in.File != c.want {
+			t.Errorf("%s: got %q, want %q", c.meta, in.File, c.want)
+		}
+	}
+}
+
 // VLC 4 (development builds): "time" has a fraction and playlist.json is a flat list.
 func TestVLC4(t *testing.T) {
 	st := `{"apiversion":4,"state":"playing","time":61.25,"length":1500,"position":0,"rate":1,"currentplid":7,

@@ -132,11 +132,15 @@ func (r *Reader) Query(ctx context.Context, port int, password string) (*core.In
 		}
 	} else if uri != "" || name == "" {
 		// a stream (or a disc): the title is the best name there is, and there is no folder
+		titled := false
 		for _, k := range []string{"title", "now_playing"} {
 			if t := metaStr(k); t != "" {
-				file = t
+				file, titled = t, true
 				break
 			}
+		}
+		if !titled {
+			file = core.StreamName(name) // the address's last part may carry a signed query
 		}
 	}
 
