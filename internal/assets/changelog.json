@@ -1,4 +1,7 @@
 [
+  {"version": "0.9.51", "date": "2026-11-11", "items": [
+    "⚡ Windows: a pause or seek in mpv right after the program starts shows at once, not a few seconds later."
+  ]},
   {"version": "0.9.50", "date": "2026-11-11", "items": [
     "📡 New: while you share your screen, Discord says \"Streaming <title>\" (Windows; a choice under Look, a tick in the tray).",
     "🩺 New: Help > Run a check says in one click what works: Discord, your players, the catalogs, updates, streams.",

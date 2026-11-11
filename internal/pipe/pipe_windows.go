@@ -34,8 +34,9 @@ type pipeConn struct {
 // instance only after it has accepted one, so a second client that comes at the same moment finds none free.
 const errorPipeBusy = syscall.Errno(231)
 
-// busyWait is how long Dial waits for the server to make a free instance.
-const busyWait = time.Second
+// busyWait is how long Dial waits for the server to make a free instance (a variable only so that the tests of this
+// package, which do not run in parallel, can change it).
+var busyWait = time.Second
 
 // Dial opens a named pipe (\.\pipe\name). A pipe whose instances are all taken is waited for (WaitNamedPipe, as the
 // documentation of CreateFile asks), so that two programs that connect at the same moment both get in.
