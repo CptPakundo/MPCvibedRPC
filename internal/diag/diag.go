@@ -32,13 +32,21 @@ var (
 	// A web address keeps only its server: a user:password@ part, the path and the query go.
 	reURL    = regexp.MustCompile(`(https?://)(?:[^/\s"'@]*@)?([^/\s"']+)[^\s"']*`)
 	reServer = regexp.MustCompile(`(server) "[^"]*"`) // a server's name is often a person's or a computer's name
-	// A path may contain spaces, so it runs to the ": " that ends it in an error message, to a closing quote, or to the
-	// end of the line.
-	reWinPath = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"']*?(:\s|["']|$)`)
+	// A path may contain spaces and apostrophes (a user name like O'Example), so it runs to the ": " that ends it in an
+	// error message, to a double quote, or to the end of the line. A path in single quotes is handled first
+	// (reQuotedPath): its closing quote is one that is followed by a space, punctuation or the end of the line.
+	reQuotedPath = regexp.MustCompile(`'((?:[A-Za-z]:[\\/]|\\\\|//[^/\s']+/|~/|/[^/\s']+/)[^\n]*?)'([\s,.;:)\]]|$)`)
+	reWinPath    = regexp.MustCompile(`(^|[^A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)[^"]*?(:\s|"|$)`)
+	// A network path written with forward slashes. After a colon it is a web address (already shortened), not a path.
+	reUNC = regexp.MustCompile(`(^|[^A-Za-z0-9:/])//[^/\s"]+/[^"]*?(:\s|"|$)`)
 	// A Unix path: "~/..." or an absolute path of two or more parts (a lone "/x" could be a title's slash), starting
 	// at the line, a space, a bracket or a quote.
-	reUnix = regexp.MustCompile(`(^|[\s("'])(?:~|/[^/\s"']+)/[^"']*?(:\s|["']|$)`)
-	reFile = regexp.MustCompile(`file://[^\s"']*`)
+	reUnix = regexp.MustCompile(`(^|[\s("'])(?:~|/[^/\s"']+)/[^"]*?(:\s|"|$)`)
+	// Go network errors name the host that could not be found.
+	reLookup = regexp.MustCompile(`\blookup\s+([^\s:,"]+)(:| on )`)
+	// An IPv6 address in brackets, with an optional zone; whether it is one is decided in Redact.
+	reBracket6 = regexp.MustCompile(`\[[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*(?:%[^\]\s]+)?\](?::\d+)?`)
+	reFile     = regexp.MustCompile(`file://[^\s"']*`)
 	// An IPv4 address is a computer on the user's network; only the loopback address says nothing about them.
 	reAddr = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b`)
 )
@@ -50,8 +58,28 @@ func Redact(line string) string {
 	line = reURL.ReplaceAllString(line, "${1}${2}/…")
 	line = reFile.ReplaceAllString(line, "file://<path>")
 	line = reServer.ReplaceAllString(line, `$1 "…"`)
+	line = reQuotedPath.ReplaceAllString(line, "'<path>'$2")
 	line = reWinPath.ReplaceAllString(line, "$1<path>$2")
+	line = reUNC.ReplaceAllString(line, "$1<path>$2")
 	line = reUnix.ReplaceAllString(line, "$1<path>$2")
+	line = reLookup.ReplaceAllStringFunc(line, func(m string) string {
+		sub := reLookup.FindStringSubmatch(m)
+		if strings.EqualFold(sub[1], "localhost") {
+			return m
+		}
+		return "lookup <host>" + sub[2]
+	})
+	line = reBracket6.ReplaceAllStringFunc(line, func(a string) string {
+		inner := a[1:strings.Index(a, "]")]
+		// "[12:34:56]" in a log line is a time; an address has "::" or all eight groups.
+		if !strings.Contains(inner, "::") && strings.Count(inner, ":") < 7 {
+			return a
+		}
+		if strings.HasPrefix(a, "[::1]") {
+			return a
+		}
+		return "<address>"
+	})
 	return reAddr.ReplaceAllStringFunc(line, func(a string) string {
 		if strings.HasPrefix(a, "127.") {
 			return a

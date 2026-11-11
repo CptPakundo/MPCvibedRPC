@@ -33,6 +33,23 @@ func TestRedact(t *testing.T) {
 		`[2026-01-01T00:00:00.000Z] WARN Could not read ~/.config/mpv/mpv.conf: denied`:                    `[2026-01-01T00:00:00.000Z] WARN Could not read <path>: denied`,
 		`[2026-01-01T00:00:00.000Z] WARN Could not read "/data/media/Sample Show/x.mkv" for "Sample Show"`: `[2026-01-01T00:00:00.000Z] WARN Could not read "<path>" for "Sample Show"`,
 		`[2026-01-01T00:00:00.000Z] WARN fetch file:///home/someone/fake/x failed`:                         `[2026-01-01T00:00:00.000Z] WARN fetch file://<path> failed`,
+		// an apostrophe in a folder name does not end the path
+		`ERROR open C:\Users\O'Example\Videos\x.mkv: The system cannot find the file`: `ERROR open <path>: The system cannot find the file`,
+		`ERROR open /home/o'example/Videos/x.mkv: no such file`:                       `ERROR open <path>: no such file`,
+		`WARN Could not read 'C:\Users\O'Example\mpv.conf' (denied)`:                  `WARN Could not read '<path>' (denied)`,
+		// a network path with forward slashes goes like the backslash form; a web address is not one
+		`ERROR open //nas/share/Shows/x.mkv: access denied`: `ERROR open <path>: access denied`,
+		`ERROR fetch https://host.example/a/b failed`:       `ERROR fetch https://host.example/… failed`,
+		// host names in network errors and bracketed IPv6 addresses go; localhost and [::1] stay
+		`WARN dial tcp: lookup nas-home: no such host`:                        `WARN dial tcp: lookup <host>: no such host`,
+		`WARN dial tcp: lookup media.example on 192.168.1.1:53: no such host`: `WARN dial tcp: lookup <host> on <address>: no such host`,
+		`WARN dial tcp: lookup localhost: no such host`:                       `WARN dial tcp: lookup localhost: no such host`,
+		`WARN Jellyfin: dial tcp [fe80::1%eth0]:8096: connection refused`:     `WARN Jellyfin: dial tcp <address>: connection refused`,
+		`WARN Plex: dial tcp [2001:db8::5]:32400: i/o timeout`:                `WARN Plex: dial tcp <address>: i/o timeout`,
+		`WARN Kodi: dial tcp [::1]:8080: connection refused`:                  `WARN Kodi: dial tcp [::1]:8080: connection refused`,
+		`[12:34:56] INFO Connected to Discord.`:                               `[12:34:56] INFO Connected to Discord.`,
+		// a title with an apostrophe and a slash stays
+		`Playing: Sample Show's Finale / Part 2 (MPC-HC: "Sample.Show.S01E02.mkv")`: `Playing: Sample Show's Finale / Part 2 (MPC-HC: "Sample.Show.S01E02.mkv")`,
 		// a computer on the home network is replaced; a title with a slash and the loopback address stay
 		`[2026-01-01T00:00:00.000Z] WARN Jellyfin: dial tcp 192.168.1.20:8096: connection refused`:         `[2026-01-01T00:00:00.000Z] WARN Jellyfin: dial tcp <address>: connection refused`,
 		`[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show 24/7 · S01E02 (mpv: "Sample.Show.24-7.mkv")`: `[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show 24/7 · S01E02 (mpv: "Sample.Show.24-7.mkv")`,

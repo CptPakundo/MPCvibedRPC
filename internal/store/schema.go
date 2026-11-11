@@ -231,6 +231,17 @@ func jsTrim(s string) string {
 	})
 }
 
+// hasControl reports a character below U+0020 or U+007F. Some text settings (the VLC password, the mpv and IINA
+// connection names) are written into players' config files, where a line break would add lines of its own.
+func hasControl(s string) bool {
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f {
+			return true
+		}
+	}
+	return false
+}
+
 // Clean validates one value from the window and returns what is stored (bool, int, string or an ordered map).
 func Clean(f Field, v any) (any, error) {
 	switch f.Type {
@@ -266,6 +277,9 @@ func Clean(f Field, v any) (any, error) {
 		if f.Key == "clientId" && !reClientID.Test(s) {
 			return nil, &ValidationError{"Discord application ID must be a long number"}
 		}
+		if hasControl(s) {
+			return nil, &ValidationError{f.Label + ": must not contain line breaks or other control characters"}
+		}
 		return s, nil
 	case "lines":
 		// one entry per line, from the window (a string or an array of strings): trimmed, without blanks or duplicates
@@ -291,6 +305,9 @@ func Clean(f Field, v any) (any, error) {
 			s = jsTrim(s)
 			if s == "" || seen[s] {
 				continue
+			}
+			if hasControl(s) {
+				return nil, &ValidationError{f.Label + ": entries must not contain control characters"}
 			}
 			if len([]rune(s)) > maxLineLen {
 				return nil, &ValidationError{fmt.Sprintf("%s: an entry is longer than %d characters", f.Label, maxLineLen)}
