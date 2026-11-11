@@ -42,7 +42,7 @@ func TestDialWaitsForAFreeInstance(t *testing.T) {
 	}()
 	<-started
 	time.Sleep(200 * time.Millisecond) // the server is slow to make its next instance
-	listening := time.Now() // before the instance exists: a dial that ended earlier got in without waiting
+	listening := time.Now()            // before the instance exists: a dial that ended earlier got in without waiting
 	defer listenPipe(t, path)()
 	r := <-done
 	if r.err != nil {

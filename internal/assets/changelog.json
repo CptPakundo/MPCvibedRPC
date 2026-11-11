@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.53", "date": "2026-11-11", "items": [
+    "📌 The settings window's taskbar button now says MPCvibedRPC, shows the program's icon and can be pinned.",
+    "🖼️ The icon on that taskbar button is sharp."
+  ]},
   {"version": "0.9.52", "date": "2026-11-11", "items": [
     "📡 Fixed: \"Streaming <title>\" now shows by itself on newer Windows 11 versions too, where the program could not see a stream."
   ]},
