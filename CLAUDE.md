@@ -1,7 +1,8 @@
 # CLAUDE.md
 
-Guidance for Claude Code sessions working on this repository. Keep it current: update it in the same pull request
-whenever a change makes something here wrong (a new player, setting, CI step, release step or rule).
+Guidance for Claude Code sessions working on this repository. Keep it current: update it (and the skills in
+`.claude/skills/`, the rules in `.claude/rules/`) in the same pull request whenever a change makes something there
+wrong (a new player, setting, CI step, release step or rule).
 
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one exe of under 10 MB, nothing to install) that shows what
@@ -13,27 +14,14 @@ Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the 
 shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
 on Discord, Hide what I'm watching (`hideTitle`, ticked), Show the title on my streams (`streamTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
-"presence". Updates are looked for as the program starts, then every six hours by the wall clock
-(`scheduleUpdateChecks`). A version found while a settings window is open is offered there at once by a dialog
-(`askUpdate` in `ui.js`: Update now or Not now, once per version; the notice at the top brings it back). With
-`autoUpdate` (on by default; Windows
-and Linux) a found update installs itself at a quiet moment (`quietMoment`: nothing shown on Discord, no settings
-window; and never in the first ten seconds after the start or after a window was asked for, `settle`), and the new
-copy starts in the tray (`auto-updated` marker in the data folder) and says so once. The copy
-that installed an update waits for the new one to come up and puts the old program file back if it does not
-(`handOverTo` in `update.go`; `update-failed` in the data folder names the version, which is not installed by itself
-again). While an
-update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, made by `tools/mkico -dot`; macOS:
-`winsys.menuBarIcon`). Test copies keep `checkUpdates` off, which also keeps them from installing anything: with it
-on, a copy without a window installs what its update server offers ten seconds after its start and shows a real
-notification. To try the dialog, start with it off, open the page, then switch it on there (that looks at once).
+"presence". How updates are looked for, offered and installed: `docs/development.md` > Updates.
 
 It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC, MPC-QT) and **Linux** (a plain binary;
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
 window of its own (`internal/winsys/macapp_darwin.go`: Cocoa through cgo, so the macOS build is made on a Mac with
 cgo; without cgo it falls back to the browser and no icon). Linux has no tray icon: running the program again shows
 the window, and Quit is in the window. Windows is the main system and its behaviour must not change for the others.
-The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI below), and once by a
+The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI), and once by a
 friend of the owner on a real Mac.
 
 - The program is **AI-generated ("vibe coded")**. The README says so once, near the top, and that is enough: the owner
@@ -63,7 +51,7 @@ friend of the owner on a real Mac.
   regenerate or "fix" it; make code match it.
 - **Never touch a real setup while testing.** Tests and manual checks must not contact the real Discord, start presence
   for a real player, or change a real player's settings, the registry or `%APPDATA%`/`%LOCALAPPDATA%` without the
-  owner's explicit OK. Use the fakes and throwaway data folders described below.
+  owner's explicit OK. Use the fakes and throwaway data folders in the `throwaway-copy` skill.
 - **No regressions, no churn.** Weigh pros and cons; don't change working behaviour for its own sake. New behaviour that
   affects existing users stays off or unchanged by default unless the owner decides otherwise.
 - **Be exact about what was tested.** Say what ran for real, what ran against fakes, and what was not tested.
@@ -86,12 +74,8 @@ The rules every change must respect:
   Stremio and last Jellyfin/Emby, the last three only while signed in).
 - MPRIS reads only the allowlist in `internal/mpris`: music players and browsers must never show as "Watching".
 - The readers are read-only. Never sign in to a real Plex, Stremio, Jellyfin or Emby account, or call their sign-in
-  services, from tests or by hand without the owner's OK; every reader has fakes (see "Running the real program safely").
-- Resting (`engine.rest`: Discord's endpoint absent and no window open) asks no player and stops the watchers; tests get
-  no resting unless they set `MayRest`. Clearing (`tick.go`): a sent status counts as shown until a clear is confirmed,
-  and an idle status is cleared again every minute; `internal/engine/stale_test.go` pins it. The engine's state rules
-  (what makes a status due, what a stale run may write, the retry wait) are in `docs/development.md` > The engine's
-  state; after a change to the tick run `MPCRPC_CONVERGE_SEEDS=500 go test -run TestStatusConverges ./internal/engine`.
+  services, from tests or by hand without the owner's OK; every reader has fakes (see the `throwaway-copy` skill).
+- The engine's resting, clearing and state rules are in `.claude/rules/engine.md` (loaded with `internal/engine`).
 - The default Discord application (`clientId`) was registered by the upstream project; every install depends on it.
 
 ## Build and test
@@ -102,64 +86,13 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
 ```
 - The workflows carry no version: `tools/ci/version.sh` reads it from `cmd/mpcvibedrpc/main.go` (VERSION, and NEXT for
   the smoke test's update) and, on a tag, fails when the tag does not match.
-- CI (`.github/workflows/ci.yml`): the `test` job runs vet and the tests on Linux (with `-race`), Windows and macOS.
-  The `lint` job (Linux; no job needs it, so the builds start when the tests pass, but a failing gate fails the run
-  and the canary) runs a **gofmt gate**, `govulncheck` and `staticcheck` (pinned, installed once with `go install`;
-  run for Linux and for `GOOS=windows`, staticcheck also for `GOOS=darwin`; without ST1005, because the program's
-  error texts are sentences the window shows) and `deadcode -test` (Linux only; every function must be reachable
-  from the program or a test: delete what is not, or say in a comment why it stays). A Go security fix means
-  bumping the Go patch in `go.mod` alone (`go 1.27.4`; every `setup-go` reads `go-version-file`). `release.yml`
-  runs the tests but not the lint gates; those gate the pull request's CI before the merge.
-  A push or PR that changes only documentation (top-level `.md` files, `docs/`, issue templates) is not tested
-  (`paths-ignore`); anything else runs the fast jobs. A pull request from this repository
-  is tested by its branch's push run (the `pull_request` run skips the test job; only forks use it); `master` itself is not tested on push (its commits come from a tested branch, and the tag run tests again), and a newer push cancels
-  a run still going on the same branch. Then: Windows builds the exe (from an LF checkout, `CGO_ENABLED=0`) and runs `tools/ci/smoke.ps1`; `reproduce` rebuilds that exe on
-  Linux with `tools/ci/reproduce.sh` and fails unless it is the same file byte for byte; `unix` builds the Linux binaries and the macOS
-  app and runs `tools/ci/smoke-unix.sh` (API, login item, player setup, second start, and on macOS opening the app
-  through LaunchServices). The build-and-smoke steps are the composite actions `.github/actions/build-windows` and
-  `build-unix`, shared with `release.yml`. **The live jobs run once per pull request** (when it is opened, reopened or
-  marked ready; also `workflow_dispatch`, and the canary), not on every push (`docs/decisions.md`): `players` runs `tools/ci/live-players.sh`: the live engine test against real mpv, VLC (MPRIS),
-  mpv-mpris and Celluloid on Linux, and mpv and IINA (set up by the real program first) on macOS. `plex` runs
-  `tools/ci/live-plex.sh`: the live engine test against the official Plex Media Server image (unclaimed, no account)
-  with a stand-in player that reports playback through `/:/timeline`. `jellyfin` runs `tools/ci/live-jellyfin.sh` for
-  the official Jellyfin and Emby images (a matrix): the first-run wizard with a made-up user, a stand-in player (`/Sessions/Playing`),
-  the real sign-in (password and Quick Connect) and the live engine test. `players-windows` runs `tools/ci/live-windows.sh`: real
-  PotPlayer and Kodi from Chocolatey (PotPlayer without its stale package checksum), a generated video in each, the live
-  engine test, and `TestLivePotPlayer` (the real PotPlayer sends the file's path). The weekly canary
-  (`.github/workflows/canary.yml`, Mondays) runs all of `ci.yml` (`workflow_call`) against the newest players and
-  server images, mpv, VLC and Celluloid from Flathub (`live-flathub.sh`: their newest releases), plus `TestLiveCatalogs` (`internal/artwork/live_test.go`, opt-in `MPCRPC_LIVE_CATALOGS=1`: one
-  long-known title per keyless catalog, through the program's own search and episode code; it needs real titles, kept
-  in that file); `tools/ci/canary-report.sh` opens an issue labelled `canary` on a failure and closes it once a run
-  passes (only on the schedule or a by-hand run with `report` ticked; a pull request that changes the canary does a dry
-  run). Read and fix a canary issue like a bug report. **This is the only
-  place macOS and Linux run for real**, so read those logs after every change that touches them. A Linux or cloud
-  environment can run almost everything else; the tray, the window, the registry and the Windows players need Windows.
-- The project's own download count (people, without the project's own downloads; `.github/workflows/downloads.yml`,
-  every three hours and ten minutes after each release) updates the `stats` branch only; `master` is never written by a
-  workflow. The README's badge shows GitHub's own count (decision of 2026-10-25); the exact one is `summary.json` there. GitHub's counts were reset on 2026-10-18
-  (every release file replaced by its identical bytes) and counting started then; after another reset, run the
-  workflow by hand with `baseline` ticked. Its summary's `notCountedYet` is a download recorded in the ledger that
-  GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
-- **Actions are pinned by commit** (`uses: owner/action@<sha> # vX.Y.Z`); Dependabot updates the pins. A new action
-  gets the same form, and a job gets only the `permissions` it needs (workflows are read-only by default).
-- `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
-  Windows-only or opt-in must be added to `tools/ci/allowed-skips.sh` (ci.yml and release.yml both use it). The live
-  test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
-- Engine tests use a fake Discord (Unix socket on Linux, named pipe on Windows) and fake players (`players_test.go`,
-  `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once. They run
-  in parallel and poll every 25 ms (`newTestEngine` sets `Options.MinPoll`; `ReclearEvery`, `RecheckAfter` and
-  `RetryAfter` shorten the other waits), so a test must never change a package variable; the one that has to (it shortens
-  `discord.RequestTimeout`) stays sequential. Pure timer logic is tested on `testing/synctest`'s clock
-  (`TestNudgesArePaced`).
+- CI (`.github/workflows/ci.yml`; the jobs, the lint gates, the live jobs, the canary and the download count are
+  described in `docs/development.md` > CI): **the live jobs run once per pull request**, and **CI is the only
+  place macOS and Linux run for real**, so read those logs after every change that touches them.
 - Tests tie the texts to the code: `TestEverySettingIsDocumented` (store: every setting has its row and default in
   `docs/config.md`), `TestPlayersAreNamedEverywhere` (cmd: the texts that list players name every one),
   `TestPageScriptParses` (assets: `node --check` on `ui.js`) and `tools/relnotes`'s test (the release text renders from
-  the changelog). The CI scripts share `tools/ci/lib.sh` (the test video, `wait_socket`, `wait_bus`, `done_file`);
-  `run-annotated.sh` fails a step whose script did not reach `done_file` when `PASSED_FILE` is set.
-  `Options.Pipes` keeps a real local MPC-QT/mpv/IINA out of the tests and `Options.MPRIS` the real session bus; VLC is
-  only asked when a test sets a password. On macOS a socket path may only be 104 bytes, so test sockets go in a short
-  folder under /tmp there (`sockDir`).
-- Run `go test -race` somewhere that supports it (Linux CI) after concurrency changes.
+  the changelog).
 
 ### Working on Windows
 - Working-copy files are CRLF (git `autocrlf`; the index is LF), except `internal/jsre/*_table.go`. Some editing tools
@@ -168,108 +101,22 @@ go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/
   `gofmt -w` a CRLF file in place.
 - Shell scripts that rewrite many files can damage them silently; read the diff before committing.
 
-### Running the real program safely
-- `MPCRPC_HOME=<scratch folder>` gives a copy its own data folder **and its own autostart value name**, so it can never
-  touch an installed copy. A config such as
-  `{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}` keeps it quiet.
-- The API port and token are in `<MPCRPC_HOME>/ipc.json`; the page is `http://127.0.0.1:<port>/?t=<token>` (the
-  program itself opens its window with a one-time code, `?c=`, so the token is not on the browser's command line;
-  the page keeps the token in `sessionStorage` and takes it out of its address). To test window
-  states without Discord, override `window.fetch` for `/api/status` in the page.
-- `api/start` with nothing playing is safe: Discord is only contacted once something plays ("standby"). To keep a real
-  player from being picked up, point `port` at an unused port and leave `mpvPipe`/`vlcPassword` empty.
-- Update checks: `MPCRPC_UPDATE_API=http://127.0.0.1:<port>` with `tools/ci/fake-http.ps1` (on CI; on this kind of Windows PC its
-  HttpListener may be refused without admin rights, so a small Go server in a scratch folder serves the same three
-  answers there).
-- `MPCRPC_BROWSER=none` opens no window (tests, CI); `MPCRPC_FOREGROUND=1` keeps a macOS copy from handing over to a
-  detached one.
-- Live engine test against a real player, with the test's own fake Discord (opt-in):
-  `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count=1 -run TestLivePlayer -v ./internal/engine`
-  (also `MPCRPC_LIVE_PORT`, `MPCRPC_LIVE_VLC_PASSWORD`, `MPCRPC_LIVE_VLC_PORT`, `MPCRPC_LIVE_MPV_PIPE`,
-  `MPCRPC_LIVE_IINA_PIPE`, `MPCRPC_LIVE_PLEX_ADDRESS`, `MPCRPC_LIVE_PLEX_TOKEN`, `MPCRPC_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD`; `MPCRPC_LIVE_PLAYER` is the name shown: mpv, IINA, VLC, Celluloid, Plex, ...). Use portable player builds in a scratch
-  folder (MPC-QT: `portable.txt`; MPC-BE: an ini next to the exe; mpv: `portable_config\`; VLC: a `portable\` folder
-  next to `vlc.exe`), verify their published checksums, and check `%APPDATA%`, `%LOCALAPPDATA%` and `HKCU\Software`
-  afterwards. Test videos can be made with mpv's encoder from `lavfi` test sources, with generic names.
-- Plex: never sign in to a real Plex account, and never call plex.tv's sign-in, from tests or manual checks without the
-  owner's OK. The sign-in, the server list and the notifications are tested against fakes (`internal/plex`,
-  `cmd/mpcvibedrpc/plex_test.go`, `internal/engine/plex_test.go`); the window's Plex states can be shown by overriding
-  `window.fetch` for `/api/plex*`. The same for Stremio: no real account or call to link.stremio.com / api.strem.io
-  without the owner's OK; fakes in `internal/stremio`, `cmd/mpcvibedrpc/stremio_test.go`, `internal/engine/rest_test.go`,
-  and `/api/stremio*` for the window.
-- Jellyfin / Emby: never sign in to a real server from tests or manual checks without the owner's OK. Fakes are in
-  `internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin_test.go` and `internal/engine/jellyfin_test.go`; a small fake server on
-  127.0.0.1 can drive the window's sign-in in a throwaway copy (keep presence off, so Discord is never contacted).
-- Resting: a throwaway copy rests whenever Discord is closed and its window is closed (no player is asked then). To
-  test players with a closed Discord, keep its window open.
-- Leave nothing running: quit test copies, and only stop processes you started.
-
-## Recipes
-**The stream title** (`streamTitle`: "auto", "always", "off"): Discord names a stream after a Playing activity only.
-`internal/capture` tells from Windows' record of screen captures whether Discord shares the screen; the engine
-builds the Playing form only then. Tests never read this computer's record (`Options.Sharing`; the engine tests'
-`init` replaces the default). It cannot be tried against a real Discord in tests: the owner checks it on a real
-stream.
-
-**New setting:** a field with a `json` tag in `core.Config` and its default in `DefaultConfig()`; a `Field` in
-`store/schema.go` if it belongs in the window (int fields need Min/Max; `secret` for passwords and keys); a row in
-`docs/config.md`; `diag.summarise` if the value is private (shown as "(set)"). Defaults that change behaviour for
-existing users need the owner's decision and a line in the release notes.
-
-**New player:** reader package with unit tests on recorded-style responses; wire into `fetchPlayer` *after* the
-existing players; engine tests including player order; setup support in `winsys` if the player needs switching on;
-a live run in `tools/ci/live-players.sh` if it exists on Linux or macOS (a Linux MPRIS player only needs its bus-name
-part in `mpris.videoPlayers`, its process name in `winsys.unixPlayers`, and the lists below);
-then every place that lists players: `ui.html` and `ui.js` (welcome card, "No player is answering" card, "Nothing playing" hint,
-Privacy "What else leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), README (tagline, What you get, Getting started, the Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/troubleshooting.md`, `docs/development.md` (Where things are),
-`docs/config.md`, the help texts in `store/schema.go` (`port`, `mpris`, `iinaPipe`), `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`,
-the header comment in `main.go`, the engine's "Looking for a player on ..." log line, `diag` and the repo description/topics.
-
-**New catalog service:** an entry in `core.Sources` (id, label, use, host: it gets its switch on the Privacy tab), a
-`<Name>Base` field with its default in `core.Config` (tests point it at a fake), its id in the default
-`artworkSources` and/or `episodeSources` (a default change needs the owner), the `Provider` in
-`artwork/providers.go` and/or the `epProvider` in `artwork/episodes.go`, its line in `blockedHostFilter`
-(`artwork/disabled.go`), a subtest in `internal/artwork/live_test.go` (the canary), its row in `SECURITY.md`, the
-credit its terms ask for (Help tab credits, `THIRD-PARTY-NOTICES.md`) and `docs/config.md`.
-
-**New outside address:** any host the code names (a service, a link, an image) goes in `core.Hosts` (or
-`core.Sources`) and in `SECURITY.md` > Where it connects; `TestEveryHostIsListed` scans the code and the page and
-fails otherwise.
-
 **UI text:** a recorded store test pins the label "MPC-HC web interface port"; change only its help text. The window
 follows "less is more": short help texts, one term per thing, rarely used actions under Advanced > Maintenance. Keep the README,
 `docs/how-it-works.md`, `docs/config.md`, schema help text and release notes in sync with any behaviour change. The
 README is for people: short, scannable, one emoji per section heading; details go in `docs/`.
 
+## Where the procedures are
+Skills (`.claude/skills/<name>/SKILL.md`; they load when used, or open the file by hand):
+- `release`: the release steps, from the version bump to the verify job.
+- `throwaway-copy`: running the real program, a live engine test or a real player without touching a real setup.
+- `new-player`, `new-setting`, `new-catalog`, `new-host`: the checklists for adding one.
+
+Rules (`.claude/rules/`, loaded when a matching file is read or edited): `engine.md` (internal/engine),
+`capture.md` (the stream title), `tests.md` (writing tests), `ci.md` (workflows and CI scripts).
+
 ## Releases
 One branch and one PR per release: the change, the version bump and the release text together.
-1. Branch; change; in the same branch bump `var version` in `cmd/mpcvibedrpc/main.go` (nothing else carries the
-   version: the workflows and smoke tests read it; docs use `X.Y.Z`), add the version's entry at the top of
-   `internal/assets/changelog.json` (`TestChangelog` fails until it matches `main.go`). That entry is also the GitHub
-   release's text: `release.yml` renders it with `tools/relnotes` (heading, the entry's lines, the "Get it" footer). A
-   release that needs more words than one-liners (a security advisory) gets them in `.github/release-advisory.md`,
-   which the tool inserts after the lines; delete that file in the pull request after the release that needed it.
-   Screenshots (`docs/images/window-*.jpg`) are retaken only when the
-   part of the window they show changed, as `docs/development.md` > Screenshots describes (made-up titles only).
-2. Locally: `go vet ./...` (also `GOOS=linux`, `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...`, and a
-   scan of the diff and new files for personal data (the owner's name, email, local paths) before the first push.
-   Then push, `gh pr create`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps ran. The
-   live jobs ran when the pull request was opened: if later commits touch the engine or a player reader, run `ci.yml`
-   by hand (`workflow_dispatch`) on the branch before the release.
-3. With the owner's go-ahead: `gh pr merge <n> --rebase --delete-branch` (GitHub refuses to rebase a branch that holds
-   merge commits, such as merged agent branches: use `--merge` then, or rebase the branch locally first), then
-   `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`
-   with the Claude identity on the merged commit, `git push origin vX.Y.Z`. The release workflow checks the tag
-   against `main.go`, tests, builds and smoke-tests every program on its own system (the Windows smoke test covers DPI
-   awareness, version details, resting and a self-update against a fake server), writes the `.sha256` files, attests,
-   publishes it as a **draft**, then `reproduce` rebuilds the exe and both Linux programs from the tag on another
-   runner (they must match the release byte for byte), and then runs `verify` (`tools/ci/verify-release.ps1`): on the draft the ten assets,
-   every checksum and build record and the exe's version; only if they pass is the release made public (and latest),
-   followed by the checks that need it public: that it is the latest release, and a real self-update from the previous
-   release. A release whose draft checks fail stays a draft (nobody's updater sees it): fix, then delete the draft and
-   the tag, or publish it by hand once checked.
-4. Read the `verify` job's log (`gh run view --log`) and report. Nothing needs re-running locally after a release.
-5. A release with new features also updates the repository to match: its description and topics
-   (`gh repo edit --description ... --add-topic ...`), so they name every player and system the program supports.
-   The owner gave a standing go-ahead for this.
+The steps are in the `release` skill; the part from the merge to the verify job goes to the `releaser` agent.
 
 Merging, tagging and publishing are outward-facing: do them only with the owner's go-ahead.
