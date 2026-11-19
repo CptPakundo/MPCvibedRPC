@@ -518,6 +518,7 @@
     $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow; $('minimizeToTray').checked = !!m.app.minimizeToTray;
     $('minimizeRow').classList.toggle('hidden', m.os !== 'windows'); // only Windows can tell a minimised window and has a tray for it
+    $('quit').classList.toggle('hidden', !!m.tray); // only without a tray or menu bar icon (Linux): its menu has Quit everywhere else
     $('checkUpdates').checked = !!m.app.checkUpdates;
     $('autoUpdate').checked = !!m.app.autoUpdate;
     $('autoUpdate').disabled = !m.app.checkUpdates; // installing needs the checks
