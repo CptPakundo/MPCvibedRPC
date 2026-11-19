@@ -37,12 +37,13 @@ type app struct {
 	stremio   *stremioAccount
 	jellyfin  *jellyfinAccount
 	upd       updates
-	windows   atomic.Int32 // settings windows open now: presence never rests while one is
-	appWindow atomic.Bool  // the last window opened is the program's own app window, not a tab of the user's browser
-	inTray    atomic.Bool  // the program closed its window itself (minimised to the tray): its going is not the X
-	watching  atomic.Bool  // watchMinimise runs
-	opened    atomic.Int64 // windows asked for so far: one asked for after a window went means it was not the X
-	busyUntil atomic.Int64 // until then (Unix nanoseconds) no update installs itself: see settle
+	windows   atomic.Int32   // settings windows open now: presence never rests while one is
+	appWindow atomic.Bool    // the last window opened is the program's own app window, not a tab of the user's browser
+	inTray    atomic.Bool    // the program closed its window itself (minimised to the tray): its going is not the X
+	watching  atomic.Bool    // watchMinimise runs
+	opened    atomic.Int64   // windows asked for so far: one asked for after a window went means it was not the X
+	winHandle atomic.Uintptr // the settings window as watchMinimise last found it (Windows; 0: not known)
+	busyUntil atomic.Int64   // until then (Unix nanoseconds) no update installs itself: see settle
 
 	mu   sync.Mutex
 	tray *winsys.Tray
@@ -239,6 +240,7 @@ func (a *app) openWindow() {
 		return
 	}
 	a.opened.Add(1)
+	a.winHandle.Store(0)
 	a.inTray.Store(false)
 	mode := winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
 	a.appWindow.Store(mode == "app")
