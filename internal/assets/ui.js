@@ -516,7 +516,8 @@
     model = m;
     $('ver').textContent = 'v' + m.version;
     $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
-    $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow;
+    $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow; $('minimizeToTray').checked = !!m.app.minimizeToTray;
+    $('minimizeRow').classList.toggle('hidden', m.os !== 'windows'); // only Windows can tell a minimised window and has a tray for it
     $('checkUpdates').checked = !!m.app.checkUpdates;
     $('autoUpdate').checked = !!m.app.autoUpdate;
     $('autoUpdate').disabled = !m.app.checkUpdates; // installing needs the checks
@@ -526,7 +527,7 @@
     paintStats(m.stats);
     $('welcome').classList.toggle('hidden', !!m.app.welcomeSeen);
   }
-  ['autoStart', 'startPresence', 'openWindow', 'checkUpdates', 'autoUpdate'].forEach((id) => autosave($(id), 'app', id));
+  ['autoStart', 'startPresence', 'openWindow', 'minimizeToTray', 'checkUpdates', 'autoUpdate'].forEach((id) => autosave($(id), 'app', id));
   $('checkUpdates').addEventListener('change', () => { $('autoUpdate').disabled = !$('checkUpdates').checked; });
 
   const mmss = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };

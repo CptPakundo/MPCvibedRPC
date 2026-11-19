@@ -8,3 +8,12 @@ func FocusWindow(profileDir string) bool { return false }
 
 // AllowForeground does nothing here: only Windows restricts which process may take the foreground.
 func AllowForeground(pid int) {}
+
+// SettingsWindow finds nothing here: only Windows can find the settings window by its browser profile.
+func SettingsWindow(profileDir string) uintptr { return 0 }
+
+// WindowState reports no window here (see SettingsWindow).
+func WindowState(h uintptr) (exists, minimised bool) { return false, false }
+
+// CloseWindow does nothing here (see SettingsWindow).
+func CloseWindow(h uintptr) {}

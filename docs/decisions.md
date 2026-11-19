@@ -9,6 +9,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   change how it behaves. *Why:* the people who use it with MPC-HC should never notice that other players arrived.
 - **Discord is only contacted once something plays** ("Discord on standby" until then). *Why:* nothing to show means
   nothing to send, and an idle program should not hold a connection.
+- **The window's X quits the program; minimizing sends it to the tray** (2026-11-20, the owner, from a user's wish).
+  **Minimize to the tray** (Windows, on by default) can send it to the taskbar instead. On macOS the window still
+  closes to the menu bar. *Why:* the X should do what it says; the tray stays one click away for those who want the
+  program out of sight.
 - **Resting while Discord is closed has no setting.** With Discord closed (and the window closed), no player is asked
   and the account watchers stop. *Why:* the status only reaches your profile through the Discord app, so following
   players without it would do nothing; a switch for it would be meaningless.
