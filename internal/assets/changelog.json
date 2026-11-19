@@ -1,7 +1,4 @@
 [
-  {"version": "0.9.55", "date": "2026-11-20", "items": [
-    "⚡ Windows: the X closes the app at once, without the short wait."
-  ]},
   {"version": "0.9.54", "date": "2026-11-20", "items": [
     "❌ Closing the settings window with its X now quits the app.",
     "📥 Windows: minimizing the window sends it to the tray. Turn off Minimize to the tray (General) to keep it on the taskbar."
