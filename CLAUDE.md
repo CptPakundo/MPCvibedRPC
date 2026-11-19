@@ -20,7 +20,7 @@ It also runs on **macOS** (a universal `.app` with no Dock icon; IINA, mpv, VLC,
 MPRIS players such as VLC, Celluloid, Haruna, plus mpv). macOS has a menu bar icon and shows the settings in a WebKit
 window of its own (`internal/winsys/macapp_darwin.go`: Cocoa through cgo, so the macOS build is made on a Mac with
 cgo; without cgo it falls back to the browser and no icon). Linux has no tray icon: running the program again shows
-the window, and Quit is in the window. Windows is the main system and its behaviour must not change for the others.
+the window, and its X quits (a page in a browser tab has a Quit button instead). Windows is the main system and its behaviour must not change for the others.
 The owner has no Mac or Linux machine: those systems are tested on GitHub's runners (see CI), and once by a
 friend of the owner on a real Mac.
 

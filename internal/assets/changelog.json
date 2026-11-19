@@ -2,7 +2,7 @@
   {"version": "0.9.54", "date": "2026-11-20", "items": [
     "❌ Closing the settings window with its X now quits the app.",
     "📥 Windows: minimizing the window sends it to the tray. Turn off Minimize to the tray (General) to keep it on the taskbar.",
-    "🧹 The window's own Quit button is gone on Windows and macOS: Quit is in the tray or menu bar menu."
+    "🧹 The window's own Quit button is gone: use the X, or Quit in the tray or menu bar menu."
   ]},
   {"version": "0.9.53", "date": "2026-11-11", "items": [
     "📌 The settings window's taskbar button now says MPCvibedRPC, shows the program's icon and can be pinned.",

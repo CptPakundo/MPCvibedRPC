@@ -104,7 +104,8 @@ func (a *app) fullState() map[string]any {
 		"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": a.st.Values(), "app": a.st.App(),
 		"status": a.eng.Status(), "autoStart": winsys.GetAutoStart(a.exe), "dataDir": a.st.Dir, "update": upd,
 		"changelog": json.RawMessage(assets.Changelog), "stats": a.eng.Stats(),
-		"tray": a.getTray() != nil, // macOS: whether the menu bar icon is there (a build without it runs in the background)
+		"tray":      a.getTray() != nil, // macOS: whether the menu bar icon is there (a build without it runs in the background)
+		"appWindow": a.appWindow.Load(), // the program's own window, whose X quits (not a tab of the user's browser)
 	}
 }
 
