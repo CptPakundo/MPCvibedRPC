@@ -50,23 +50,24 @@ func DataDir() string {
 
 // App holds the settings that belong to the program itself rather than the presence.
 type App struct {
-	AutoStart     bool   `json:"autoStart"`     // run at login (the registry value, login item or autostart entry is the source of truth; this mirrors it)
-	StartPresence bool   `json:"startPresence"` // begin sending presence as soon as the app opens
-	CheckUpdates  bool   `json:"checkUpdates"`  // look for a newer release at start, then daily
-	AutoUpdate    bool   `json:"autoUpdate"`    // install a found update by itself at a quiet moment (needs checkUpdates; Windows and Linux)
-	UpdateRepo    string `json:"updateRepo"`    // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
-	WelcomeSeen   bool   `json:"welcomeSeen"`   // the first-run welcome card was dismissed (existing installs count as having seen it)
-	OpenWindow    bool   `json:"openWindow"`    // show the window when the program is started by hand (it always starts in the tray at login)
-	SeenVersion   string `json:"seenVersion"`   // the version whose changelog was last shown ("" = none yet: a new install, or one from before changelogs)
+	AutoStart      bool   `json:"autoStart"`      // run at login (the registry value, login item or autostart entry is the source of truth; this mirrors it)
+	StartPresence  bool   `json:"startPresence"`  // begin sending presence as soon as the app opens
+	CheckUpdates   bool   `json:"checkUpdates"`   // look for a newer release at start, then daily
+	AutoUpdate     bool   `json:"autoUpdate"`     // install a found update by itself at a quiet moment (needs checkUpdates; Windows and Linux)
+	UpdateRepo     string `json:"updateRepo"`     // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
+	WelcomeSeen    bool   `json:"welcomeSeen"`    // the first-run welcome card was dismissed (existing installs count as having seen it)
+	OpenWindow     bool   `json:"openWindow"`     // show the window when the program is started by hand (it always starts in the tray at login)
+	MinimizeToTray bool   `json:"minimizeToTray"` // a minimised settings window goes to the tray instead of the taskbar (Windows)
+	SeenVersion    string `json:"seenVersion"`    // the version whose changelog was last shown ("" = none yet: a new install, or one from before changelogs)
 }
 
 // DefaultUpdateRepo is where releases of this program are published.
 const DefaultUpdateRepo = "CptPakundo/MPCvibedRPC"
 
-var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "autoUpdate", "updateRepo", "openWindow", "welcomeSeen", "seenVersion"}
+var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "autoUpdate", "updateRepo", "openWindow", "minimizeToTray", "welcomeSeen", "seenVersion"}
 
 // defaultApp is the program's own settings before anything is saved.
-var defaultApp = App{StartPresence: true, CheckUpdates: true, AutoUpdate: true, UpdateRepo: DefaultUpdateRepo, OpenWindow: true}
+var defaultApp = App{StartPresence: true, CheckUpdates: true, AutoUpdate: true, UpdateRepo: DefaultUpdateRepo, OpenWindow: true, MinimizeToTray: true}
 
 // appDefaults is defaultApp as a config.json block (seenVersion is left out: it is written only once a changelog was
 // shown).
@@ -78,6 +79,7 @@ func appDefaults() *jsonx.Obj {
 	o.Set("autoUpdate", defaultApp.AutoUpdate)
 	o.Set("updateRepo", defaultApp.UpdateRepo)
 	o.Set("openWindow", defaultApp.OpenWindow)
+	o.Set("minimizeToTray", defaultApp.MinimizeToTray)
 	o.Set("welcomeSeen", defaultApp.WelcomeSeen)
 	return o
 }
@@ -304,14 +306,15 @@ func (s *Store) App() App {
 	cur, _ := o.M["app"].(*jsonx.Obj)
 	d := defaultApp
 	return App{
-		AutoStart:     boolOr(cur, "autoStart", d.AutoStart),
-		StartPresence: boolOr(cur, "startPresence", d.StartPresence),
-		CheckUpdates:  boolOr(cur, "checkUpdates", d.CheckUpdates),
-		AutoUpdate:    boolOr(cur, "autoUpdate", d.AutoUpdate),
-		UpdateRepo:    strOr(cur, "updateRepo", d.UpdateRepo),
-		WelcomeSeen:   boolOr(cur, "welcomeSeen", d.WelcomeSeen),
-		OpenWindow:    boolOr(cur, "openWindow", d.OpenWindow),
-		SeenVersion:   strOr(cur, "seenVersion", d.SeenVersion),
+		AutoStart:      boolOr(cur, "autoStart", d.AutoStart),
+		StartPresence:  boolOr(cur, "startPresence", d.StartPresence),
+		CheckUpdates:   boolOr(cur, "checkUpdates", d.CheckUpdates),
+		AutoUpdate:     boolOr(cur, "autoUpdate", d.AutoUpdate),
+		UpdateRepo:     strOr(cur, "updateRepo", d.UpdateRepo),
+		WelcomeSeen:    boolOr(cur, "welcomeSeen", d.WelcomeSeen),
+		OpenWindow:     boolOr(cur, "openWindow", d.OpenWindow),
+		MinimizeToTray: boolOr(cur, "minimizeToTray", d.MinimizeToTray),
+		SeenVersion:    strOr(cur, "seenVersion", d.SeenVersion),
 	}
 }
 

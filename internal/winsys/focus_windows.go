@@ -102,3 +102,27 @@ func findWindow(profileDir string) (topWindow, bool) {
 func AllowForeground(pid int) {
 	pAllowSetForegroundWindow.Call(uintptr(pid))
 }
+
+var pIsWindow = user32.NewProc("IsWindow")
+
+// SettingsWindow is the handle of the settings window (0: none is open), for WindowState and CloseWindow.
+func SettingsWindow(profileDir string) uintptr {
+	if w, ok := findWindow(profileDir); ok {
+		return w.Handle
+	}
+	return 0
+}
+
+// WindowState reports whether the window h still exists and whether it is minimised.
+func WindowState(h uintptr) (exists, minimised bool) {
+	if ok, _, _ := pIsWindow.Call(h); ok == 0 {
+		return false, false
+	}
+	ic, _, _ := pIsIconic.Call(h)
+	return true, ic != 0
+}
+
+// CloseWindow asks the window h to close, as its X button does (the browser then ends by itself).
+func CloseWindow(h uintptr) {
+	pPostMessage.Call(h, wmClose, 0, 0)
+}

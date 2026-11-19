@@ -118,7 +118,7 @@ Discord shares your screen the program sends "Playing Sample Show" instead of "W
 ## The window doesn't open
 
 Run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings
-or open the app again; on Linux, run the program again. Closing the window leaves the program running.
+or open the app again; on Linux, run the program again. Closing the window with its X quits the program (macOS: it stays in the menu bar); minimizing it on Windows sends it to the tray.
 
 ## Wrong title or no cover
 

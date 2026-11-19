@@ -38,6 +38,10 @@ type app struct {
 	jellyfin  *jellyfinAccount
 	upd       updates
 	windows   atomic.Int32 // settings windows open now: presence never rests while one is
+	appWindow atomic.Bool  // the last window opened is the program's own app window, not a tab of the user's browser
+	inTray    atomic.Bool  // the program closed its window itself (minimised to the tray): its going is not the X
+	watching  atomic.Bool  // watchMinimise runs
+	opened    atomic.Int64 // windows asked for so far: one asked for after a window went means it was not the X
 	busyUntil atomic.Int64 // until then (Unix nanoseconds) no update installs itself: see settle
 
 	mu   sync.Mutex
@@ -141,10 +145,9 @@ func run() error {
 	a.srv = server.New(server.Options{Token: a.token, Page: assets.UI, CSS: assets.CSS, JS: assets.JS, Icon: assets.Icon, Handlers: a.handlers(), Version: version,
 		OnWindow: func(open bool) {
 			if open {
-				a.windows.Add(1)
-				a.eng.Wake() // stop resting at once, so the window shows the player
+				a.windowOpened()
 			} else {
-				a.windows.Add(-1)
+				a.windowClosed()
 			}
 		}})
 	port, err := a.srv.Listen(preferredPort)
@@ -235,7 +238,11 @@ func (a *app) openWindow() {
 	if a.windows.Load() > 0 && winsys.FocusWindow(a.browserProfile) {
 		return
 	}
-	if winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile) == "app" {
+	a.opened.Add(1)
+	a.inTray.Store(false)
+	mode := winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
+	a.appWindow.Store(mode == "app")
+	if mode == "app" {
 		// the window is a browser's: its taskbar button gets the program's name, icon and command (Windows)
 		engine.Go(a.log, "Naming the window", func() { winsys.NameWindow(a.browserProfile) })
 	}
