@@ -681,6 +681,7 @@ func TestHideTitleRevealsNothingAndLooksNothingUp(t *testing.T) {
 		last := d.list()[len(d.list())-1]
 		b, _ := json.Marshal(last)
 		js := strings.ToLower(string(b))
+		js = strings.ReplaceAll(js, strings.ToLower(core.PlayerIconBase), "") // the player's logo names no title
 		for _, leak := range []string{"show", "name.s01", "season", "s01e01", "720p", ".mkv", "http"} {
 			if strings.Contains(js, leak) {
 				t.Errorf("state %d: the status mentions %q: %s", state, leak, b)
@@ -694,7 +695,7 @@ func TestHideTitleRevealsNothingAndLooksNothingUp(t *testing.T) {
 	if s.NowPlaying == nil || strings.Contains(strings.ToLower(*s.NowPlaying), "show") {
 		t.Errorf("the window must not show the title either: %+v", s.NowPlaying)
 	}
-	if p := s.Preview; p == nil || strings.Contains(strings.ToLower(p.Name+p.Details+p.State), "show") || p.LargeImage != "" || p.Button != "" {
+	if p := s.Preview; p == nil || strings.Contains(strings.ToLower(p.Name+p.Details+p.State), "show") || (p.LargeImage != "" && !strings.HasPrefix(p.LargeImage, core.PlayerIconBase)) || p.Button != "" {
 		t.Errorf("preview: %+v", p)
 	}
 	l.mu.Lock()

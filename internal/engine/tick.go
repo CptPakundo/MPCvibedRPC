@@ -26,11 +26,11 @@ func appNameFor(cfg core.Config, player string) core.Config {
 	default:
 		cfg.AppName = player
 	}
-	if cfg.AppName != def.AppName && cfg.SmallImageKey == def.SmallImageKey {
-		cfg.SmallImageKey = core.PlayerIcon(player) // the default corner icon is Media Player Classic's logo: others get their own, or none
+	if cfg.SmallImageKey == def.SmallImageKey {
+		cfg.SmallImageKey = core.PlayerIcon(player) // every player gets its own logo as the corner icon, or none
 	}
 	if icon := core.PlayerIcon(player); icon != "" && cfg.LargeImageKey == def.LargeImageKey {
-		cfg.LargeImageKey = icon // without a cover the large image is the player's logo, not Media Player Classic's
+		cfg.LargeImageKey = icon // without a cover the large image is the player's logo
 	}
 	return cfg
 }
