@@ -118,16 +118,14 @@ func (e *Engine) tick(r *run) {
 	ended := endedAt(info)
 	active := info != nil && info.File != "" && (info.State == 1 || info.State == 2) && !ended
 	hidden := active && (core.MatchesHideList(info.File, info.FullDir, cfg.HideFiles) || hiddenWhere(info.Where, cfg.HideFiles))
-	// "auto": while Discord shares the screen the Watching status stays and a second status names the stream (twin.go);
-	// the Playing style is a Playing status already, so it is sent in the stream form instead
-	live, twin := false, false
+	// "auto": the stream form of the status while Discord shares the screen, the usual one otherwise
+	live := false
 	if cfg.StreamTitle == "auto" {
 		live = active && !hidden && !cfg.HideTitle && e.sharing() // a hidden title has no stream form
 		cfg.StreamTitle = "off"
-		if live && cfg.ActivityType == "playing" {
+		if live {
 			cfg.StreamTitle = "always"
 		}
-		twin = live && cfg.ActivityType != "playing"
 	}
 
 	e.mu.Lock()
@@ -167,9 +165,7 @@ func (e *Engine) tick(r *run) {
 		// a stream began or ended: the same file goes out again in the other form
 		e.live, e.resend = live, true
 		word := "ended: the usual status is back."
-		if twin {
-			word = "began: a second status, Playing <title>, names the stream after the title."
-		} else if live {
+		if live {
 			word = "began: the status is sent as Playing, so Discord names the stream after the title."
 		}
 		e.mu.Unlock()
@@ -190,15 +186,11 @@ func (e *Engine) tick(r *run) {
 		update = false
 	}
 	art := e.art
-	twinDue := twin && e.twinDown && now.After(e.twinAgain)
 	e.mu.Unlock()
 	if !update {
-		if twinDue {
-			e.showTwin(r, info, &cfg, art, now) // it failed last time: the main status needs nothing
-		}
 		return
 	}
-	e.sendUpdate(r, rpc, info, &cfg, art, now, twin)
+	e.sendUpdate(r, rpc, info, &cfg, art, now)
 }
 
 // notePlayer remembers which player answers (none: "") and logs when it changes. Called with e.mu held; it is
@@ -265,7 +257,6 @@ func (e *Engine) clearWhenIdle(r *run, hidden, ended bool) {
 		clear = e.rpc
 	}
 	e.mu.Unlock()
-	e.dropTwin() // nothing plays, or a hidden file: no stream status either
 	failed := false
 	if clear != nil {
 		first := false
@@ -347,11 +338,9 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 	if e.pauseCleared || !e.shown {
 		e.pauseCleared, e.preview = true, nil // nothing is up (any more): there is nothing to ask Discord
 		e.mu.Unlock()
-		e.dropTwin()
 		return
 	}
 	e.mu.Unlock()
-	e.dropTwin()
 	first := false
 	err := e.clearStatus(r, rpc, func(err error) {
 		first = err != nil && !e.clearStuck
@@ -371,7 +360,7 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 // times that while Discord keeps failing, so a Discord that refuses everything is not asked at every check (it
 // limits a status to five changes in 20 seconds), and the log names a repeated failure once. Called with e.mu
 // released (it takes it only for the bookkeeping).
-func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time, twin bool) {
+func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
 	b := buildActivity(info, cfg, art, &e.folders, at)
 	if !e.isCurrent(r) {
 		return
@@ -401,11 +390,6 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	}
 	if e.recordShown(r, info, cfg, b, sent) {
 		e.logShown(info, cfg, b)
-	}
-	if twin && e.isCurrent(r) {
-		e.showTwin(r, info, cfg, art, at)
-	} else {
-		e.dropTwin()
 	}
 }
 
