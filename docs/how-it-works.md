@@ -125,9 +125,9 @@ names come from, and how each player is read.
   a status Discord does not take at all is tried again after a growing wait (5 seconds, up to a minute).
 - **On your streams.** When you share your screen, Discord names what you stream after your *Playing* status and
   after no other kind, so "Watching Sample Show" never reaches a stream. So while Discord shares your screen, and only
-  then, the status is sent as "Playing Sample Show": viewers see "Streaming Sample Show". It has a timer in place of
-  the progress bar and the season and episode in the first line, and it turns back into the usual status when the
-  stream ends. The program finds out from the Discord app itself: while it shares, Discord runs a piece of work
+  then, a second status, "Playing Sample Show", goes up next to the usual Watching one (which keeps its progress
+  bar and button): viewers see "Streaming Sample Show". It goes away when the stream ends. With the *Playing* style
+  the status is a Playing one already, and it is sent with the title as its name instead. The program finds out from the Discord app itself: while it shares, Discord runs a piece of work
   that Windows lists by name, and the program only reads that list (and Windows' own record of which program is
   capturing the screen, where it can be read). So this works on Windows 10 and 11; on macOS and Linux the program
   cannot tell, and **Look > Show the title on my streams** offers *Always* or *Never* there. On Windows the choice

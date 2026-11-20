@@ -224,8 +224,9 @@ books anything; the clear after a long pause is booked when Discord took it, not
 waits `retryAfter` (5 s, doubling to a minute) before the next try; `basicMode` and `noLinks` hold for the file they
 were found out for (`modeKey`); a check in which no player answers while a status is up changes nothing once
 and asks again after `missWait` (a second); with `streamTitle` "auto" the tick asks `capture` whether Discord shares
-the screen and builds the stream form ("always") or the usual one ("off"), and a change of that sends the same file
-again. Tests: `internal/engine/state_test.go`, with `TestStatusConverges`, which runs random
+the screen and, while it does, keeps the usual status and puts the stream form ("always") on a second connection
+(`twin.go`; with the Playing style the main status takes the stream form instead), and a change of that sends the
+same file again; the second connection is closed when the share ends, nothing plays, Discord is lost or the run stops. Tests: `internal/engine/state_test.go`, with `TestStatusConverges`, which runs random
 orders of player, Discord and settings events against the fakes and checks that Discord ends up showing exactly
 what the player's last state calls for (`MPCRPC_CONVERGE_SEEDS=500` tries that many orders; run it after a change
 to the tick).

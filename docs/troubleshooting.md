@@ -99,8 +99,8 @@ disconnects. If one stays anyway:
 ## My stream doesn't say what I watch
 
 When you share your screen, Discord names the stream after your **Playing** status and after no other kind. So while
-Discord shares your screen the program sends "Playing Sample Show" instead of "Watching Sample Show", and viewers see
-"Streaming Sample Show". If they do not:
+Discord shares your screen the program adds a second status, "Playing Sample Show", next to "Watching Sample Show",
+and viewers see "Streaming Sample Show". If they do not:
 - **Look > Show the title on my streams** must be *While Discord shares my screen* or *Always* (it also has a tick
   in the tray menu).
 - **Help > Run a check** says in its Streams line whether the program can tell here, and whether Discord is sharing

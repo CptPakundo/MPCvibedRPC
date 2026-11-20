@@ -1,6 +1,7 @@
 [
   {"version": "0.9.55", "date": "2026-11-20", "items": [
-    "🎬 New, off by default: Link to Letterboxd when it has the title (Look). Your status then says View on Letterboxd."
+    "🎬 New, off by default: Link to Letterboxd when it has the title (Look). Your status then says View on Letterboxd.",
+    "📡 While Discord shares your screen, your status stays Watching with its progress bar; a second status names the stream."
   ]},
   {"version": "0.9.54", "date": "2026-11-20", "items": [
     "❌ Closing the settings window with its X now quits the app.",

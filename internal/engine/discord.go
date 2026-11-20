@@ -88,6 +88,7 @@ func (e *Engine) connectDiscord(r *run) {
 			}
 			e.ready, e.rpc, e.shown, e.preview = false, nil, false, nil
 			e.mu.Unlock()
+			e.dropTwin() // the stream status goes up again with the main one
 			e.log("WARN", "Lost connection to Discord. Will reconnect when needed.")
 		})
 	})
