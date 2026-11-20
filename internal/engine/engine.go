@@ -122,12 +122,7 @@ type Engine struct {
 	clearStuck bool      // the last clear failed (logged once until one works)
 	prev       *core.Prev
 	missed     bool // the last check got no answer from any player while a status was up (see tick)
-	live       bool // Discord shares the screen (StreamTitle "auto"): the stream status is up (twin, or the stream form with the Playing style)
-	// twin is the second connection that carries the stream's name while Discord shares the screen (twin.go);
-	// twinDown: the last try to put it up failed, and it is tried again from twinAgain
-	twin       *discord.Client
-	twinDown   bool
-	twinAgain  time.Time
+	live       bool // the status is in its stream form: Discord shares the screen (StreamTitle "auto")
 	resend     bool // the status must go out again although the player reports no change (a new connection, a cover that arrived, a send that failed)
 	basicMode  bool
 	modeKey    string // the file basicMode and noLinks were found out for: the next file is tried in full again
@@ -323,7 +318,6 @@ func (e *Engine) stop() {
 	c, ready := e.rpc, e.ready
 	e.mu.Unlock()
 	r.cancel()
-	e.dropTwin()
 
 	if c != nil && ready {
 		done := make(chan struct{})
@@ -346,7 +340,7 @@ func (e *Engine) stop() {
 	}
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev, e.resend = nil, false, false, false, nil, false
-	e.nowPlaying, e.preview, e.twinDown = nil, nil, false
+	e.nowPlaying, e.preview = nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
 	save := e.statSnapshot(time.Now())
