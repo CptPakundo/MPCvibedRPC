@@ -193,12 +193,8 @@ func (e *Engine) tick(r *run) {
 	twinDue := twin && e.twinDown && now.After(e.twinAgain)
 	e.mu.Unlock()
 	if !update {
-		if twinDue && e.showTwin(r, info, &cfg, art, now) {
-			// it failed last time and is up now: the Watching status goes again, so that it is the newer one
-			e.mu.Lock()
-			e.resend = true
-			e.mu.Unlock()
-			e.Wake()
+		if twinDue {
+			e.showTwin(r, info, &cfg, art, now) // it failed last time: the main status needs nothing
 		}
 		return
 	}
@@ -380,13 +376,6 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	if !e.isCurrent(r) {
 		return
 	}
-	// The stream status goes first and the Watching one after it, every time: Discord's profile keeps only the first
-	// status of an application, and the newer one seems to come first (twin.go).
-	if twin {
-		e.showTwin(r, info, cfg, art, at)
-	} else {
-		e.dropTwin()
-	}
 	sent, err := e.sendActivity(rpc, cfg, b.activity, info.Player+"/"+info.File)
 	if err != nil {
 		msg := err.Error()
@@ -412,6 +401,11 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	}
 	if e.recordShown(r, info, cfg, b, sent) {
 		e.logShown(info, cfg, b)
+	}
+	if twin && e.isCurrent(r) {
+		e.showTwin(r, info, cfg, art, at)
+	} else {
+		e.dropTwin()
 	}
 }
 
