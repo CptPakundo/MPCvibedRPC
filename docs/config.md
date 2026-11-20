@@ -42,6 +42,7 @@ shown here.
 | `episodeInDetails` | `false` | `true` repeats the season and episode number in the title line too (Discord already shows a badge when the card is expanded). |
 | `richInfo` | `true` | Genres, IMDb rating and director on the extra lines. `false` leaves just the year or episode. |
 | `linkButton` | `true` | Link to the title's page (IMDb, AniList, ...): adds a "View on IMDb" style button and makes both text lines and the cover clickable (others can click them on your profile; Discord doesn't let you click your own). If Discord refuses these links, they are left out from then on. |
+| `letterboxdLink` | `false` | **Link to Letterboxd when it has the title.** With `linkButton` on, the button ("View on Letterboxd") and the clickable lines open the title's Letterboxd page instead of the catalog page, when Letterboxd has one. Finding it asks letterboxd.com once per title (by its IMDb id, or a film's TMDB id); the answer is kept with the cover. Titles Letterboxd does not have keep the usual link. |
 
 ## Privacy
 
@@ -148,5 +149,6 @@ a service switched off on the Privacy tab stays off whatever address it has here
 | `kitsuBase` | `https://kitsu.io/api/edge` |
 | `jikanBase` | `https://api.jikan.moe/v4` (the closed public API; point it at your own Jikan) |
 | `wikipediaBase` | `https://{lang}.wikipedia.org` |
+| `letterboxdBase` | `https://letterboxd.com` |
 | `bulbapediaBase` | `https://bulbapedia.bulbagarden.net` |
 | `requestGapMs` | `{"graphql.anilist.co": 250, "api.jikan.moe": 400}` (the least time between two requests to a host, in milliseconds) |

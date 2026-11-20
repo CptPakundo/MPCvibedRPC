@@ -248,12 +248,12 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	a.State, a.Timestamps = stateAndTimes(info, cfg, now, watching, titleInName, seasonLine, infoLine)
 	a.Assets = buildAssets(media, cfg, art, title, watching, effSeason, specialLabel)
 
-	if cfg.LinkButton && art != nil && buttonURL(art.URL) {
-		lbl := "View on " + firstNonEmpty(art.URLLabel, "IMDb")
+	if u, site := TitleLink(cfg, art); u != "" && buttonURL(u) {
+		lbl := "View on " + site
 		if u16len(lbl) > 32 {
 			lbl = u16slice(lbl, 0, 32)
 		}
-		a.Buttons = []Button{{Label: lbl, URL: art.URL}}
+		a.Buttons = []Button{{Label: lbl, URL: u}}
 	}
 	return a
 }
@@ -565,18 +565,31 @@ func buildAssets(media *Media, cfg *Config, art *Art, title string, watching boo
 // opens, under the same switch as that button. It is kept apart from BuildActivity, whose output the recorded golden
 // data pins.
 func AddLinks(a *Activity, cfg *Config, art *Art) {
-	if a == nil || !cfg.LinkButton || art == nil || !linkable(art.URL) {
+	u, _ := TitleLink(cfg, art)
+	if a == nil || !linkable(u) {
 		return
 	}
 	if a.Details != "" {
-		a.DetailsURL = art.URL
+		a.DetailsURL = u
 	}
 	if a.State != "" {
-		a.StateURL = art.URL
+		a.StateURL = u
 	}
 	if a.Assets != nil && art.Poster != "" && a.Assets.LargeImage == art.Poster {
-		a.Assets.LargeURL = art.URL
+		a.Assets.LargeURL = u
 	}
+}
+
+// TitleLink is the page the link button and the clickable lines open, and the site's name for the button: the
+// title's Letterboxd page when letterboxdLink is on and it has one, else the catalog page. "" when linkButton is off.
+func TitleLink(cfg *Config, art *Art) (url, site string) {
+	if !cfg.LinkButton || art == nil {
+		return "", ""
+	}
+	if cfg.LetterboxdLink && buttonURL(art.Letterboxd) {
+		return art.Letterboxd, "Letterboxd"
+	}
+	return art.URL, firstNonEmpty(art.URLLabel, "IMDb")
 }
 
 // buttonURL is an http(s) address Discord accepts for a button (at most 512 characters).

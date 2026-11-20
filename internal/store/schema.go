@@ -61,6 +61,7 @@ var Sections = []Section{
 		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the text lines and the cover clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
+		{Key: "letterboxdLink", Type: "bool", Label: "Link to Letterboxd when it has the title", Help: `The link opens the title's Letterboxd page instead of IMDb or another catalog. Asks letterboxd.com once per title.`},
 		{Key: "episodeInDetails", Type: "bool", Label: "Also show S01E02 in the title line", Help: "Discord already shows a season and episode badge."},
 	}},
 	{ID: "titles", Title: "Titles & art", Fields: []Field{
