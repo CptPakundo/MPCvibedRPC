@@ -1,5 +1,5 @@
 [
-  {"version": "0.9.55", "date": "2026-11-20", "items": [
+  {"version": "0.9.55", "date": "2026-11-21", "items": [
     "🎬 New, off by default: Link to Letterboxd when it has the title (Look). Your status then says View on Letterboxd.",
     "📡 On your streams, the Playing status now shows a moving text progress bar with the length, and the rating and director.",
     "🖼️ Fixed: MPC-HC, MPC-BE and MPC-QT now show their logo on your status (it was missing).",
