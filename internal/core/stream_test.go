@@ -94,3 +94,44 @@ func TestHiddenActivityIgnoresTheStreamTitle(t *testing.T) {
 		t.Errorf("the hidden status mentions the file: %s", b)
 	}
 }
+
+// Discord gives a Playing status only a running clock, so the stream form says where the video is in its second
+// line: a text bar, the length and a speed other than 1x. The rating and director move to the first line.
+func TestStreamFormShowsWhereTheVideoIs(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.StreamTitle = "always"
+	art := &Art{Type: "movie", Name: "Sample Movie", Year: 2020, SeasonNo: NA, EpInEntry: NA,
+		Info: &ArtInfo{Genres: []string{"Drama"}, Rating: 7.2, Director: "Sample Director"}}
+	info := &Info{File: "Sample Movie (2020).mkv", State: 2, Position: 3000000, Duration: 6000000, Rate: 1}
+	media := ParseMedia(info.File, &cfg, nil)
+	a := BuildActivity(info, &cfg, 1_700_000_000_000, media, art)
+	if a.State != "▰▰▰▰▰▰▱▱▱▱▱▱ 1:40:00" {
+		t.Errorf("state = %q", a.State)
+	}
+	if !strings.HasPrefix(a.Details, "2020 · Drama") || !strings.Contains(a.Details, "7.2") || !strings.Contains(a.Details, "Sample Director") {
+		t.Errorf("details = %q, want year, genres, rating and director", a.Details)
+	}
+	if got := StreamProgress(&Info{State: 2, Position: 0, Duration: 60000, Rate: 1.5}, &cfg); got != "▱▱▱▱▱▱▱▱▱▱▱▱ 1:00 · 1.5×" {
+		t.Errorf("at 1.5x: %q", got)
+	}
+	info.State = 1
+	if got := StreamProgress(info, &cfg); got != "" {
+		t.Errorf("paused: %q, want nothing (the pause line has its own bar)", got)
+	}
+	info.State = 2
+	cfg.TextProgressBar = false
+	if a := BuildActivity(info, &cfg, 1_700_000_000_000, media, art); strings.Contains(a.State, "▰") {
+		t.Errorf("textProgressBar off: state = %q", a.State)
+	}
+
+	cfg = DefaultConfig()
+	cfg.StreamTitle = "always"
+	ep := &Info{File: "Sample.Show.S01E02.mkv", State: 2, Position: 1350000, Duration: 2700000, Rate: 1}
+	if a := BuildActivity(ep, &cfg, 1_700_000_000_000, nil, nil); !strings.HasPrefix(a.State, "▰▰▰▰▰▰▱▱▱▱▱▱ 45:00") {
+		t.Errorf("an episode: state = %q", a.State)
+	}
+	cfg.StreamTitle = "off"
+	if a := BuildActivity(ep, &cfg, 1_700_000_000_000, nil, nil); strings.Contains(a.State, "▰") {
+		t.Errorf("the Watching status got the text bar: %q", a.State)
+	}
+}

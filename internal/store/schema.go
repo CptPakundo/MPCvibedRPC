@@ -58,7 +58,7 @@ var Sections = []Section{
 		{Key: "streamTitle", Type: "choice", Label: "Show the title on my streams", OS: []string{"darwin", "linux"},
 			Options: [][2]string{{"auto", "Never"}, {"always", "Always"}},
 			Help:    `Discord names a stream after a Playing status only: "Playing <title>", with a timer and no progress bar. This system cannot tell when Discord shares your screen, so it is always or never.`},
-		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused", Help: "Discord cannot freeze its own bar, so a ▰▰▱▱ bar is shown in text."},
+		{Key: "textProgressBar", Type: "bool", Label: "Text progress bar while paused or streaming", Help: "Discord cannot freeze its own bar, and gives the Playing status on a stream none, so a ▰▰▱▱ bar is shown in text there."},
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds a "View on IMDb" style button and makes the text lines and the cover clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
 		{Key: "letterboxdLink", Type: "bool", Label: "Link to Letterboxd when it has the title", Help: `The link opens the title's Letterboxd page instead of IMDb or another catalog. Asks letterboxd.com once per title.`},

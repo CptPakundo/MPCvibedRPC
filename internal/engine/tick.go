@@ -177,6 +177,9 @@ func (e *Engine) tick(r *run) {
 		}
 	}
 	update := e.notePlayback(info, &cfg, now)
+	if !update && streamBar(info, &cfg) != e.barShown {
+		update = true // the stream form's text bar filled another cell
+	}
 	if !update && e.pausedLongEnough(info, &cfg, now) {
 		e.clearWhenPausedLong(r, rpc, cfg.PauseClearMinutes)
 		return
@@ -423,7 +426,17 @@ func (e *Engine) recordShown(r *run, info *core.Info, cfg *core.Config, b built,
 	e.why = b.why
 	e.paused = info.State == 1
 	e.preview = core.PreviewOf(sent, cfg) // what Discord actually got (the basic fallback carries less)
+	e.barShown = streamBar(info, cfg)
 	return true
+}
+
+// streamBar is the stream form's progress text as it is now ("" when the status is not in that form): when it
+// differs from what was sent (barShown), the status is sent again.
+func streamBar(info *core.Info, cfg *core.Config) string {
+	if cfg.StreamTitle != "always" || cfg.HideTitle || core.IsAudioFile(info.File) {
+		return ""
+	}
+	return core.StreamProgress(info, cfg)
 }
 
 // logShown logs what was sent. Called with e.mu released.

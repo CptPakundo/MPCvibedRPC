@@ -127,6 +127,7 @@ type Engine struct {
 	basicMode  bool
 	modeKey    string // the file basicMode and noLinks were found out for: the next file is tried in full again
 	noLinks    bool   // Discord refused the clickable title and cover: they are sent without links
+	barShown   string // the stream form's progress text last sent (streamBar)
 	art        *artwork.Artwork
 	player     string // the player that answered last
 	vlc        *vlchttp.Reader

@@ -237,6 +237,10 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 			}
 		} else {
 			details = movieDetails(media, art, genres)
+			if stream && infoLine != "" {
+				// the stream form keeps its second line for where the video is: the rating and director join the first
+				details, infoLine = joinNonEmpty(" · ", details, infoLine), ""
+			}
 		}
 	} else {
 		details = media.Display
@@ -245,6 +249,9 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 		a.Details = clip(details)
 	}
 
+	if stream {
+		seasonLine = joinNonEmpty(" · ", StreamProgress(info, cfg), seasonLine)
+	}
 	a.State, a.Timestamps = stateAndTimes(info, cfg, now, watching, titleInName, seasonLine, infoLine)
 	a.Assets = buildAssets(media, cfg, art, title, watching, effSeason, specialLabel)
 
@@ -469,6 +476,21 @@ func movieDetails(media *Media, art *Art, genres string) string {
 		year = itoa(art.Year)
 	}
 	return joinNonEmpty(" · ", year, genres)
+}
+
+// StreamProgress is where the video is, for the stream form while it plays: a text progress bar, the length and a
+// speed other than 1x ("▰▰▰▱▱▱▱▱▱▱▱▱ 1:52:10 · 1.5×"). Discord gives a Playing status no progress bar of its own, only
+// the running clock, so the engine sends the status again whenever the bar fills another cell. "" while paused (the
+// pause line has the bar), without a length, or with textProgressBar off.
+func StreamProgress(info *Info, cfg *Config) string {
+	if info == nil || info.State != 2 || !(info.Duration > 0) || !cfg.TextProgressBar {
+		return ""
+	}
+	s := joinNonEmpty(" ", ProgressBar(info.Position, info.Duration, cfg.ProgressWidth), fmtTime(info.Duration))
+	if r := info.Rate; r > 0 && math.Abs(r-1) > 0.001 {
+		s += " · " + strconv.FormatFloat(r, 'f', -1, 64) + "×"
+	}
+	return s
 }
 
 // stateAndTimes is the second text line and the timestamps: while playing the season and info lines (or "Playing")
