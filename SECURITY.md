@@ -33,6 +33,7 @@ And these, only for what they are named for:
 | `clients.plex.tv` | Plex | While signed in to Plex: your servers and their addresses. |
 | `link.stremio.com` | Stremio | Signing in to Stremio (the link code). |
 | `api.strem.io` | Stremio | While signed in to Stremio: your library every 20 seconds, and signing out. |
+| `letterboxd.com` | Letterboxd | **Link to Letterboxd when it has the title** is on (**Look** tab, off by default): asks once per title, by its IMDb or TMDB id, whether Letterboxd has a page for it; the button on your status then links that page. |
 
 Once signed in, it also reads from your own Plex server, and from the Jellyfin or Emby server whose address you
 entered (Accounts tab): to sign in, to read its session list and to sign out.

@@ -127,7 +127,9 @@ type Art struct {
 	Poster     string
 	URL        string
 	URLLabel   string
-	Year       int // NA
+	Letterboxd string // the title's Letterboxd page (letterboxdLink), or ""
+	LbChecked  bool   // Letterboxd was asked and has no page for it
+	Year       int    // NA
 	Alt        *ArtAlt
 	AltChecked bool // alt was looked up and there is none
 	Info       *ArtInfo
@@ -202,6 +204,7 @@ type artJSON struct {
 	Special    bool            `json:"special"`
 	IDs        *ArtIDs         `json:"ids"`
 	Episode    *ArtEpisode     `json:"episode"`
+	Letterboxd json.RawMessage `json:"letterboxd"`
 }
 
 // UnmarshalJSON reads the JSON shape of the recorded reference data and of the saved answers in the artwork cache
@@ -225,6 +228,13 @@ func (a *Art) UnmarshalJSON(b []byte) error {
 		}
 	}
 	a.IDs, a.Episode = j.IDs, j.Episode
+	if len(j.Letterboxd) > 0 {
+		if string(j.Letterboxd) == "null" {
+			a.LbChecked = true
+		} else {
+			_ = json.Unmarshal(j.Letterboxd, &a.Letterboxd)
+		}
+	}
 	return nil
 }
 
@@ -287,6 +297,11 @@ func (a Art) MarshalJSON() ([]byte, error) {
 	}
 	if a.Episode != nil {
 		m["episode"] = a.Episode
+	}
+	if a.Letterboxd != "" {
+		m["letterboxd"] = a.Letterboxd
+	} else if a.LbChecked {
+		m["letterboxd"] = nil
 	}
 	return json.Marshal(m)
 }

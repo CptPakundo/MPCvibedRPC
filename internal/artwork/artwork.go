@@ -1173,6 +1173,7 @@ type lookupJob struct {
 	epKey       string // the episode's own title, per episode
 	infoKey     string
 	aniKey      string
+	lbKey       string
 }
 
 // newLookupJob works out the keys, the alias query and the override of one title.
@@ -1234,7 +1235,7 @@ func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 		fullKey = epKey
 	}
 	return &lookupJob{a: a, media: media, special: special, query: query, overrideArt: overrideArt, wantEp: wantEp,
-		fullKey: fullKey, key: key, epKey: epKey, infoKey: "info|" + key, aniKey: "ani|" + key}
+		fullKey: fullKey, key: key, epKey: epKey, infoKey: "info|" + key, aniKey: "ani|" + key, lbKey: "lb|" + key}
 }
 
 // inEntry is the episode's number inside the matched catalog entry; it depends on the episode, so it is worked out
@@ -1330,7 +1331,7 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 		baseHave = j.asSpecial(b)
 	}
 	epEntry, epPresent := a.getEp(j.epKey)
-	if baseHave != nil && !j.needInfo(baseHave) && !j.needAlt(baseHave) && (!j.wantEp || epPresent) {
+	if baseHave != nil && !j.needInfo(baseHave) && !j.needAlt(baseHave) && !j.needLetterboxd(baseHave) && (!j.wantEp || epPresent) {
 		var ep *core.ArtEpisode
 		if j.wantEp {
 			ep = epEntry.ep
@@ -1405,13 +1406,15 @@ func (j *lookupJob) run(f *lookupFlight) {
 	}
 }
 
-// body runs the lookup steps in order: the base art, the rich info and the alternative names on it, the episode.
+// body runs the lookup steps in order: the base art, the rich info, the alternative names and the Letterboxd page on
+// it, the episode.
 func (j *lookupJob) body() *core.Art {
 	a := j.a
 	base := j.baseArt()
 	if base != nil && j.overrideArt == nil {
 		j.richInfo(base)
 		j.altNames(base)
+		j.letterboxd(base)
 		a.mu.Lock()
 		a.put(j.key, &diskEntry{art: base})
 		a.mu.Unlock()

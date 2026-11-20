@@ -29,6 +29,7 @@ var Hosts = []HostInfo{
 	{"clients.plex.tv", "Plex", HostAsked, "While signed in to Plex: your servers and their addresses."},
 	{"link.stremio.com", "Stremio", HostAsked, "Signing in to Stremio (the link code)."},
 	{"api.strem.io", "Stremio", HostAsked, "While signed in to Stremio: your library every 20 seconds, and signing out."},
+	{"letterboxd.com", "Letterboxd", HostAsked, "Link to Letterboxd when it has the title is on: asks once per title (by its IMDb or TMDB id) whether Letterboxd has a page for it, then links that page from your status."},
 	{"raw.githubusercontent.com", "GitHub", HostLoaded, "The player's logo on your status and in the preview."},
 	{"image.tmdb.org", "TMDB", HostLoaded, "A cover found by TMDB (with your own TMDB key)."},
 	{"app.plex.tv", "Plex", HostOpened, "The page where you approve the Plex sign-in."},

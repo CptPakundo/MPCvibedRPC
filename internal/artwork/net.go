@@ -67,6 +67,7 @@ type reqInit struct {
 	TimeoutMs        int
 	NoRetryOnTimeout bool // retryTimeout: false
 	LateMs           int  // keep waiting this long in the background after TimeoutMs, and cache a late answer
+	NoRedirect       bool // hand back a redirect instead of following it
 }
 
 // errPending is what a caller gets while a LateMs request goes on in the background.
@@ -175,7 +176,13 @@ func (n *Net) doRequest(ctx context.Context, u string, in reqInit) (*http.Respon
 	for k, v := range in.Headers {
 		req.Header.Set(k, v)
 	}
-	res, err := n.Client.Do(req)
+	client := n.Client
+	if in.NoRedirect {
+		c := *client
+		c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+		client = &c
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, classify(ctx, err)
 	}

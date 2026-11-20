@@ -89,6 +89,7 @@ type Config struct {
 	AnimeSources     []string          `json:"animeSources"`
 	RequestGapMs     map[string]int    `json:"requestGapMs"`
 	WikipediaBase    string            `json:"wikipediaBase"`
+	LetterboxdBase   string            `json:"letterboxdBase"`
 
 	EpisodeInDetails     bool     `json:"episodeInDetails"`
 	FolderEpisodeNumbers bool     `json:"folderEpisodeNumbers"`
@@ -96,6 +97,7 @@ type Config struct {
 	CatalogTitle         bool     `json:"catalogTitle"`
 	RichInfo             bool     `json:"richInfo"`
 	LinkButton           bool     `json:"linkButton"`
+	LetterboxdLink       bool     `json:"letterboxdLink"` // the link opens the title's Letterboxd page when it has one
 	UseFolderName        bool     `json:"useFolderName"`
 	EpisodeTitles        bool     `json:"episodeTitles"`
 	EpisodeSources       []string `json:"episodeSources"`
@@ -151,6 +153,7 @@ func DefaultConfig() Config {
 		AnimeSources:     []string{"anilist", "kitsu"},
 		RequestGapMs:     map[string]int{"graphql.anilist.co": 250, "api.jikan.moe": 400},
 		WikipediaBase:    "https://{lang}.wikipedia.org",
+		LetterboxdBase:   "https://letterboxd.com",
 
 		EpisodeInDetails:     false,
 		FolderEpisodeNumbers: false,
