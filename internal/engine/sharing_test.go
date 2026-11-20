@@ -33,6 +33,20 @@ func TestStatusFollowsTheScreenShare(t *testing.T) {
 		w, p := byType(d.showing())
 		return w != nil && p != nil && p["name"] == "Show Name" && l.has("screen share began")
 	})
+	// the Watching status goes after the stream status, so that it is the newer one
+	eventually(t, "the Watching status sent after the stream status", func() bool {
+		lastW, lastP := -1, -1
+		for i, args := range d.list() {
+			if act, _ := args["activity"].(map[string]any); act != nil {
+				if act["type"] == float64(3) {
+					lastW = i
+				} else if act["type"] == nil {
+					lastP = i
+				}
+			}
+		}
+		return lastP >= 0 && lastW > lastP
+	})
 	if _, p := byType(d.showing()); p["buttons"] != nil || p["details_url"] != nil || p["state_url"] != nil {
 		t.Errorf("the stream status carries links: %v", p)
 	}
