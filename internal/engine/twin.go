@@ -17,13 +17,14 @@ import (
 
 // showTwin puts the stream status built from info on the second connection, opening it first when needed. Called
 // with e.mu released, from the loop only. A failure is logged once and tried again after a while (tick: twinDown).
-func (e *Engine) showTwin(r *run, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
+// It reports whether the status is up.
+func (e *Engine) showTwin(r *run, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) bool {
 	c := *cfg
 	c.StreamTitle = "always"
 	b := buildActivity(info, &c, art, &e.folders, at)
 	if b.music || b.activity == nil {
 		e.dropTwin()
-		return
+		return false
 	}
 	a := core.WithoutLinks(b.activity)
 	a.Buttons = nil
@@ -40,13 +41,13 @@ func (e *Engine) showTwin(r *run, info *core.Info, cfg *core.Config, art *artwor
 		if err := client.Login(c.ClientID, 0); err != nil {
 			client.Close()
 			e.twinFailed("Could not open the second connection to Discord for the stream's name (" + err.Error() + ").")
-			return
+			return false
 		}
 		e.mu.Lock()
 		if e.cur != r || e.twin != nil {
 			e.mu.Unlock()
 			client.Close()
-			return
+			return false
 		}
 		e.twin = client
 		e.mu.Unlock()
@@ -54,11 +55,12 @@ func (e *Engine) showTwin(r *run, info *core.Info, cfg *core.Config, art *artwor
 	if err := client.SetActivity(a); err != nil {
 		e.dropTwin() // a fresh connection at the next update
 		e.twinFailed("Discord did not take the stream's name (" + err.Error() + ").")
-		return
+		return false
 	}
 	e.mu.Lock()
 	e.twinDown = false
 	e.mu.Unlock()
+	return true
 }
 
 // twinFailed logs a stream status that did not go up, once until one does, and has it tried again in a while
