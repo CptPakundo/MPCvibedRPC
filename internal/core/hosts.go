@@ -38,6 +38,13 @@ var Hosts = []HostInfo{
 	{"www.themoviedb.org", "TMDB", HostOpened, "The title's page, linked from your status; TMDB's credit on the Help tab."},
 	{"www.tvmaze.com", "TVmaze", HostOpened, "The title's page, linked from your status; TVmaze's credit on the Help tab."},
 	{"kitsu.io", "Kitsu", HostOpened, "The title's page, linked from your status (Kitsu is also a catalog)."},
+	{"mpv.io", "mpv", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"www.videolan.org", "VLC", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"iina.io", "IINA", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"kodi.tv", "Kodi", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"www.smplayer.info", "SMPlayer", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"jellyfin.org", "Jellyfin", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
+	{"emby.media", "Emby", HostOpened, "The player's site, linked from its logo on your status while Link to the title's page is on."},
 }
 
 // KnownHost reports whether host is in Hosts or Sources (or a subdomain of one), and how it is reached.

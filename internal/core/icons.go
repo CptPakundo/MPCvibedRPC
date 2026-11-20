@@ -1,5 +1,7 @@
 package core
 
+import "strings"
+
 // PlayerIconBase is where the player logos in docs/players are served from. Discord fetches the small icon of a
 // status by its address (through its own image proxy), so nothing is uploaded and nothing about the user is sent.
 const PlayerIconBase = "https://raw.githubusercontent.com/CptPakundo/MPCvibedRPC/master/docs/players/"
@@ -19,4 +21,22 @@ func PlayerIcon(player string) string {
 		return PlayerIconBase + n + ".png"
 	}
 	return ""
+}
+
+// playerSites is each logo's player's own site, opened when the logo on a status is clicked (small_url).
+var playerSites = map[string]string{
+	"mpc-hc": "https://github.com/clsid2/mpc-hc", "mpc-be": "https://github.com/Aleksoid1978/MPC-BE",
+	"mpc-qt": "https://github.com/mpc-qt/mpc-qt", "mpv": "https://mpv.io", "vlc": "https://www.videolan.org/vlc/",
+	"iina": "https://iina.io", "kodi": "https://kodi.tv", "smplayer": "https://www.smplayer.info",
+	"plex": "https://www.plex.tv", "stremio": "https://www.stremio.com", "jellyfin": "https://jellyfin.org",
+	"emby": "https://emby.media",
+}
+
+// PlayerSite is the site of the player whose logo icon is ("" for any other image).
+func PlayerSite(icon string) string {
+	name, ok := strings.CutPrefix(icon, PlayerIconBase)
+	if !ok {
+		return ""
+	}
+	return playerSites[strings.TrimSuffix(name, ".png")]
 }
