@@ -105,13 +105,13 @@ func TestStreamFormShowsWhereTheVideoIs(t *testing.T) {
 	info := &Info{File: "Sample Movie (2020).mkv", State: 2, Position: 3000000, Duration: 6000000, Rate: 1}
 	media := ParseMedia(info.File, &cfg, nil)
 	a := BuildActivity(info, &cfg, 1_700_000_000_000, media, art)
-	if a.State != "▰▰▰▰▰▰▱▱▱▱▱▱ 1:40:00" {
+	if a.State != "▰▰▰▰▰▰▱▱▱▱▱▱ of 1:40:00" {
 		t.Errorf("state = %q", a.State)
 	}
 	if !strings.HasPrefix(a.Details, "2020 · Drama") || !strings.Contains(a.Details, "7.2") || !strings.Contains(a.Details, "Sample Director") {
 		t.Errorf("details = %q, want year, genres, rating and director", a.Details)
 	}
-	if got := StreamProgress(&Info{State: 2, Position: 0, Duration: 60000, Rate: 1.5}, &cfg); got != "▱▱▱▱▱▱▱▱▱▱▱▱ 1:00 · 1.5×" {
+	if got := StreamProgress(&Info{State: 2, Position: 0, Duration: 60000, Rate: 1.5}, &cfg); got != "▱▱▱▱▱▱▱▱▱▱▱▱ of 1:00 · 1.5×" {
 		t.Errorf("at 1.5x: %q", got)
 	}
 	info.State = 1
@@ -127,7 +127,7 @@ func TestStreamFormShowsWhereTheVideoIs(t *testing.T) {
 	cfg = DefaultConfig()
 	cfg.StreamTitle = "always"
 	ep := &Info{File: "Sample.Show.S01E02.mkv", State: 2, Position: 1350000, Duration: 2700000, Rate: 1}
-	if a := BuildActivity(ep, &cfg, 1_700_000_000_000, nil, nil); !strings.HasPrefix(a.State, "▰▰▰▰▰▰▱▱▱▱▱▱ 45:00") {
+	if a := BuildActivity(ep, &cfg, 1_700_000_000_000, nil, nil); !strings.HasPrefix(a.State, "▰▰▰▰▰▰▱▱▱▱▱▱ of 45:00") {
 		t.Errorf("an episode: state = %q", a.State)
 	}
 	cfg.StreamTitle = "off"

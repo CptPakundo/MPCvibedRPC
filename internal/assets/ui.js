@@ -548,6 +548,7 @@
     bar.classList.toggle('hidden', !timed);
     if (timed) { const total = (p.end - p.start) / 1000; const done = Math.min(total, Math.max(0, (Date.now() - p.start) / 1000)); $('pvElapsed').textContent = mmss(done); $('pvTotal').textContent = mmss(total); $('pvFill').style.width = (100 * done / total).toFixed(1) + '%'; }
     const btn = $('pvButton'); btn.textContent = p.button || ''; btn.classList.toggle('hidden', !p.button);
+    const btn2 = $('pvButton2'); btn2.textContent = p.button2 || ''; btn2.classList.toggle('hidden', !p.button2);
     $('fixMatch').classList.toggle('hidden', !!p.listening); // songs are not looked up
   }
 

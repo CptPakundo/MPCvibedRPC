@@ -44,7 +44,9 @@ the image host the catalog named for it (`image.tmdb.org` for TMDB), and the pla
 
 **Only linked**, opened in your browser or shown as a button on your status: `app.plex.tv` (approving the Plex
 sign-in), `stremio.com` (entering the Stremio link code), and the title's page on `www.imdb.com`,
-`www.themoviedb.org`, `www.tvmaze.com`, `kitsu.io` or the catalog that found it.
+`www.themoviedb.org`, `www.tvmaze.com`, `kitsu.io` or the catalog that found it (and `letterboxd.com` with Link to Letterboxd), and the
+player's own site from its logo on your status: `github.com` (the MPC players), `mpv.io`, `www.videolan.org`,
+`iina.io`, `kodi.tv`, `www.smplayer.info`, `www.plex.tv`, `www.stremio.com`, `jellyfin.org` or `emby.media`.
 
 ## What is kept, and what to know
 The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json` as plain text; a password you type goes to your

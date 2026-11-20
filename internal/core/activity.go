@@ -3,6 +3,7 @@ package core
 import (
 	"math"
 	"math/big"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -23,6 +24,7 @@ type Assets struct {
 	LargeURL   string `json:"large_url,omitempty"` // opened when the large image is clicked
 	SmallImage string `json:"small_image,omitempty"`
 	SmallText  string `json:"small_text,omitempty"`
+	SmallURL   string `json:"small_url,omitempty"` // opened when the small image (the player's logo) is clicked
 }
 
 type Button struct {
@@ -256,11 +258,7 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	a.Assets = buildAssets(media, cfg, art, title, watching, effSeason, specialLabel)
 
 	if u, site := TitleLink(cfg, art); u != "" && buttonURL(u) {
-		lbl := "View on " + site
-		if u16len(lbl) > 32 {
-			lbl = u16slice(lbl, 0, 32)
-		}
-		a.Buttons = []Button{{Label: lbl, URL: u}}
+		a.Buttons = []Button{{Label: viewOn(site), URL: u}}
 	}
 	return a
 }
@@ -479,14 +477,14 @@ func movieDetails(media *Media, art *Art, genres string) string {
 }
 
 // StreamProgress is where the video is, for the stream form while it plays: a text progress bar, the length and a
-// speed other than 1x ("▰▰▰▱▱▱▱▱▱▱▱▱ 1:52:10 · 1.5×"). Discord gives a Playing status no progress bar of its own, only
+// speed other than 1x ("▰▰▰▱▱▱▱▱▱▱▱▱ of 1:52:10 · 1.5×"). Discord gives a Playing status no progress bar of its own, only
 // the running clock, so the engine sends the status again whenever the bar fills another cell. "" while paused (the
 // pause line has the bar), without a length, or with textProgressBar off.
 func StreamProgress(info *Info, cfg *Config) string {
 	if info == nil || info.State != 2 || !(info.Duration > 0) || !cfg.TextProgressBar {
 		return ""
 	}
-	s := joinNonEmpty(" ", ProgressBar(info.Position, info.Duration, cfg.ProgressWidth), fmtTime(info.Duration))
+	s := joinNonEmpty(" of ", ProgressBar(info.Position, info.Duration, cfg.ProgressWidth), fmtTime(info.Duration))
 	if r := info.Rate; r > 0 && math.Abs(r-1) > 0.001 {
 		s += " · " + strconv.FormatFloat(r, 'f', -1, 64) + "×"
 	}
@@ -532,10 +530,11 @@ func stateAndTimes(info *Info, cfg *Config, now int64, watching, titleInName boo
 	return "Paused at " + clock, nil
 }
 
-// buildAssets is the cover and the small corner icon with their hover texts; nil when there is no image to show.
+// buildAssets is the cover and the small corner icon with their hover texts; nil when there is no image to show. A cover
+// address over 300 characters is left out: Discord refuses the whole status for it.
 func buildAssets(media *Media, cfg *Config, art *Art, title string, watching bool, effSeason int, specialLabel string) *Assets {
 	poster := ""
-	if cfg.ShowArtwork && art != nil && art.Poster != "" {
+	if cfg.ShowArtwork && art != nil && art.Poster != "" && len(art.Poster) <= 300 {
 		poster = art.Poster
 	}
 	assets := &Assets{}
@@ -584,11 +583,25 @@ func buildAssets(media *Media, cfg *Config, art *Art, title string, watching boo
 }
 
 // AddLinks makes the two text lines and the cover open the title's catalog page, the page the "View on ..." button
-// opens, under the same switch as that button. It is kept apart from BuildActivity, whose output the recorded golden
-// data pins.
+// opens, adds a second button for another page of the title (SecondLink) and makes the player's logo open the
+// player's site, all under the same switch as that button. It is kept apart from BuildActivity, whose output the
+// recorded golden data pins.
 func AddLinks(a *Activity, cfg *Config, art *Art) {
+	if a == nil || !cfg.LinkButton {
+		return
+	}
+	if a.Assets != nil {
+		if site := PlayerSite(a.Assets.SmallImage); site != "" {
+			a.Assets.SmallURL = site
+		}
+	}
+	if len(a.Buttons) == 1 {
+		if u2, site := SecondLink(cfg, art); u2 != "" {
+			a.Buttons = append(a.Buttons, Button{Label: viewOn(site), URL: u2})
+		}
+	}
 	u, _ := TitleLink(cfg, art)
-	if a == nil || !linkable(u) {
+	if !linkable(u) {
 		return
 	}
 	if a.Details != "" {
@@ -614,6 +627,58 @@ func TitleLink(cfg *Config, art *Art) (url, site string) {
 	return art.URL, firstNonEmpty(art.URLLabel, "IMDb")
 }
 
+// SecondLink is the page for the second button (Discord shows two): the catalog page when the first is Letterboxd,
+// else the title's IMDb, TVmaze or TMDB page when it has one the first does not already open. "" when there is
+// none, or when linkButton is off.
+func SecondLink(cfg *Config, art *Art) (url, site string) {
+	first, _ := TitleLink(cfg, art)
+	if first == "" {
+		return "", ""
+	}
+	type page struct{ url, site string }
+	var pages []page
+	if first != art.URL {
+		pages = append(pages, page{art.URL, firstNonEmpty(art.URLLabel, "IMDb")}) // the first is Letterboxd
+	}
+	imdb := reImdbTitle.FindStringSubmatch(art.URL)
+	if art.IDs != nil && reImdbID.MatchString(art.IDs.Imdb) {
+		imdb = []string{"", art.IDs.Imdb}
+	}
+	if imdb != nil {
+		pages = append(pages, page{"https://www.imdb.com/title/" + imdb[1] + "/", "IMDb"})
+	}
+	if art.IDs != nil && art.IDs.Tvmaze != "" && reDigits.MatchString(art.IDs.Tvmaze) {
+		pages = append(pages, page{"https://www.tvmaze.com/shows/" + art.IDs.Tvmaze, "TVmaze"})
+	}
+	if art.IDs != nil && art.IDs.Tmdb != "" && reDigits.MatchString(art.IDs.Tmdb) && art.Type == "series" {
+		pages = append(pages, page{"https://www.themoviedb.org/tv/" + art.IDs.Tmdb, "TMDB"})
+	}
+	for _, p := range pages {
+		if buttonURL(p.url) && !samePage(p.url, first) {
+			return p.url, p.site
+		}
+	}
+	return "", ""
+}
+
+var (
+	reImdbTitle = regexp.MustCompile(`imdb\.com/title/(tt\d+)`)
+	reImdbID    = regexp.MustCompile(`^tt\d+$`)
+	reDigits    = regexp.MustCompile(`^\d+$`)
+)
+
+// samePage reports whether two addresses open the same page (they differ at most in a trailing slash).
+func samePage(a, b string) bool { return strings.TrimSuffix(a, "/") == strings.TrimSuffix(b, "/") }
+
+// viewOn is a button's label, clipped to Discord's 32 characters.
+func viewOn(site string) string {
+	lbl := "View on " + site
+	if u16len(lbl) > 32 {
+		lbl = u16slice(lbl, 0, 32)
+	}
+	return lbl
+}
+
 // buttonURL is an http(s) address Discord accepts for a button (at most 512 characters).
 func buttonURL(u string) bool {
 	return len(u) <= 512 && (strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://"))
@@ -624,12 +689,12 @@ func linkable(u string) bool {
 	return len(u) <= 256 && (strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://"))
 }
 
-// HasLinks reports whether a text line or the cover is a link.
+// HasLinks reports whether a text line, the cover or the logo is a link.
 func HasLinks(a *Activity) bool {
-	return a != nil && (a.DetailsURL != "" || a.StateURL != "" || (a.Assets != nil && a.Assets.LargeURL != ""))
+	return a != nil && (a.DetailsURL != "" || a.StateURL != "" || (a.Assets != nil && (a.Assets.LargeURL != "" || a.Assets.SmallURL != "")))
 }
 
-// WithoutLinks is a copy of a whose text lines and cover are not links (for a Discord that refuses them).
+// WithoutLinks is a copy of a whose text lines, cover and logo are not links (for a Discord that refuses them).
 func WithoutLinks(a *Activity) *Activity {
 	if a == nil {
 		return nil
@@ -639,7 +704,7 @@ func WithoutLinks(a *Activity) *Activity {
 	c.StateURL = ""
 	if a.Assets != nil {
 		as := *a.Assets
-		as.LargeURL = ""
+		as.LargeURL, as.SmallURL = "", ""
 		c.Assets = &as
 	}
 	return &c
