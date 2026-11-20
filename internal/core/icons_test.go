@@ -26,7 +26,7 @@ func TestPlayerIconsExist(t *testing.T) {
 			t.Errorf("%s: %dx%d %v", player, cfg.Width, cfg.Height, err)
 		}
 	}
-	if PlayerIcon("MPC-HC") != "" || PlayerIcon("Some Player") != "" {
-		t.Error("only the listed players have a logo")
+	if PlayerIcon("MPC-HC") == "" || PlayerIcon("Some Player") != "" {
+		t.Error("the MPC family has its logo, and only the listed players have one")
 	}
 }

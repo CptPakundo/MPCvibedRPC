@@ -15,6 +15,10 @@
     (MyAnimeList) server only if you set one up. Their data belongs to them and is shown as found.
 - Player logos in `docs/players/` are shown as the small icon on a Discord status, to name the player in use. They
   belong to their projects (some are trademarks) and are not covered by this project's license. Sources:
+  - `mpc-hc.png`: https://github.com/clsid2/mpc-hc (`src/mpc-hc/res/icon.ico`, its 256 px image at 128 px; GPL-3.0).
+  - `mpc-be.png`: https://github.com/Aleksoid1978/MPC-BE (`src/apps/mplayerc/res/icon.ico`, its 256 px image at 128 px;
+    GPL-3.0).
+  - `mpc-qt.png`: https://github.com/mpc-qt/mpc-qt (`res/images/icon/mpc-qt.ico`, its 256 px image at 128 px; GPL-2.0).
   - `mpv.png`: https://github.com/mpv-player/mpv (`etc/mpv-icon-8bit-128x128.png`; GPL-2.0-or-later / LGPL).
   - `vlc.png`: https://github.com/videolan/vlc (`share/icons/128x128/vlc.png`; GPL-2.0). VLC is a trademark of VideoLAN.
   - `kodi.png`: https://github.com/xbmc/xbmc (`media/icon256x256.png`; GPL-2.0-or-later). Kodi is a trademark of the

@@ -59,8 +59,8 @@ func TestTitleAndCoverLinkToTheCatalogPage(t *testing.T) {
 	if a["state_url"] != nil {
 		t.Fatalf("no state line, so no state link: %v", a)
 	}
-	if as["small_image"] != "mpc-hc" {
-		t.Fatalf("MPC-HC keeps its own corner icon: %v", as)
+	if as["small_image"] != core.PlayerIcon("MPC-HC") {
+		t.Fatalf("MPC-HC has its logo as the corner icon: %v", as)
 	}
 	if b, _ := a["buttons"].([]any); len(b) != 1 {
 		t.Fatalf("the button stays: %v", a)
