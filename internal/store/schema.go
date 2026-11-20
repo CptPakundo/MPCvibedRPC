@@ -54,7 +54,7 @@ var Sections = []Section{
 		// there, so the setting's default needs no second value).
 		{Key: "streamTitle", Type: "choice", Label: "Show the title on my streams", OS: []string{"windows"},
 			Options: [][2]string{{"auto", "While Discord shares my screen"}, {"always", "Always"}, {"off", "Never"}},
-			Help:    `Discord names a stream after a Playing status only. While it shares your screen, yours reads "Playing <title>" (a timer, no progress bar) and viewers see "Streaming <title>".`},
+			Help:    `Discord names a stream after a Playing status only. While it shares your screen, a second status, "Playing <title>", names the stream (viewers see "Streaming <title>"), and your Watching status stays.`},
 		{Key: "streamTitle", Type: "choice", Label: "Show the title on my streams", OS: []string{"darwin", "linux"},
 			Options: [][2]string{{"auto", "Never"}, {"always", "Always"}},
 			Help:    `Discord names a stream after a Playing status only: "Playing <title>", with a timer and no progress bar. This system cannot tell when Discord shares your screen, so it is always or never.`},

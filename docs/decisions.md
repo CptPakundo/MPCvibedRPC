@@ -24,13 +24,14 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   TVmaze, AniList, Kitsu, Wikipedia, Bulbapedia), each with its own switch. *Why:* every show, film, special or the
   like should be found, and no single catalog has them all; a slow or closed service must not leave a title without
   its cover. A catalog is only removed when it stops answering for good.
-- **The title is shown on a stream by itself** (2026-11-11). Discord names a screen share after the streamer's
-  *Playing* status and no other kind, so while Discord shares the screen the status is sent as "Playing <title>", and
-  as the usual Watching status the rest of the time. On Windows the program tells that from the threads Discord's app
+- **The title is shown on a stream by itself** (2026-11-11; the second status 2026-11-21). Discord names a screen
+  share after the streamer's *Playing* status and no other kind, so while Discord shares the screen a second status,
+  "Playing <title>", goes up on a second connection next to the usual Watching one, which keeps its progress bar
+  (the owner asked to keep "Watching" on a stream). Discord keeps one status per connection. On Windows the program tells that from the threads Discord's app
   runs while it shares, and from Windows' record of screen captures where that can be read; where it cannot tell
   (macOS, Linux) the choice is always or never. *Why:* a switch to remember
-  before every stream is friction; the Watching status with its progress bar is what belongs on a profile; showing
-  both at once would put two cards there. It is on by default because it changes nothing until a stream starts.
+  before every stream is friction; the Watching status with its progress bar is what belongs on a profile, so
+  the second status is there only during a stream, where it names the stream. It is on by default because it changes nothing until a stream starts.
 - **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player
   answers is repeated a second later before the status is taken down. *Why:* a player that loads a file or seeks on
   a slow disk misses an answer now and then, and the status should not flicker for it; a second is a small price.

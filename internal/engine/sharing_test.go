@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/CptPakundo/MPCvibedRPC/internal/core"
 )
@@ -14,8 +15,9 @@ func init() {
 	defaultWatchSharing = func(context.Context, func()) {}
 }
 
-// With the stream title on "auto" (the default) the status is the usual Watching one, turns into "Playing <title>"
-// while Discord shares the screen, and turns back when the stream ends. The same file is sent again each time.
+// With the stream title on "auto" (the default) the status is the usual Watching one. While Discord shares the
+// screen it stays, and a second connection adds "Playing <title>" for the stream's name, without a button or links;
+// when the stream ends that one goes, and the Watching status is still there.
 func TestStatusFollowsTheScreenShare(t *testing.T) {
 	t.Parallel()
 	var sharing atomic.Bool
@@ -27,17 +29,62 @@ func TestStatusFollowsTheScreenShare(t *testing.T) {
 		return len(s) == 1 && s[0]["type"] == float64(3)
 	})
 	sharing.Store(true)
-	eventually(t, "the Playing status while the screen is shared", func() bool {
-		s := d.showing()
-		return len(s) == 1 && s[0]["type"] == nil && s[0]["name"] == "Show Name" && l.has("screen share began")
+	eventually(t, "Watching and Playing while the screen is shared", func() bool {
+		w, p := byType(d.showing())
+		return w != nil && p != nil && p["name"] == "Show Name" && l.has("screen share began")
 	})
-	// booked when Discord's answer is there, a moment after Discord has the status
-	eventually(t, "the window's preview in the Playing form", func() bool { p := e.Status().Preview; return p != nil && !p.Watching })
+	if _, p := byType(d.showing()); p["buttons"] != nil || p["details_url"] != nil || p["state_url"] != nil {
+		t.Errorf("the stream status carries links: %v", p)
+	}
+	if p := e.Status().Preview; p == nil || !p.Watching {
+		t.Errorf("the preview shows %+v, want the Watching status", p)
+	}
 	sharing.Store(false)
-	eventually(t, "the Watching status again", func() bool {
+	eventually(t, "the Watching status alone again", func() bool {
 		s := d.showing()
 		return len(s) == 1 && s[0]["type"] == float64(3) && l.has("screen share ended")
 	})
+	sharing.Store(true)
+	eventually(t, "the stream status again", func() bool { return len(d.showing()) == 2 })
+	m.set(func(m *mpc) { m.state = 0 }) // nothing plays: both go
+	eventually(t, "nothing shown once the video stops", func() bool { return len(d.showing()) == 0 })
+	m.set(func(m *mpc) { m.state = 2 })
+	eventually(t, "both back", func() bool { return len(d.showing()) == 2 })
+	e.Stop()
+	eventually(t, "nothing shown after Stop", func() bool { return len(d.showing()) == 0 })
+}
+
+// With the Playing style the status is a Playing one already: while the screen is shared it is sent in the stream
+// form, on the one connection, as before.
+func TestPlayingStyleStreamsOnOneStatus(t *testing.T) {
+	t.Parallel()
+	m := newMPC(t)
+	e, d, _ := newTestEngine(t, withPort(m.port), func(cfg *core.Config, o *Options) {
+		cfg.ActivityType = "playing"
+		o.Sharing = func() bool { return true }
+	})
+	e.Start()
+	eventually(t, "the Playing status named after the title", func() bool {
+		s := d.showing()
+		return len(s) == 1 && s[0]["type"] == nil && s[0]["name"] == "Show Name"
+	})
+	time.Sleep(200 * time.Millisecond)
+	if n := len(d.showing()); n != 1 {
+		t.Errorf("%d statuses with the Playing style, want 1", n)
+	}
+}
+
+// byType picks the Watching and the Playing status out of what the fake Discord shows.
+func byType(s []map[string]any) (watching, playing map[string]any) {
+	for _, a := range s {
+		switch a["type"] {
+		case float64(3):
+			watching = a
+		case nil:
+			playing = a
+		}
+	}
+	return watching, playing
 }
 
 // "off" never asks whether the screen is shared, and "always" does not need to.
