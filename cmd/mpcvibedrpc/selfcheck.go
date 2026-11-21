@@ -96,7 +96,7 @@ func noPlayerHint(goos string) string {
 	if names == "" {
 		names = "VLC, Celluloid, Haruna or mpv"
 	}
-	return "No player answers. Open " + names + " and play something. If it still does not answer, press Set up the player connection (Advanced)."
+	return "No player answers. Open " + names + " and play something. If it still does not answer, press Set up the player connection (Players tab)."
 }
 
 // playerLines turns the probes into lines: each player that answers, each problem that is known, one line for the
@@ -140,7 +140,7 @@ func playerLines(probes []engine.PlayerProbe, goos string) []checkItem {
 		add("ok", "Signed in: "+strings.Join(signedIn, ", ")+".")
 	}
 	if len(signedOut) > 0 {
-		add("info", "Not signed in: "+strings.Join(signedOut, ", ")+". Only needed if you use them (Accounts tab).")
+		add("info", "Not signed in: "+strings.Join(signedOut, ", ")+". Only needed if you use them (Players tab).")
 	}
 	return out
 }

@@ -114,7 +114,7 @@ func (w *Watcher) Run(ctx context.Context) {
 		next := w.every()
 		switch {
 		case errors.Is(err, ErrKey):
-			w.SetProblem("Stremio refused the sign-in. Sign in to Stremio again (Accounts > Stremio).", w.Log)
+			w.SetProblem("Stremio refused the sign-in. Sign in to Stremio again (Players > Stremio).", w.Log)
 			next = 2 * time.Minute
 		case err != nil:
 			w.SetProblem(fmt.Sprintf("Could not reach Stremio's library (%v).", err), w.Log)

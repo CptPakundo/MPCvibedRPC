@@ -40,7 +40,18 @@ func ip(n int) *int { return &n }
 
 // Sections is the settings window's layout. Adding a field here adds a control (and its validation).
 var Sections = []Section{
-	{ID: "accounts", Title: "Accounts", Fields: []Field{
+	// Players: the players on this computer first, then the services followed through a sign-in.
+	{ID: "players", Title: "Players", Fields: []Field{
+		{Type: "heading", Label: "On this computer"}, // the window puts "Set up the player connection" under it
+		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Help: "MPC-BE and MPC-QT's web interfaces use it too. MPC-QT also works without one.", Min: ip(1), Max: ip(65535)},
+		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "Set up the player connection fills this in. Leave empty to not look for mpv."},
+		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "Set up the player connection fills this in. Leave empty to not look for VLC."},
+		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
+		{Key: "kodiAddress", Type: "text", Label: "Kodi web server address", Help: "In Kodi: Settings > Services > Control > Allow remote control via HTTP, with a user name and password. 127.0.0.1:8080 is Kodi on this computer; a Kodi on another device has its own address."},
+		{Key: "kodiUser", Type: "text", Label: "Kodi user name", Help: "As set in Kodi (kodi unless you changed it)."},
+		{Key: "kodiPassword", Type: "secret", Label: "Kodi password", Help: "As set in Kodi. Leave empty to not look for Kodi."},
+		{Key: "iinaPipe", Type: "text", Label: "IINA connection", Help: "The input-ipc-server path in IINA's mpv options (IINA Settings > Advanced). Set up the player connection adds it; IINA reads it when it next starts. Leave empty to not look for IINA.", OS: []string{"darwin"}},
+		{Key: "mpris", Type: "bool", Label: "Find video players through MPRIS", Help: "Reads VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and other video players over D-Bus, with nothing to set up. Music players and web browsers are never shown.", OS: []string{"linux"}},
 		{Type: "heading", Label: "Plex"},
 		{Key: "plexAddress", Type: "text", Label: "Plex server address (optional)", Help: "Only needed when this computer cannot reach your server at the addresses plex.tv lists, for example http://192.168.1.20:32400. Leave empty to use those."},
 		{Type: "heading", Label: "Stremio"},         // the window puts the sign-in under it
@@ -86,16 +97,6 @@ var Sections = []Section{
 		{Key: "disabledSources", Type: "sources", Label: "Services that may see your titles", Help: "The title from the file name goes to these services to find covers and details. A service that is off is never contacted.", Sources: core.Sources},
 	}},
 	{ID: "advanced", Title: "Advanced", Fields: []Field{
-		{Type: "heading", Label: "Players"}, // the window puts "Set up the player connection" under it
-		{Key: "port", Type: "int", Label: "MPC-HC web interface port", Help: "MPC-BE and MPC-QT's web interfaces use it too. MPC-QT also works without one.", Min: ip(1), Max: ip(65535)},
-		{Key: "mpvPipe", Type: "text", Label: "mpv connection name", Help: "Set up the player connection fills this in. Leave empty to not look for mpv."},
-		{Key: "vlcPassword", Type: "secret", Label: "VLC web interface password", Help: "Set up the player connection fills this in. Leave empty to not look for VLC."},
-		{Key: "vlcPort", Type: "int", Label: "VLC web interface port", Help: "VLC uses 8080 unless you changed it.", Min: ip(1), Max: ip(65535)},
-		{Key: "kodiAddress", Type: "text", Label: "Kodi web server address", Help: "In Kodi: Settings > Services > Control > Allow remote control via HTTP, with a user name and password. 127.0.0.1:8080 is Kodi on this computer; a Kodi on another device has its own address."},
-		{Key: "kodiUser", Type: "text", Label: "Kodi user name", Help: "As set in Kodi (kodi unless you changed it)."},
-		{Key: "kodiPassword", Type: "secret", Label: "Kodi password", Help: "As set in Kodi. Leave empty to not look for Kodi."},
-		{Key: "iinaPipe", Type: "text", Label: "IINA connection", Help: "The input-ipc-server path in IINA's mpv options (IINA Settings > Advanced). Set up the player connection adds it; IINA reads it when it next starts. Leave empty to not look for IINA.", OS: []string{"darwin"}},
-		{Key: "mpris", Type: "bool", Label: "Find video players through MPRIS", Help: "Reads VLC, Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper, mpv with mpv-mpris and other video players over D-Bus, with nothing to set up. Music players and web browsers are never shown.", OS: []string{"linux"}},
 		{Type: "heading", Label: "Discord"},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},

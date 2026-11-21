@@ -111,7 +111,7 @@
     if ((await modal(all ? 'Changelog' : "What's new in " + log[0].version, box, buttons, true)) === 1) showChangelog(true);
   }
 
-  // the counts on the General tab (kept on this computer only)
+  // the counts on the Help tab (kept on this computer only)
   const dur = (ms) => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + ' h ' + (m % 60) + ' min' : m + ' min'; };
   function paintStats(s) {
     if (!s) return;
@@ -218,9 +218,9 @@
 
   // What the window adds under some group headings (sign-ins, buttons); the settings themselves come from the schema.
   const EXTRAS = {
-    'accounts/Stremio': () => [stremioBox()],
-    'accounts/Jellyfin / Emby': () => [jellyfinBox()],
-    'advanced/Players': () => [playerSetupBox()],
+    'players/Stremio': () => [stremioBox()],
+    'players/Jellyfin / Emby': () => [jellyfinBox()],
+    'players/On this computer': () => [playerSetupBox()],
     'advanced/Maintenance': () => [maintenanceBox()],
   };
 
@@ -269,7 +269,7 @@
     main.addEventListener('change', () => later(apply));
   }
 
-  // "Set up the player connection" at the top of Advanced > Players: the same call and confirmation as the card that
+  // "Set up the player connection" at the top of the Players tab: the same call and confirmation as the card that
   // shows when no player is answering
   function playerSetupBox() {
     const msg = el('span', { className: 'help' });
@@ -313,7 +313,7 @@
       'Plex: only while you are signed in. plex.tv is asked for your servers, and your server tells this program what you play.',
       'Stremio: only while you are signed in. It is asked every 20 seconds which library entries changed.',
       'Jellyfin or Emby: only while you are signed in. Your own server is asked every 5 seconds what plays.',
-      'Kodi: only once its password is set (Advanced). It is asked at the address there, this computer unless you change it, and listened to on port 9090 there for its pause and play notifications.',
+      'Kodi: only once its password is set (Players tab). It is asked at the address there, this computer unless you change it, and listened to on port 9090 there for its pause and play notifications.',
       "The preview at the top loads the cover image from the service that hosts it, or the player's logo from GitHub. Discord loads them the same way for your status.",
       'A file that is just an episode number uses its folder\'s name as the title when "Use the folder name" is on; that name is looked up like any title.',
       'The player (' + players() + ') and Discord are only reached on this computer. No analytics, your stats stay here, and file paths are never sent.',
@@ -348,7 +348,7 @@
     } catch (_) {}
   }
 
-  // A sign-in on the Accounts tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
+  // A sign-in on the Players tab. The program keeps the sign-in: the page never sees a token or key. o.extra is an
   // element shown above the buttons, o.onShow(state) and o.onBusy(on) let it follow the box.
   function signInBox(name, o) {
     const text = help(''), err = el('div', { className: 'help bad hidden' });
@@ -526,7 +526,7 @@
     document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'p-' + id));
     if (id === 'help') pollLog();
     if (id === 'privacy') pollConns();
-    if (id === 'general') api('stats').then(paintStats).catch(() => {});
+    if (id === 'help') api('stats').then(paintStats).catch(() => {});
   }
   function flagUpdate() { updFlag = true; const b = $('tab-general'); if (b) b.classList.add('has'); }
 
@@ -702,7 +702,7 @@
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
   }
-  // "Set up the player connection": used by the card shown when no player is answering and by Advanced > Players.
+  // "Set up the player connection": used by the card shown when no player is answering and by the Players tab.
   // msgEl shows the progress and the result.
   async function setUpPlayers(btn, msgEl) {
     btn.disabled = true;

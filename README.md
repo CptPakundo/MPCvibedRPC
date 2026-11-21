@@ -64,14 +64,14 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
    connection** (it adds one line to `mpv.conf`); the mpv-mpris script works too.
 3. There's no tray icon: run the program again to show its window.
 
-**Plex** (any system): sign in on the **Accounts** tab. Whatever you play with your Plex account then shows up, on any device.
+**Plex** (any system): sign in on the **Players** tab. Whatever you play with your Plex account then shows up, on any device.
 
-**Stremio** (any system): sign in on the **Accounts** tab. What you watch with your Stremio account then shows up, on any device.
+**Stremio** (any system): sign in on the **Players** tab. What you watch with your Stremio account then shows up, on any device.
 
-**Jellyfin and Emby** (any system): enter your server's address and sign in on the **Accounts** tab.
+**Jellyfin and Emby** (any system): enter your server's address and sign in on the **Players** tab.
 
 **Kodi** (any system): in Kodi, turn on *Settings > Services > Control > Allow remote control via HTTP* with a user
-name and password; enter the password (and the address, for a Kodi on another device) under **Advanced > Players**.
+name and password; enter the password (and the address, for a Kodi on another device) under the **Players** tab.
 
 ## 📺 Players
 
@@ -86,9 +86,9 @@ name and password; enter the password (and the address, for a Kodi on another de
 | PotPlayer | ✓ | | | none |
 | Kodi | ✓ | ✓ | ✓ | its web server on, then its address, user name and password under Advanced |
 | Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and more | | | ✓ | none |
-| Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Accounts tab |
-| Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Accounts tab |
-| Jellyfin, Emby (any app, web or TV) | ✓ | ✓ | ✓ | server address and sign in on the Accounts tab |
+| Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Players tab |
+| Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Players tab |
+| Jellyfin, Emby (any app, web or TV) | ✓ | ✓ | ✓ | server address and sign in on the Players tab |
 
 "One click" is the **Set up the player connection** button in the window. It closes and reopens MPC-HC, MPC-BE or VLC
 after you confirm. Exactly what each player needs, and how it is read, is in

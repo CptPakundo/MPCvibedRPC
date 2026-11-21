@@ -174,7 +174,7 @@ static void macShowWindow(const char *url) {
 	NSURL *u = [NSURL URLWithString:[NSString stringWithUTF8String:url]];
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (!window) {
-			window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 620, 700)
+			window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 660, 760)
 				styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
 				backing:NSBackingStoreBuffered defer:NO];
 			window.releasedWhenClosed = NO;

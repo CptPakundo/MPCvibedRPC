@@ -122,7 +122,7 @@ func TestPlayerLines(t *testing.T) {
 		{"Players", "problem", "VLC: VLC refused the password."},
 		{"Players", "info", "No answer from: Kodi. That is fine for players you do not use."},
 		{"Players", "ok", "Signed in: Plex."},
-		{"Players", "info", "Not signed in: Stremio. Only needed if you use them (Accounts tab)."},
+		{"Players", "info", "Not signed in: Stremio. Only needed if you use them (Players tab)."},
 	}
 	if len(items) != len(want) {
 		t.Fatalf("%+v", items)

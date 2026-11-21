@@ -17,7 +17,7 @@
       <p><b>Welcome!</b> Two steps:</p>
       <ol>
         <li>In Discord, turn on <i>User Settings &gt; Activity Privacy &gt; Share my activity</i> (under <i>Games &amp; Apps</i>, or <i>Activity Settings</i> in older Discord).</li>
-        <li>Play something. For Plex, Jellyfin, Emby or Stremio, sign in on the <b>Accounts</b> tab.</li>
+        <li>Play something. For Plex, Jellyfin, Emby or Stremio, sign in on the <b>Players</b> tab.</li>
       </ol>
       <div class="row"><button id="welcomeOk">Got it</button></div>
     </section>
@@ -50,7 +50,7 @@
     </section>
 
     <section class="card notice warn hidden" id="mpcHelp">
-      <p id="mpcHelpText"><b>No player is answering.</b> Open your player and play something. MPC-HC, MPC-BE, VLC and mpv need setting up first: the button does it. PotPlayer needs nothing; Kodi needs its web server and password (Advanced).</p>
+      <p id="mpcHelpText"><b>No player is answering.</b> Open your player and play something. MPC-HC, MPC-BE, VLC and mpv need setting up first: the button does it. PotPlayer needs nothing; Kodi needs its web server and password (Players tab).</p>
       <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
     </section>
@@ -76,10 +76,6 @@
         <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
         <div class="field" id="autoUpdateRow"><label class="line"><span>Install updates automatically<div class="help">While this window is open it asks first. Otherwise it waits until nothing is playing.</div></span><span class="sw"><input type="checkbox" id="autoUpdate"><span></span></span></label></div>
       </div>
-      <h3 class="grp">Your stats</h3>
-      <div class="group">
-        <div class="field"><div id="statsText"></div><div class="help">Counted on this computer only: numbers, never titles. Nothing is sent anywhere.</div><div class="row actions"><button id="statsReset">Reset stats</button></div></div>
-      </div>
     </section>
 
     <section class="panel" id="p-help" role="tabpanel">
@@ -93,6 +89,10 @@
         <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
       </div>
       <details class="group fold" id="logFold"><summary>Log</summary><div id="log" tabindex="0" role="region" aria-label="Log"></div></details>
+      <h3 class="grp">Your stats</h3>
+      <div class="group">
+        <div class="field"><div id="statsText"></div><div class="help">Counted on this computer only: numbers, never titles. Nothing is sent anywhere.</div><div class="row actions"><button id="statsReset">Reset stats</button></div></div>
+      </div>
       <div class="group credits" role="region" aria-label="Credits">
         <b>Credits</b>
         <!-- TMDB's own logo ("Primary short (blue)", themoviedb.org/about/logos-attribution), as its terms require -->
