@@ -44,6 +44,12 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   should not surprise anyone.
 
 ## The window and the tray
+- **The window looks like a quiet settings page** (2026-11-21, the owner, after two independent design reviews): neutral
+  greys with Discord's blurple as the one accent, three text sizes and two corner roundings, every setting a row with
+  its control on the right, one status block with the preview at the top, and the version and Quit in the footer. The
+  main control stays a button: "Show on Discord" in the accent colour, a plain "Stop showing" while it shows. *Why:*
+  the earlier look read as generated (tinted greys, one colour on everything, pills, many sizes); a button says in
+  words what it will do, where a switch hides it.
 - **Starting with Windows goes straight to the tray**; opening the program by hand shows the window (unless "Show this
   window when I open the app" is off); the very first start always shows it with a welcome card. *Why:* a start at
   sign-in should be silent, and opening it yourself means you want to see it.

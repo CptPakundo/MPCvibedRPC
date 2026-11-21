@@ -7,7 +7,7 @@
     else TOKEN = sessionStorage.getItem('token') || '';
   } catch (_) {}
   const $ = (id) => document.getElementById(id);
-  let model = null, queue = Promise.resolve(), queued = 0, clearTimer = null, saving = 0, gone = false, timers = [];
+  let model = null, queue = Promise.resolve(), queued = 0, clearTimer = null, saving = 0, gone = false, timers = [], running = false;
 
   async function api(name, body, method) {
     const res = await fetch('/api/' + name, { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -17,11 +17,18 @@
   }
   const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); kids.forEach((k) => e.append(k)); return e; };
   const help = (text) => el('div', { className: 'help', textContent: text });
+  // a setting's help: a long one shows its first sentence, the rest behind "More"
+  const longHelp = (text) => {
+    const m = text.length > 110 && /^(.{20,}?[.:])\s+(\S.*)$/s.exec(text);
+    if (!m) return help(text);
+    return el('div', { className: 'help' }, document.createTextNode(m[1] + ' '), el('details', {}, el('summary', { textContent: 'More' }), document.createTextNode(m[2])));
+  };
   // a switch with its label (and help) on the left
-  const switchRow = (label, input, helpText, cls) => el('label', { className: 'line' + (cls ? ' ' + cls : '') }, el('span', {}, document.createTextNode(label), ...(helpText ? [help(helpText)] : [])), el('span', { className: 'sw' }, input, el('span')));
+  const switchRow = (label, input, helpText, cls) => el('label', { className: 'line' + (cls ? ' ' + cls : '') }, el('span', { className: 'lbl' }, document.createTextNode(label), ...(helpText ? [cls ? help(helpText) : longHelp(helpText)] : [])), el('span', { className: 'sw' }, input, el('span')));
+  // the bottom line: empty at rest, "Saving…" and "Saved" for a moment after a change, errors until the next change
   const note = (text, err) => {
     clearTimeout(clearTimer); $('msg').className = 'msg' + (err ? ' err' : ''); $('msg').textContent = text;
-    if (!err) clearTimer = setTimeout(() => { $('msg').textContent = 'Changes are saved as you make them.'; }, 2500);
+    if (!err) clearTimer = setTimeout(() => { $('msg').textContent = ''; }, 2500);
   };
   // one change at a time, in order
   const later = (task) => { queued++; const run = async () => { try { await task(); } finally { queued--; } }; queue = queue.then(run, run); };
@@ -85,7 +92,7 @@
   const noDialog = async () => { while (document.querySelector('.dlg-back')) await new Promise((r) => setTimeout(r, 300)); };
   // a yes/no question (Cancel first); with cancel set to null it is a message with a single button
   const ask = async (title, text, yes, danger, cancel = 'Cancel') => {
-    const ok = [yes, danger ? 'primary danger' : 'primary'];
+    const ok = [yes, danger ? 'danger-fill' : 'primary'];
     if (!cancel) { await modal(title, text, [ok]); return true; }
     return (await modal(title, text, [[cancel], ok])) === 1;
   };
@@ -144,7 +151,7 @@
         const m = await api('save', scope === 'app' ? { app: { [key]: value } } : { settings: { [key]: value } });
         model = m;
         set(scope === 'app' ? appValue(key) : m.values[key]);
-        note('Saved.');
+        note('Saved');
       } catch (e) {
         set(saved);
         note(e.message, true);
@@ -169,7 +176,7 @@
   };
   function fieldFor(f, v) {
     const wrap = el('div', { className: 'field' });
-    const helpEl = f.help ? help(f.help) : null, h = helpEl ? [helpEl] : [];
+    const helpEl = f.help ? (f.type === 'sources' ? help(f.help) : longHelp(f.help)) : null, h = helpEl ? [helpEl] : [];
     if (f.type === 'sources') {
       const off = new Set(v || []);
       const boxes = f.sources.map((s) => { const cb = el('input', { type: 'checkbox', checked: !off.has(s.id) }); cb.dataset.id = s.id; return cb; });
@@ -193,12 +200,16 @@
     if (f.type === 'bool') {
       input = el('input', { type: 'checkbox', checked: !!v });
       wrap.append(switchRow(f.label, input, f.help));
+    } else if (f.type === 'map') {
+      // several lines: the box goes under its name
+      input = el('textarea', { value: v || '', spellcheck: false });
+      wrap.append(nameOf(f, input, helpEl), el('div', { className: 'ctl' }, input), ...h);
     } else {
+      // a choice, a number or a line of text: the name on the left, the control on the right (under it in a narrow row)
       if (f.type === 'choice') { input = el('select'); f.options.forEach(([val, text]) => input.append(new Option(text, val, false, val === v))); }
-      else if (f.type === 'map') input = el('textarea', { value: v || '', spellcheck: false });
       else if (f.type === 'int') input = el('input', { type: 'number', value: v, min: f.min, max: f.max });
       else input = el('input', { type: f.type === 'secret' ? 'password' : 'text', value: v || '', spellcheck: false, autocomplete: 'off' });
-      wrap.append(nameOf(f, input, helpEl), el('div', { className: 'ctl' }, input), ...h);
+      wrap.append(el('div', { className: 'line' }, el('div', { className: 'lbl' }, nameOf(f, input, helpEl), ...h), el('div', { className: 'ctl-r' }, input)));
     }
     input.dataset.key = f.key;
     autosave(input, 'settings', f.key);
@@ -219,6 +230,8 @@
       const d = el('section', { className: 'panel dyn', id: 'p-' + sec.id });
       let group = null;
       const newGroup = (title) => { if (title) d.append(el('h3', { className: 'grp', textContent: title })); group = el('div', { className: 'group' }); d.append(group); };
+      // a group that starts closed: reading, not settings
+      const newFold = (title) => { group = el('details', { className: 'group fold' }, el('summary', { textContent: title })); d.append(group); };
       for (const f of sec.fields) {
         if (f.type === 'heading') {
           newGroup(f.label);
@@ -227,10 +240,15 @@
           continue;
         }
         if (!group) newGroup('');
-        if (f.key === 'plexAddress') group.append(plexBox()); // the sign-in comes first in the Plex group
+        if (f.key === 'plexAddress') {
+          // the sign-in comes first in the Plex group; the address is rarely needed, so it is one click away (open
+          // when it has a value)
+          group.append(plexBox(), el('div', { className: 'field' }, el('details', { className: 'fold', open: !!m.values[f.key] }, el('summary', { textContent: 'Server address' }), fieldFor(f, m.values[f.key]))));
+          continue;
+        }
         group.append(fieldFor(f, m.values[f.key]));
       }
-      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newGroup('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); newGroup('Recent connections'); group.append(connsBox()); }
+      if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newFold('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); newFold('Recent connections'); group.append(connsBox()); }
       d.setAttribute('role', 'tabpanel');
       $('p-help').before(d);
     }
@@ -346,7 +364,7 @@
       fail(p.problem);
       again.classList.toggle('hidden', !p.waiting);
       out.classList.toggle('hidden', !p.signedIn || p.waiting);
-      btn.className = p.signedIn && !p.waiting ? 'hidden' : p.waiting ? '' : 'primary';
+      btn.className = p.signedIn && !p.waiting ? 'hidden' : ''; // signing in is optional: a plain button
       if (p.waiting) {
         text.textContent = 'Approve the sign-in on the page that opened in your browser.';
         btn.textContent = 'Cancel';
@@ -416,7 +434,7 @@
     addr.setAttribute('aria-label', 'Server address');
     const user = input('text', 'User name'), pass = input('password', 'Password');
     const code = el('div', { className: 'jf-code hidden' });
-    const btn = el('button', { className: 'primary' });
+    const btn = el('button');
     const cancel = el('button', { textContent: 'Cancel', className: 'hidden' });
     const usePw = el('button', { textContent: 'Use a password instead', className: 'hidden' });
     const out = el('button', { textContent: 'Sign out', className: 'hidden' });
@@ -514,8 +532,9 @@
 
   function fill(m) {
     model = m;
-    $('ver').textContent = 'v' + m.version;
+    $('ver').textContent = 'Version ' + m.version;
     $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
+    if (!$('updText').textContent) $('updText').textContent = 'Version ' + m.version; // until a check says more
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow; $('minimizeToTray').checked = !!m.app.minimizeToTray;
     $('minimizeRow').classList.toggle('hidden', m.os !== 'windows'); // only Windows can tell a minimised window and has a tray for it
     $('checkUpdates').checked = !!m.app.checkUpdates;
@@ -544,6 +563,11 @@
     const img = $('pvImg'); const src = p.largeImage || '/icon.ico';
     if (img.dataset.src !== src) { img.dataset.src = src; img.onerror = () => { img.onerror = null; img.src = '/icon.ico'; }; img.src = src; }
     img.title = p.largeText || '';
+    // the player's logo in the cover's corner, as Discord draws it
+    const small = $('pvSmall'), badge = $('pvBadge');
+    badge.classList.toggle('hidden', !p.smallImage);
+    if (p.smallImage && small.dataset.src !== p.smallImage) { small.dataset.src = p.smallImage; small.onerror = () => { badge.classList.add('hidden'); }; small.src = p.smallImage; }
+    badge.title = p.smallText || '';
     const bar = $('pvBar'); const timed = p.start && p.end && p.end > p.start;
     bar.classList.toggle('hidden', !timed);
     if (timed) { const total = (p.end - p.start) / 1000; const done = Math.min(total, Math.max(0, (Date.now() - p.start) / 1000)); $('pvElapsed').textContent = mmss(done); $('pvTotal').textContent = mmss(total); $('pvFill').style.width = (100 * done / total).toFixed(1) + '%'; }
@@ -559,27 +583,30 @@
       const box = document.querySelector('input[data-key="hideTitle"]');
       if (box) box.checked = s.hideTitle;
     }
-    // while nothing is shown, the card is one line and a button; the two lights only say something once it runs
-    ['pDiscord', 'pMpc', 'spacer'].forEach((id) => $(id).classList.toggle('hidden', !s.running));
-    $('idle').classList.toggle('hidden', !!s.running);
+    // One line says whether the status is on; while it is, a second says how Discord and the player answer (a word as
+    // well as a dot), and a third what plays when the preview does not already show it.
+    running = !!s.running;
+    $('stMain').textContent = s.running ? 'Showing on Discord' : 'Not showing on Discord';
+    $('stSub').classList.toggle('hidden', !s.running);
     const d = $('pDiscord'), p = $('pMpc');
-    d.className = 'pill ' + (s.discord === 'connected' ? 'good' : s.discord === 'waiting' ? 'warn' : '') + (s.running ? '' : ' hidden');
     d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : s.discord === 'standby' ? 'Discord on standby' : 'Discord idle';
     d.title = s.discord === 'standby' ? 'Discord is contacted as soon as something plays.' : s.discord === 'waiting' ? 'Discord was not found yet. Is the desktop app running?' : '';
-    p.className = 'pill ' + (s.mpc ? 'good' : 'warn') + (s.running ? '' : ' hidden');
+    d.className = s.discord === 'waiting' ? 'warn' : '';
     p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : 'No player found';
+    p.className = s.mpc ? '' : 'warn';
+    $('stDot').className = 'dot ' + (s.discord === 'waiting' || !s.mpc ? 'warn' : s.discord === 'connected' ? 'good' : '');
     const now = $('now');
-    now.textContent = '';
-    if (!s.running) { /* the idle line says it */ }
-    else if (s.hidden) now.append(document.createTextNode('Hidden'), el('small', { textContent: 'The file playing is on your Never show list, so nothing is shown on Discord.' }));
+    let line = '';
+    if (!s.running) { /* the first line says it */ }
+    else if (s.hidden) line = 'The file playing is on your Never show list, so nothing is shown on Discord.';
     else if (s.nowPlaying) {
-      const sub = s.paused ? (s.pauseCleared ? 'Paused (status hidden on Discord until you play again)' : 'Paused') : 'Now playing';
+      const sub = s.paused ? (s.pauseCleared ? 'Paused (hidden on Discord until you play again)' : 'Paused') : 'Playing';
       // while the Discord preview is showing, the title is already there: keep only a note that adds something
-      if (s.preview) { if (s.paused) now.append(el('small', { textContent: sub })); }
-      else now.append(document.createTextNode((s.paused ? '⏸ ' : '▶ ') + s.nowPlaying), el('small', { textContent: sub }));
+      line = s.preview ? (s.paused ? sub : '') : sub + ': ' + s.nowPlaying;
     }
-    else if (s.mpc) now.append(document.createTextNode('Nothing playing'), el('small', { textContent: 'Play something in ' + players() + '.' }));
-    now.classList.toggle('hidden', !now.hasChildNodes());
+    else if (s.mpc) line = 'Nothing playing. Play something in ' + players() + '.';
+    now.textContent = line;
+    now.classList.toggle('hidden', !line);
     const t = $('toggle'); t.textContent = s.running ? 'Stop showing' : 'Show on Discord'; t.className = s.running ? '' : 'primary';
     // a short line for screen readers, changed only when the state changes (the status itself changes every second)
     const live = s.running ? d.textContent + '. ' + p.textContent + '.' : 'Not showing on Discord.';
@@ -631,7 +658,7 @@
     closeWindow();
   }
   async function pollLog() {
-    if (tab !== 'help' || document.hidden || gone) return;
+    if (tab !== 'help' || !$('logFold').open || document.hidden || gone) return;
     try {
       const { lines } = await api('log'); const box = $('log'); const sig = lines.join('\n');
       if (box.dataset.sig === sig) return; // unchanged: leave the list alone, so a selection in it survives
@@ -668,7 +695,7 @@
     later(async () => { try { model = await api('save', { app: { welcomeSeen: true } }); } catch (e) { note(e.message, true); } });
   };
 
-  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && $('toggle').textContent.startsWith('Stop') ? 'stop' : 'start', {})); } catch (e) { await ask('Could not change this', e.message, 'OK', false, null); } $('toggle').disabled = false; };
+  $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && running ? 'stop' : 'start', {})); } catch (e) { await ask('Could not change this', e.message, 'OK', false, null); } $('toggle').disabled = false; };
   async function restoreDefaults() {
     if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex, Stremio, Jellyfin and Emby, and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
     later(async () => {
@@ -693,6 +720,7 @@
     btn.disabled = false;
   }
   $('enableWeb').onclick = () => setUpPlayers($('enableWeb'), $('webMsg'));
+  $('logFold').addEventListener('toggle', () => { if ($('logFold').open) { pollLog(); setTimeout(() => { $('log').scrollTop = $('log').scrollHeight; }, 50); } });
   // Release notes as GitHub writes them (Markdown), shown with their paragraphs, bullet points, bold and code. Built
   // from text nodes only, so nothing in the notes can act as HTML.
   function notesOf(md) {

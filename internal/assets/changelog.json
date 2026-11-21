@@ -1,4 +1,8 @@
 [
+  {"version": "0.9.56", "date": "2026-11-21", "items": [
+    "🎨 A calmer settings window: neutral greys, clearer switches, one status block with the preview, controls on the right.",
+    "🧹 Less to read: long help folds behind More, the Privacy texts and the log open when you want them."
+  ]},
   {"version": "0.9.55", "date": "2026-11-21", "items": [
     "🎬 New, off by default: Link to Letterboxd when it has the title (Look). Your status then says View on Letterboxd.",
     "📡 On your streams, the Playing status now shows a moving text progress bar with the length, and the rating and director.",
