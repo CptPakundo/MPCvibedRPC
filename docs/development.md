@@ -106,13 +106,13 @@ The README's pictures (`docs/images/window-*.jpg`) are taken again when the part
 
 1. Build the program and start it with a throwaway data folder (`MPCRPC_HOME`), with presence off and
    `{"app": {"seenVersion": "<version>"}}` in its `config.json` so the What's new box stays closed.
-2. Open its settings page (the address and token are in `ipc.json` in that folder) in a browser at 620 x 700 pixels,
+2. Open its settings page (the address and token are in `ipc.json` in that folder) in a browser at 660 x 760 pixels,
    dark mode (a high-DPI screen gives sharper pictures).
 3. For `window-main.jpg` paste `tools/screenshots/demo.js` into the page's console: it shows a made-up
    "Sample Show" playing and sample stats, and nothing is sent anywhere. Take the General tab. For
    `window-privacy.jpg` (Privacy tab, scrolled to "Services that may see your titles") and `window-plex.jpg`
-   (Accounts tab, scrolled to Plex) reload the page first, so presence shows as off.
-4. Save them 800 pixels wide (800 x 903). Only made-up titles; nothing from a real library or account.
+   (Players tab, scrolled to Plex) reload the page first, so presence shows as off.
+4. Save them 800 pixels wide (800 x 921). Only made-up titles; nothing from a real library or account.
 
 ## Where things are
 One row per package; the rules that go with them are in the repository's CLAUDE.md.
@@ -195,7 +195,7 @@ is a start or resume; the watcher learns each player's interval from its pushes 
 interval plus ~55 s (180 s unless 90 s was learned) means it stopped. The API was learned from stremio-core's source and unit tests; there is no live test.
 
 Jellyfin and Emby (`internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin.go`): the user types the server's address on the
-Accounts tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick
+Players tab; `/System/Info/Public` says which it is (Emby may answer only under `/emby`, which is then kept in `jellyfinAddress`). Jellyfin signs in with Quick
 Connect (`/QuickConnect/Initiate`, `Connect`, `/Users/AuthenticateWithQuickConnect`; the user enters the code in a
 Jellyfin app); Emby, or Quick Connect off, with `/Users/AuthenticateByName` (the password is passed on once, never kept).
 Every request carries `Authorization: MediaBrowser ...` (Jellyfin 12 ignores the legacy headers by default) and

@@ -39,7 +39,7 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
   PotPlayer that doesn't send the file's path is named from its window title instead, so the Never show list can only
   match the file name there, not its folder.
 - Kodi: turn on *Settings > Services > Control > Allow remote control via HTTP* in Kodi, with a user name and password,
-  and enter the same under **Advanced > Players** (the address too, for a Kodi on another device). The window says when
+  and enter the same under the **Players** tab (the address too, for a Kodi on another device). The window says when
   Kodi refuses the password, or when something else answers at the address. Kodi's web server uses port 8080, like
   VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this. A pause in
   Kodi shows at once when Kodi's *Allow remote control from applications on this system* is on (the default; *on
@@ -51,8 +51,8 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
 ## Plex
 
 - The window says when the server can't be reached, or Plex refused the sign-in (then sign out and in again on the
-  **Accounts** tab).
-- A server on your network that isn't found: put its address in **Accounts > Plex server address**, for example
+  **Players** tab).
+- A server on your network that isn't found: put its address in **Players > Plex server address**, for example
   `http://192.168.1.20:32400`.
 - Plex apps report every few seconds, so the status can lag that much behind. On your own server only *your* playback
   is shown; music and photos never are.
@@ -138,7 +138,7 @@ default is in [docs/config.md](config.md).
 
 To uninstall:
 
-1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Accounts** tab first. That ends the sessions on their side.
+1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Players** tab first. That ends the sessions on their side.
 2. Turn off "Start with Windows" / "Start at login" (General tab).
 3. Quit the program, then delete the program and the settings folder above.
 4. The player settings that **Set up the player connection** switched on are left as they are: the MPC-HC and MPC-BE

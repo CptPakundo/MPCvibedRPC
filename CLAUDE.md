@@ -10,8 +10,8 @@ a video player is playing as Discord Rich Presence: "Watching <title>" with a pr
 ratings, and each player's logo. Supported players: **MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer**, **Kodi**, and **Plex**, **Stremio**, **Jellyfin** and
 **Emby** on every system (any device the user plays on, read from their Plex server after "Sign in to Plex", from
 their Stremio library after "Sign in to Stremio", or from their own Jellyfin or Emby server; all sign-ins are on the
-Accounts tab). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
-shown in an Edge/Chrome `--app=` window (tabs General, Accounts, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
+Players tab, with the settings of the players on this computer). It talks to the Discord desktop app over its local IPC pipe; the settings window is a local web page
+shown in an Edge/Chrome `--app=` window (tabs General, Players, Look, Titles & art, Privacy, Advanced, Help; each group of settings is one card; updates are under General).
 The tray (Windows) and menu bar (macOS) menus show a status line, then Open settings, Show on Discord / Stop showing
 on Discord, Hide what I'm watching (`hideTitle`, ticked), Show the title on my streams (`streamTitle`, ticked) and Quit. The window says "Show on Discord" / "status", not
 "presence". How updates are looked for, offered and installed: `docs/development.md` > Updates.

@@ -89,7 +89,7 @@ func (e *Engine) fetchVLC(ctx context.Context, cfg core.Config) *core.Info {
 	case errors.Is(err, vlchttp.ErrNoPassword):
 		problem = "VLC's web interface has no password, so VLC keeps it closed. Press Set up the player connection, then restart VLC."
 	case errors.Is(err, vlchttp.ErrNotVLC):
-		problem = fmt.Sprintf("Port %d answers, but not as VLC. Another program may be using it (Advanced > Players > VLC web interface port).", cfg.VlcPort)
+		problem = fmt.Sprintf("Port %d answers, but not as VLC. Another program may be using it (Players > VLC web interface port).", cfg.VlcPort)
 	}
 	e.mu.Lock()
 	changed := problem != e.vlcProblem
@@ -335,7 +335,7 @@ func (e *Engine) fetchKodi(ctx context.Context, cfg core.Config) *core.Info {
 	case errors.Is(err, kodi.ErrPassword):
 		problem = "Kodi refused the user name or password. They have to match the ones in Kodi (Settings > Services > Control)."
 	case errors.Is(err, kodi.ErrNotKodi):
-		problem = "The Kodi address answers, but not as Kodi. Check the address and port (Advanced > Players > Kodi web server address)."
+		problem = "The Kodi address answers, but not as Kodi. Check the address and port (Players > Kodi web server address)."
 	}
 	e.mu.Lock()
 	changed := problem != e.kodiProblem

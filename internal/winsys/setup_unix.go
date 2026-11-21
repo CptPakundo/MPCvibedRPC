@@ -221,7 +221,7 @@ func enableIINA(home, name string) iinaResult {
 		return iinaResult{}
 	}
 	if name == "" {
-		return iinaResult{Message: "IINA is skipped: its connection name (Advanced) is empty."}
+		return iinaResult{Message: "IINA is skipped: its connection name (Players tab) is empty."}
 	}
 	s := readIINA([]byte(export.stdout))
 	options, using := planIINA(s, name)

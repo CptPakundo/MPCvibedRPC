@@ -36,7 +36,7 @@ And these, only for what they are named for:
 | `letterboxd.com` | Letterboxd | **Link to Letterboxd when it has the title** is on (**Look** tab, off by default): asks once per title, by its IMDb or TMDB id, whether Letterboxd has a page for it; the button on your status then links that page. |
 
 Once signed in, it also reads from your own Plex server, and from the Jellyfin or Emby server whose address you
-entered (Accounts tab): to sign in, to read its session list and to sign out.
+entered (Players tab): to sign in, to read its session list and to sign out.
 
 **Loaded by the window and by Discord**, not by the program: the cover on your status and in the preview comes from
 the image host the catalog named for it (`image.tmdb.org` for TMDB), and the player's logo from this repository on
