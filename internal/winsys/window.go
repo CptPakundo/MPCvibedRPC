@@ -64,7 +64,8 @@ func OpenWindow(url, profileDir string) string {
 		return "app" // the macOS app shows the page in a window of its own
 	}
 	if b != "" {
-		args := []string{"--app=" + url, "--window-size=660,760"}
+		// the size of the whole window: about 35 px of it is the title bar and the border, so the page gets about 660 x 765
+		args := []string{"--app=" + url, "--window-size=660,800"}
 		if profileDir != "" {
 			prepareProfile(profileDir)
 			args = append(args, "--user-data-dir="+profileDir, "--no-first-run", "--no-default-browser-check", "--disable-background-mode", "--disable-features=msStartupBoost")
