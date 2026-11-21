@@ -13,51 +13,43 @@
 <body>
 <main>
   <div class="top">
-    <header>
-      <img src="/icon.ico" alt="">
-      <h1>MPCvibedRPC</h1>
-      <button id="ver" title="Changelog"></button>
-    </header>
-
-    <section class="card notice info hidden" id="welcome">
-      <p><b>Welcome!</b> Discord only shows this when <i>User Settings &gt; Activity Privacy &gt; Share my activity</i> is on (Activity Privacy is under <i>Games &amp; Apps</i>, or <i>Activity Settings</i> in older Discord). Then play something; for Plex, Jellyfin, Emby or Stremio, sign in on the <b>Accounts</b> tab.</p>
-      <div class="row"><button id="welcomeOk" class="primary">Got it</button></div>
+    <section class="card notice hidden" id="welcome">
+      <p><b>Welcome!</b> Two steps:</p>
+      <ol>
+        <li>In Discord, turn on <i>User Settings &gt; Activity Privacy &gt; Share my activity</i> (under <i>Games &amp; Apps</i>, or <i>Activity Settings</i> in older Discord).</li>
+        <li>Play something. For Plex, Jellyfin, Emby or Stremio, sign in on the <b>Accounts</b> tab.</li>
+      </ol>
+      <div class="row"><button id="welcomeOk">Got it</button></div>
     </section>
 
-    <section class="card notice info hidden" id="updBanner">
+    <section class="card notice hidden" id="updBanner">
       <div class="row"><span class="grow" id="updBannerText"></span><button id="updBannerBtn">See what's new</button></div>
     </section>
 
-    <section class="card status">
-      <div class="row">
-        <span class="pill" id="pDiscord">Discord</span>
-        <span class="pill" id="pMpc">Player</span>
-        <span class="grow now" id="idle">Not showing on Discord<small>Press Show on Discord to show what you watch.</small></span>
-        <span class="grow" id="spacer"></span>
+    <section class="card status" aria-label="Status">
+      <div class="row st-row">
+        <div class="st-text">
+          <div class="st-main" id="stMain">Not showing on Discord</div>
+          <div class="st-sub hidden" id="stSub"><span class="dot" id="stDot"></span><span id="pDiscord"></span><span id="pSep"> · </span><span id="pMpc"></span></div>
+          <div class="st-sub hidden" id="now"></div>
+        </div>
         <button id="toggle" class="primary">Show on Discord</button>
       </div>
-      <div class="now hidden" id="now"></div>
       <div class="help bad hidden" id="discordProblem"></div>
-      <div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="card hidden" id="preview" aria-label="How your status looks on Discord">
-      <div class="pv-head">How it looks on Discord</div>
-      <div class="pv-card">
-        <img id="pvImg" alt="" width="64" height="64" referrerpolicy="no-referrer">
+      <div class="pv hidden" id="preview" role="region" aria-label="How your status looks on Discord">
+        <div class="pv-cover"><img id="pvImg" alt="" width="72" height="72" referrerpolicy="no-referrer"><span class="pv-badge hidden" id="pvBadge"><img id="pvSmall" alt="" width="20" height="20" referrerpolicy="no-referrer"></span></div>
         <div class="pv-text">
           <div class="pv-name" id="pvName"></div>
           <div id="pvDetails"></div>
-          <div id="pvState" class="pv-muted"></div>
+          <div id="pvState"></div>
           <div class="pv-bar hidden" id="pvBar"><span id="pvElapsed"></span><div class="pv-track"><div class="pv-fill" id="pvFill"></div></div><span id="pvTotal"></span></div>
-          <div class="pv-button hidden" id="pvButton"></div>
-          <div class="pv-button hidden" id="pvButton2"></div>
+          <div class="pv-btns"><span class="pv-button hidden" id="pvButton"></span><span class="pv-button hidden" id="pvButton2"></span><button class="link" id="fixMatch">Wrong title or cover?</button></div>
         </div>
       </div>
-      <button class="link" id="fixMatch">Wrong title or cover?</button>
+      <div class="sr-only" id="liveStatus" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="card notice hidden" id="mpcHelp">
+    <section class="card notice warn hidden" id="mpcHelp">
       <p id="mpcHelpText"><b>No player is answering.</b> Open your player and play something. MPC-HC, MPC-BE, VLC and mpv need setting up first: the button does it. PotPlayer needs nothing; Kodi needs its web server and password (Advanced).</p>
       <p class="hidden" id="playerHint"></p>
       <div class="row"><button id="enableWeb">Set up the player connection</button><span class="help" id="webMsg"></span></div>
@@ -78,7 +70,7 @@
       <h3 class="grp" id="updates">Updates</h3>
       <div class="group">
         <div class="field">
-          <div class="row"><span class="grow" id="updText">Checking is optional.</span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button><button id="pageUpd" class="primary hidden">Open the download page</button></div>
+          <div class="row"><span class="grow" id="updText"></span><button id="checkUpd">Check now</button><button id="installUpd" class="primary hidden">Install</button><button id="pageUpd" class="primary hidden">Open the download page</button></div>
           <div class="help" id="updNotes"></div>
         </div>
         <div class="field"><label class="line"><span>Check for updates automatically</span><span class="sw"><input type="checkbox" id="checkUpdates"><span></span></span></label></div>
@@ -100,7 +92,7 @@
         <div class="help" id="diagMsg">For bug reports: version, settings that differ from the defaults, how the current title was found and the recent log. Titles and file names are included, so a wrong title can be traced; folder paths, sign-ins and keys are left out.</div>
         <textarea id="diagText" class="hidden" readonly aria-label="Diagnostics text"></textarea>
       </div>
-      <div id="log" tabindex="0" role="region" aria-label="Log"></div>
+      <details class="group fold" id="logFold"><summary>Log</summary><div id="log" tabindex="0" role="region" aria-label="Log"></div></details>
       <div class="group credits" role="region" aria-label="Credits">
         <b>Credits</b>
         <!-- TMDB's own logo ("Primary short (blue)", themoviedb.org/about/logos-attribution), as its terms require -->
@@ -112,8 +104,9 @@
   </div>
 
   <div class="bar">
-    <div class="msg" id="msg" role="status" aria-live="polite">Changes are saved as you make them.</div>
-    <button id="quit" class="danger">Quit</button>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    <button id="ver" class="quiet" title="Changelog"></button>
+    <button id="quit" class="quiet">Quit</button>
   </div>
 </main>
 </body>

@@ -1,6 +1,6 @@
 // Shows a made-up "Sample Show" playing in the settings window, for the README screenshots (docs/images). Paste it
 // into the page of a throwaway copy (see "Screenshots" in docs/development.md); nothing is sent to Discord or a player. It only
-// changes what the page is told: the status pills, "Now playing", the "How it looks on Discord" card and Your stats.
+// changes what the page is told: the status line, the preview of the Discord card and Your stats.
 (() => {
   const real = window.__realFetch || window.fetch;
   window.__realFetch = real;
@@ -10,7 +10,8 @@
     paused: false, pauseCleared: false, hidden: false, lastError: null, since: start,
     preview: {
       watching: true, name: 'Sample Show', details: 'S01E02 · Episode title', state: 'Drama, Mystery · ★ 8.1',
-      largeText: 'Season 1, Episode 2', start, end: start + 2880000, button: 'View on IMDb',
+      largeText: 'Season 1, Episode 2', start, end: start + 2880000, button: 'View on IMDb', button2: 'View on TVmaze',
+      smallImage: 'https://raw.githubusercontent.com/CptPakundo/MPCvibedRPC/master/docs/players/mpc-hc.png', smallText: 'Media Player Classic',
     },
   };
   const stats = { since: '2026-10-01', videos: 14, matched: 11, watchedMs: 19260000, players: { 'MPC-HC': 9, Plex: 4, VLC: 1 } };

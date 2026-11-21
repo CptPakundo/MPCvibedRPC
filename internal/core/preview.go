@@ -12,6 +12,7 @@ type Preview struct {
 	State      string `json:"state"`
 	LargeImage string `json:"largeImage,omitempty"` // an http(s) address; empty when only an uploaded Discord asset is used
 	LargeText  string `json:"largeText,omitempty"`
+	SmallImage string `json:"smallImage,omitempty"` // the corner icon (the player's logo), when it is an http(s) address
 	SmallText  string `json:"smallText,omitempty"`
 	Start      int64  `json:"start,omitempty"` // epoch milliseconds
 	End        int64  `json:"end,omitempty"`
@@ -33,6 +34,9 @@ func PreviewOf(a *Activity, cfg *Config) *Preview {
 	if a.Assets != nil {
 		if strings.HasPrefix(a.Assets.LargeImage, "http://") || strings.HasPrefix(a.Assets.LargeImage, "https://") {
 			p.LargeImage = a.Assets.LargeImage
+		}
+		if strings.HasPrefix(a.Assets.SmallImage, "http://") || strings.HasPrefix(a.Assets.SmallImage, "https://") {
+			p.SmallImage = a.Assets.SmallImage
 		}
 		p.LargeText, p.SmallText = a.Assets.LargeText, a.Assets.SmallText
 	}
