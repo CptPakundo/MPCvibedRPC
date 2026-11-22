@@ -754,6 +754,16 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 	if ep := try(ctx); ep != nil {
 		return ep
 	}
+	// A season listed under a name of its own ("Show II: Subtitle") that no episode source knows, whose English name
+	// is the show's with the file's season number ("Show: Subtitle Season 2"): the TV catalogs list it as that season
+	// of the show.
+	if ctx.split && hit.Alt != nil && media.Season != core.NA {
+		if base, n := seasonOfName(hit.Alt.English); base != "" && n == media.Season {
+			c := ctx
+			c.query, c.split, c.seasonNo = base, false, core.NA
+			return try(c)
+		}
+	}
 	// A show matched on an anime catalog is often known to the TV catalogs by another name (romaji in the file name,
 	// English at TVmaze): try its English name. Only for a file without a season number, matched to a whole show that
 	// the TV catalogs are asked about by name (no IMDb or TVmaze id).
@@ -766,6 +776,22 @@ func (r *Resolver) Find(media *core.Media, hit *core.Art, query string, warn fun
 		return try(c)
 	}
 	return nil
+}
+
+var reNameSeason = re(`^(.*?)[\s:,.–-]*\b(?:season\s*(\d{1,2})|(\d{1,2})(?:st|nd|rd|th)\s+season)\s*$`, "i")
+
+// seasonOfName splits "Show: Subtitle Season 2" (or "2nd Season") into the show's name and the season, or "", NA.
+func seasonOfName(name string) (string, int) {
+	m := reNameSeason.Exec(core.Trim(name))
+	if m == nil || core.Trim(m.Str(1)) == "" {
+		return "", core.NA
+	}
+	n := m.Str(2)
+	if n == "" {
+		n = m.Str(3)
+	}
+	v, _ := strconv.Atoi(n)
+	return core.Trim(m.Str(1)), v
 }
 
 func intOrNA(f float64) int {
