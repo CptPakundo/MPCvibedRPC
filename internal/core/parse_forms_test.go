@@ -21,10 +21,26 @@ func TestParseEpisodeForms(t *testing.T) {
 		{"Sample Show - S01E05 - S01E06.mkv", "Sample Show", 1, 5, "Sample Show - S01E05E06"},
 		{"Sample Show - S01E05 - S01E06 - Two Parts.mkv", "Sample Show", 1, 5, "Sample Show - S01E05E06 - Two Parts"},
 		{"Sample Show - S01E05 - S02E01.mkv", "Sample Show", 1, 5, "Sample Show - S01E05 - S02E01"}, // not one double episode
+		// A release revision glued to the episode ("06v2") is not part of it, in every form.
+		{"[Group] Sample Show S2 - 06v2 (1080p) [ABCD1234].mkv", "Sample Show", 2, 6, "Sample Show - S02E06"},
+		{"Sample Show S02 E05v2.mkv", "Sample Show", 2, 5, "Sample Show - S02E05"},
+		{"Sample Show 1x05v2.mkv", "Sample Show", 1, 5, "Sample Show - S01E05"},
+		{"Sample Show Episode 5v2.mkv", "Sample Show", NA, 5, "Sample Show - E05"},
+		{"Sample Show Ep 05v3.mkv", "Sample Show", NA, 5, "Sample Show - E05"},
+		{"Sample Show Season 2 Episode 6v2.mkv", "Sample Show", 2, 6, "Sample Show - S02E06"},
+		{"Sample Show S14 - AB001v2.mkv", "Sample Show", 14, 1, "Sample Show - S14 - AB001"},
+		{"Sample Show - AB001v2.mkv", "Sample Show", NA, 1, "Sample Show - AB001"},
+		{"Sample Show 第5話v2.mkv", "Sample Show", NA, 5, "Sample Show - E05"},
 	} {
 		m := ParseMedia(c.file, &cfg, nil)
 		if !m.IsEpisode || m.Title != c.title || m.Season != c.season || m.Episode != c.ep || m.Display != c.display {
 			t.Errorf("%s: title %q, season %d, episode %d, display %q", c.file, m.Title, m.Season, m.Episode, m.Display)
+		}
+	}
+	// A file named only by its episode and a revision takes the show from its folder, like one without the revision.
+	for _, f := range []string{"06v2.mkv", "06v2 - Name.mkv", "Ep06v2.mkv", "Episode 6v2.mkv"} {
+		if m := ParseMedia(f, &cfg, []string{"Season 2", "Sample Show"}); m.Title != "Sample Show" || m.Season != 2 || m.Episode != 6 {
+			t.Errorf("%s in Sample Show/Season 2: title %q, season %d, episode %d", f, m.Title, m.Season, m.Episode)
 		}
 	}
 	// A special's words after a year in brackets stay in the title (for the lookup's NamedSpecial); an edition note

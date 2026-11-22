@@ -101,3 +101,67 @@ func TestEpisodeTitleUnderEnglishName(t *testing.T) {
 		}
 	}
 }
+
+// A season matched under a name of its own ("Sample Kara Hajimeru II: Subtitle") that no episode source knows is
+// asked about as that season of the show, by its English name without the season ("... Season 2").
+func TestEpisodeTitleOfSplitSeason(t *testing.T) {
+	cfg := core.DefaultConfig()
+	cfg.EpisodeSources = []string{"tvmaze"}
+	fake := &fakeTVmaze{}
+	a := New(&cfg, Options{CacheFile: filepath.Join(t.TempDir(), "c.json"), Client: &http.Client{Transport: fake}})
+	r := newResolver(a)
+	hit := &core.Art{Name: "Sample Kara Hajimeru II: Subtitle", Type: "series", Source: "AniList", Year: 2018, SeasonNo: core.NA,
+		Split: true, Alt: &core.ArtAlt{English: "Sample Quest: Another World Season 2", Romaji: "Sample Kara Hajimeru II: Subtitle"},
+		IDs: &core.ArtIDs{}}
+	media := core.NewMedia()
+	media.Title, media.IsEpisode, media.Season, media.Episode = "Sample Kara Hajimeru", true, 2, 5
+	ep := r.Find(media, hit, "Sample Kara Hajimeru", func(string, string) {})
+	if ep == nil || ep.Title != "Sample Episode S2E5" || ep.Via != "Sample Quest: Another World" {
+		t.Fatalf("season 2 episode 5: got %+v (requests %v)", ep, fake.urls)
+	}
+	// the English name's season must be the file's: another season is not guessed
+	media.Season = 3
+	if ep := r.Find(media, hit, "Sample Kara Hajimeru", func(string, string) {}); ep != nil {
+		t.Errorf("season 3 file, season 2 entry: got %+v", ep)
+	}
+}
+
+func TestSeasonOfName(t *testing.T) {
+	for _, c := range []struct {
+		name, base string
+		n          int
+	}{
+		{"Sample Quest: Another World Season 2", "Sample Quest: Another World", 2},
+		{"Sample Quest 2nd Season", "Sample Quest", 2},
+		{"Sample Quest - Season 10", "Sample Quest", 10},
+		{"Sample Quest Part 2", "", core.NA}, // a part is not a season
+		{"Sample Quest", "", core.NA},
+		{"Season 2", "", core.NA},
+	} {
+		if base, n := seasonOfName(c.name); base != c.base || n != c.n {
+			t.Errorf("seasonOfName(%q) = %q, %d; want %q, %d", c.name, base, n, c.base, c.n)
+		}
+	}
+}
+
+// "Show II: Subtitle" is season 2, and "Show: Subtitle Part 2" next to a listed "Show: Subtitle" is the second half of
+// that entry, not season 2.
+func TestSeasonEntryRomanAndParts(t *testing.T) {
+	cands := []*Cand{
+		{Titles: []string{"Sample Kara: Isekai Subtitle"}, Year: 2021, Poster: "s1"},
+		{Titles: []string{"Sample Kara: Isekai Subtitle Part 2"}, Year: 2021, Poster: "s1p2"},
+		{Titles: []string{"Sample Kara II: Isekai Subtitle"}, Year: 2023, Poster: "s2"},
+		{Titles: []string{"Sample Kara II: Isekai Subtitle Part 2"}, Year: 2024, Poster: "s2p2"},
+	}
+	if got := pickSeasonEntry(cands, "Sample Kara", 2, ""); got == nil || got.Cand.Poster != "s2" {
+		t.Errorf("season 2: got %+v", got)
+	}
+	if got := pickSeasonEntry(cands, "Sample Kara", 3, ""); got != nil {
+		t.Errorf("season 3: got %+v", got.Cand)
+	}
+	// a part with nothing listed before it still stands for its number, as before
+	solo := []*Cand{{Titles: []string{"Sample Kara: Part 2"}, Year: 2022, Poster: "p2"}}
+	if got := pickSeasonEntry(solo, "Sample Kara", 2, ""); got == nil || got.Cand.Poster != "p2" {
+		t.Errorf("lone part 2: got %+v", got)
+	}
+}

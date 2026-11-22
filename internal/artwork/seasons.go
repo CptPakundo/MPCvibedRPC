@@ -2,6 +2,7 @@ package artwork
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,9 +64,14 @@ func numOf(w string) int {
 
 // SeasonMark is what a season name denotes: a number, or "final".
 type SeasonMark struct {
-	N     int // core.NA when none
-	Final bool
+	N      int // core.NA when none
+	Final  bool
+	Part   bool // the number is a part or cour ("Part 2"): often a half of a season, not a season of its own
+	PartAt int  // with Part: where the part's words start in the name's remainder
 }
+
+// partNouns name a half of a season rather than a season: see SeasonMark.Part.
+var partNouns = map[string]bool{"part": true, "cour": true}
 
 func parseSeasonMark(rem []string) SeasonMark {
 	at := func(i int) string {
@@ -80,10 +86,10 @@ func parseSeasonMark(rem []string) SeasonMark {
 			return SeasonMark{N: core.NA, Final: true}
 		}
 		if seasonNouns[w] && numOf(next) >= 0 {
-			return SeasonMark{N: numOf(next)}
+			return SeasonMark{N: numOf(next), Part: partNouns[w], PartAt: i}
 		}
 		if numOf(w) >= 0 && seasonNouns[next] {
-			return SeasonMark{N: numOf(w)}
+			return SeasonMark{N: numOf(w), Part: partNouns[next], PartAt: i}
 		}
 		if seasonNouns[w] && roman[next] != 0 {
 			return SeasonMark{N: roman[next]}
@@ -184,6 +190,24 @@ func earliestOf(list []member) *member {
 	return &cp[0]
 }
 
+// partOfListed: "Show: Subtitle Part 2" next to a listed "Show: Subtitle" is the second half of that entry, not
+// season 2, so it takes that entry's season mark (none, for the first season).
+func partOfListed(members []member) {
+	for i := range members {
+		mk := members[i].mark
+		if !mk.Part || mk.PartAt < 1 {
+			continue
+		}
+		head := members[i].rem[:mk.PartAt]
+		for j := range members {
+			if j != i && !members[j].mark.Part && slices.Equal(members[j].rem, head) {
+				members[i].mark = members[j].mark
+				break
+			}
+		}
+	}
+}
+
 // SeasonPick is a catalog entry chosen for a season.
 type SeasonPick struct {
 	Cand       *Cand
@@ -198,8 +222,14 @@ func pickSeasonEntry(cands []*Cand, title string, season int, codePrefix string)
 		return nil
 	}
 	for i := range members {
-		members[i].mark = parseSeasonMark(members[i].rem)
+		m := &members[i]
+		m.mark = parseSeasonMark(m.rem)
+		// A roman numeral right after the name with a subtitle after it ("Show II: Subtitle") numbers the season.
+		if m.mark.N == core.NA && !m.mark.Final && len(m.rem) > 1 && roman[m.rem[0]] != 0 {
+			m.mark = SeasonMark{N: roman[m.rem[0]]}
+		}
 	}
+	partOfListed(members)
 	var pick *member
 	filter := func(f func(m member) bool) []member {
 		var out []member

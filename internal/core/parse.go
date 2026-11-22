@@ -333,13 +333,25 @@ var (
 	feDashEp  = re(`^(\d{1,3}|(?!(?:19|20)\d\d|1080|1440|2160|4320)\d{4})(?:v\d)?$`, "i")
 )
 
+// A release revision glued to an episode number ("06v2", "E05v3", "AB001v2", "第5話v2") is not part of it.
+var feVersion = re(`^(.*[\d話话集])v\d{1,2}$`, "i")
+
+// epToken is a token as findEpisode reads it: bare, without a glued release revision.
+func epToken(t string) string {
+	b := bare(t)
+	if m := feVersion.Exec(b); m != nil {
+		return m.Str(1)
+	}
+	return b
+}
+
 // findEpisode finds an episode marker among tokens[1..cut).
 func findEpisode(tokens []string, cut int) *epMatch {
 	for i := 1; i < cut; i++ {
-		b := bare(tokens[i])
+		b := epToken(tokens[i])
 		next := ""
 		if i+1 < cut {
-			next = bare(tokens[i+1])
+			next = epToken(tokens[i+1])
 		}
 		if m := feSE.Exec(b); m != nil {
 			eps := "" // "S2E5" is shown as S02E05, "s01e05-e06" as S01E05E06
@@ -368,7 +380,7 @@ func findEpisode(tokens []string, cut int) *epMatch {
 			}
 			t := ""
 			if j < cut {
-				t = bare(tokens[j])
+				t = epToken(tokens[j])
 			}
 			season := atoi(m.Str(1))
 			if feDigits4.Test(t) {
@@ -753,7 +765,7 @@ func basicName(base string, cfg *Config) string {
 
 // A filename that starts with an episode marker ("S01E02", "1x02", "Ep03", "Episode 3", "03") has no show name.
 var (
-	namelessRe  = re(`^\s*(?:S(\d{1,2})\s*E(\d{1,4})|(\d{1,2})x(\d{2,3})|E(?:p|pisode)?[ .]?(\d{1,4})|Episode[ .]?(\d{1,4})|Season[ ._]?(\d{1,2})[ ._,-]*Episode[ ._]?(\d{1,4})|(0\d{1,2}|\d{1,2})(?=\s*$|\s+[-–]\s|\s+(?:\d{3,4}p|\d{4}|[248]k|bluray|web|hdtv|x26[45]|h26[45]|hevc)\b))(?![A-Za-z\d])`, "i")
+	namelessRe  = re(`^\s*(?:S(\d{1,2})\s*E(\d{1,4})|(\d{1,2})x(\d{2,3})|E(?:p|pisode)?[ .]?(\d{1,4})|Episode[ .]?(\d{1,4})|Season[ ._]?(\d{1,2})[ ._,-]*Episode[ ._]?(\d{1,4})|(0\d{1,2}|\d{1,2})(?:v\d{1,2})?(?=\s*$|\s+[-–]\s|\s+(?:\d{3,4}p|\d{4}|[248]k|bluray|web|hdtv|x26[45]|h26[45]|hevc)\b))(?:v\d{1,2})?(?![A-Za-z\d])`, "i")
 	seasonDirRe = re(`^(?:season|series|saison|staffel|temporada|stagione|s)[ ._-]*(\d{1,2})(?:\b.*)?$`, "i")
 	genericDir  = re(`^(?:tv|tv ?shows?|series|shows?|videos?|movies?|films?|anime|downloads?|torrents?|media|new folder|desktop|documents|specials?|extras?|subs?|season ?\d+)$`, "i")
 	reDotUnder  = re(`[._]+`, "g")
