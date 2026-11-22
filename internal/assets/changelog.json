@@ -1,4 +1,9 @@
 [
+  {"version": "0.9.57", "date": "2026-11-22", "items": [
+    "🔢 Episode files with a version number (\"S2 - 06v2\", \"E05v2\") are recognised, so their show, cover and episode title are found.",
+    "📺 Anime seasons listed under a name of their own (\"Show II: Subtitle\") get the right cover and their episode titles.",
+    "🔧 Build tools updated."
+  ]},
   {"version": "0.9.56", "date": "2026-11-21", "items": [
     "🎨 A calmer settings window: neutral greys, clearer switches, one status block with the preview, controls on the right.",
     "🧹 Less to read: long help folds behind More, the Privacy texts and the log open when you want them.",
