@@ -20,7 +20,7 @@ import (
 // iinaDomain is IINA's settings domain (its bundle identifier).
 const iinaDomain = "com.colliderli.iina"
 
-func enableUnix(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) WebResult {
+func setUpUnix(port int, mayClose bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) SetupResult {
 	mac := runtime.GOOS == "darwin"
 	home, _ := os.UserHomeDir()
 
@@ -37,8 +37,8 @@ func enableUnix(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPasswor
 		}
 	}
 	closeVlc := vlcFile != "" && !vlcReady(vlcText) && len(vlcExes) > 0
-	if closeVlc && !closeMpc {
-		return WebResult{NeedsClose: true, Message: "VLC is open and has to be closed for a moment (it will reopen)."}
+	if closeVlc && !mayClose {
+		return SetupResult{NeedsClose: true, Message: "VLC is open and has to be closed for a moment (it will reopen)."}
 	}
 	if closeVlc {
 		run("osascript", "-e", `tell application id "org.videolan.vlc" to quit`)
@@ -104,7 +104,7 @@ func enableUnix(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPasswor
 		parts = append(parts, "No player that needs setting up was found (mpv, IINA or VLC).")
 		ok = false
 	}
-	return WebResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using,
+	return SetupResult{OK: ok, Message: strings.Join(parts, " "), Edited: edited, MpvPipe: mpv.Using,
 		VlcPort: vlc.Port, VlcPassword: vlc.Password, IinaPipe: iina.Using}
 }
 

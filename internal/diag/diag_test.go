@@ -122,7 +122,7 @@ func TestReportKeepsTitlesLeavesOutPrivateThings(t *testing.T) {
 	in := Input{
 		Version: "9.9.9", System: "Test OS 1.0", Players: []string{"MPC-BE"},
 		Config: cfg, App: store.App{UpdateRepo: "someone/secret-fork"},
-		Status: engine.Status{Running: true, Discord: "connected", MPC: true, NowPlaying: &np, LastError: &le},
+		Status: engine.Status{Running: true, Discord: "connected", PlayerAnswers: true, NowPlaying: &np, LastError: &le},
 		Log: []string{
 			`[2026-01-01T00:00:00.000Z] INFO Playing: Sample Show · S01E02 (MPC-BE: "Sample.Show.S01E02.mkv")`,
 			`[2026-01-01T00:00:00.000Z] INFO Artwork for "Sample Show": found via imdb.`,

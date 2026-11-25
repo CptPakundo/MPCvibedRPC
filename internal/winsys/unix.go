@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// The macOS and Linux versions of what run.go, mpcsetup.go and window.go do on Windows: the running players, the
+// The macOS and Linux versions of what run.go, playersetup.go and window.go do on Windows: the running players, the
 // system description, the browser and the player setup. They live in an ordinary file (not one for a single system) so
 // that their logic is tested everywhere; only the helper programs they start are missing on Windows.
 

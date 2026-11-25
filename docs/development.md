@@ -118,7 +118,7 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 |---|---|
 | `main.go` | flags, single instance, `var version` |
 | `app.go` | the `app` type: start-up and quit order |
-| `api.go` | the local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `mpc-web`, `diagnostics`, `update-*`, `quit`, ...) |
+| `api.go` | the local API handlers (`state`, `status`, `save`, `reset`, `start`, `stop`, `player-setup`, `diagnostics`, `update-*`, `quit`, ...) |
 | `update.go` | update checks, install, automatic installs, the hand-over (`handOverTo`) |
 | `selfcheck.go` | **Help > Run a check** (its lines never hold a title) |
 | `window.go` | the window's X quits; minimizing sends it to the tray (`minimizeToTray`) |
@@ -167,7 +167,7 @@ on every system.
 | `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside once it appears) |
 | `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`) |
 | `single_*.go` | single instance (mutex, file lock) |
-| `mpcsetup.go` (`EnableMpcWebInterface`), `setup_unix.go`, `mpvconf.go`, `vlcconf.go` | **Set up the player connection** |
+| `playersetup.go` (`SetUpPlayers`), `setup_unix.go`, `mpvconf.go`, `vlcconf.go` | **Set up the player connection** |
 
 ### Tools and docs
 | Path | Job |
@@ -285,7 +285,7 @@ reads what plays.
   `mpcbe_logo`, checked 2026-11-21); the player logos, the MPC family's too, are fetched from `docs/players` (below).
 
 ### Set up the player connection
-`winsys.EnableMpcWebInterface`:
+`winsys.SetUpPlayers`:
 - **MPC-HC, MPC-BE:** web interface on (registry and ini; they are closed and reopened after the user confirms), and
   this-PC-only when the button switches it on.
 - **mpv:** `input-ipc-server` in the `mpv.conf` it reads (a name the user set is kept and adopted).
@@ -294,7 +294,7 @@ reads what plays.
   exit.
 - **MPC-QT** needs nothing.
 
-On macOS and Linux (`winsys.enableUnix`):
+On macOS and Linux (`winsys.setUpUnix`):
 - **mpv:** the full socket path in `~/.config/mpv/mpv.conf`.
 - **IINA:** `enableAdvancedSettings` and an `input-ipc-server` row in `userOptions` through
   `defaults write com.colliderli.iina` (an existing row is kept and adopted; IINA is not closed, the user reopens it).

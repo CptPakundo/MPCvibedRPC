@@ -66,7 +66,7 @@ func TestVLCOverItsWebInterface(t *testing.T) {
 	v := newFakeVLCWeb(t, "secret")
 	e, d, l := vlcEngine(t, deadPort(t), nil, v, "secret")
 	e.Start()
-	eventually(t, "VLC shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "VLC" && s.MPC })
+	eventually(t, "VLC shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "VLC" && s.PlayerAnswers })
 	if !l.has("VLC detected.") || !l.has("VLC's web interface on port") {
 		t.Error("the log should name VLC")
 	}
@@ -84,7 +84,7 @@ func TestVLCOverItsWebInterface(t *testing.T) {
 
 	v.set(func(f *fakeVLCWeb) { f.state = "stopped" })
 	eventually(t, "cleared when VLC stops", func() bool { return isClear(d) && e.Status().NowPlaying == nil })
-	if s := e.Status(); !s.MPC || s.Player != "VLC" {
+	if s := e.Status(); !s.PlayerAnswers || s.Player != "VLC" {
 		t.Errorf("a stopped VLC is still a reachable player: %+v", s)
 	}
 }
@@ -139,7 +139,7 @@ func TestVLCNotAskedWithoutPassword(t *testing.T) {
 	e, _, l := vlcEngine(t, deadPort(t), nil, v, "")
 	e.Start()
 	time.Sleep(700 * time.Millisecond)
-	if v.count() != 0 || e.Status().MPC {
+	if v.count() != 0 || e.Status().PlayerAnswers {
 		t.Errorf("VLC asked %d times", v.count())
 	}
 	if l.has("VLC") {
@@ -154,7 +154,7 @@ func TestVLCWrongPassword(t *testing.T) {
 	e.Start()
 	eventually(t, "hint", func() bool { return strings.Contains(e.Status().Hint, "refused the password") })
 	time.Sleep(700 * time.Millisecond)
-	if s := e.Status(); s.MPC || s.Player != "" {
+	if s := e.Status(); s.PlayerAnswers || s.Player != "" {
 		t.Errorf("VLC refused us, yet %+v", s)
 	}
 	if n := countLogs(l, "refused the password"); n != 1 {

@@ -87,14 +87,14 @@ try {
   # presence reaches "Discord" through the real named pipe
   Check (WaitFor { (Get-Content $discordLog -Raw) -match 'Sample Movie' } 30 'activity in fake discord') 'presence frame with the title arrives over the named pipe'
   $s = Api 'Get' 'status'
-  Check ($s.running -and $s.discord -eq 'connected' -and $s.mpc) 'status: connected, MPC-HC seen'
+  Check ($s.running -and $s.discord -eq 'connected' -and $s.playerAnswers) 'status: connected, MPC-HC seen'
   Check ((Get-Content $discordLog -Raw) -match '"type":3') 'activity uses the Watching type'
   Check ((AppLog) -notmatch 'resting') 'presence does not rest while Discord runs'
 
   # Discord closes: presence rests (no window is open); Discord starts again: presence comes back by itself
   $fakeDiscord.Kill(); [void]$fakeDiscord.WaitForExit(10000)
   Check (WaitFor { (AppLog) -match 'Discord is not running: resting' } 20 'rest') 'presence rests once Discord is gone'
-  Check (-not (Api 'Get' 'status').mpc) 'a resting program asks no player'
+  Check (-not (Api 'Get' 'status').playerAnswers) 'a resting program asks no player'
   $shownBefore = ([regex]::Matches((Get-Content $discordLog -Raw), 'Sample Movie')).Count
   $fakeDiscord = StartFakeDiscord
   [void]$procs.Add($fakeDiscord)
@@ -132,27 +132,27 @@ try {
   # VLC is not installed either: an empty VLC settings folder stands in for it (only when there is none; removed after).
   $vlcDir = Join-Path $env:APPDATA 'vlc'; $vlcMade = $false
   if (-not (Test-Path $vlcDir)) { New-Item -ItemType Directory -Path $vlcDir | Out-Null; $vlcMade = $true }
-  $mw = Api 'Post' 'mpc-web' @{ closeMpc = $false }
+  $mw = Api 'Post' 'player-setup' @{ closePlayers = $false }
   if ($vlcMade) {
     $rc = Get-Content (Join-Path $vlcDir 'vlcrc') -Raw -ErrorAction SilentlyContinue
-    Check ($rc -match '(?m)^extraintf=http\r?$') 'mpc-web switched VLC''s web interface on (vlcrc)'
-    Check ($rc -match '(?m)^http-host=127\.0\.0\.1\r?$') 'mpc-web made VLC''s web interface answer this PC only'
+    Check ($rc -match '(?m)^extraintf=http\r?$') 'player-setup switched VLC''s web interface on (vlcrc)'
+    Check ($rc -match '(?m)^http-host=127\.0\.0\.1\r?$') 'player-setup made VLC''s web interface answer this PC only'
     $vlcPw = [regex]::Match([string]$rc, '(?m)^http-password=([0-9a-f]+)\r?$').Groups[1].Value
-    Check ($vlcPw.Length -eq 24) 'mpc-web gave VLC a password'
+    Check ($vlcPw.Length -eq 24) 'player-setup gave VLC a password'
     $vals = (Api 'Get' 'state').values
     Check ($vals.vlcPassword -eq $vlcPw -and $vals.vlcPort -eq 8080) 'the settings took VLC''s password and port over'
-    Check ($mw.settingsChanged -eq $true -and $mw.message -match 'VLC web interface switched on') 'mpc-web says so'
+    Check ($mw.settingsChanged -eq $true -and $mw.message -match 'VLC web interface switched on') 'player-setup says so'
     Check (-not ($mw.PSObject.Properties.Name -contains 'vlcPassword')) 'the password is not in the answer'
     Remove-Item -Recurse -Force $vlcDir
   }
-  Check ($mw.ok -eq $true) 'mpc-web reports success'
+  Check ($mw.ok -eq $true) 'player-setup reports success'
   $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v EnableWebServer 2>&1) -join "`n"
-  Check ($reg -match '0x1') 'mpc-web set EnableWebServer=1'
+  Check ($reg -match '0x1') 'player-setup set EnableWebServer=1'
   $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v WebServerPort 2>&1) -join "`n"
-  Check ($reg -match ('0x' + ('{0:x}' -f $port))) 'mpc-web set WebServerPort'
+  Check ($reg -match ('0x' + ('{0:x}' -f $port))) 'player-setup set WebServerPort'
   $reg = (reg query 'HKCU\Software\MPC-HC\MPC-HC\Settings' /v WebServerLocalhostOnly 2>&1) -join "`n"
-  Check ($reg -match '0x1') 'mpc-web made the web interface answer this PC only'
-  Check ($mw.message -match 'this PC only') 'mpc-web says so'
+  Check ($reg -match '0x1') 'player-setup made the web interface answer this PC only'
+  Check ($mw.message -match 'this PC only') 'player-setup says so'
 
   # a second launch hands over to the running copy and exits
   $second = Start-Process $app -PassThru

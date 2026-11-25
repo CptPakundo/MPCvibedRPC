@@ -295,7 +295,7 @@ func TestPlayPauseClearStop(t *testing.T) {
 	// the activity reaches Discord a moment before the status shows what is playing
 	eventually(t, "now playing published", func() bool { return e.Status().NowPlaying != nil })
 	s := e.Status()
-	if !s.Running || s.Discord != "connected" || !s.MPC || s.NowPlaying == nil || s.Paused {
+	if !s.Running || s.Discord != "connected" || !s.PlayerAnswers || s.NowPlaying == nil || s.Paused {
 		t.Fatalf("%+v", s)
 	}
 	if !l.has("Connected to Discord") || !l.has("MPC-HC detected") || !l.has("Playing: ") {
@@ -322,7 +322,7 @@ func TestPlayPauseClearStop(t *testing.T) {
 
 	// MPC disappears
 	m.set(func(m *mpc) { m.down = true })
-	eventually(t, "mpc down", func() bool { return !e.Status().MPC })
+	eventually(t, "mpc down", func() bool { return !e.Status().PlayerAnswers })
 
 	// play again, then stop: presence is cleared
 	m.set(func(m *mpc) { m.down = false; m.state = 2 })
@@ -732,7 +732,7 @@ func TestDontShowListHidesAndLooksNothingUp(t *testing.T) {
 	// the fake player is playing C:\TV\Show Name\Season 1\Show.Name.S01E01.720p.mkv
 	e, m, d, l, lc := privacySetup(t, func(c *core.Config) { c.HideFiles = []string{"tv/show name"} })
 	e.Start()
-	eventually(t, "MPC-HC detected", func() bool { return e.Status().MPC })
+	eventually(t, "MPC-HC detected", func() bool { return e.Status().PlayerAnswers })
 	time.Sleep(1200 * time.Millisecond) // several polls
 	if len(d.list()) != 0 {
 		t.Fatalf("a listed file must show nothing, but %d message(s) were sent: %v", len(d.list()), d.list())

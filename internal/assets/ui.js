@@ -125,7 +125,7 @@
   function applyOsText() {
     const t = osText();
     if (!t) return;
-    $('mpcHelpText').innerHTML = t.help;
+    $('playerHelpText').innerHTML = t.help;
     $('autoStartLabel').textContent = t.autoStart;
     if (model.tray) { // the macOS app has a menu bar icon
       $('autoStartHelp').textContent = 'Starts in the menu bar, without a window.';
@@ -597,9 +597,9 @@
     d.textContent = s.discord === 'connected' ? 'Discord connected' : s.discord === 'waiting' ? 'Waiting for Discord' : s.discord === 'standby' ? 'Discord on standby' : 'Discord idle';
     d.title = s.discord === 'standby' ? 'Discord is contacted as soon as something plays.' : s.discord === 'waiting' ? 'Discord was not found yet. Is the desktop app running?' : '';
     d.className = s.discord === 'waiting' ? 'warn' : '';
-    p.textContent = s.mpc ? (s.player || 'Player') + ' detected' : 'No player found';
-    p.className = s.mpc ? '' : 'warn';
-    $('stDot').className = 'dot ' + (s.discord === 'waiting' || !s.mpc ? 'warn' : s.discord === 'connected' ? 'good' : '');
+    p.textContent = s.playerAnswers ? (s.player || 'Player') + ' detected' : 'No player found';
+    p.className = s.playerAnswers ? '' : 'warn';
+    $('stDot').className = 'dot ' + (s.discord === 'waiting' || !s.playerAnswers ? 'warn' : s.discord === 'connected' ? 'good' : '');
     const now = $('now');
     let line = '';
     if (!s.running) { /* the first line says it */ }
@@ -609,7 +609,7 @@
       // while the Discord preview is showing, the title is already there: keep only a note that adds something
       line = s.preview ? (s.paused ? sub : '') : sub + ': ' + s.nowPlaying;
     }
-    else if (s.mpc) line = 'Nothing playing. Play something in ' + players() + '.';
+    else if (s.playerAnswers) line = 'Nothing playing. Play something in ' + players() + '.';
     now.textContent = line;
     now.classList.toggle('hidden', !line);
     const t = $('toggle'); t.textContent = s.running ? 'Stop showing' : 'Show on Discord'; t.className = s.running ? '' : 'primary';
@@ -617,7 +617,7 @@
     const live = s.running ? d.textContent + '. ' + p.textContent + '.' : 'Not showing on Discord.';
     if ($('liveStatus').textContent !== live) $('liveStatus').textContent = live;
     const dp = $('discordProblem'); dp.textContent = s.discordProblem || ''; dp.classList.toggle('hidden', !s.discordProblem);
-    $('mpcHelp').classList.toggle('hidden', !(s.running && !s.mpc));
+    $('playerHelp').classList.toggle('hidden', !(s.running && !s.playerAnswers));
     const hint = $('playerHint'); hint.textContent = s.hint || ''; hint.classList.toggle('hidden', !s.hint);
     if (s.update && s.update.newer && s.update.latest !== updShown && $('installUpd').disabled === false) showUpdate(s.update, false);
     paintUpdBanner(s.update);
@@ -713,8 +713,8 @@
     btn.disabled = true;
     msgEl.textContent = 'Working…';
     try {
-      let r = await api('mpc-web', { closeMpc: false });
-      if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { msgEl.textContent = ''; btn.disabled = false; return; } r = await api('mpc-web', { closeMpc: true }); }
+      let r = await api('player-setup', { closePlayers: false });
+      if (r.needsClose) { if (!await ask('Close the player for a moment?', (r.message || 'The player is open and has to be closed for a moment (it will reopen).') + ' Continue?', 'Continue')) { msgEl.textContent = ''; btn.disabled = false; return; } r = await api('player-setup', { closePlayers: true }); }
       msgEl.textContent = r.message || (r.ok ? 'Done.' : 'Could not change it.');
       if (r.settingsChanged) { // the mpv name or VLC's password may have been taken over; the window is drawn again, so say it here too
         // in the queue, like every other change of the window's values: an answer that left before a save still

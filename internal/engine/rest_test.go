@@ -48,14 +48,14 @@ func TestRestWhileDiscordIsClosed(t *testing.T) {
 	// the window opens: the player is asked at once (Wake), with Discord still closed
 	mayRest.Store(false)
 	e.Wake()
-	eventually(t, "the player asked with the window open", func() bool { return m.count() > 0 && e.Status().MPC })
+	eventually(t, "the player asked with the window open", func() bool { return m.count() > 0 && e.Status().PlayerAnswers })
 	if s := e.Status(); s.Resting || !l.has("Resting ended") {
 		t.Fatalf("still resting with the window open: %+v", s)
 	}
 	// the window closes again
 	mayRest.Store(true)
 	eventually(t, "resting again", func() bool { return e.Status().Resting })
-	if s := e.Status(); s.MPC || s.Player != "" {
+	if s := e.Status(); s.PlayerAnswers || s.Player != "" {
 		t.Fatalf("a resting status still names a player: %+v", s)
 	}
 
