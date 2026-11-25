@@ -24,18 +24,28 @@ type fakeService struct {
 	mu    sync.Mutex
 	got   []*dbus.Message
 	next  uint32
-	error string // answer every Notify with this error
+	error string        // answer every Notify with this error
+	delay time.Duration // answer this late (a service the bus starts on demand)
 }
 
 func (f *fakeService) handle(m *dbus.Message) dbustest.Reply {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.got = append(f.got, m)
-	if f.error != "" {
-		return dbustest.Reply{Error: f.error}
-	}
+	errName, delay := f.error, f.delay
 	f.next++
-	return dbustest.Reply{Sig: "u", Body: []any{f.next}}
+	id := f.next
+	f.mu.Unlock()
+	time.Sleep(delay)
+	if errName != "" {
+		return dbustest.Reply{Error: errName}
+	}
+	return dbustest.Reply{Sig: "u", Body: []any{id}}
+}
+
+func (f *fakeService) setDelay(d time.Duration) {
+	f.mu.Lock()
+	f.delay = d
+	f.mu.Unlock()
 }
 
 func (f *fakeService) messages() []*dbus.Message {
@@ -184,5 +194,39 @@ func TestReconnects(t *testing.T) {
 	}
 	if len(f.messages()) != 2 {
 		t.Errorf("%d notifications, want 2", len(f.messages()))
+	}
+}
+
+// A service that answers late is not asked a second time on a new connection: it may still show the notification,
+// and would then show it twice. The connection is kept for the next notification.
+func TestSlowServiceIsAskedOnce(t *testing.T) {
+	saved := timeout
+	timeout = 300 * time.Millisecond
+	t.Cleanup(func() { timeout = saved })
+	bus := dbustest.New(t)
+	f := &fakeService{}
+	bus.Own(service, f.handle)
+	n := &Notifier{Address: bus.Address}
+	defer n.Close()
+	f.setDelay(700 * time.Millisecond)
+	if n.Show("slow", "text") {
+		t.Error("Show = true without an answer")
+	}
+	time.Sleep(time.Second) // a second Notify, if one were sent, has arrived by now
+	if got := len(f.messages()); got != 1 {
+		t.Fatalf("%d Notify calls, want 1", got)
+	}
+	f.setDelay(0)
+	if !n.Show("fast", "text") || len(f.messages()) != 2 {
+		t.Error("the next notification was not shown")
+	}
+	hello := 0
+	for _, c := range bus.Calls() {
+		if c == "org.freedesktop.DBus org.freedesktop.DBus.Hello" {
+			hello++
+		}
+	}
+	if hello != 1 {
+		t.Errorf("%d connections, want 1 kept", hello)
 	}
 }

@@ -99,6 +99,10 @@ type Conn struct {
 // ErrEnded is returned by a call on a connection whose reading (Receive) has stopped.
 var ErrEnded = errors.New("dbus: the connection has ended")
 
+// ErrNoAnswer is the error (wrapped) of a call made while Receive reads the connection that got no answer in time. The
+// connection itself may still be fine: the other side may only be slow.
+var ErrNoAnswer = errors.New("dbus: no answer")
+
 // Dial connects to the bus at address, logs in and says Hello. each step (connecting, logging in, Hello) gets the timeout.
 func Dial(address string, timeout time.Duration) (*Conn, error) {
 	paths := socketPaths(address)
@@ -296,7 +300,7 @@ func (c *Conn) callReceiving(flags byte, dest, path, iface, member string, timeo
 		c.mu.Lock()
 		delete(c.replies, m.Serial)
 		c.mu.Unlock()
-		return nil, fmt.Errorf("dbus: no answer to %s.%s within %v", iface, member, timeout)
+		return nil, fmt.Errorf("%w to %s.%s within %v", ErrNoAnswer, iface, member, timeout)
 	}
 }
 
