@@ -1,3 +1,48 @@
+// Text lines (Look tab): the presets, the placeholders and how a line is filled, for the page's sample. The program
+// fills the card's lines with the same rules (internal/core/lines.go); internal/core/testdata/lines.json holds the
+// cases both must agree on (the page's test runs them through MPRP_LINES.expand).
+const MPRP_LINES = (() => {
+  const SEP = ' · ';
+  const COVER = '{title}[ ({year})]';
+  const KEYS = ['episodeDetails', 'episodeState', 'movieDetails', 'movieState', 'movieCover'];
+  // episode first and second line, film first and second line, film cover text (Standard is the program's own lines;
+  // these are what Custom starts from)
+  const PRESETS = {
+    standard: ['{episodeTitle}', '{seasonName}' + SEP + '{genres}' + SEP + '{rating}', '{year}' + SEP + '{genres}', '{rating}' + SEP + '{director}', COVER],
+    short: ['{code}' + SEP + '{episodeTitle}', '', '{year}', '{director}', COVER],
+    detailed: ['{code}' + SEP + '{episodeTitle}', '{genres}' + SEP + '{rating}' + SEP + '[on {player}]', '{year}' + SEP + '{genres}' + SEP + '{length}', '{rating}' + SEP + '{director}' + SEP + '[on {player}]', COVER],
+  };
+  const SAMPLE = {
+    episode: { title: 'Sample Show', year: '', genres: 'Drama, Comedy', rating: '★ 8.3', director: '', player: 'VLC media player', length: '45:00', code: 'S01E02', season: '1', episode: '2', episodeTitle: 'Sample Episode', seasonName: '' },
+    movie: { title: 'Sample Movie', year: '2020', genres: 'Drama, Comedy', rating: '★ 7.1', director: 'Dir. Sample Name', player: 'VLC media player', length: '1:52:10' },
+  };
+  const CHIPS = {
+    episode: ['title', 'code', 'season', 'episode', 'episodeTitle', 'seasonName', 'genres', 'rating', 'player', 'length'],
+    movie: ['title', 'year', 'genres', 'rating', 'director', 'player', 'length'],
+  };
+  const has = (v, k) => Object.prototype.hasOwnProperty.call(v, k);
+  // each known {name} becomes its value (an unknown one stays as typed); a part in [ ] drops out when a placeholder in
+  // it is empty; parts between " · " that end up empty go with their separator; trimmed and cut to 128 characters
+  function expand(tpl, v) {
+    const fill = (s) => s.replace(/\{(\w+)\}/g, (m, k) => (has(v, k) ? v[k] : m));
+    let s = String(tpl || '').replace(/\[([^[\]]*)\]/g, (m, inner) => {
+      let empty = false;
+      inner.replace(/\{(\w+)\}/g, (x, k) => { if (has(v, k) && v[k] === '') empty = true; return x; });
+      return empty ? '' : inner;
+    });
+    s = fill(s).split(SEP).map((p) => p.trim()).filter(Boolean).join(SEP).trim();
+    if (s.length > 128) s = s.slice(0, 125) + '...';
+    return s;
+  }
+  // the placeholders in tpls that v does not know ("" when there are none)
+  function unknown(tpls, v) {
+    const out = [];
+    tpls.forEach((t) => String(t || '').replace(/\{(\w+)\}/g, (m, k) => { if (!has(v, k) && !out.includes(m)) out.push(m); return m; }));
+    return out.length ? 'Unknown: ' + out.join(', ') : '';
+  }
+  return { SEP, COVER, KEYS, PRESETS, SAMPLE, CHIPS, expand, unknown };
+})();
+
 (() => {
   // The page gets its token when it is opened with a one-time code. It keeps the token for this window (a reload
   // comes without one) and takes the code, or a token, out of its address.
@@ -139,7 +184,11 @@
   // Every control saves on its own, one at a time and only its own setting: a toggle or a choice as soon as it changes,
   // a text box when it loses focus (or on Enter). A value that is refused goes back to what was saved.
   // "get" reads the control's value and "set" writes a value back into it (used when a value is refused).
-  const same = (a, b) => (Array.isArray(a) || Array.isArray(b) ? JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort()) : String(a) === String(b == null ? '' : b));
+  // an object setting (the custom text lines) is the same when its non-empty values are
+  const flat = (o) => JSON.stringify(Object.keys(o || {}).sort().filter((k) => o[k] !== '' && o[k] != null).map((k) => [k, o[k]]));
+  const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+  const same = (a, b) => (Array.isArray(a) || Array.isArray(b) ? JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort())
+    : isObj(a) || isObj(b) ? flat(a) === flat(b) : String(a) === String(b == null ? '' : b));
   function saver(scope, key, get, set) {
     return async () => {
       const value = get();
@@ -196,6 +245,8 @@
       ta.addEventListener('change', () => saveLater(run));
       return wrap;
     }
+    if (f.type === 'textlines') return customLinesBox(f, v);
+    if (f.type === 'fixes') return fixesBox(f);
     let input;
     if (f.type === 'bool') {
       input = el('input', { type: 'checkbox', checked: !!v });
@@ -248,6 +299,7 @@
         }
         group.append(fieldFor(f, m.values[f.key]));
       }
+      if (sec.id === 'look') textLinesFollow(d);
       if (sec.id === 'privacy') { group.append(coverCacheBox()); dimServices(d); newFold('What else leaves ' + (osText() ? osText().here : 'this PC')); group.append(leavesBox()); newFold('Recent connections'); group.append(connsBox()); }
       d.setAttribute('role', 'tabpanel');
       $('p-help').before(d);
@@ -267,6 +319,394 @@
     apply();
     // queued behind the save of the switch itself, so it also sees a value that was refused and put back
     main.addEventListener('change', () => later(apply));
+  }
+
+  // ---- Text lines (Look tab) ----------------------------------------------------------------------------------------
+  // Custom's five lines in two groups, each with its placeholders to insert and a sample drawn like the preview. A
+  // line saves when it loses focus or after a second's pause in typing, not at each key: each save sends the status.
+  let customFields = null; // the custom lines' controls while the Look tab is drawn
+  function customLinesBox(f, v) {
+    const L = MPRP_LINES, vals = v || {}, inputs = {}, draws = [];
+    const wrap = el('div', { className: 'field tl-custom' });
+    let timer = null;
+    const draw = () => draws.forEach((d) => d());
+    const read = () => { const o = {}; L.KEYS.forEach((k) => { const s = inputs[k].value.trim(); if (s) o[k] = s; }); return o; };
+    const show = (o) => { L.KEYS.forEach((k) => { inputs[k].value = (o && o[k]) || ''; }); draw(); };
+    const run = saver('settings', f.key, read, show);
+    const save = () => { clearTimeout(timer); saveLater(run); };
+    const soon = () => { draw(); clearTimeout(timer); timer = setTimeout(save, 1000); };
+    const groups = [
+      ['episode', 'Episodes', [['episodeDetails', 'First line'], ['episodeState', 'Second line']]],
+      ['movie', 'Films', [['movieDetails', 'First line'], ['movieState', 'Second line'], ['movieCover', 'Cover text']]],
+    ];
+    for (const [kind, title, lines] of groups) {
+      const box = el('div', { className: 'tl-grp' }, el('div', { className: 'tl-h', textContent: title }));
+      let target = null; // the field a placeholder goes into: the last one used in this group
+      for (const [key, label] of lines) {
+        const i = el('input', { type: 'text', value: vals[key] || '', spellcheck: false, autocomplete: 'off' });
+        i.id = 'f-' + f.key + '-' + key;
+        i.dataset.line = key;
+        if (key === 'movieCover') i.placeholder = L.COVER;
+        inputs[key] = i;
+        if (!target) target = i;
+        i.addEventListener('input', soon);
+        i.addEventListener('change', save);
+        i.addEventListener('keydown', (e) => { if (e.key === 'Enter') i.blur(); });
+        i.addEventListener('focus', () => { target = i; });
+        box.append(el('div', { className: 'tl-line' }, el('label', { htmlFor: i.id, textContent: label }), i));
+      }
+      const chips = el('div', { className: 'tl-chips' });
+      chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', title + ': placeholders');
+      L.CHIPS[kind].forEach((k) => {
+        const b = el('button', { type: 'button', className: 'chip', textContent: '{' + k + '}' });
+        b.addEventListener('mousedown', (e) => e.preventDefault()); // the field keeps the focus and the cursor
+        b.onclick = () => {
+          const t = target, pos = t.selectionStart == null ? t.value.length : t.selectionStart;
+          const before = t.value.slice(0, pos), after = t.value.slice(pos);
+          const ins = (before.trim() && !before.endsWith(L.SEP) ? L.SEP : '') + '{' + k + '}';
+          t.value = before + ins + after;
+          t.focus();
+          t.selectionStart = t.selectionEnd = (before + ins).length;
+          soon();
+        };
+        chips.append(b);
+      });
+      const bad = el('div', { className: 'help tl-bad' });
+      const l1 = el('div', { className: 'tl-l1' }), l2 = el('div', { className: 'tl-l2' });
+      const sample = el('div', { className: 'tl-sample' }, el('div', { className: 'tl-cover' + (kind === 'movie' ? ' film' : '') }),
+        el('div', { className: 'pv-text' }, el('div', { className: 'pv-name', textContent: 'Watching ' + L.SAMPLE[kind].title }), l1, l2));
+      const coverNote = kind === 'movie' ? el('div', { className: 'help tl-covertext' }) : null;
+      box.append(chips, bad, sample, ...(coverNote ? [coverNote] : []));
+      draws.push(() => {
+        const sv = L.SAMPLE[kind], keys = lines.map(([k]) => k);
+        l1.textContent = L.expand(inputs[keys[0]].value, sv);
+        l2.textContent = L.expand(inputs[keys[1]].value, sv);
+        bad.textContent = L.unknown(keys.map((k) => inputs[k].value), sv);
+        if (coverNote) coverNote.textContent = 'Shown when you point at the cover: ' + L.expand(inputs.movieCover.value.trim() || L.COVER, sv);
+      });
+      wrap.append(box);
+    }
+    wrap.append(help('Parts in [ ] drop out when a value is missing. Discord shows up to 128 characters a line.'));
+    customFields = { read, show, save };
+    draw();
+    return wrap;
+  }
+  // The Text lines choice: Custom shows its five lines (filled with the lines of the choice that was on before, while
+  // they are empty), and "Also show S01E02 in the title line" belongs to Standard only.
+  function textLinesFollow(panel) {
+    const sel = panel.querySelector('select[data-key="textLines"]'), custom = panel.querySelector('.tl-custom');
+    if (!sel || !custom) return;
+    const ep = panel.querySelector('input[data-key="episodeInDetails"]'), epField = ep && ep.closest('.field');
+    let prev = sel.value === 'custom' ? 'standard' : sel.value;
+    const apply = () => {
+      custom.classList.toggle('hidden', sel.value !== 'custom');
+      if (epField) epField.classList.toggle('hidden', sel.value !== 'standard');
+    };
+    apply();
+    sel.addEventListener('change', () => {
+      if (sel.value === 'custom' && customFields && !Object.keys(customFields.read()).length) {
+        const p = MPRP_LINES.PRESETS[prev] || MPRP_LINES.PRESETS.standard, o = {};
+        MPRP_LINES.KEYS.forEach((k, i) => { if (p[i]) o[k] = p[i]; });
+        customFields.show(o);
+        customFields.save();
+      }
+      if (sel.value !== 'custom') prev = sel.value;
+      apply();
+      later(apply); // after the save: a refused choice is put back
+    });
+  }
+
+  // ---- Fix a match (Titles & art, and the preview's "Wrong title or cover?") ----------------------------------------
+  let fixList = null, lastMatch = null; // the list while Titles & art is drawn; what plays, as the status says (Status.match)
+  const fixesNow = () => (model && Array.isArray(model.values.matchFixes) ? model.values.matchFixes : []);
+  const kindName = (k) => (k === 'movie' ? 'Movie' : 'Show');
+  const entryLine = (r) => [r.year, kindName(r.kind), r.catalog].filter(Boolean).join(' · ');
+  const entryLabel = (r) => r.name + (r.year ? ' (' + r.year + ')' : '') + ' · ' + kindName(r.kind) + ' · ' + r.catalog;
+  const signed = (n) => (n > 0 ? '+' + n : String(n));
+  const sameFix = (a, b) => !!a.file === !!b.file && a.match.trim().toLowerCase() === b.match.trim().toLowerCase();
+  // the list with fx in place of the fix for the same title or file (or added at the end)
+  const withFix = (list, fx) => { const i = list.findIndex((x) => sameFix(x, fx)); const out = list.filter((x) => !sameFix(x, fx)); out.splice(i < 0 ? out.length : i, 0, fx); return out; };
+  const fixFor = (m) => fixesNow().find((x) => (x.file ? m.file && x.match.toLowerCase() === m.file.toLowerCase() : false))
+    || fixesNow().find((x) => !x.file && x.match.trim().toLowerCase() === (m.title || '').trim().toLowerCase());
+  // what a fix does, in the list: "Only this file · Your image · Sample Show (2019) · Show · IMDb · episodes +12"
+  function fixMeta(fx) {
+    const parts = [];
+    if (fx.file) parts.push('Only this file');
+    if (fx.cover) parts.push('Your image');
+    if (fx.entry) parts.push(fx.label || fx.entry);
+    else if (fx.search) parts.push('Searched as "' + fx.search + '"');
+    if (fx.seasonOffset) parts.push('seasons ' + signed(fx.seasonOffset));
+    if (fx.episodeOffset) parts.push('episodes ' + signed(fx.episodeOffset));
+    return parts.join(' · ');
+  }
+  const thumb = (src, cls) => {
+    if (!src) return el('span', { className: 'sq' + (cls ? ' ' + cls : '') });
+    const i = el('img', { alt: '', src, className: cls || '' });
+    i.onerror = () => { i.replaceWith(el('span', { className: 'sq' + (cls ? ' ' + cls : '') })); };
+    return i;
+  };
+  function fixesBox() {
+    fixList = el('div', { className: 'fixes', id: 'fixes' });
+    drawFixes();
+    const add = el('button', { textContent: 'Add a fix' });
+    add.onclick = () => openFix({ add: true });
+    return el('div', { className: 'field' }, fixList, el('div', { className: 'row actions' }, add, el('span', { className: 'help', textContent: 'A fix applies to every file read as that title, or to one file.' })));
+  }
+  function drawFixes() {
+    if (!fixList) return;
+    fixList.textContent = '';
+    const list = fixesNow();
+    if (!list.length) {
+      fixList.append(el('div', { className: 'help fix-empty' }, document.createTextNode('No fixes yet. When the card shows the wrong title or cover, choose '), el('b', { textContent: 'Wrong title or cover?' }), document.createTextNode(' under it.')));
+      return;
+    }
+    list.forEach((fx) => {
+      const edit = el('button', { className: 'quiet', textContent: 'Edit' }), rm = el('button', { className: 'quiet', textContent: 'Remove' });
+      edit.setAttribute('aria-label', 'Edit the fix for ' + fx.match); rm.setAttribute('aria-label', 'Remove the fix for ' + fx.match);
+      edit.onclick = () => openFix({ fix: fx });
+      rm.onclick = async () => {
+        const before = fixesNow();
+        if (await saveFixes(before.filter((x) => !sameFix(x, fx)))) noteUndo('Fix removed.', () => saveFixes(before));
+      };
+      fixList.append(el('div', { className: 'fix-row' }, thumb(fx.cover || fx.poster),
+        el('div', { className: 't' }, el('div', { className: 'n', textContent: fx.match }), el('div', { className: 'help', textContent: fixMeta(fx) })), edit, rm));
+    });
+  }
+  // saves Fix a match's list, in turn like every change, and draws it again; resolves to whether it was saved
+  const saveFixes = (next) => new Promise((resolve) => later(async () => {
+    note('Saving…');
+    saving++;
+    try { model = await api('save', { settings: { matchFixes: next } }); note('Saved'); resolve(true); } catch (e) { note(e.message, true); resolve(false); } finally { saving--; drawFixes(); }
+  }));
+  // a line in the bottom bar with an Undo button, for a few seconds
+  function noteUndo(text, undo) {
+    clearTimeout(clearTimer);
+    const m = $('msg'), b = el('button', { className: 'link', textContent: 'Undo' });
+    m.className = 'msg'; m.textContent = '';
+    b.onclick = () => { m.textContent = ''; undo(); };
+    m.append(document.createTextNode(text + ' '), b);
+    clearTimer = setTimeout(() => { m.textContent = ''; }, 8000);
+  }
+  // a dialog with content of its own (modal() is for a question with buttons). Escape and a click outside close it;
+  // Tab stays inside it.
+  function sheet(title) {
+    const prev = document.activeElement, uid = 'dlg' + (++modalCount);
+    const h = el('h2', { textContent: title, id: uid + '-title' }), body = el('div');
+    const box = el('div', { className: 'dlg wide sheet' }, h, body);
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', h.id);
+    const back = el('div', { className: 'dlg-back' }, box);
+    const top = () => [...document.querySelectorAll('.dlg-back')].pop() === back;
+    const close = () => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); };
+    const key = (e) => {
+      if (!top()) return;
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key !== 'Tab') return;
+      const all = [...box.querySelectorAll('button, input, select, textarea, summary, li[tabindex]')].filter((x) => !x.disabled && x.getClientRects().length);
+      if (!all.length) return;
+      const i = all.indexOf(document.activeElement);
+      if (e.shiftKey ? i <= 0 : i === all.length - 1) { e.preventDefault(); all[e.shiftKey ? all.length - 1 : 0].focus(); }
+    };
+    document.addEventListener('keydown', key, true);
+    back.onmousedown = (e) => { if (e.target === back) close(); };
+    document.body.append(back);
+    return { box, h, body, close };
+  }
+  // Fix this match. ctx.match: what plays (Status.match); ctx.fix: a fix to edit; ctx.add: a fix for a title that is not
+  // playing. Step 1 searches the catalogs and saves the pick; step 2 (fixed) offers the cover and the offsets.
+  function openFix(ctx) {
+    const playing = ctx.match || null;
+    const fix = ctx.fix || (playing ? fixFor(playing) : null) || null;
+    const s = sheet('Fix this match');
+    let cats = [], sel = null, n = 0, timer = null, scopeFile = !!(fix && fix.file);
+    const from = el('p', { className: 'from' });
+    const b = (t) => el('b', { textContent: t }), tx = (t) => document.createTextNode(t);
+    let readIn = null;
+    if (playing) {
+      const nums = (playing.season ? ', season ' + playing.season : '') + (playing.episode ? ', episode ' + playing.episode : '');
+      from.append(tx('From '), b(playing.file || 'this video'), tx(', read as '), b(playing.title), tx(nums + '. '), tx(playing.now ? 'Now matched to ' + playing.now + '.' : 'Nothing matched it yet.'));
+    } else if (fix) {
+      from.append(...(fix.file ? [tx('For the file '), b(fix.match), tx('.')] : [tx('For every file read as '), b(fix.match), tx('.')]));
+    } else {
+      readIn = el('input', { type: 'text', spellcheck: false, autocomplete: 'off', placeholder: 'Sample Show' });
+      readIn.id = 'fixRead';
+      from.append(el('label', { htmlFor: readIn.id, textContent: 'The title as it is read from the file name (the preview shows it while it plays):' }), readIn);
+    }
+    const q = el('input', { type: 'text', spellcheck: false, autocomplete: 'off', value: (fix && fix.search) || (playing ? playing.title : fix ? (fix.label ? fix.label.split(' · ')[0].replace(/ \(\d{4}\)$/, '') : fix.match) : '') });
+    q.setAttribute('aria-label', 'Search the catalogs');
+    const qHelp = help('');
+    const res = el('ul', { className: 'res' });
+    res.setAttribute('role', 'listbox'); res.setAttribute('aria-label', 'Results');
+    const use = el('button', { className: 'primary', textContent: 'Use this', disabled: true });
+    const cancel = el('button', { className: 'quiet', textContent: 'Cancel' });
+    cancel.onclick = s.close;
+    let scope = el('span', { className: 'grow' });
+    if (playing && playing.file) {
+      const name = 'scope' + modalCount;
+      const r1 = el('input', { type: 'radio', name, checked: !scopeFile }), r2 = el('input', { type: 'radio', name, checked: scopeFile });
+      r1.onchange = () => { scopeFile = false; }; r2.onchange = () => { scopeFile = true; };
+      scope = el('div', { className: 'scope' }, el('label', {}, r1, el('span', {}, tx('Every file read as '), b(playing.title))), el('label', {}, r2, el('span', {}, tx('Only this file ('), b(playing.file), tx(')'))));
+      scope.setAttribute('role', 'radiogroup'); scope.setAttribute('aria-label', 'Apply the fix to');
+    }
+    s.body.append(from, q, qHelp, res, el('div', { className: 'foot' }, scope, cancel, use));
+    const nowEntry = playing && playing.nowEntry ? playing.nowEntry : fix && fix.entry ? fix.entry : '';
+    const rows = () => [...res.querySelectorAll('li[role="option"]')];
+    const choose = (li, r) => {
+      rows().forEach((x) => x.setAttribute('aria-selected', 'false'));
+      li.setAttribute('aria-selected', 'true');
+      sel = r; use.disabled = !!r.now;
+    };
+    const row = (li, r) => {
+      li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false'); li.tabIndex = -1;
+      li.onclick = () => choose(li, r);
+      li.ondblclick = () => { choose(li, r); if (!use.disabled) use.click(); };
+      res.append(li);
+    };
+    function render(list, err) {
+      res.textContent = ''; sel = null; use.disabled = true;
+      qHelp.textContent = (cats.length ? 'Searches ' + cats.join(', ').replace(/, ([^,]*)$/, ' and $1') + ' (the catalogs on under Privacy).' : 'All catalogs are off (Privacy).') + (err ? ' ' + err : '');
+      const term = q.value.trim();
+      if (cats.length && term.length >= 2 && !list.length) res.append(el('li', { className: 'wait', textContent: err ? 'No answer.' : 'Nothing found. Try another spelling.' }));
+      list.forEach((r) => {
+        const now = !!nowEntry && r.entry === nowEntry;
+        row(el('li', {}, thumb(r.poster), el('div', { className: 't' }, el('div', { className: 'n', textContent: r.name }), el('div', { className: 'm', textContent: entryLine(r) })),
+          ...(now ? [el('span', { className: 'now', textContent: 'Now' })] : [])), Object.assign({}, r, { now }));
+      });
+      if (term) row(el('li', { className: 'as' }, el('span', { className: 'sq' }), el('div', { className: 't', textContent: 'Search as "' + term + '" instead (no entry pinned)' })), { search: term });
+    }
+    async function search(first) {
+      clearTimeout(timer);
+      const term = q.value.trim(), my = ++n;
+      if (!first && term.length < 2) { render([], ''); return; }
+      res.textContent = '';
+      res.append(el('li', { className: 'wait', textContent: 'Searching…' }));
+      try {
+        const r = await api('match-search', { q: term, n: my });
+        if (r.n !== my || !s.box.isConnected) return; // an answer to an older keystroke
+        cats = r.catalogs || [];
+        render(r.results || [], r.error || '');
+      } catch (e) { if (my === n) render([], e.message); }
+    }
+    q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => search(false), 350); });
+    q.addEventListener('keydown', (e) => {
+      const all = rows(), i = all.findIndex((x) => x.getAttribute('aria-selected') === 'true');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const to = all[Math.max(0, Math.min(all.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+        if (to) { to.click(); to.scrollIntoView({ block: 'nearest' }); }
+      } else if (e.key === 'Enter' && !use.disabled) use.click();
+    });
+    use.onclick = async () => {
+      if (!sel || sel.now) return;
+      let match, file = false;
+      if (readIn) match = readIn.value.trim();
+      else if (playing && playing.file && scopeFile) { match = playing.file; file = true; }
+      else if (playing) match = playing.title;
+      else { match = fix.match; file = !!fix.file; }
+      if (!match) { qHelp.textContent = 'Type the title as it is read from the file name first.'; readIn.focus(); return; }
+      const fx = { match };
+      if (file) fx.file = true;
+      if (sel.entry) { fx.entry = sel.entry; fx.label = entryLabel(sel); if (sel.poster) fx.poster = sel.poster; } else fx.search = sel.search;
+      if (fix && sameFix(fix, fx)) ['cover', 'seasonOffset', 'episodeOffset'].forEach((k) => { if (fix[k]) fx[k] = fix[k]; });
+      const before = fixesNow();
+      let next = fix && !sameFix(fix, fx) && !playing ? before.filter((x) => !sameFix(x, fix)) : before;
+      next = withFix(next, fx);
+      use.disabled = true;
+      if (await saveFixes(next)) fixed(fx, before, sel); else use.disabled = false;
+    };
+    // step 2: the fix is saved; its cover and its offsets
+    function fixed(fx, before, picked) {
+      s.h.textContent = 'Fixed';
+      s.body.textContent = '';
+      const name = picked.entry ? picked.name : 'Searched as "' + fx.search + '"';
+      const head = el('div', { className: 'done-head' }, thumb(fx.cover || fx.poster, 'big'), el('div', {}, el('div', { className: 'n', textContent: name }),
+        help(picked.entry ? entryLine(picked) : 'No entry pinned'), help(picked.entry ? 'The card shows it in a moment. Episode titles come from this entry.' : 'The card shows it in a moment.')));
+      const group = 'cov' + modalCount;
+      const rCat = el('input', { type: 'radio', name: group, checked: !fx.cover, id: group + '-cat' });
+      const rOwn = el('input', { type: 'radio', name: group, id: group + '-own' });
+      const own = el('input', { type: 'text', value: fx.cover || '', placeholder: 'https://example.com/poster.jpg', spellcheck: false, autocomplete: 'off' });
+      own.setAttribute('aria-label', 'Image address');
+      const covers = el('div', { className: 'covers' }), capt = help('Covers of this title from the other catalogs on under Privacy:');
+      capt.classList.add('hidden');
+      let picks = [];
+      const pick = (url) => { picks.forEach((x) => x.classList.toggle('sel', x.dataset.url === url)); };
+      rCat.onchange = () => pick(''); rOwn.onchange = () => pick('');
+      own.addEventListener('focus', () => { rOwn.checked = true; pick(''); });
+      if (fx.cover) rOwn.checked = true;
+      const bad = el('div', { className: 'help bad hidden' });
+      const sOff = el('input', { type: 'number', value: fx.seasonOffset || 0, min: -500, max: 500 }), eOff = el('input', { type: 'number', value: fx.episodeOffset || 0, min: -500, max: 500 });
+      sOff.setAttribute('aria-label', 'Season offset'); eOff.setAttribute('aria-label', 'Episode offset');
+      const fold = el('details', { className: 'fold', open: !!(fx.seasonOffset || fx.episodeOffset) }, el('summary', { textContent: "Episodes don't line up?" }),
+        el('div', { className: 'offs' }, tx('Season '), sOff, tx(' episode '), eOff),
+        help('Added to the numbers read from the file before the catalogs are asked (0 and 0: no change). Example: a file numbered S01E02 with +12 episodes is looked up as S01E14.'));
+      const undo = el('button', { className: 'link', textContent: 'Undo' }), tell = el('button', { className: 'link', textContent: 'Tell the project about this' });
+      const done = el('button', { className: 'primary', textContent: 'Done' });
+      s.body.append(head,
+        el('div', { className: 'opt' }, rCat, el('label', { htmlFor: rCat.id, textContent: picked.entry ? "This entry's cover" : 'The cover the search finds' })),
+        capt, covers,
+        el('div', { className: 'opt' }, rOwn, el('label', { htmlFor: rOwn.id, textContent: 'An image address' }), own),
+        bad, fold, el('div', { className: 'foot' }, undo, el('span', { className: 'help', textContent: '·' }), tell, el('span', { className: 'grow' }), done));
+      if (picked.entry) {
+        api('match-covers', { name: picked.name, year: picked.year || 0, kind: picked.kind, catalog: picked.catalog, n: 1 }).then((r) => {
+          (r.covers || []).forEach((c) => {
+            const i = el('img', { alt: 'Cover from ' + c.catalog, src: c.url, title: c.catalog, tabIndex: 0 });
+            i.dataset.url = c.url;
+            const choose = () => { rCat.checked = false; rOwn.checked = false; pick(c.url); };
+            i.onclick = choose;
+            i.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
+            i.onerror = () => i.remove();
+            picks.push(i); covers.append(i);
+          });
+          capt.classList.toggle('hidden', !picks.length);
+          if (fx.cover) pick(fx.cover);
+        }).catch(() => {});
+      }
+      const current = () => {
+        const chosen = picks.find((x) => x.classList.contains('sel'));
+        const cover = rCat.checked ? '' : rOwn.checked ? own.value.trim() : chosen ? chosen.dataset.url : '';
+        const out = Object.assign({}, fx);
+        ['cover', 'seasonOffset', 'episodeOffset'].forEach((k) => { delete out[k]; });
+        if (cover) out.cover = cover;
+        const so = Math.trunc(Number(sOff.value) || 0), eo = Math.trunc(Number(eOff.value) || 0);
+        if (so) out.seasonOffset = so;
+        if (eo) out.episodeOffset = eo;
+        return out;
+      };
+      undo.onclick = async () => { if (await saveFixes(before)) { s.close(); note('Fix undone.'); } };
+      tell.onclick = () => tellProject(current(), playing);
+      done.onclick = async () => {
+        const out = current();
+        if (out.cover && !/^https?:\/\/\S+$/.test(out.cover)) { bad.textContent = 'Enter a web address of an image (starting with https).'; bad.classList.remove('hidden'); own.focus(); return; }
+        if (JSON.stringify(out) === JSON.stringify(fx)) { s.close(); return; }
+        done.disabled = true;
+        if (await saveFixes(withFix(fixesNow(), out))) s.close(); else done.disabled = false;
+      };
+      done.focus();
+    }
+    search(true);
+    (readIn || q).focus();
+  }
+  // "Tell the project about this": the report is shown to be looked over, copied, and posted by the user on GitHub's
+  // issue form (opened at its plain address: no file name goes into a web address). The program sends nothing.
+  async function tellProject(fx, playing) {
+    let text = '';
+    try {
+      text = (await api('match-report', { fix: fx, file: (playing && playing.file) || '', title: (playing && playing.title) || '', season: (playing && playing.season) || 0, episode: (playing && playing.episode) || 0, before: (playing && playing.now) || '' })).text;
+    } catch (e) { note(e.message, true); return; }
+    const ta = el('textarea', { value: text, spellcheck: false, className: 'report' });
+    ta.setAttribute('aria-label', 'Report text');
+    const body = el('div', {}, el('p', { textContent: 'If the program should have found this by itself, a report helps it learn the pattern. The program sends nothing: you copy the text, look it over, and post it on GitHub yourself.' }),
+      ta, help("Folders, players' addresses and sign-ins are left out. You can edit the text before posting."));
+    await modal('Tell the project about this', body, [['Cancel'], ['Copy and open GitHub', 'primary']], true, {
+      focus: 1,
+      hold: async (i) => {
+        if (i !== 1) return true;
+        let ok = false;
+        try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (_) { ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (_) {} }
+        window.open('https://github.com/CptPakundo/MPRP/issues/new/choose', '_blank', 'noopener');
+        note(ok ? 'Copied. Paste it into the new issue and look it over before you post it.' : 'Select the text and copy it, then paste it into the new issue.');
+        return true;
+      },
+    });
   }
 
   // "Set up the player connection" at the top of the Players tab: the same call and confirmation as the card that
@@ -578,6 +1018,7 @@
 
   function paint(s) {
     paintPreview(s.preview);
+    lastMatch = s.match || null;
     if (typeof s.hideTitle === 'boolean' && model && !saving && model.values.hideTitle !== s.hideTitle) {
       model.values.hideTitle = s.hideTitle; // switched from the tray or the menu bar
       const box = document.querySelector('input[data-key="hideTitle"]');
@@ -702,7 +1143,7 @@
 
   $('toggle').onclick = async () => { $('toggle').disabled = true; try { paint(await api(model && running ? 'stop' : 'start', {})); } catch (e) { await ask('Could not change this', e.message, 'OK', false, null); } $('toggle').disabled = false; };
   async function restoreDefaults() {
-    if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex, Stremio, Jellyfin and Emby, and clears the TMDB key, name aliases, pinned covers and your Never show list.', 'Restore', true)) return;
+    if (!await ask('Restore defaults?', 'Every setting goes back to its default. This also turns off ' + autoStartName() + ', signs you out of Plex, Stremio, Jellyfin and Emby, and clears the TMDB key, your fixes (Fix a match) and your Never show list.', 'Restore', true)) return;
     later(async () => {
       try { fill(await api('reset', {})); note('Defaults restored.'); } catch (e) { note(e.message, true); }
     });
@@ -843,8 +1284,9 @@
   };
   $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPRP/issues/new/choose', '_blank', 'noopener');
   $('ver').onclick = () => showChangelog(true);
-  // the preview's "Wrong title or cover?": the place where a match is fixed (another name to search under, a pinned cover)
+  // the preview's "Wrong title or cover?": the Fix this match dialog for what plays, else the list of fixes
   $('fixMatch').onclick = () => {
+    if (lastMatch) { openFix({ match: lastMatch }); return; }
     showTab('titles');
     const h = [...document.querySelectorAll('#p-titles h3.grp')].find((x) => x.textContent === 'Fix a match');
     if (h) h.scrollIntoView({ block: 'start' });
