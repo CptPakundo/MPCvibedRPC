@@ -24,6 +24,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Every copy looks for its updates (and the player logos) in the repository the code names: DefaultUpdateRepo in
+      # internal/store/store.go (store's TestReleaseChecksTheRepositoryName ties this step to it). A repository that
+      # was not renamed yet would publish a release that no copy finds after it updates: rename it first.
+      - name: The repository has the name the code gives it
+        shell: bash
+        run: |
+          want=$(sed -n 's/^const DefaultUpdateRepo = "\(.*\)"$/\1/p' internal/store/store.go)
+          if [ -z "$want" ] || [ "$GITHUB_REPOSITORY" != "$want" ]; then
+            echo "::error title=Wrong repository name::This repository is $GITHUB_REPOSITORY, but the code publishes and updates from ${want:-(DefaultUpdateRepo not found)} (DefaultUpdateRepo in internal/store/store.go). Rename the repository first (docs/maintaining.md > Releasing), then delete and push the tag again."
+            exit 1
+          fi
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod, cache: false }
       - run: ./tools/ci/version.sh "$TAG"
