@@ -4,6 +4,8 @@
 
 # MPRP
 
+<sub>Media Player Rich Presence (formerly MPCvibedRPC)</sub>
+
 **Show what you're watching on Discord.**<br>
 A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
 

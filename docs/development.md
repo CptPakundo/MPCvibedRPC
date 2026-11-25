@@ -149,7 +149,7 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 | `proc` | starting a helper process hidden (Windows) or detached (`Detach`, `DetachVisible`: the window's browser, the macOS `--serve` copy) |
 | `discord` | Discord's local IPC protocol |
 | `artwork`, `jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
-| `store`, `jsonx` | `config.json`, the window's layout (`schema.go`), validation; a JSON reader/writer that keeps key order and unknown keys and prints numbers like JavaScript |
+| `store`, `jsonx` | `config.json`, the window's layout (`schema.go`), validation; carrying an install's data folder over from the program's former name (`move.go`); a JSON reader/writer that keeps key order and unknown keys and prints numbers like JavaScript |
 | `server`, `assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP); the page (`ui.html`, `ui.css`, `ui.js`, embedded; its look: [design/settings-window.md](design/settings-window.md)) and `changelog.json` |
 | `winsys` | the operating system; see the next table |
 | `diag` | **Copy diagnostics**: keeps titles and file names, leaves out folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list |
@@ -165,7 +165,7 @@ on every system.
 | `macapp_darwin.go` | macOS (cgo only): the menu bar icon and the settings window (WebKit) |
 | `window.go`, `browser*.go` | the window's browser, opening a URL or folder |
 | `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside once it appears) |
-| `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`) |
+| `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`), and carrying an entry of the former name over (`MigrateAutoStart`) |
 | `single_*.go` | single instance (mutex, file lock) |
 | `playersetup.go` (`SetUpPlayers`), `setup_unix.go`, `mpvconf.go`, `vlcconf.go` | **Set up the player connection** |
 
@@ -513,6 +513,9 @@ Everything below has only run against fakes, or not at all. Anyone with the setu
   display scaling.
 - **Copy diagnostics** in a normal browser window (not the `--app=` window).
 - **Start with Windows** after it was switched off in Task Manager's Startup list.
+- **An install from before the rename** on a real system: its data folder moved (or copied while a file is held),
+  its run-at-login entry carried over (the Windows registry with a start switched off in Task Manager, a macOS
+  LaunchAgent, a Linux autostart file), and a second start while a copy of the former version still runs.
 - **Set up the player connection** end to end (it writes MPC-HC's registry values).
 - **MPC-QT's multi-window mode** with a portable build and the live engine test.
 - **mpv on a real Linux desktop.**
