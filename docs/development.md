@@ -167,7 +167,7 @@ on every system.
 | `run.go` | helper commands without a console, the running players, system details for diagnostics |
 | `macapp_darwin.go` | macOS (cgo only): the menu bar icon, the settings window (WebKit) and the notifications (`UNUserNotificationCenter`, only as an app bundle) |
 | `window.go`, `browser*.go` | the window's browser, opening a URL or folder |
-| `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside once it appears, and kept on every window of that browser process, a window it replaces the first with too, while the process lives, through WinEvents and the shell hook) |
+| `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside: from the first window on, a hook thread gives every taskbar window of a browser process that uses the window profile the identity and the built-in icon whenever it appears, and keeps the icon on it, through the shell hook and WinEvents; it logs when the window first has the icon and what failed) |
 | `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`), and carrying an entry of the former name over (`MigrateAutoStart`) |
 | `single_*.go` | single instance (mutex, file lock) |
 | `playersetup.go` (`SetUpPlayers`), `setup_unix.go`, `mpvconf.go`, `vlcconf.go` | **Set up the player connection** |

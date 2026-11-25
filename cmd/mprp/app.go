@@ -314,12 +314,12 @@ func (a *app) openWindow() {
 	a.opened.Add(1)
 	a.winHandle.Store(0)
 	a.inTray.Store(false)
-	winsys.StopWindowIcon() // the window before, if any, is no longer looked after
 	mode := winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
 	a.appWindow.Store(mode == "app")
 	if mode == "app" {
-		// the window is a browser's: its taskbar button gets the program's name, icon and command (Windows)
-		engine.Go(a.log, "Naming the window", func() { winsys.NameWindow(a.browserProfile) })
+		// the window is a browser's: its taskbar button gets the program's name, icon and command (Windows), whenever
+		// it appears and for as long as the program runs
+		engine.Go(a.log, "Naming the window", func() { winsys.NameWindow(a.browserProfile, a.log) })
 	}
 }
 
