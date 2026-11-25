@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 var (

@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
 // NewToken makes a random token.
@@ -143,7 +143,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	switch {
 	case r.Method == "GET" && p == "/api/ping":
-		send(w, 200, map[string]any{"app": "MPCvibedRPC", "version": s.o.Version, "pid": os.Getpid()}, jsonType)
+		send(w, 200, map[string]any{"app": "MPRP", "version": s.o.Version, "pid": os.Getpid()}, jsonType)
 		return
 	case r.Method == "GET" && p == "/icon.ico":
 		send(w, 200, s.o.Icon, "image/x-icon")

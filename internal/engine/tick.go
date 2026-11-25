@@ -6,9 +6,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/artwork"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
 )
 
 // appNameFor gives the default app name the playing player's name: the default describes Media Player Classic, other

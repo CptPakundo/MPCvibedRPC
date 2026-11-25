@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // The Never show list also matches where a server keeps the item: a Plex library's name, or a folder of the file's

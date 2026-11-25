@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/artwork"
-	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
-	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
-	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
+	"github.com/CptPakundo/MPRP/internal/artwork"
+	"github.com/CptPakundo/MPRP/internal/capture"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/kodi"
+	"github.com/CptPakundo/MPRP/internal/vlchttp"
 )
 
 // Options are the engine's collaborators; all of them are optional.

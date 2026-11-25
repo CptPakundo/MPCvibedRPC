@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 // How long a player may stay silent before what it played is forgotten (players report every few seconds while they

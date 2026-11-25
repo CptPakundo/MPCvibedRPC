@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/assets"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // startTray puts up the tray icon (Windows) or the menu bar icon (macOS); elsewhere there is none.
@@ -31,7 +31,7 @@ func (a *app) startTray() *winsys.Tray {
 
 // trayTooltip is the icon's tooltip and the menu's status line (Windows cuts tooltips at 63 characters).
 func trayTooltip(s engine.Status) string {
-	t := "MPCvibedRPC - "
+	t := "MPRP - "
 	switch {
 	case !s.Running:
 		t += "Not showing on Discord"

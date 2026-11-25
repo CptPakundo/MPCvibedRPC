@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus/dbustest"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/dbus/dbustest"
 )
 
 func TestRoundTrip(t *testing.T) {

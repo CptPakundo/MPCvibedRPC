@@ -6,7 +6,7 @@ package potplayer
 import (
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // The messages PotPlayer is asked with are in potplayer_windows.go; info below only needs their answers.

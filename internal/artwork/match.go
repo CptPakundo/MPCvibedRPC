@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 func re(p, flags string) *jsre.Regexp { return jsre.MustCompile(p, flags) }

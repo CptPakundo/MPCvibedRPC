@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // readAs is the start of "Why this title?": the name the player gave and what was read from it. The folder path is

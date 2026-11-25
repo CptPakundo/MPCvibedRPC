@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // linkSetup plays a movie that a fake Cinemeta knows, so the activity has a cover and a catalog page.

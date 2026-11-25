@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
 )
 
 // fakeJellyfinServer is a Jellyfin server (Emby: under /emby, no Quick Connect) for the sign-in. Quick Connect is

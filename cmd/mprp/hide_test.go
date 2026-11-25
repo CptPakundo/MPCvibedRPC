@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
+	"github.com/CptPakundo/MPRP/internal/capture"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
 )
 
 // "Hide what I'm watching" from the tray or the menu bar is saved like the switch in the window and reaches the engine.

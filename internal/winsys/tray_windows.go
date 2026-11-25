@@ -80,7 +80,7 @@ const (
 	cmdHide             = 4
 	cmdStream           = 5
 	timerID             = 1
-	className           = "MPCvibedRPC.Tray"
+	className           = "MPRP.Tray"
 )
 
 type wndClassEx struct {
@@ -181,7 +181,7 @@ func (t *Tray) loop() {
 		t.o.Log("WARN", "Tray icon could not start (RegisterClass: "+err.Error()+"). Open the app again to reach the settings.")
 		return
 	}
-	hwnd, _, err := pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(cls)), uintptr(unsafe.Pointer(utf16Ptr("MPCvibedRPC"))), 0, 0, 0, 0, 0, 0, 0, hinst, 0)
+	hwnd, _, err := pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(cls)), uintptr(unsafe.Pointer(utf16Ptr("MPRP"))), 0, 0, 0, 0, 0, 0, 0, hinst, 0)
 	if hwnd == 0 {
 		t.o.Log("WARN", "Tray icon could not start (CreateWindow: "+err.Error()+"). Open the app again to reach the settings.")
 		return
@@ -243,7 +243,7 @@ func (t *Tray) tooltip() string {
 	if t.o.Tooltip != nil {
 		return t.o.Tooltip()
 	}
-	return "MPCvibedRPC"
+	return "MPRP"
 }
 
 func (t *Tray) notify(action uintptr) bool {
@@ -300,7 +300,7 @@ func (t *Tray) showMenu() {
 		toggle = "Stop showing on Discord"
 	}
 	// the first line says what the program is doing (the icon's tooltip, without the program's name)
-	status := strings.TrimPrefix(t.tooltip(), "MPCvibedRPC - ")
+	status := strings.TrimPrefix(t.tooltip(), "MPRP - ")
 	pAppendMenu.Call(menu, mfString|mfDisabled|mfGrayed, 0, uintptr(unsafe.Pointer(utf16Ptr(status))))
 	pAppendMenu.Call(menu, mfSeparator, 0, 0)
 	pAppendMenu.Call(menu, mfString, cmdOpen, uintptr(unsafe.Pointer(utf16Ptr("Open settings"))))

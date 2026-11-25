@@ -11,7 +11,7 @@ import (
 )
 
 func TestExists(t *testing.T) {
-	name := "mpcvibedrpc-test-" + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	name := "mprp-test-" + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	var path string
 	if runtime.GOOS == "windows" {
 		path = `\\?\pipe\` + name

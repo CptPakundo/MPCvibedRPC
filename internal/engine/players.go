@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
-	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
-	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
-	"github.com/CptPakundo/MPCvibedRPC/internal/potplayer"
-	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/kodi"
+	"github.com/CptPakundo/MPRP/internal/mpris"
+	"github.com/CptPakundo/MPRP/internal/mpvipc"
+	"github.com/CptPakundo/MPRP/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/potplayer"
+	"github.com/CptPakundo/MPRP/internal/vlchttp"
 )
 
 // PlayerPipe is an mpv-style IPC endpoint and the name of the player behind it.

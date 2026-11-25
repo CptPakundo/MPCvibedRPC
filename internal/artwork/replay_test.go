@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 type recResp struct {

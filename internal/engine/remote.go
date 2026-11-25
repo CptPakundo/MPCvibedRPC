@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
-	"github.com/CptPakundo/MPCvibedRPC/internal/plex"
-	"github.com/CptPakundo/MPCvibedRPC/internal/stremio"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/jellyfin"
+	"github.com/CptPakundo/MPRP/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/plex"
+	"github.com/CptPakundo/MPRP/internal/stremio"
 )
 
 // watcher follows one account or server for what is playing on it (Plex, Stremio, Jellyfin or Emby).

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakeLetterboxd is Cinemeta with one film (tt0000001) and Letterboxd answering with lb (the status for that id:

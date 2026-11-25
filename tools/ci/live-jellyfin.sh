@@ -105,9 +105,9 @@ call POST /Sessions/Playing "{\"ItemId\":\"$item\",\"MediaSourceId\":\"$item\",\
 feed=$!
 sleep 4
 
-export MPCRPC_LIVE_JELLYFIN_ADDRESS="$S" MPCRPC_LIVE_JELLYFIN_USER="$user" MPCRPC_LIVE_JELLYFIN_PASSWORD="$pass"
-export MPCRPC_LIVE_JELLYFIN_PRODUCT="$product" MPCRPC_LIVE_TITLE="Example Show"
+export MPRP_LIVE_JELLYFIN_ADDRESS="$S" MPRP_LIVE_JELLYFIN_USER="$user" MPRP_LIVE_JELLYFIN_PASSWORD="$pass"
+export MPRP_LIVE_JELLYFIN_PRODUCT="$product" MPRP_LIVE_TITLE="Example Show"
 bash "$(dirname "$0")/must-pass.sh" TestLiveJellyfin go test -count=1 -timeout 3m -run TestLiveJellyfin -v ./internal/jellyfin
-MPCRPC_LIVE_PLAYER="$product" bash "$(dirname "$0")/must-pass.sh" TestLivePlayer go test -count=1 -timeout 3m -run TestLivePlayer -v ./internal/engine
+MPRP_LIVE_PLAYER="$product" bash "$(dirname "$0")/must-pass.sh" TestLivePlayer go test -count=1 -timeout 3m -run TestLivePlayer -v ./internal/engine
 
 done_file

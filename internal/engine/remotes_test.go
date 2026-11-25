@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // remoteRig is an engine that follows one remote (Plex, Stremio, Jellyfin or Emby) whose fake shows "Sample Show".

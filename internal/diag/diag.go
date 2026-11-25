@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
 )
 
 // Input is everything the report is made from.
@@ -192,7 +192,7 @@ func yn(b bool) string {
 func Report(in Input) string {
 	var b strings.Builder
 	w := func(f string, a ...any) { fmt.Fprintf(&b, f+"\n", a...) }
-	w("MPCvibedRPC diagnostics")
+	w("MPRP diagnostics")
 	w("Version: %s", in.Version)
 	w("System: %s", in.System)
 	if len(in.Players) > 0 {

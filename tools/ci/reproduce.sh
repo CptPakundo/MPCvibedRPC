@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rebuilds the release files the way the release builds them, so a release can be checked byte for byte.
-#   reproduce.sh <version> <out-dir>        builds MPCvibedRPC.exe, MPCvibedRPC-linux-amd64 and -arm64 into out-dir
+#   reproduce.sh <version> <out-dir>        builds MPRP.exe, MPRP-linux-amd64 and -arm64 into out-dir
 #   reproduce.sh compare <file> <file>      fails unless both files are the same
 #   reproduce.sh hash <file> <sha256>       fails unless the file has that SHA-256
 #   reproduce.sh sums <out-dir>             prints exe=, linux_amd64= and linux_arm64= with the SHA-256 of the files built there
@@ -35,9 +35,9 @@ case "${1:-}" in
     fi
     ;;
   sums)
-    echo "exe=$(sha "$2/MPCvibedRPC.exe")"
-    echo "linux_amd64=$(sha "$2/MPCvibedRPC-linux-amd64")"
-    echo "linux_arm64=$(sha "$2/MPCvibedRPC-linux-arm64")"
+    echo "exe=$(sha "$2/MPRP.exe")"
+    echo "linux_amd64=$(sha "$2/MPRP-linux-amd64")"
+    echo "linux_arm64=$(sha "$2/MPRP-linux-arm64")"
     ;;
   same)
     echo "$2: release $3, rebuilt $4"
@@ -50,12 +50,12 @@ case "${1:-}" in
     v="$1"; out="$2"
     mkdir -p "$out"
     export CGO_ENABLED=0
-    syso=cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+    syso=cmd/mprp/rsrc_windows_amd64.syso
     go run ./tools/mkrsrc -version "$v" -out "$syso"
-    GOOS=windows GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$v" -o "$out/MPCvibedRPC.exe" ./cmd/mpcvibedrpc
+    GOOS=windows GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=$v" -o "$out/MPRP.exe" ./cmd/mprp
     rm -f "$syso"
     for arch in amd64 arm64; do
-      GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$v" -o "$out/MPCvibedRPC-linux-$arch" ./cmd/mpcvibedrpc
+      GOOS=linux GOARCH=$arch go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$v" -o "$out/MPRP-linux-$arch" ./cmd/mprp
     done
     ls -l "$out"
     ;;

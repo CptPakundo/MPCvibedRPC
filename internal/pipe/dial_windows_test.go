@@ -17,7 +17,7 @@ func TestDialWaitsForAFreeInstance(t *testing.T) {
 	busyWait = 10 * time.Second
 	t.Cleanup(func() { busyWait = old })
 
-	path := `\\?\pipe\mpcvibedrpc-test-busy-` + strconv.Itoa(os.Getpid())
+	path := `\\?\pipe\mprp-test-busy-` + strconv.Itoa(os.Getpid())
 	defer listenPipe(t, path)()
 	a, err := Dial(path)
 	if err != nil {
@@ -61,7 +61,7 @@ func TestDialGivesUpOnABusyPipe(t *testing.T) {
 	busyWait = 300 * time.Millisecond
 	t.Cleanup(func() { busyWait = old })
 
-	path := `\\?\pipe\mpcvibedrpc-test-full-` + strconv.Itoa(os.Getpid())
+	path := `\\?\pipe\mprp-test-full-` + strconv.Itoa(os.Getpid())
 	defer listenPipe(t, path)()
 	a, err := Dial(path)
 	if err != nil {

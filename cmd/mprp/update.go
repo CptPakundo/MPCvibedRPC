@@ -12,10 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/proc"
+	"github.com/CptPakundo/MPRP/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // updates is what the program knows about newer versions.
@@ -69,7 +69,7 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	a.upd.mu.Unlock()
 	t := a.getTray()
 	if first && t != nil && winsys.IsWindows { // the macOS menu bar icon has no notifications
-		if t.Balloon("MPCvibedRPC "+r.Latest+" is available", "You have "+version+". Click here to see what's new and install it.") {
+		if t.Balloon("MPRP "+r.Latest+" is available", "You have "+version+". Click here to see what's new and install it.") {
 			a.log("INFO", "Showed an update notice next to the tray icon.")
 		} else {
 			a.log("WARN", "Windows did not show the update notice.")

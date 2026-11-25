@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
 )
 
 // clears counts the SET_ACTIVITY calls without an activity (a cleared status) from the n-th call on.

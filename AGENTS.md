@@ -3,7 +3,7 @@
 Guidance for any AI coding assistant working on this repository.
 
 ## What this is
-MPCvibedRPC is a small Windows tray app (Go, standard library only, one exe under 10 MB, nothing to install) that
+MPRP is a small Windows tray app (Go, standard library only, one exe under 10 MB, nothing to install) that
 shows what a video player is playing as a Discord status: "Watching <title>" with a progress bar, cover art, episode
 titles and the player's logo. It reads the players listed in the [README](README.md#-players), talks to the Discord
 desktop app over its local IPC pipe, and shows its settings in a local web page. It also runs on macOS (menu bar) and
@@ -13,7 +13,7 @@ Linux. Windows is the main system and its behaviour must not change for the othe
 ```bash
 go vet ./...
 go test -count=1 ./...
-go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/MPRP.exe ./cmd/mprp
 ```
 CI runs the rest (the race detector, the lint gates, macOS and Linux for real): see
 [development.md > CI](docs/development.md#ci).
@@ -24,7 +24,7 @@ CI runs the rest (the race detector, the lint gates, macOS and Linux for real): 
 2. [docs/development.md](docs/development.md): packages, how players are read, the engine's state, testing, CI, and
    the checklists for adding a player, setting, catalog or host. Before you run the program or a real player, read
    [Running the program safely](docs/development.md#running-the-program-safely): a *throwaway copy* is one started
-   with a data folder of its own (`MPCRPC_HOME`), so it cannot touch an installed copy.
+   with a data folder of its own (`MPRP_HOME`), so it cannot touch an installed copy.
 3. [docs/maintaining.md](docs/maintaining.md): releasing, screenshots, downloading release files.
 4. [docs/roadmap.md](docs/roadmap.md) before proposing a feature, a service or a distribution change (don't propose a
    listed non-goal without saying so), and [docs/decisions.md](docs/decisions.md) before changing listed behaviour.
@@ -41,11 +41,11 @@ Read the named sections, make the change, then run the tests named with it (and 
   [Packages](docs/development.md#packages-internal); run `go test ./internal/core` (the golden data must still pass).
 - **A window or UI fix:** [The window and the menu](docs/how-it-works.md#the-window-and-the-menu) and the
   `internal/assets` rows in [Packages](docs/development.md#packages-internal) and the window's look in
-  [design/settings-window.md](docs/design/settings-window.md); run `go test ./internal/assets ./cmd/mpcvibedrpc`
+  [design/settings-window.md](docs/design/settings-window.md); run `go test ./internal/assets ./cmd/mprp`
   (`TestPageScriptParses` needs Node.js).
 - **A new player:** [A new player](docs/development.md#a-new-player) and
-  [How players are read](docs/development.md#how-players-are-read); run `go test ./internal/engine ./cmd/mpcvibedrpc`.
-- **A new setting:** [A new setting](docs/development.md#a-new-setting); run `go test ./internal/store ./cmd/mpcvibedrpc`
+  [How players are read](docs/development.md#how-players-are-read); run `go test ./internal/engine ./cmd/mprp`.
+- **A new setting:** [A new setting](docs/development.md#a-new-setting); run `go test ./internal/store ./cmd/mprp`
   (`TestEverySettingIsDocumented` fails until `docs/config.md` has its row).
 
 ## Invariants: never break these
@@ -72,6 +72,6 @@ Read the named sections, make the change, then run the tests named with it (and 
 - The program is AI-generated; the README says so once, near the top, and that is enough. Never present the code as
   written by the repository maintainer. The idea comes from angeloanan/MPC-DiscordRPC (MIT), credited in the README,
   `LICENSE` and `THIRD-PARTY-NOTICES.md`.
-- Versions are `0.9.x`; the current one is in `cmd/mpcvibedrpc/main.go`. Changelog lines are short, one emoji each.
+- Versions are `0.9.x`; the current one is in `cmd/mprp/main.go`. Changelog lines are short, one emoji each.
 - Merging, tagging and publishing are outward-facing: do them only with the maintainer's go-ahead
   ([maintaining.md](docs/maintaining.md#rules-for-maintainers)).

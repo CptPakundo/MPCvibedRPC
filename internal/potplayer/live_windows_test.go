@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// TestLivePotPlayer asks a real PotPlayer on this computer (opt-in: MPCRPC_LIVE_POTPLAYER=1, with a local file playing)
+// TestLivePotPlayer asks a real PotPlayer on this computer (opt-in: MPRP_LIVE_POTPLAYER=1, with a local file playing)
 // and checks that it sends the file's path, so the Never show list can match folders.
 func TestLivePotPlayer(t *testing.T) {
-	if os.Getenv("MPCRPC_LIVE_POTPLAYER") == "" {
-		t.Skip("set MPCRPC_LIVE_POTPLAYER=1 with PotPlayer playing a local file")
+	if os.Getenv("MPRP_LIVE_POTPLAYER") == "" {
+		t.Skip("set MPRP_LIVE_POTPLAYER=1 with PotPlayer playing a local file")
 	}
 	found := Query()
 	for _, in := range found {

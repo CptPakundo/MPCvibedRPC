@@ -3,7 +3,7 @@ package plex
 import (
 	"regexp"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Item is what the server says about the video being played (library metadata; only the parts used).

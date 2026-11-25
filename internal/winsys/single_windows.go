@@ -14,7 +14,7 @@ var instanceMutex syscall.Handle
 // data folder dir is used by the other systems, which lock a file in it.) The handle stays open: Windows releases the
 // mutex when the process ends, and that is what keeps a second copy out until then (or until ReleaseSingleInstance).
 func AcquireSingleInstance(dir string) bool {
-	// The default install keeps the name it always had; a copy with a data folder of its own (MPCRPC_HOME) gets its
+	// The default install keeps the name it always had; a copy with a data folder of its own (MPRP_HOME) gets its
 	// own, like its autostart value, so it can run next to an installed copy.
 	name, _ := syscall.UTF16PtrFromString(`Local\` + runName() + `-single-instance`)
 	h, _, err := kernel32.NewProc("CreateMutexW").Call(0, 0, uintptr(unsafe.Pointer(name)))

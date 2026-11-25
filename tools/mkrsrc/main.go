@@ -1,8 +1,8 @@
 // mkrsrc writes a Windows resource object (.syso) holding the program's icon, version information and application manifest (per-monitor DPI awareness), so the
-// finished MPCvibedRPC.exe has an icon in Explorer and proper details in Task Manager. The Go linker picks the
+// finished MPRP.exe has an icon in Explorer and proper details in Task Manager. The Go linker picks the
 // .syso up automatically when it sits next to the main package. Standard library only.
 //
-//	go run ./tools/mkrsrc -icon internal/assets/icon.ico -version X.Y.Z -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
+//	go run ./tools/mkrsrc -icon internal/assets/icon.ico -version X.Y.Z -out cmd/mprp/rsrc_windows_amd64.syso
 package main
 
 import (
@@ -286,12 +286,12 @@ func versionInfo(version string) ([]byte, error) {
 	for _, kv := range [][2]string{
 		{"CompanyName", ""},
 		{"Comments", "Made with AI (vibe coded). MIT License, no warranty."},
-		{"FileDescription", "MPCvibedRPC - Discord Rich Presence for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby"},
+		{"FileDescription", "MPRP - Media Player Rich Presence: Discord status for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby"},
 		{"FileVersion", version},
-		{"InternalName", "MPCvibedRPC"},
+		{"InternalName", "MPRP"},
 		{"LegalCopyright", "MIT License"},
-		{"OriginalFilename", "MPCvibedRPC.exe"},
-		{"ProductName", "MPCvibedRPC"},
+		{"OriginalFilename", "MPRP.exe"},
+		{"ProductName", "MPRP"},
 		{"ProductVersion", version},
 	} {
 		strs = append(strs, str(kv[0], kv[1]))

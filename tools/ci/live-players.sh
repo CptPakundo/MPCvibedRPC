@@ -18,7 +18,7 @@ trap cleanup EXIT
 live() {
   local name="$1"; shift
   echo "== $name"
-  bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
+  bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPRP_LIVE_PLAYER="$name" MPRP_LIVE_TITLE="Sample Show" ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true; pid=""; sleep 1; }
 
@@ -26,44 +26,44 @@ stop_last() { kill "$pid" 2> /dev/null || true; wait "$pid" 2> /dev/null || true
 mpv --no-config --vo=null --ao=null --loop-file=inf --input-ipc-server="$tmp/mpvsocket" "$video" > /dev/null 2>&1 &
 pid=$!
 wait_socket "$tmp/mpvsocket"
-live mpv MPCRPC_LIVE_EVENTS=pipe # also: a pause shows at once, from mpv's event
+live mpv MPRP_LIVE_EVENTS=pipe # also: a pause shows at once, from mpv's event
 stop_last
 
 if [ "$os" = Linux ]; then
-  none="MPCRPC_LIVE_MPV_PIPE=/nonexistent/none" # so that mpv can only be found through MPRIS below
+  none="MPRP_LIVE_MPV_PIPE=/nonexistent/none" # so that mpv can only be found through MPRIS below
 
   cvlc --intf dummy --extraintf dbus --no-video --aout dummy --loop "$video" > /dev/null 2>&1 &
   pid=$!
   wait_bus org.mpris.MediaPlayer2.vlc
-  live VLC "$none" MPCRPC_LIVE_EVENTS=mpris
+  live VLC "$none" MPRP_LIVE_EVENTS=mpris
   stop_last
 
   mpv --vo=null --ao=null --loop-file=inf "$video" > /dev/null 2>&1 & # the mpv-mpris script is loaded from /etc/mpv/scripts
   pid=$!
   wait_bus org.mpris.MediaPlayer2.mpv
-  live mpv "$none" MPCRPC_LIVE_EVENTS=mpris
+  live mpv "$none" MPRP_LIVE_EVENTS=mpris
   stop_last
 
   xvfb-run -a celluloid --mpv-options="--ao=null --loop-file=inf" "$video" > /dev/null 2>&1 &
   pid=$!
   wait_bus "org.mpris.MediaPlayer2.*[Cc]elluloid" 240 # Celluloid's first start on a fresh runner once took over 20 s
-  live Celluloid "$none" MPCRPC_LIVE_EVENTS=mpris
+  live Celluloid "$none" MPRP_LIVE_EVENTS=mpris
   stop_last
   pkill -x celluloid || true # xvfb-run does not pass the signal on
 else
   echo "== IINA: the real program sets it up"
-  go build -o "$work/MPCvibedRPC" ./cmd/mpcvibedrpc
-  export MPCRPC_HOME="$work/home" MPCRPC_BROWSER=none MPCRPC_FOREGROUND=1
-  mkdir -p "$MPCRPC_HOME"
-  printf '%s' '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true},"port":1}' > "$MPCRPC_HOME/config.json"
+  go build -o "$work/MPRP" ./cmd/mprp
+  export MPRP_HOME="$work/home" MPRP_BROWSER=none MPRP_FOREGROUND=1
+  mkdir -p "$MPRP_HOME"
+  printf '%s' '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true},"port":1}' > "$MPRP_HOME/config.json"
   app="" port="" token=""
   # every wait below has a limit: a CI machine has nobody to answer a dialog
   start_app() {
-    "$work/MPCvibedRPC" &
+    "$work/MPRP" &
     app=$!
-    for _ in $(seq 1 60); do [ -s "$MPCRPC_HOME/ipc.json" ] && break; sleep 0.25; done
-    [ -s "$MPCRPC_HOME/ipc.json" ] || { echo "the program did not start"; exit 1; }
-    port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"
+    for _ in $(seq 1 60); do [ -s "$MPRP_HOME/ipc.json" ] && break; sleep 0.25; done
+    [ -s "$MPRP_HOME/ipc.json" ] || { echo "the program did not start"; exit 1; }
+    port="$(jq -r .port "$MPRP_HOME/ipc.json")"; token="$(jq -r .token "$MPRP_HOME/ipc.json")"
   }
   api() { curl -sf -m 60 -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data "$2" "http://127.0.0.1:$port/api/$1"; }
   stop_app() {
@@ -84,7 +84,7 @@ else
   cat "$work/setup2.json"; echo
   stop_app
   grep -q "IINA was already set up" "$work/setup2.json" || { echo "the second setup should find IINA set up"; exit 1; }
-  unset MPCRPC_HOME MPCRPC_BROWSER MPCRPC_FOREGROUND
+  unset MPRP_HOME MPRP_BROWSER MPRP_FOREGROUND
 
   echo "-- opening IINA"
   # by its path, not its name: a freshly installed app is not always registered with LaunchServices yet ("Unable to
@@ -92,7 +92,7 @@ else
   open -a /Applications/IINA.app "$video" &
   pid=$!
   wait_socket "$tmp/iina-mpvsocket" || { pgrep -lf IINA || echo "IINA is not running"; ls -la "$tmp"; exit 1; }
-  live IINA MPCRPC_LIVE_EVENTS=pipe
+  live IINA MPRP_LIVE_EVENTS=pipe
   pkill -x IINA || true # not AppleScript: macOS would ask whether this may control IINA, and nobody can answer
 fi
 echo "live player tests passed"

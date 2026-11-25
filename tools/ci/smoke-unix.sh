@@ -7,21 +7,21 @@ set -euo pipefail
 exe="$1"; version="$2"; app="${3:-}"
 os="$(uname -s)"
 work="$(mktemp -d)"
-export MPCRPC_HOME="$work/home" MPCRPC_BROWSER=none MPCRPC_FOREGROUND=1
+export MPRP_HOME="$work/home" MPRP_BROWSER=none MPRP_FOREGROUND=1
 export XDG_CONFIG_HOME="$work/config" # mpv.conf and the Linux autostart entry are written here, not in the real home
-mkdir -p "$MPCRPC_HOME" "$XDG_CONFIG_HOME/mpv" # an mpv folder: mpv counts as present for the setup
+mkdir -p "$MPRP_HOME" "$XDG_CONFIG_HOME/mpv" # an mpv folder: mpv counts as present for the setup
 quiet='{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true},"port":1}'
-printf '%s' "$quiet" > "$MPCRPC_HOME/config.json"
+printf '%s' "$quiet" > "$MPRP_HOME/config.json"
 
-fail() { echo "::error title=smoke-unix::$*"; [ -f "$MPCRPC_HOME/mpcvibedrpc.log" ] && tail -n 40 "$MPCRPC_HOME/mpcvibedrpc.log"; exit 1; }
+fail() { echo "::error title=smoke-unix::$*"; [ -f "$MPRP_HOME/mprp.log" ] && tail -n 40 "$MPRP_HOME/mprp.log"; exit 1; }
 wait_for() { # wait_for "what" command...
   local what="$1"; shift
   for _ in $(seq 1 60); do "$@" && return 0; sleep 0.25; done
   fail "timed out waiting for $what"
 }
-have_ipc() { [ -s "$MPCRPC_HOME/ipc.json" ] && curl -sf "http://127.0.0.1:$(jq -r .port "$MPCRPC_HOME/ipc.json")/api/ping" > /dev/null; }
+have_ipc() { [ -s "$MPRP_HOME/ipc.json" ] && curl -sf "http://127.0.0.1:$(jq -r .port "$MPRP_HOME/ipc.json")/api/ping" > /dev/null; }
 port=""; token=""
-read_ipc() { port="$(jq -r .port "$MPCRPC_HOME/ipc.json")"; token="$(jq -r .token "$MPCRPC_HOME/ipc.json")"; }
+read_ipc() { port="$(jq -r .port "$MPRP_HOME/ipc.json")"; token="$(jq -r .token "$MPRP_HOME/ipc.json")"; }
 get() { curl -sf -m 60 -H "X-Token: $token" "http://127.0.0.1:$port/api/$1"; }
 post() { curl -sf -m 60 -H "X-Token: $token" -H 'Content-Type: application/json' -X POST --data "${2:-"{}"}" "http://127.0.0.1:$port/api/$1"; }
 gone() { ! kill -0 "$1" 2> /dev/null; }
@@ -47,13 +47,13 @@ fi
 echo "state ok ($want_os)"
 
 echo "== run at login"
-if [ "$want_os" = darwin ]; then item_dir="$HOME/Library/LaunchAgents"; item_glob="io.github.cptpakundo.mpcvibedrpc-*.plist"
-else item_dir="$XDG_CONFIG_HOME/autostart"; item_glob="mpcvibedrpc-*.desktop"; fi
+if [ "$want_os" = darwin ]; then item_dir="$HOME/Library/LaunchAgents"; item_glob="io.github.cptpakundo.mprp-*.plist"
+else item_dir="$XDG_CONFIG_HOME/autostart"; item_glob="mprp-*.desktop"; fi
 [ "$(post save '{"app":{"autoStart":true}}' | jq -r .autoStart)" = true ] || fail "autoStart did not switch on"
 item="$(find "$item_dir" -name "$item_glob" 2> /dev/null | head -n 1)"
 [ -n "$item" ] || fail "no login item in $item_dir"
 grep -qF -- "--background" "$item" || fail "the login item does not start in the background"
-grep -qF -- "$MPCRPC_HOME" "$item" || fail "the login item does not keep the data folder"
+grep -qF -- "$MPRP_HOME" "$item" || fail "the login item does not keep the data folder"
 if [ "$want_os" = darwin ]; then plutil -lint "$item"
 elif command -v desktop-file-validate > /dev/null; then desktop-file-validate "$item"
 else echo "::warning title=smoke test::desktop-file-validate is not installed here, so the login item was not validated"; fi
@@ -75,7 +75,7 @@ jq -e '.message | contains("already set up")' <<< "$r" > /dev/null || fail "a se
 
 echo "== diagnostics"
 diag="$(get diagnostics | jq -r .text)"
-grep -q "MPCvibedRPC diagnostics" <<< "$diag" || fail "diagnostics"
+grep -q "MPRP diagnostics" <<< "$diag" || fail "diagnostics"
 ! grep -qF "$work" <<< "$diag" || fail "diagnostics leak a path"
 grep -m1 -i "system" <<< "$diag" || true
 
@@ -90,20 +90,20 @@ echo "== presence on and off (nothing plays: Discord stays on standby)"
 echo "== quit"
 post quit > /dev/null
 wait_for "the program to quit" gone "$pid"
-[ ! -e "$MPCRPC_HOME/ipc.json" ] || fail "ipc.json left behind"
+[ ! -e "$MPRP_HOME/ipc.json" ] || fail "ipc.json left behind"
 
 if [ -n "$app" ]; then
   echo "== macOS: open the app like the Finder does"
-  unset MPCRPC_FOREGROUND MPCRPC_BROWSER # the app's own window this time
+  unset MPRP_FOREGROUND MPRP_BROWSER # the app's own window this time
   swift tools/ci/windows.swift > /dev/null # compiled once, so the checks below are quick
   windows() { swift tools/ci/windows.swift | awk -F'\t' -v p="$1" -v l="$2" '$1 == p && $2 == l' | wc -l | tr -d ' '; }
   icons() { swift tools/ci/windows.swift | awk -F'	' '$2 == 25' | wc -l | tr -d ' '; } # menu bar icons, whoever draws them (macOS 26: Control Center)
   shot="${SCREENSHOT:-$work/screen.png}"
   icons_before="$(icons)"
-  open --env "MPCRPC_HOME=$MPCRPC_HOME" "$app"
+  open --env "MPRP_HOME=$MPRP_HOME" "$app"
   wait_for "the app to answer" have_ipc
   read_ipc
-  server="$(jq -r .pid "$MPCRPC_HOME/ipc.json")"
+  server="$(jq -r .pid "$MPRP_HOME/ipc.json")"
   sleep 5
   kill -0 "$server" || fail "the program did not keep running after the launcher left"
   ps -o args= -p "$server" | grep -q -- "--serve" || fail "the running copy should be the --serve one"
@@ -118,17 +118,17 @@ if [ -n "$app" ]; then
   echo "== macOS: the settings window"
   open "$app" # opening the app again: macOS tells the running app, which shows its window
   sleep 5
-  [ "$(jq -r .pid "$MPCRPC_HOME/ipc.json")" = "$server" ] || fail "opening the app again started another copy"
-  n="$(pgrep -f "MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC" | wc -l | tr -d ' ')"
+  [ "$(jq -r .pid "$MPRP_HOME/ipc.json")" = "$server" ] || fail "opening the app again started another copy"
+  n="$(pgrep -f "MPRP.app/Contents/MacOS/MPRP" | wc -l | tr -d ' ')"
   [ "$n" = 1 ] || fail "$n copies are running"
   [ "$(windows "$server" 0)" = 1 ] || { swift tools/ci/windows.swift; fail "the app should show exactly one window of its own"; }
-  ! pgrep -f -- "--user-data-dir=$MPCRPC_HOME/window" > /dev/null || fail "a browser was started for the window"
+  ! pgrep -f -- "--user-data-dir=$MPRP_HOME/window" > /dev/null || fail "a browser was started for the window"
   post open > /dev/null # once more: the same window comes forward, no second one
   sleep 2
   [ "$(windows "$server" 0)" = 1 ] || fail "a second window was opened"
   if screencapture -x "$shot" 2> /dev/null; then echo "screenshot: $shot"; fi
   echo "window ok"
-  grep -c "starting" "$MPCRPC_HOME/mpcvibedrpc.log" || true
+  grep -c "starting" "$MPRP_HOME/mprp.log" || true
   post quit > /dev/null
   wait_for "the app to quit" gone "$server"
 fi

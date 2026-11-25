@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // The stream title is for videos: a song stays "Listening to" with it on.

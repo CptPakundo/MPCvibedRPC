@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakePlex is plex.tv (the account's one server) and that Plex Media Server, in one test server. The answers are

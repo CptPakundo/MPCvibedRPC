@@ -14,7 +14,7 @@ func TestPlayersAreNamedEverywhere(t *testing.T) {
 	files := []string{
 		"README.md", "SECURITY.md",
 		"docs/how-it-works.md", "docs/troubleshooting.md", "docs/development.md", "docs/config.md",
-		"cmd/mpcvibedrpc/main.go",   // the header comment
+		"cmd/mprp/main.go",          // the header comment
 		"tools/mkrsrc/main.go",      // the exe's file description
 		"internal/assets/ui.js",     // the welcome and help texts
 		"internal/engine/engine.go", // the package comment and Status.Player

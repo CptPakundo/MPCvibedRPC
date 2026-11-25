@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // recCand is a candidate as the recorded data writes it.

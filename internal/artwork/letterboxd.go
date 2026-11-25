@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Letterboxd (letterboxdLink): letterboxd.com/imdb/<id>/ and, for films, /tmdb/<id>/ redirect to the title's page

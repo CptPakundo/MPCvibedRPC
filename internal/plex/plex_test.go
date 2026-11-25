@@ -56,7 +56,7 @@ func fakeTV(t *testing.T, resources string) (*httptest.Server, *int) {
 		}
 		switch {
 		case r.Method == "POST" && r.URL.Path == "/api/v2/pins" && r.URL.Query().Get("strong") == "true":
-			fmt.Fprint(w, `{"id":4242,"code":"samplecode","product":"MPCvibedRPC","trusted":false,"clientIdentifier":"test-client","expiresIn":1800,"authToken":null,"newRegistration":null}`)
+			fmt.Fprint(w, `{"id":4242,"code":"samplecode","product":"MPRP","trusted":false,"clientIdentifier":"test-client","expiresIn":1800,"authToken":null,"newRegistration":null}`)
 		case r.Method == "GET" && r.URL.Path == "/api/v2/pins/4242":
 			checks++
 			if checks < 3 {

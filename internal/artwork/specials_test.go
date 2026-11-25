@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakeSpecials answers like Cinemeta for "Sample Show" (tt0000555): two specials as season 0, then a season of six.

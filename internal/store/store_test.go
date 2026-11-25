@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
 type goldenStep struct {

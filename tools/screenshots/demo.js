@@ -11,7 +11,7 @@
     preview: {
       watching: true, name: 'Sample Show', details: 'S01E02 · Episode title', state: 'Drama, Mystery · ★ 8.1',
       largeText: 'Season 1, Episode 2', start, end: start + 2880000, button: 'View on IMDb', button2: 'View on TVmaze',
-      smallImage: 'https://raw.githubusercontent.com/CptPakundo/MPCvibedRPC/master/docs/players/mpc-hc.png', smallText: 'Media Player Classic',
+      smallImage: 'https://raw.githubusercontent.com/CptPakundo/MPRP/master/docs/players/mpc-hc.png', smallText: 'Media Player Classic',
     },
   };
   const stats = { since: '2026-10-01', videos: 14, matched: 11, watchedMs: 19260000, players: { 'MPC-HC': 9, Plex: 4, VLC: 1 } };

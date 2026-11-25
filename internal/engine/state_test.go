@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
 )
 
 // count is how many log lines contain sub.
@@ -196,10 +196,10 @@ func TestSettingsChangeDuringASendLeavesNoError(t *testing.T) {
 // restarts; the settings change; the engine is stopped and started), once things are quiet Discord must show
 // exactly what the player's last state calls for: one status for the file that plays, or none.
 //
-// Eight fixed orders run every time. MPCRPC_CONVERGE_SEEDS=500 tries that many (for a hunt after a change to the tick).
+// Eight fixed orders run every time. MPRP_CONVERGE_SEEDS=500 tries that many (for a hunt after a change to the tick).
 func TestStatusConverges(t *testing.T) {
 	seeds := int64(8)
-	if n, err := strconv.ParseInt(os.Getenv("MPCRPC_CONVERGE_SEEDS"), 10, 64); err == nil && n > 0 {
+	if n, err := strconv.ParseInt(os.Getenv("MPRP_CONVERGE_SEEDS"), 10, 64); err == nil && n > 0 {
 		seeds = n
 	}
 	for seed := int64(1); seed <= seeds; seed++ {

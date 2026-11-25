@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 func TestStatsCountWhatIsShownAndStayOnThisComputer(t *testing.T) {

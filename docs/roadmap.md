@@ -1,6 +1,6 @@
 # Roadmap
 
-Where MPCvibedRPC is heading, what it deliberately leaves out, and the outside changes it has to watch. It comes from
+Where MPRP is heading, what it deliberately leaves out, and the outside changes it has to watch. It comes from
 a research pass over Discord's documentation, the projects the program reads from, similar presence tools and their
 users, and distribution channels (last reviewed 2026-11-25, with 0.9.58).
 
@@ -28,7 +28,7 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
    change that touches no player or Discord setting leaves the connection open (an engine test against the fake Discord).
 2. **Behaviour tests for the settings page's script** (`internal/assets/ui.js`): a few tests with a stubbed `fetch` for
    the saver and the status sync. Today only `TestPageScriptParses` (`node --check`) covers it.
-3. **Tests for how the window's X quits** (`cmd/mpcvibedrpc/window.go`): the order of the dropped `/api/alive`
+3. **Tests for how the window's X quits** (`cmd/mprp/window.go`): the order of the dropped `/api/alive`
    connection and the window-handle polling. Also check whether `inTray` stays true when closing the window fails; if
    it does, a later X would not quit.
 4. **Historic names in the code.** The API's `mpc-web`, `winsys.EnableMpcWebInterface` and `Status.MPC` cover every
@@ -45,7 +45,7 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
     canary uses it. Add a retry or another source ([known flaky checks](development.md#known-flaky-checks)).
 10. **Fix a match, first version** (settled 2026-11-25; part of version 0.9.60). Build what
     [design/fix-a-match.md](design/fix-a-match.md) describes: the dialog and the list with the scope choice, covers from
-    the other catalogs, offsets and "Tell the project". *Where:* `internal/artwork`, the `cmd/mpcvibedrpc` API,
+    the other catalogs, offsets and "Tell the project". *Where:* `internal/artwork`, the `cmd/mprp` API,
     `internal/assets` (the window), `core.Config` and the store schema (`matchFixes`), the docs. Done when the dialog and
     the list replace the two text boxes, old `artworkAliases` and `artworkOverrides` lines still act as before (they
     become fixes once), and the tests the design names pass.
@@ -56,7 +56,7 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
     golden data byte for byte, Custom lines show on the card, and the tests the design names pass.
 12. **The update notices on Linux and macOS** (settled 2026-11-25; part of version 0.9.60). Windows already shows three
     native notifications through the tray (`Tray.Balloon`): "updated to <version>" once after an automatic update
-    (`cmd/mpcvibedrpc/app.go`, `autoFrom`), "could not update to ..." after a rollback, and "<version> is available"
+    (`cmd/mprp/app.go`, `autoFrom`), "could not update to ..." after a rollback, and "<version> is available"
     when automatic installs are off (`update.go`). Linux and macOS show none (`Balloon` returns false in
     `internal/winsys/tray_other.go` and `macapp_darwin.go`). Bring the same three there: Linux through the desktop
     notification service over D-Bus (`org.freedesktop.Notifications`, with `internal/dbus`), macOS through the menu bar

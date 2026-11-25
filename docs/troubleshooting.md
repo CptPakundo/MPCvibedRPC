@@ -11,7 +11,7 @@ is listed in [All settings](config.md). **Help > Run a check** tells you in a fe
 - IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
 - MPC-QT needs no setup (it is read through its own connection); MPC-BE is set up like MPC-HC, with the same button.
 - macOS 15 or later: a Plex, Jellyfin, Emby or Kodi server on your home network can't be reached until you allow it.
-  Answer **Allow** when macOS asks, or turn MPCvibedRPC on under System Settings > Privacy & Security > Local Network.
+  Answer **Allow** when macOS asks, or turn MPRP on under System Settings > Privacy & Security > Local Network.
 - "Discord on standby" is normal: showing is on, and the program contacts Discord only once something plays. If it
   stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser) and check that
   "Share my activity" is on ([where](../README.md#-getting-started)).
@@ -123,7 +123,7 @@ stays in the menu bar); minimizing it on Windows sends it to the tray.
 
 ## Wrong title or no cover
 
-The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) shows each title next to the file name it was read
+The log (**Help** tab, or `mprp.log` in the settings folder) shows each title next to the file name it was read
 from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each catalog
 returned. Under **Titles & art > Fix a match** you can search under another name or pin your own cover image: start
 each line with the title as the log shows it after `Playing:` ([an example](how-it-works.md#fixing-a-match)). A free
@@ -132,8 +132,8 @@ cover the first time: TVmaze answers a search slowly until it has it cached.
 
 ## Where are my settings? How do I remove it?
 
-Everything is in `%LOCALAPPDATA%\MPCvibedRPC` (macOS: `~/Library/Application Support/MPCvibedRPC`; Linux:
-`~/.local/share/MPCvibedRPC`): settings, log, cover cache, your stats, and the window's own browser profile (your
+Everything is in `%LOCALAPPDATA%\MPRP` (macOS: `~/Library/Application Support/MPRP`; Linux:
+`~/.local/share/MPRP`): settings, log, cover cache, your stats, and the window's own browser profile (your
 regular browser is left alone). **Open settings folder** (**Advanced > Maintenance**) opens it. Every setting with its
 default is in [docs/config.md](config.md).
 
@@ -178,4 +178,4 @@ them.
 On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the current title was found
 (the file name, what was read from it, which catalog matched) and the recent log. It names the titles and file names you
 played (that is how a wrong title is traced); folder paths, sign-ins and keys are left out. Paste it into a
-[new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
+[new issue](https://github.com/CptPakundo/MPRP/issues/new/choose).

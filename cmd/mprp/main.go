@@ -1,4 +1,4 @@
-// MPCvibedRPC: shows what MPC-HC, MPC-BE, MPC-QT, mpv, VLC or PotPlayer (on macOS also IINA; on Linux any video player
+// MPRP: shows what MPC-HC, MPC-BE, MPC-QT, mpv, VLC or PotPlayer (on macOS also IINA; on Linux any video player
 // that offers MPRIS), Kodi, or Plex, Jellyfin, Emby or Stremio once signed in, is playing as a Discord Rich Presence. Runs from
 // the tray on Windows and in the background on macOS and Linux; the settings are a small local web page opened in an
 // app-style window.
@@ -19,12 +19,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/capture"
-	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/capture"
+	"github.com/CptPakundo/MPRP/internal/conns"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // version is set at build time (-ldflags "-X main.version=...").
@@ -45,9 +45,9 @@ func main() {
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--home": // a data folder of its own, as MPCRPC_HOME gives (Windows run-at-login passes it this way)
+		case "--home": // a data folder of its own, as MPRP_HOME gives (Windows run-at-login passes it this way)
 			if i+1 < len(args) {
-				os.Setenv("MPCRPC_HOME", args[i+1])
+				os.Setenv("MPRP_HOME", args[i+1])
 				i++
 			}
 		case "--background":
@@ -69,7 +69,7 @@ func main() {
 	if detach() {
 		return
 	}
-	if v := os.Getenv("MPCRPC_UPDATE_API"); v != "" { // tests and self-hosted mirrors
+	if v := os.Getenv("MPRP_UPDATE_API"); v != "" { // tests and self-hosted mirrors
 		updater.APIBase = strings.TrimRight(v, "/")
 		updater.WebBase = updater.APIBase
 	}
@@ -89,7 +89,7 @@ func main() {
 }
 
 func crash(msg string) {
-	f, err := os.OpenFile(filepath.Join(os.TempDir(), "mpcvibedrpc-crash.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(os.TempDir(), "mprp-crash.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err == nil {
 		fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339), msg)
 		f.Close()
@@ -123,7 +123,7 @@ func pingExisting(ipcFile string) *ipcInfo {
 		App string `json:"app"`
 		Pid int    `json:"pid"`
 	}
-	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&p) != nil || p.App != "MPCvibedRPC" {
+	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&p) != nil || p.App != "MPRP" {
 		return nil
 	}
 	// A file left by a copy that crashed can name a port that another copy (one with its own data folder) answers on

@@ -15,8 +15,8 @@ trap cleanup EXIT
 live() {
   local name="$1"; shift
   echo "== $name ($(flatpak info "$app" | sed -n 's/^ *Version: //p'))"
-  bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Show" \
-    MPCRPC_LIVE_MPV_PIPE=/nonexistent/none MPCRPC_LIVE_EVENTS=mpris ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
+  bash "$(dirname "$0")/must-pass.sh" TestLivePlayer env MPRP_LIVE_PLAYER="$name" MPRP_LIVE_TITLE="Sample Show" \
+    MPRP_LIVE_MPV_PIPE=/nonexistent/none MPRP_LIVE_EVENTS=mpris ${1+"$@"} go test -count=1 -timeout 5m -run TestLivePlayer -v ./internal/engine
 }
 stop_last() { flatpak kill "$app" 2> /dev/null || true; app=""; sleep 2; }
 
@@ -40,7 +40,7 @@ app=io.mpv.Mpv
 xvfb-run -a flatpak run --filesystem="$videos:ro" --filesystem="$sockdir" "$app" --no-config --vo=null --ao=null \
   --loop-file=inf --input-ipc-server="$sockdir/mpvsocket" "$video" > /dev/null 2>&1 &
 wait_socket "$sockdir/mpvsocket"
-live mpv MPCRPC_LIVE_MPV_PIPE="$sockdir/mpvsocket" MPCRPC_LIVE_EVENTS=pipe
+live mpv MPRP_LIVE_MPV_PIPE="$sockdir/mpvsocket" MPRP_LIVE_EVENTS=pipe
 stop_last
 
 app=org.videolan.VLC

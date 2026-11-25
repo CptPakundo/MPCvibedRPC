@@ -21,7 +21,7 @@ win_video="$(cygpath -w "$video")"
 
 live() { # live NAME [VAR=value ...]: the live engine test, which must really run and pass
   local name="$1"; shift
-  env MPCRPC_LIVE_PLAYER="$name" MPCRPC_LIVE_TITLE="Sample Movie" "$@" \
+  env MPRP_LIVE_PLAYER="$name" MPRP_LIVE_TITLE="Sample Movie" "$@" \
     "$here/must-pass.sh" TestLivePlayer go test -count=1 -v -run TestLivePlayer ./internal/engine
 }
 
@@ -31,7 +31,7 @@ pot="$(ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files
 "$pot" "$win_video" &
 sleep 10
 live PotPlayer
-MPCRPC_LIVE_POTPLAYER=1 "$here/must-pass.sh" TestLivePotPlayer go test -count=1 -v -run TestLivePotPlayer ./internal/potplayer
+MPRP_LIVE_POTPLAYER=1 "$here/must-pass.sh" TestLivePotPlayer go test -count=1 -v -run TestLivePotPlayer ./internal/potplayer
 taskkill //F //IM "$(basename "$pot")" > /dev/null || true
 echo "::endgroup::"
 
@@ -60,7 +60,7 @@ file_json="$(printf '%s' "$win_video" | sed 's/\\/\\\\/g')"
 rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Player.Open\",\"params\":{\"item\":{\"file\":\"$file_json\"}}}"
 echo
 sleep 8
-live Kodi MPCRPC_LIVE_KODI_PASSWORD=ci-secret MPCRPC_LIVE_EVENTS=kodi # also: a pause shows at once, from Kodi's notification
+live Kodi MPRP_LIVE_KODI_PASSWORD=ci-secret MPRP_LIVE_EVENTS=kodi # also: a pause shows at once, from Kodi's notification
 taskkill //F //IM kodi.exe > /dev/null || true
 echo "::endgroup::"
 

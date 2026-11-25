@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 // Watcher asks one server's session list what the user plays there, every few seconds. Run it in a goroutine; Now is

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus/dbustest"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/dbus/dbustest"
 )
 
 // Watch reports a player that pauses, seeks or changes file, and nothing else, and returns when the bus goes away.

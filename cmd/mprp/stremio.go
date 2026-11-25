@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/stremio"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/stremio"
 )
 
 // stremioAccount drives "Sign in to Stremio": a code the user approves on stremio.com in their browser, after which

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Every setting, with its default, has a row in docs/config.md: the program's settings (core.Config) and its own

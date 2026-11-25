@@ -130,7 +130,7 @@ static void macTrayCreate(const void *png, int len, const char *tip) {
 		hideItem = menuItem(m, @"Hide what I'm watching", @"", 4);
 		streamItem = menuItem(m, @"Show the title on my streams", @"", 5);
 		[m addItem:[NSMenuItem separatorItem]];
-		menuItem(m, @"Quit MPCvibedRPC", @"q", 3);
+		menuItem(m, @"Quit MPRP", @"q", 3);
 		item.menu = m;
 	});
 }
@@ -178,7 +178,7 @@ static void macShowWindow(const char *url) {
 				styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
 				backing:NSBackingStoreBuffered defer:NO];
 			window.releasedWhenClosed = NO;
-			window.title = @"MPCvibedRPC";
+			window.title = @"MPRP";
 			window.delegate = controller;
 			window.minSize = NSMakeSize(420, 400);
 			// minimized, the window shows in the Dock as the app's logo (a web view's snapshot comes out blank)
@@ -279,7 +279,7 @@ type menuState struct {
 }
 
 func (t *Tray) state() menuState {
-	st := menuState{tip: "MPCvibedRPC"}
+	st := menuState{tip: "MPRP"}
 	if t.o.Tooltip != nil {
 		st.tip = t.o.Tooltip()
 	}

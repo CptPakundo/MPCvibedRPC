@@ -22,7 +22,7 @@ func TestBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"## MPCvibedRPC 9.9.9\n", "- 🧹 Sample line one.\n- 🔒 Sample line two.\n", "### Get it", "MPCvibedRPC.exe"} {
+	for _, want := range []string{"## MPRP 9.9.9\n", "- 🧹 Sample line one.\n- 🔒 Sample line two.\n", "### Get it", "MPRP.exe"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %q in:\n%s", want, text)
 		}
@@ -59,7 +59,7 @@ func TestRealChangelogRenders(t *testing.T) {
 	v := string(raw[i+len(`"version": "`):])
 	v = v[:strings.Index(v, `"`)]
 	text, err := build(v, path, filepath.Join(t.TempDir(), "none.md"))
-	if err != nil || !strings.HasPrefix(text, "## MPCvibedRPC "+v+"\n") {
+	if err != nil || !strings.HasPrefix(text, "## MPRP "+v+"\n") {
 		t.Fatalf("%v\n%s", err, text)
 	}
 }

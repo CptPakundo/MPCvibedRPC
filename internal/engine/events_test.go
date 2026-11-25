@@ -14,9 +14,9 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus/dbustest"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/dbus/dbustest"
 )
 
 // With mpv's events, a pause shows at once although the next regular check is a minute away.

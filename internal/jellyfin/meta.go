@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Item is what the server says about what a session plays (the parts used).

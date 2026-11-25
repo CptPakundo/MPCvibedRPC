@@ -1,5 +1,5 @@
 // Package updater updates the program from GitHub Releases. Publish a release whose tag is a version ("v1.2.0")
-// with the program for each system (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...; see AssetFor) and a .sha256 next
+// with the program for each system (MPRP.exe, MPRP-linux-amd64, ...; see AssetFor) and a .sha256 next
 // to each (without one the app only links to the release); the app offers it, downloads it and swaps itself in. The
 // files must come from GitHub (see allowedHost). On macOS it only offers the release page.
 package updater
@@ -28,13 +28,13 @@ import (
 // program is an app bundle, and the user is sent to the release page instead).
 var Asset = AssetFor(runtime.GOOS, runtime.GOARCH)
 
-// AssetFor names the release file of a system: MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...
+// AssetFor names the release file of a system: MPRP.exe, MPRP-linux-amd64, ...
 func AssetFor(goos, goarch string) string {
 	switch {
 	case goos == "windows":
-		return "MPCvibedRPC.exe"
+		return "MPRP.exe"
 	case goos == "linux" && (goarch == "amd64" || goarch == "arm64"):
-		return "MPCvibedRPC-linux-" + goarch
+		return "MPRP-linux-" + goarch
 	}
 	return ""
 }
@@ -151,7 +151,7 @@ func get(ctx context.Context, client *http.Client, addr, accept, etag string) (*
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "MPCvibedRPC")
+	req.Header.Set("User-Agent", "MPRP")
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}

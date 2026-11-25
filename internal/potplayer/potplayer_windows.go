@@ -9,7 +9,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // The messages, sent as WM_USER with one of these in wParam. The answers come back as the result, except the file
@@ -96,7 +96,7 @@ var (
 
 func setup() {
 	hinst, _, _ = pGetModuleHandle.Call(0)
-	replyCls, _ = syscall.UTF16PtrFromString("MPCvibedRPC.PotPlayerReply")
+	replyCls, _ = syscall.UTF16PtrFromString("MPRP.PotPlayerReply")
 	wc := wndClassEx{lpfnWndProc: syscall.NewCallback(replyProc), hInstance: hinst, lpszClassName: replyCls}
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
 	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))

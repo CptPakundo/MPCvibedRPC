@@ -48,7 +48,7 @@ echo "sample episode: $rk"
 ) &
 feed=$!
 
-MPCRPC_LIVE_PLAYER=Plex MPCRPC_LIVE_TITLE="Sample Show - S01E02" MPCRPC_LIVE_PLEX_ADDRESS="$P" \
+MPRP_LIVE_PLAYER=Plex MPRP_LIVE_TITLE="Sample Show - S01E02" MPRP_LIVE_PLEX_ADDRESS="$P" \
   bash "$(dirname "$0")/must-pass.sh" TestLivePlayer go test -count=1 -timeout 3m -run TestLivePlayer -v ./internal/engine
 
 done_file

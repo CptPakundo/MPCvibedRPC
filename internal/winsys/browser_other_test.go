@@ -9,14 +9,14 @@ import (
 
 func TestProfilePids(t *testing.T) {
 	ps := `    1 /sbin/init
-  200 /opt/google/chrome/chrome --app=http://127.0.0.1:47654/?t=x --user-data-dir=/home/someone/.local/share/MPCvibedRPC/window --no-first-run
-  201 /opt/google/chrome/chrome --type=renderer --user-data-dir=/home/someone/.local/share/MPCvibedRPC/window --lang=en
-  202 /opt/google/chrome/chrome --user-data-dir=/home/someone/.local/share/MPCvibedRPC/window2
+  200 /opt/google/chrome/chrome --app=http://127.0.0.1:47654/?t=x --user-data-dir=/home/someone/.local/share/MPRP/window --no-first-run
+  201 /opt/google/chrome/chrome --type=renderer --user-data-dir=/home/someone/.local/share/MPRP/window --lang=en
+  202 /opt/google/chrome/chrome --user-data-dir=/home/someone/.local/share/MPRP/window2
   203 /opt/google/chrome/chrome
-  300 /home/someone/MPCvibedRPC --user-data-dir=/home/someone/.local/share/MPCvibedRPC/window
+  300 /home/someone/MPRP --user-data-dir=/home/someone/.local/share/MPRP/window
   bad line
 `
-	got := profilePids(ps, "/home/someone/.local/share/MPCvibedRPC/window", 300)
+	got := profilePids(ps, "/home/someone/.local/share/MPRP/window", 300)
 	if !reflect.DeepEqual(got, []int{200, 201}) {
 		t.Errorf("got %v, want [200 201] (not another profile, not the user's browser, not ourselves)", got)
 	}

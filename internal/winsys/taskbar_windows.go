@@ -79,7 +79,7 @@ func NameWindow(profileDir string) bool {
 	if err != nil || profileDir == "" {
 		return false
 	}
-	id, name, command, icon := windowIdentity(exe, os.Getenv("MPCRPC_HOME"))
+	id, name, command, icon := windowIdentity(exe, os.Getenv("MPRP_HOME"))
 	for deadline := time.Now().Add(nameWindowFor); ; time.Sleep(nameWindowEvery) {
 		if w, ok := findWindow(profileDir); ok {
 			// the ID first: the other three belong to it

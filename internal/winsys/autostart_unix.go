@@ -9,7 +9,7 @@ import (
 )
 
 // Run at login on macOS (a LaunchAgent) and Linux (an XDG autostart entry, which every desktop reads). The file is the
-// source of truth, as the registry value is on Windows; a copy with its own MPCRPC_HOME gets a file of its own.
+// source of truth, as the registry value is on Windows; a copy with its own MPRP_HOME gets a file of its own.
 
 // loginItemPath is where the login item of this copy lives on goos ("" when the home folder is unknown).
 func loginItemPath(goos, home, xdgConfig string) string {
@@ -47,16 +47,16 @@ func loginItem(goos, exe, mpcHome string) string {
 	</array>
 `)
 		if mpcHome != "" {
-			b.WriteString("\t<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>MPCRPC_HOME</key>\n\t\t<string>" + x(mpcHome) + "</string>\n\t</dict>\n")
+			b.WriteString("\t<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>MPRP_HOME</key>\n\t\t<string>" + x(mpcHome) + "</string>\n\t</dict>\n")
 		}
 		b.WriteString("\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>ProcessType</key>\n\t<string>Interactive</string>\n</dict>\n</plist>\n")
 		return b.String()
 	}
 	cmd := execQuote(exe) + " --background"
 	if mpcHome != "" {
-		cmd = "env " + execQuote("MPCRPC_HOME="+mpcHome) + " " + cmd
+		cmd = "env " + execQuote("MPRP_HOME="+mpcHome) + " " + cmd
 	}
-	return "[Desktop Entry]\nType=Application\nName=MPCvibedRPC\nComment=Shows what your video player is playing on Discord\n" +
+	return "[Desktop Entry]\nType=Application\nName=MPRP\nComment=Shows what your video player is playing on Discord\n" +
 		"Exec=" + cmd + "\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
 }
 
@@ -126,5 +126,5 @@ func setLoginItem(enabled bool, exe string) bool {
 	if os.MkdirAll(filepath.Dir(p), 0o755) != nil {
 		return false
 	}
-	return os.WriteFile(p, []byte(loginItem(runtime.GOOS, exe, os.Getenv("MPCRPC_HOME"))), 0o644) == nil
+	return os.WriteFile(p, []byte(loginItem(runtime.GOOS, exe, os.Getenv("MPRP_HOME"))), 0o644) == nil
 }

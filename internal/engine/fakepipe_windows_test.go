@@ -42,7 +42,7 @@ func fakePath(string) string {
 	pipeCounterMu.Lock()
 	defer pipeCounterMu.Unlock()
 	pipeCounter++
-	return fmt.Sprintf(`\\.\pipe\mpcvibedrpc-test-%d-%d`, os.Getpid(), pipeCounter)
+	return fmt.Sprintf(`\\.\pipe\mprp-test-%d-%d`, os.Getpid(), pipeCounter)
 }
 
 type pipeListener struct {

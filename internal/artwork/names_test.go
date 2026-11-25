@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // A film named "<Title>: A <Franchise> Mystery" loses its colon in a file name; the catalogs list "<Title>".

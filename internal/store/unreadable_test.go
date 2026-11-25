@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
 func patchOf(t *testing.T, js string) *jsonx.Obj {

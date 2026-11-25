@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 var (
@@ -88,7 +88,7 @@ func Address(s string) (string, error) {
 // Authorization header ("MediaBrowser" scheme); Emby reads X-Emby-Authorization ("Emby" scheme) and X-Emby-Token.
 func (c *Client) auth(req *http.Request, token string) {
 	q := func(s string) string { return `"` + strings.NewReplacer(`"`, "", ",", " ").Replace(s) + `"` }
-	parts := `Client=` + q("MPCvibedRPC") + `, Device=` + q("MPCvibedRPC on "+remote.OSName()) + `, DeviceId=` + q(c.DeviceID) + `, Version=` + q(c.Version)
+	parts := `Client=` + q("MPRP") + `, Device=` + q("MPRP on "+remote.OSName()) + `, DeviceId=` + q(c.DeviceID) + `, Version=` + q(c.Version)
 	if token != "" {
 		parts += `, Token=` + q(token)
 		req.Header.Set("X-Emby-Token", token)

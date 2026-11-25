@@ -7,10 +7,10 @@ and testing. Bug reports, reviews and pull requests with tests are welcome all t
 1. Install [Go](https://go.dev/dl/) at the version in `go.mod` (the `go` line) and clone the repository. The default
    branch is `master`.
 2. Run the checks: `go vet ./...` and `go test -count=1 ./...`.
-3. Build: `go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.0.0" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc`
+3. Build: `go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=0.0.0" -o dist/MPRP.exe ./cmd/mprp`
    (other systems: [development.md](docs/development.md#building-and-running)).
 4. Before you start the program you built, read [Running the program safely](docs/development.md#running-the-program-safely):
-   a copy with its own data folder (`MPCRPC_HOME`) leaves your installed copy, Discord and players alone.
+   a copy with its own data folder (`MPRP_HOME`) leaves your installed copy, Discord and players alone.
 
 Optional tools:
 - **Node.js**: `TestPageScriptParses` checks the settings page's script with `node --check`; without Node.js it skips.
@@ -23,7 +23,7 @@ Optional tools:
   Run them as CI does: `govulncheck ./...`, `staticcheck -checks inherit,-ST1005 ./...` and `deadcode -test ./...`.
 
 ## How to help
-- **Bugs:** use the [issue templates](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose). On the **Help** tab,
+- **Bugs:** use the [issue templates](https://github.com/CptPakundo/MPRP/issues/new/choose). On the **Help** tab,
   **Copy diagnostics** gives a report to attach; what it contains is in
   [Troubleshooting](docs/troubleshooting.md#reporting-a-problem). Look through it before you post it.
 - **Security problems:** report them privately, as described in [SECURITY.md](SECURITY.md), not in a public issue.

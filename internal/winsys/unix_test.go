@@ -7,66 +7,66 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 func TestLoginItemPaths(t *testing.T) {
-	t.Setenv("MPCRPC_HOME", "")
+	t.Setenv("MPRP_HOME", "")
 	home := filepath.Join("home", "someone")
-	if got, want := loginItemPath("darwin", home, ""), filepath.Join(home, "Library", "LaunchAgents", "io.github.cptpakundo.mpcvibedrpc.plist"); got != want {
+	if got, want := loginItemPath("darwin", home, ""), filepath.Join(home, "Library", "LaunchAgents", "io.github.cptpakundo.mprp.plist"); got != want {
 		t.Errorf("macOS: %s, want %s", got, want)
 	}
-	if got, want := loginItemPath("linux", home, ""), filepath.Join(home, ".config", "autostart", "mpcvibedrpc.desktop"); got != want {
+	if got, want := loginItemPath("linux", home, ""), filepath.Join(home, ".config", "autostart", "mprp.desktop"); got != want {
 		t.Errorf("Linux: %s, want %s", got, want)
 	}
-	if got, want := loginItemPath("linux", home, filepath.Join("cfg")), filepath.Join("cfg", "autostart", "mpcvibedrpc.desktop"); got != want {
+	if got, want := loginItemPath("linux", home, filepath.Join("cfg")), filepath.Join("cfg", "autostart", "mprp.desktop"); got != want {
 		t.Errorf("Linux with XDG_CONFIG_HOME: %s, want %s", got, want)
 	}
 	if loginItemPath("linux", "", "") != "" || loginItemPath("darwin", "", "x") != "" {
 		t.Error("no home folder, no login item")
 	}
 	// a copy with a data folder of its own gets a login item of its own
-	t.Setenv("MPCRPC_HOME", filepath.Join("tmp", "test-copy"))
+	t.Setenv("MPRP_HOME", filepath.Join("tmp", "test-copy"))
 	p := loginItemPath("linux", home, "")
-	if !strings.Contains(p, "mpcvibedrpc-") || p == filepath.Join(home, ".config", "autostart", "mpcvibedrpc.desktop") {
+	if !strings.Contains(p, "mprp-") || p == filepath.Join(home, ".config", "autostart", "mprp.desktop") {
 		t.Errorf("isolated copy: %s", p)
 	}
 }
 
 func TestLoginItemContent(t *testing.T) {
-	t.Setenv("MPCRPC_HOME", "")
-	plist := loginItem("darwin", "/Applications/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC", "")
-	for _, want := range []string{"<string>io.github.cptpakundo.mpcvibedrpc</string>",
-		"<string>/Applications/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC</string>", "<string>--background</string>", "<key>RunAtLoad</key>\n\t<true/>"} {
+	t.Setenv("MPRP_HOME", "")
+	plist := loginItem("darwin", "/Applications/MPRP.app/Contents/MacOS/MPRP", "")
+	for _, want := range []string{"<string>io.github.cptpakundo.mprp</string>",
+		"<string>/Applications/MPRP.app/Contents/MacOS/MPRP</string>", "<string>--background</string>", "<key>RunAtLoad</key>\n\t<true/>"} {
 		if !strings.Contains(plist, want) {
 			t.Errorf("plist lacks %q:\n%s", want, plist)
 		}
 	}
-	if strings.Contains(plist, "MPCRPC_HOME") {
+	if strings.Contains(plist, "MPRP_HOME") {
 		t.Error("no data folder of its own, no environment")
 	}
 	if v, err := parsePlist(strings.NewReader(plist)); err != nil || v.(map[string]any)["RunAtLoad"] != true {
 		t.Errorf("the plist must be readable: %v %v", v, err)
 	}
 	// odd characters are escaped
-	plist = loginItem("darwin", "/Apps/A & B <x>/MPCvibedRPC", "/data/My \"copy\"")
-	if !strings.Contains(plist, "A &amp; B &lt;x&gt;") || !strings.Contains(plist, "<key>MPCRPC_HOME</key>") {
+	plist = loginItem("darwin", "/Apps/A & B <x>/MPRP", "/data/My \"copy\"")
+	if !strings.Contains(plist, "A &amp; B &lt;x&gt;") || !strings.Contains(plist, "<key>MPRP_HOME</key>") {
 		t.Errorf("escaping:\n%s", plist)
 	}
 	if v, err := parsePlist(strings.NewReader(plist)); err != nil {
 		t.Errorf("escaped plist unreadable: %v", err)
-	} else if args := v.(map[string]any)["ProgramArguments"].([]any); args[0] != "/Apps/A & B <x>/MPCvibedRPC" {
+	} else if args := v.(map[string]any)["ProgramArguments"].([]any); args[0] != "/Apps/A & B <x>/MPRP" {
 		t.Errorf("program: %v", args)
 	}
 
-	desktop := loginItem("linux", "/opt/MPCvibedRPC/MPCvibedRPC", "")
-	for _, want := range []string{"[Desktop Entry]\n", "Type=Application\n", `Exec="/opt/MPCvibedRPC/MPCvibedRPC" --background` + "\n", "Name=MPCvibedRPC\n"} {
+	desktop := loginItem("linux", "/opt/MPRP/MPRP", "")
+	for _, want := range []string{"[Desktop Entry]\n", "Type=Application\n", `Exec="/opt/MPRP/MPRP" --background` + "\n", "Name=MPRP\n"} {
 		if !strings.Contains(desktop, want) {
 			t.Errorf("desktop entry lacks %q:\n%s", want, desktop)
 		}
 	}
-	desktop = loginItem("linux", "/opt/a b/MPCvibedRPC", "/data/x")
-	if !strings.Contains(desktop, `Exec=env "MPCRPC_HOME=/data/x" "/opt/a b/MPCvibedRPC" --background`) {
+	desktop = loginItem("linux", "/opt/a b/MPRP", "/data/x")
+	if !strings.Contains(desktop, `Exec=env "MPRP_HOME=/data/x" "/opt/a b/MPRP" --background`) {
 		t.Errorf("with a data folder:\n%s", desktop)
 	}
 }
@@ -235,10 +235,10 @@ func TestMpvConfPathsUnix(t *testing.T) {
 }
 
 func TestTranslocatedAppGetsNoLoginItem(t *testing.T) {
-	if !translocated("/private/var/folders/ab/xyz/T/AppTranslocation/0A1B/d/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC") {
+	if !translocated("/private/var/folders/ab/xyz/T/AppTranslocation/0A1B/d/MPRP.app/Contents/MacOS/MPRP") {
 		t.Error("a translocated app must be recognised")
 	}
-	if translocated("/Applications/MPCvibedRPC.app/Contents/MacOS/MPCvibedRPC") {
+	if translocated("/Applications/MPRP.app/Contents/MacOS/MPRP") {
 		t.Error("an app in Applications is not translocated")
 	}
 }

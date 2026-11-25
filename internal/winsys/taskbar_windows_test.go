@@ -3,9 +3,9 @@ package winsys
 import "testing"
 
 func TestWindowIdentity(t *testing.T) {
-	const exe = `C:\Programs\Sample\MPCvibedRPC.exe`
+	const exe = `C:\Programs\Sample\MPRP.exe`
 	id, name, command, icon := windowIdentity(exe, "")
-	if id != "MPCvibedRPC" || name != "MPCvibedRPC" || command != `"`+exe+`"` || icon != exe+",0" {
+	if id != "MPRP" || name != "MPRP" || command != `"`+exe+`"` || icon != exe+",0" {
 		t.Errorf("the installed copy: id %q, name %q, command %q, icon %q", id, name, command, icon)
 	}
 	// a copy with a data folder of its own: another button group, and a pinned button starts it with that folder
@@ -13,7 +13,7 @@ func TestWindowIdentity(t *testing.T) {
 	if id2 == id || id2 != runNameFor(`D:\Portable\data`) {
 		t.Errorf("a copy with its own folder has the ID %q (the installed one: %q)", id2, id)
 	}
-	if name2 != "MPCvibedRPC" || command2 != `"`+exe+`" --home "D:\Portable\data"` {
+	if name2 != "MPRP" || command2 != `"`+exe+`" --home "D:\Portable\data"` {
 		t.Errorf("a copy with its own folder: name %q, command %q", name2, command2)
 	}
 }

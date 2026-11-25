@@ -66,7 +66,7 @@ tray.
   number at the top shows every version's.
 - **Updates.** The program looks for a new version as it starts and every six hours, and asks or installs it by itself:
   see [Troubleshooting > Updates](troubleshooting.md#updates).
-- The log is `mpcvibedrpc.log` (also on the **Help** tab).
+- The log is `mprp.log` (also on the **Help** tab).
 
 ## Titles and covers
 
@@ -275,7 +275,7 @@ What was tried with which player, and how, is in [What has been tried](#what-has
 
 ### Plex
 - **Signing in:** **Players > Sign in to Plex** opens plex.tv in your browser, and you approve the sign-in there (the
-  program never sees your password). The program introduces itself to Plex as "MPCvibedRPC" and keeps the sign-in in
+  program never sees your password). The program introduces itself to Plex as "MPRP" and keeps the sign-in in
   `config.json`; **Sign out** or **Restore defaults** asks plex.tv to end the sign-in, then removes it from this
   computer (also when plex.tv does not answer). The program may stay listed on Plex's *Authorized Devices* page,
   where its entry can be deleted.

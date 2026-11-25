@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 const mpvIPCKey = "input-ipc-server"
@@ -43,7 +43,7 @@ func addMpvConfLine(text, key, value string) string {
 	if strings.Contains(text, "\r\n") || (text == "" && IsWindows) {
 		eol = "\r\n"
 	}
-	return bom + "# added by MPCvibedRPC, so it can see what mpv plays" + eol + key + "=" + value + eol + text
+	return bom + "# added by MPRP, so it can see what mpv plays" + eol + key + "=" + value + eol + text
 }
 
 // mpvConfPaths lists where mpv reads its settings, most specific first: portable_config next to a known mpv.exe,

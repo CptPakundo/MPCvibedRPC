@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Looks up the real title of the episode being watched when the filename doesn't carry one

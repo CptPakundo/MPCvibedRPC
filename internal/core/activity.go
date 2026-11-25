@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 // ---- Discord wire format -------------------------------------------------------------

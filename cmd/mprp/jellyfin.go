@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/jellyfin"
+	"github.com/CptPakundo/MPRP/internal/store"
 )
 
 // jellyfinSignIn are the settings the Jellyfin / Emby sign-in writes and a sign-out forgets; jellyfinDevice, this

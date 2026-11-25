@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 func (m *mpc) count() int { m.mu.Lock(); defer m.mu.Unlock(); return m.asked }

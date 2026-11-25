@@ -74,7 +74,7 @@ func newFake(t *testing.T, emby bool) *fakeServer {
 			} else if f.qcOff {
 				w.WriteHeader(401)
 			} else {
-				fmt.Fprint(w, `{"Authenticated":false,"Secret":"qc-secret","Code":"123456","DeviceId":"d","DeviceName":"n","AppName":"MPCvibedRPC","AppVersion":"0.9.21","DateAdded":"2026-10-11T10:00:00Z"}`)
+				fmt.Fprint(w, `{"Authenticated":false,"Secret":"qc-secret","Code":"123456","DeviceId":"d","DeviceName":"n","AppName":"MPRP","AppVersion":"0.9.21","DateAdded":"2026-10-11T10:00:00Z"}`)
 			}
 		case path == "/QuickConnect/Connect" && r.URL.Query().Get("secret") == "qc-secret":
 			f.checks++
@@ -131,7 +131,7 @@ func TestFindJellyfinAndEmby(t *testing.T) {
 	if err != nil || s.Product != "Jellyfin" || s.Name != "Sample Server" || c.Base != f.URL {
 		t.Fatalf("Jellyfin: %+v %v base %s", s, err, c.Base)
 	}
-	if !strings.HasPrefix(f.auth, "MediaBrowser ") || !strings.Contains(f.auth, `DeviceId="sample-device"`) || !strings.Contains(f.auth, `Client="MPCvibedRPC"`) {
+	if !strings.HasPrefix(f.auth, "MediaBrowser ") || !strings.Contains(f.auth, `DeviceId="sample-device"`) || !strings.Contains(f.auth, `Client="MPRP"`) {
 		t.Fatalf("the client describes itself: %q", f.auth)
 	}
 	e := newFake(t, true)
@@ -240,7 +240,7 @@ func sessionsJSON(checkIn time.Time, paused bool) string {
   "NowPlayingItem":{"Name":"Sample Movie","Id":"i3","Type":"Movie","MediaType":"Video","ProductionYear":2020,"RunTimeTicks":72000000000}},
  {"PlayState":{"PositionTicks":6000000000,"IsPaused":%[3]t},"Id":"s4","UserId":"%[2]s","Client":"Jellyfin Web","LastPlaybackCheckIn":"%[1]s",
   "NowPlayingItem":{"Name":"The Sample","Id":"i4","Type":"Episode","MediaType":"Video","SeriesName":"Sample Show","ParentIndexNumber":1,"IndexNumber":2,"RunTimeTicks":14400000000}},
- {"Id":"s5","UserId":"%[2]s","Client":"MPCvibedRPC","LastPlaybackCheckIn":"0001-01-01T00:00:00.0000000Z","PlayState":{}}
+ {"Id":"s5","UserId":"%[2]s","Client":"MPRP","LastPlaybackCheckIn":"0001-01-01T00:00:00.0000000Z","PlayState":{}}
 ]`, ci, "6c8f0a0b-1c2d-4e5f-8a9b-0c1d2e3f4a5b", paused)
 }
 

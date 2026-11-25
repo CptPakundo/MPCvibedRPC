@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // seasonFolder makes a folder of episodes named with a running production code, from..to.

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
+	"github.com/CptPakundo/MPRP/internal/proc"
 )
 
 // WebResult is the answer of EnableMpcWebInterface.

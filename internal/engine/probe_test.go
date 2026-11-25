@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 func probeNamed(ps []PlayerProbe, part string) *PlayerProbe {

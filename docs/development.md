@@ -1,6 +1,6 @@
 # Development
 
-How MPCvibedRPC is built, tested and kept working. For using it, see the [README](../README.md); for the rules that
+How MPRP is built, tested and kept working. For using it, see the [README](../README.md); for the rules that
 apply to every change, [CONTRIBUTING.md](../CONTRIBUTING.md) (and [AGENTS.md](../AGENTS.md) for AI tools); for
 releasing and screenshots, [maintaining.md](maintaining.md).
 
@@ -14,7 +14,7 @@ Terms these docs use:
 | standby | "Discord on standby": showing is on, but nothing plays yet, so Discord has not been contacted. |
 | resting | Discord is closed and no settings window is open: a check only looks whether Discord has started. |
 | golden data | Recorded reference outputs in `internal/*/testdata/*.gz` that the parsers and lookups are checked against. Frozen: never regenerate it. |
-| throwaway copy | A copy of the program run with a data folder of its own (`MPCRPC_HOME`), so it cannot touch an installed copy. See [Running the program safely](#running-the-program-safely). |
+| throwaway copy | A copy of the program run with a data folder of its own (`MPRP_HOME`), so it cannot touch an installed copy. See [Running the program safely](#running-the-program-safely). |
 | smoke test | CI starts the real built program on its own system and checks it from outside (`tools/ci/smoke.ps1`, `smoke-unix.sh`). |
 | live jobs | CI jobs that install real players and media servers on a throwaway runner and run the engine against them. |
 | canary | The weekly CI run against the newest players, server images and catalog services; it opens an issue when something outside changed. |
@@ -26,15 +26,15 @@ version in `go.mod` (the `go` line) and no internet beyond that.
 
 Windows (the resource step adds the icon and version details; it is optional):
 
-    go run ./tools/mkrsrc -version X.Y.Z -out cmd/mpcvibedrpc/rsrc_windows_amd64.syso
-    go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPCvibedRPC.exe ./cmd/mpcvibedrpc
+    go run ./tools/mkrsrc -version X.Y.Z -out cmd/mprp/rsrc_windows_amd64.syso
+    go build -trimpath -buildvcs=false -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o MPRP.exe ./cmd/mprp
 
 `-H=windowsgui` makes it a windowed program, so no console flashes up. You can build it from any OS
 (`GOOS=windows`).
 
 Linux:
 
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=X.Y.Z" -o MPCvibedRPC-linux-amd64 ./cmd/mpcvibedrpc
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=X.Y.Z" -o MPRP-linux-amd64 ./cmd/mprp
 
 macOS: the app is built on a Mac **with cgo** by `tools/ci/package-macos.sh VERSION OUTDIR` (`CGO_ENABLED=1`; both
 processor types in one program, the app icon, an ad-hoc signature, a zip). The menu bar icon and the settings window
@@ -46,7 +46,7 @@ Flags of the program:
 | Flag | What it does |
 |---|---|
 | `--background` | Start in the tray. |
-| `--home <folder>` | A data folder of its own, like `MPCRPC_HOME`. |
+| `--home <folder>` | A data folder of its own, like `MPRP_HOME`. |
 | `--after-update` | Set on the copy an update started. |
 | `--update-failed` | Set on the old copy that an update put back (see [Updates](#updates)). |
 | `--version` | Print the version and exit. |
@@ -56,14 +56,14 @@ Flags of the program:
 Never touch a real setup while testing ([the rule](../CONTRIBUTING.md#ground-rules)). Use throwaway copies and the
 fakes below.
 
-- **A throwaway copy.** `MPCRPC_HOME=<scratch folder>` (or `--home <folder>`) gives a copy its own data folder **and
+- **A throwaway copy.** `MPRP_HOME=<scratch folder>` (or `--home <folder>`) gives a copy its own data folder **and
   its own autostart value name**, so it never touches an installed copy. A config such as
   `{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}` keeps it quiet.
 - **Keep `checkUpdates` off in test copies.** With it on, a copy without a window installs what its update server
   offers ten seconds after its start and shows a real operating-system notification. To try the update dialog, start
   with it off, open the page, then switch it on there (that checks at once), or trigger a check through
   `api/update-check`.
-- **The page.** The API port and token are in `<MPCRPC_HOME>/ipc.json`; the page is
+- **The page.** The API port and token are in `<MPRP_HOME>/ipc.json`; the page is
   `http://127.0.0.1:<port>/?t=<token>`. (The program itself opens its window with a one-time code, `?c=`, so the token
   is not on the browser's command line; the page keeps the token in `sessionStorage` and takes it out of its address.)
   To test window states without Discord, override `window.fetch` for `/api/status` (or `/api/plex*`,
@@ -73,11 +73,11 @@ fakes below.
   `vlcPassword` empty.
 - **Resting.** A throwaway copy rests whenever Discord is closed and its window is closed (no player is asked then).
   To test players with Discord closed, keep the window open.
-- **Update checks.** `MPCRPC_UPDATE_API=http://127.0.0.1:<port>` with `tools/ci/fake-http.ps1` (on CI). On a Windows
+- **Update checks.** `MPRP_UPDATE_API=http://127.0.0.1:<port>` with `tools/ci/fake-http.ps1` (on CI). On a Windows
   PC its HttpListener may be refused without admin rights; a small Go server in a scratch folder can serve the same
   three answers.
-- **Other variables.** `MPCRPC_BROWSER=none` opens no window (tests, CI); any other value names the browser to show
-  the window in (one that understands `--app`). `MPCRPC_FOREGROUND=1` keeps a macOS copy from handing over to a
+- **Other variables.** `MPRP_BROWSER=none` opens no window (tests, CI); any other value names the browser to show
+  the window in (one that understands `--app`). `MPRP_FOREGROUND=1` keeps a macOS copy from handing over to a
   detached one.
 - **Portable players.** Use portable builds in a scratch folder and verify their published checksums: MPC-QT
   (`portable.txt`), MPC-BE (an ini next to the exe), mpv (`portable_config\`), VLC (a `portable\` folder next to
@@ -85,9 +85,9 @@ fakes below.
   `%APPDATA%`, `%LOCALAPPDATA%` and `HKCU\Software` afterwards. Make test videos with mpv's encoder from `lavfi` test
   sources, with generic names.
 - **Accounts.** Never sign in to a real account ([the rule](../CONTRIBUTING.md#ground-rules)). Every reader has fakes:
-  Plex in `internal/plex`, `cmd/mpcvibedrpc/plex_test.go` and `internal/engine/plex_test.go`; Stremio in
-  `internal/stremio`, `cmd/mpcvibedrpc/stremio_test.go` and `internal/engine/rest_test.go`; Jellyfin / Emby in
-  `internal/jellyfin`, `cmd/mpcvibedrpc/jellyfin_test.go` and `internal/engine/jellyfin_test.go`. A small fake server on
+  Plex in `internal/plex`, `cmd/mprp/plex_test.go` and `internal/engine/plex_test.go`; Stremio in
+  `internal/stremio`, `cmd/mprp/stremio_test.go` and `internal/engine/rest_test.go`; Jellyfin / Emby in
+  `internal/jellyfin`, `cmd/mprp/jellyfin_test.go` and `internal/engine/jellyfin_test.go`. A small fake server on
   127.0.0.1 can drive the window's sign-in in a throwaway copy (keep showing on Discord off).
 - **Leave nothing running.** Quit test copies, stop only processes you started, delete scratch tests before a full
   test run, and check the real data folders afterwards.
@@ -97,23 +97,23 @@ These skip unless their variable is set. CI sets them for its throwaway players 
 
 | Test | Variables | What it does |
 |---|---|---|
-| `TestLivePlayer` (`internal/engine`) | `MPCRPC_LIVE_PLAYER` (the name shown: mpv, IINA, VLC, Celluloid, Plex, ...), `MPCRPC_LIVE_TITLE` | Runs the engine against a real player, with the test's own fake Discord. |
-| | `MPCRPC_LIVE_PORT`, `MPCRPC_LIVE_MPV_PIPE`, `MPCRPC_LIVE_IINA_PIPE` | The MPC port and the mpv / IINA pipe to ask. |
-| | `MPCRPC_LIVE_VLC_PASSWORD`, `MPCRPC_LIVE_VLC_PORT` | VLC's web interface. |
-| | `MPCRPC_LIVE_KODI_PASSWORD`, `MPCRPC_LIVE_KODI_ADDRESS` | Kodi's web server (the address is optional). |
-| | `MPCRPC_LIVE_PLEX_ADDRESS`, `MPCRPC_LIVE_PLEX_TOKEN` | A Plex server. |
-| | `MPCRPC_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD` | Signs in to a Jellyfin or Emby server with the password. |
-| | `MPCRPC_LIVE_EVENTS` (`pipe`, `kodi` or `mpris`) | **Changes the player's state:** pauses the real player and wants the pause shown at once from the player's own event, then resumes it. |
-| `TestLiveJellyfin` (`internal/jellyfin`) | `MPCRPC_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD`, `_PRODUCT` (`Jellyfin` or `Emby`), `MPCRPC_LIVE_TITLE` | Signs in to a real server (a wrong password first, then the password, and Quick Connect on Jellyfin), follows what the user plays, signs out. |
-| `TestLivePotPlayer` (`internal/potplayer`, Windows) | `MPCRPC_LIVE_POTPLAYER=1` | Asks a real PotPlayer that plays a local file and checks that it sends the file's path. |
-| `TestLiveCatalogs` (`internal/artwork`) | `MPCRPC_LIVE_CATALOGS=1` | One long-known title per keyless catalog, through the program's own search and episode code (the canary; the real titles are kept in that file). |
-| `TestAutostartRegistryRoundTrip` (`internal/winsys`, Windows) | `MPCRPC_TEST_REGISTRY=1` | **Touches the real setup:** writes a real `HKCU\...\Run` value (for a throwaway data folder's value name, never the plain `MPCvibedRPC` one) and removes it again. |
+| `TestLivePlayer` (`internal/engine`) | `MPRP_LIVE_PLAYER` (the name shown: mpv, IINA, VLC, Celluloid, Plex, ...), `MPRP_LIVE_TITLE` | Runs the engine against a real player, with the test's own fake Discord. |
+| | `MPRP_LIVE_PORT`, `MPRP_LIVE_MPV_PIPE`, `MPRP_LIVE_IINA_PIPE` | The MPC port and the mpv / IINA pipe to ask. |
+| | `MPRP_LIVE_VLC_PASSWORD`, `MPRP_LIVE_VLC_PORT` | VLC's web interface. |
+| | `MPRP_LIVE_KODI_PASSWORD`, `MPRP_LIVE_KODI_ADDRESS` | Kodi's web server (the address is optional). |
+| | `MPRP_LIVE_PLEX_ADDRESS`, `MPRP_LIVE_PLEX_TOKEN` | A Plex server. |
+| | `MPRP_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD` | Signs in to a Jellyfin or Emby server with the password. |
+| | `MPRP_LIVE_EVENTS` (`pipe`, `kodi` or `mpris`) | **Changes the player's state:** pauses the real player and wants the pause shown at once from the player's own event, then resumes it. |
+| `TestLiveJellyfin` (`internal/jellyfin`) | `MPRP_LIVE_JELLYFIN_ADDRESS`, `_USER`, `_PASSWORD`, `_PRODUCT` (`Jellyfin` or `Emby`), `MPRP_LIVE_TITLE` | Signs in to a real server (a wrong password first, then the password, and Quick Connect on Jellyfin), follows what the user plays, signs out. |
+| `TestLivePotPlayer` (`internal/potplayer`, Windows) | `MPRP_LIVE_POTPLAYER=1` | Asks a real PotPlayer that plays a local file and checks that it sends the file's path. |
+| `TestLiveCatalogs` (`internal/artwork`) | `MPRP_LIVE_CATALOGS=1` | One long-known title per keyless catalog, through the program's own search and episode code (the canary; the real titles are kept in that file). |
+| `TestAutostartRegistryRoundTrip` (`internal/winsys`, Windows) | `MPRP_TEST_REGISTRY=1` | **Touches the real setup:** writes a real `HKCU\...\Run` value (for a throwaway data folder's value name, never the plain `MPRP` one) and removes it again. |
 
-Example: `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count=1 -run TestLivePlayer -v ./internal/engine`
+Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -run TestLivePlayer -v ./internal/engine`
 
 ## Where things are
 
-### The program: `cmd/mpcvibedrpc`
+### The program: `cmd/mprp`
 | File | Job |
 |---|---|
 | `main.go` | flags, single instance, `var version` |
@@ -229,7 +229,7 @@ reads what plays.
 - Tests set `Options.KodiEvents` and `Options.MPRISBus`, so no real Kodi or bus is reached.
 
 ### Plex
-- **Sign-in** (`cmd/mpcvibedrpc/plex.go`): a token through a plex.tv PIN the user approves in their browser; the
+- **Sign-in** (`cmd/mprp/plex.go`): a token through a plex.tv PIN the user approves in their browser; the
   window never receives the token.
 - **Server:** the watcher looks the chosen server up on plex.tv (`clients.plex.tv/api/v2/resources`, or uses
   `plexAddress`) and checks `/identity` without the token. The token goes only to the server that answered with the
@@ -334,7 +334,7 @@ Tests: `internal/engine/state_test.go`. `TestStatusConverges` runs random orders
 against the fakes and checks that Discord ends up showing exactly what the player's last state calls for. After a
 change to the check loop, run it with more orders:
 
-    MPCRPC_CONVERGE_SEEDS=500 go test -count=1 -run TestStatusConverges ./internal/engine
+    MPRP_CONVERGE_SEEDS=500 go test -count=1 -run TestStatusConverges ./internal/engine
 
 ## The stream title
 `streamTitle` ("auto", "always", "off"): Discord names a stream after a Playing activity only, so the engine builds the
@@ -361,7 +361,7 @@ Playing form while Discord shares the screen ([users' view](how-it-works.md#on-y
 - **Automatic install** (`autoUpdate`, on by default; Windows and Linux): at a quiet moment (`quietMoment`: nothing
   shown on Discord, no settings window; never in the first ten seconds after the start or after a window was asked for,
   `settle`). The new copy starts in the tray (`auto-updated` marker in the data folder) and says so once.
-- **Hand-over** (`handOverTo` in `cmd/mpcvibedrpc/update.go`): the old copy frees the window, tray, port and
+- **Hand-over** (`handOverTo` in `cmd/mprp/update.go`): the old copy frees the window, tray, port and
   single-instance lock and waits for the new copy's `ipc.json`. If it does not come, it puts the old program file back,
   writes `update-failed` (the version, which is not installed by itself again) and starts itself again with
   `--update-failed`.
@@ -414,11 +414,11 @@ run a copy or a real player without touching an installed setup: [Running the pr
 
 **Tests that tie texts to the code** (keep them passing; they fail when a doc falls behind):
 - `TestEverySettingIsDocumented` (`internal/store`): every setting has its row and default in [config.md](config.md).
-- `TestPlayersAreNamedEverywhere` (`cmd/mpcvibedrpc`): every text that lists the players names them all.
+- `TestPlayersAreNamedEverywhere` (`cmd/mprp`): every text that lists the players names them all.
 - `TestEveryHostIsListed` and `TestSecurityListsEveryHost` (`internal/core`): every outside address the code and the
   page name is in `core.Hosts` or `core.Sources`, and `SECURITY.md` names each.
 - `TestPageScriptParses` (`internal/assets`): `node --check` on `ui.js` (skips without Node.js).
-- `TestChangelog` (`cmd/mpcvibedrpc`): the newest changelog entry is the version in `main.go`.
+- `TestChangelog` (`cmd/mprp`): the newest changelog entry is the version in `main.go`.
 - `tools/relnotes`'s test: the release text renders from `internal/assets/changelog.json`.
 - `TestLinksResolve` (`tools/doclinks`): every relative link and `#anchor` in every Markdown file resolves (GitHub's
   anchor rules; links to other websites are not followed).

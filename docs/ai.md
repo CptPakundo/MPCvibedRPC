@@ -1,6 +1,6 @@
 # How AI was used
 
-MPCvibedRPC is AI-generated ("vibe coded"). This page says what that means here, so you can judge it for yourself.
+MPRP is AI-generated ("vibe coded"). This page says what that means here, so you can judge it for yourself.
 
 ## Who did what
 - **The AI** (Claude, by Anthropic) wrote the code, the tests, the CI workflows and the
@@ -51,4 +51,4 @@ What has held up while developing this project with AI agents (any tool, any mod
 - macOS and Linux are mostly tested on CI runners, not on real desktops; Stremio has only been tested against fakes
   built from its source code.
 - AI-written code can be wrong in ways tests do not catch. If you find such a case, please
-  [open an issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
+  [open an issue](https://github.com/CptPakundo/MPRP/issues/new/choose).

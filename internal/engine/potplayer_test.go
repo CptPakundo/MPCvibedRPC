@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakePot stands in for the PotPlayer windows on this computer.

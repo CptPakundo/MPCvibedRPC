@@ -8,10 +8,10 @@ import (
 
 // The registry read gives what `reg query` gave. Read-only: it only looks at values, and never writes.
 func TestRegistryRunValueMatchesRegExe(t *testing.T) {
-	if _, ok := registryRunValue("MPCvibedRPC-test-no-such-value"); ok {
+	if _, ok := registryRunValue("MPRP-test-no-such-value"); ok {
 		t.Error("a value that does not exist was found")
 	}
-	for _, name := range []string{"MPCvibedRPC", "MPCvibedRPC-test-no-such-value"} {
+	for _, name := range []string{"MPRP", "MPRP-test-no-such-value"} {
 		r := run("reg", "query", runKey, "/v", name)
 		data, ok := registryRunValue(name)
 		if ok != r.ok {
@@ -26,16 +26,16 @@ func TestRegistryRunValueMatchesRegExe(t *testing.T) {
 }
 
 // End to end against the real registry: opt-in, because it writes the Run value that belongs to a throwaway data
-// folder (MPCRPC_HOME) and removes it again. It never touches the plain "MPCvibedRPC" value.
+// folder (MPRP_HOME) and removes it again. It never touches the plain "MPRP" value.
 func TestAutostartRegistryRoundTrip(t *testing.T) {
-	if os.Getenv("MPCRPC_TEST_REGISTRY") != "1" {
-		t.Skip("set MPCRPC_TEST_REGISTRY=1 to write and remove a Run value for a throwaway data folder")
+	if os.Getenv("MPRP_TEST_REGISTRY") != "1" {
+		t.Skip("set MPRP_TEST_REGISTRY=1 to write and remove a Run value for a throwaway data folder")
 	}
-	t.Setenv("MPCRPC_HOME", t.TempDir())
+	t.Setenv("MPRP_HOME", t.TempDir())
 	if runName() == runNameBase {
 		t.Fatal("the test must use a value name of its own")
 	}
-	exe := `C:\Test\MPCvibedRPC.exe`
+	exe := `C:\Test\MPRP.exe`
 	t.Cleanup(func() { SetAutoStart(false, exe) })
 	if GetAutoStart(exe) {
 		t.Fatal("on before it was set")
@@ -50,8 +50,8 @@ func TestAutostartRegistryRoundTrip(t *testing.T) {
 		t.Error("a different program name must not match")
 	}
 	data, ok := registryRunValue(runName())
-	if !ok || data != runCommand(exe, os.Getenv("MPCRPC_HOME")) {
-		t.Errorf("stored command %q, want %q", data, runCommand(exe, os.Getenv("MPCRPC_HOME")))
+	if !ok || data != runCommand(exe, os.Getenv("MPRP_HOME")) {
+		t.Errorf("stored command %q, want %q", data, runCommand(exe, os.Getenv("MPRP_HOME")))
 	}
 	SetAutoStart(false, exe)
 	if GetAutoStart(exe) {
