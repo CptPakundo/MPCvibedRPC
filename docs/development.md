@@ -178,7 +178,7 @@ on every system.
 | `tools/mkico` | writes the icons from `internal/logo`: `internal/assets/icon.ico`, `icon-update.ico` (`-dot`), `docs/images/icon.png` (`-png`) and the macOS app icon (`-icns`); a test fails when a committed one is out of date |
 | `tools/relnotes` | the release text, rendered from the changelog |
 | `tools/doclinks` | only a test: every relative link and anchor in the Markdown files resolves |
-| `tools/screenshots` | `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
+| `tools/screenshots` | `take.js` takes the README pictures, with `demo.js`'s made-up playback ([Screenshots](maintaining.md#screenshots)) |
 | `tools/downloads` | the project's own download count (on the `stats` branch; see [CI](#ci)) |
 | `tools/ci` | the CI scripts; see the list below |
 | `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, `design/` (design proposals and the window's look), `research/` (reports on Discord's card and on immutable releases), this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`). **Every install fetches the logos from `docs/players/<name>.png` on the `master` branch** (`PlayerIconBase`): never move, rename or delete a logo or rename `master`; adding one is fine |
