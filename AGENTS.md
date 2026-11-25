@@ -29,13 +29,17 @@ CI runs the rest (the race detector, the lint gates, macOS and Linux for real): 
 4. [docs/roadmap.md](docs/roadmap.md) before proposing a feature, a service or a distribution change (don't propose a
    listed non-goal without saying so), and [docs/decisions.md](docs/decisions.md) before changing listed behaviour.
 
+## Picking up work
+The work to do and how to continue what someone else started are in [CONTRIBUTING.md > Picking up work](CONTRIBUTING.md#picking-up-work): the roadmap's [Next up](docs/roadmap.md#next-up) needs no decision; open decisions need the maintainer. Everything the repository needs is in the repository: there are no instructions kept elsewhere.
+
 ## Your first change
 Read the named sections, make the change, then run the tests named with it (and always `go vet ./...` and
 `go test -count=1 ./...`).
 - **A title or file-name parsing fix:** [Titles and covers](docs/how-it-works.md#titles-and-covers) and `core` in
   [Packages](docs/development.md#packages-internal); run `go test ./internal/core` (the golden data must still pass).
 - **A window or UI fix:** [The window and the menu](docs/how-it-works.md#the-window-and-the-menu) and the
-  `internal/assets` rows in [Packages](docs/development.md#packages-internal); run `go test ./internal/assets ./cmd/mpcvibedrpc`
+  `internal/assets` rows in [Packages](docs/development.md#packages-internal) and the window's look in
+  [design/settings-window.md](docs/design/settings-window.md); run `go test ./internal/assets ./cmd/mpcvibedrpc`
   (`TestPageScriptParses` needs Node.js).
 - **A new player:** [A new player](docs/development.md#a-new-player) and
   [How players are read](docs/development.md#how-players-are-read); run `go test ./internal/engine ./cmd/mpcvibedrpc`.
@@ -61,8 +65,8 @@ Read the named sections, make the change, then run the tests named with it (and 
 
 ## Other facts
 - The program is AI-generated; the README says so once, near the top, and that is enough. Never present the code as
-  written by the repository owner. The idea comes from angeloanan/MPC-DiscordRPC (MIT), credited in the README,
+  written by the repository maintainer. The idea comes from angeloanan/MPC-DiscordRPC (MIT), credited in the README,
   `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 - Versions are `0.9.x`; the current one is in `cmd/mpcvibedrpc/main.go`. Changelog lines are short, one emoji each.
-- Merging, tagging and publishing are outward-facing: do them only with the owner's go-ahead
+- Merging, tagging and publishing are outward-facing: do them only with the maintainer's go-ahead
   ([maintaining.md](docs/maintaining.md#rules-for-maintainers)).
