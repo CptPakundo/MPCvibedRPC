@@ -62,7 +62,7 @@ var Sections = []Section{
 	}},
 	{ID: "look", Title: "Look", Fields: []Field{
 		{Key: "activityType", Type: "choice", Label: "Style", Options: [][2]string{{"watching", "Watching (with progress bar)"}, {"playing", "Playing (classic timer)"}}},
-		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching Media Player Classic".`},
+		{Key: "titleAsName", Type: "bool", Label: "Show the title as the activity name", Help: `Shows "Watching <title>" instead of "Watching MPRP".`},
 		// Discord names a stream after a Playing status only. Windows can tell when Discord shares the screen, so the
 		// status changes by itself there; the other systems cannot, and offer all the time or never ("auto" is never
 		// there, so the setting's default needs no second value).

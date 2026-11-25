@@ -153,11 +153,19 @@ type Hooks struct {
 	LetterboxdBase  string `json:"letterboxdBase" reach:"lookups"`
 }
 
+// DefaultClientID is the project's own Discord application (named MPRP, with the program's logo): the default
+// clientId. Every install depends on it.
+const DefaultClientID = "1575219115981934734"
+
+// FormerClientID is the Discord application every install used before ("Media Player Classic", registered by the
+// upstream project). A saved clientId of this value reads as DefaultClientID (store.settingsObj).
+const FormerClientID = "427863248734388224"
+
 // DefaultConfig returns a fresh copy of the defaults.
 func DefaultConfig() Config {
 	return Config{
 		Settings: Settings{
-			ClientID:     "427863248734388224",
+			ClientID:     DefaultClientID,
 			Port:         13579,
 			PollInterval: 5000,
 			MpvPipe:      "mpvsocket",

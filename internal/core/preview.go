@@ -21,8 +21,8 @@ type Preview struct {
 	Linked     bool   `json:"linked,omitempty"`  // the details line and the cover open the catalog page
 }
 
-// PreviewOf describes an activity for the window. The name falls back to the configured application name, which is
-// what Discord shows when an activity carries none.
+// PreviewOf describes an activity for the window. When an activity carries no name, Discord shows the application's:
+// MPRP for the default application, else the configured application name (the best guess for one of the user's own).
 func PreviewOf(a *Activity, cfg *Config) *Preview {
 	if a == nil {
 		return nil
@@ -30,6 +30,9 @@ func PreviewOf(a *Activity, cfg *Config) *Preview {
 	p := &Preview{Watching: a.Type == 3, Listening: a.Type == 2, Name: a.Name, Details: a.Details, State: a.State}
 	if p.Name == "" && cfg != nil {
 		p.Name = cfg.AppName
+		if cfg.ClientID == DefaultClientID {
+			p.Name = Name
+		}
 	}
 	if a.Assets != nil {
 		if strings.HasPrefix(a.Assets.LargeImage, "http://") || strings.HasPrefix(a.Assets.LargeImage, "https://") {

@@ -282,9 +282,11 @@ reads what plays.
 - VLC 3 rounds `time` to whole seconds (position x length is used); VLC 4 uses a flat playlist.
 - With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's logo) is
   left out for players outside the MPC family.
-- The default Discord application (`clientId`) was registered by the upstream project, not by this one: every install
-  depends on it staying there. It holds only a few images (`default`, `pause_small`, `play_small`, `stop_small` and
-  `mpcbe_logo`, checked 2026-11-21); the player logos, the MPC family's too, are fetched from `docs/players` (below).
+- The default Discord application (`clientId`, `core.DefaultClientID`) is the project's own, registered by the
+  maintainer and named MPRP: every install depends on it. Installs from before saved the former default, the upstream
+  project's application (`core.FormerClientID`); `store.settingsObj` reads it as the current one. The former
+  application held only a few images (`default`, `pause_small`, `play_small`, `stop_small` and `mpcbe_logo`, checked
+  2026-11-21) and the new one none; the player logos, the MPC family's too, are fetched from `docs/players` (below).
 
 ### Set up the player connection
 `winsys.SetUpPlayers`:

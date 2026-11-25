@@ -41,9 +41,8 @@ changed how often it saves playback, and Jellyfin, IINA and Kodi shipped new maj
   as Flathub ships them (their makers' newest releases, `live-flathub.sh`).
 
 ### 2. Own the foundations
-- **Discord application**: the default application ID belongs to the project this one started from, which has been
-  inactive since 2022. If it is deleted, every install loses its status at once. Register a project-owned application
-  and keep the old ID as a fallback. *Needs the maintainer.*
+- **Discord application**: *done in 0.9.60.* The default is the project's own application (MPRP), registered by the
+  maintainer; installs that saved the former default (the upstream project's, inactive since 2022) use it too.
 - **Go toolchain**: move to the newest Go release every February and August; the supported operating systems follow
   Go's (Go 1.27: macOS 13 or later).
 - **Plex sign-in**: Plex is moving to short-lived tokens (7 days, Ed25519 device keys). Old tokens still work and no end
@@ -59,7 +58,7 @@ The updater checks a checksum from the same release, so anyone able to publish a
   that rebuilds the Windows and Linux files from the tag and compares them byte for byte.
 - *Status:* done: the pins, read-only workflows by default, and the rebuild (`tools/ci/reproduce.sh`; a release is only
   published when every program file matches).
-- *Left:* the signed manifest (needs the maintainer's key) and immutable releases (open decision 2).
+- *Left:* the signed manifest (needs the maintainer's key) and immutable releases (open decision 1).
 - Not planned: checking GitHub's build attestations inside the program (much security code, a moving format, narrow
   benefit). The attestations stay available to check by hand.
 
@@ -137,13 +136,13 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 - **An episode number in the basic fallback status:** the recorded golden data pins it without one.
 
 ## Open decisions (the maintainer's)
-1. Register a project-owned Discord application.
-2. Turn on immutable releases (a repository setting; [how they fit the release flow](research/immutable-releases.md)).
-3. Keep an offline signing key and sign each stable release (one manual step each).
-4. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
+1. Turn on immutable releases (a repository setting; [how they fit the release flow](research/immutable-releases.md)).
+2. Keep an offline signing key and sign each stable release (one manual step each).
+3. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
    account to try it; the maintainer has none.
 
-Settled: the macOS minimum is 13. On 2026-11-25 the maintainer settled the Fix a match redesign and presence templates (both built in 0.9.60), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4). A popup for a found update with no window open is not needed: every system shows a notification ([decision](decisions.md#the-window-and-the-tray)).
+Settled: the macOS minimum is 13. On 2026-11-25 the maintainer registered the project's own Discord application,
+the default from 0.9.60 ([decision](decisions.md#behaviour)). On 2026-11-25 the maintainer settled the Fix a match redesign and presence templates (both built in 0.9.60), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4). A popup for a found update with no window open is not needed: every system shows a notification ([decision](decisions.md#the-window-and-the-tray)).
 
 ## Watch list
 Outside facts the program depends on, with the date they were last checked.

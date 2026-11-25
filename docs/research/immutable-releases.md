@@ -2,7 +2,7 @@
 
 Read 2026-11-11 against GitHub's documentation ("Preventing changes to your releases" and the concept page "Immutable
 releases"). The setting is off; this page is the background for the roadmap's
-[open decision 2](../roadmap.md#open-decisions-the-maintainers).
+[open decision 1](../roadmap.md#open-decisions-the-maintainers).
 
 ## Answer
 They fit. The release flow already does what GitHub recommends: `release.yml` uploads every file to a **draft**
