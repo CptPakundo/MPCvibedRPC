@@ -20,6 +20,9 @@ func TestUsesProfile(t *testing.T) {
 		{`msedge.exe --user-data-dir=` + p, true},
 		{`msedge.exe --user-data-dir=` + p + `\`, true},
 		{`msedge.exe --USER-data-DIR=` + `c:\users\someone\appdata\local\mprp\WINDOW`, true},
+		// Edge restarted by itself writes the folder in quotes after the equals sign (seen on a real first launch)
+		{`"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --user-data-dir="` + p + `" --app=http://127.0.0.1:47654/ --flag-switches-begin --flag-switches-end`, true},
+		{`msedge.exe --user-data-dir="` + p + `2" --lang=en`, false},
 		{`msedge.exe --user-data-dir=` + p + `2 --lang=en`, false},   // a different folder with the same prefix
 		{`msedge.exe --user-data-dir=` + p + `-old`, false},          // likewise
 		{`msedge.exe --user-data-dir=C:\Users\Someone\Other`, false}, // another profile
