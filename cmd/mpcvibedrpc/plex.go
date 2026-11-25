@@ -238,9 +238,26 @@ func (p *plexAccount) renew(ctx context.Context) {
 	p.log("INFO", "Plex sign-in renewed.")
 }
 
-// signOut forgets the sign-in (the token is removed from the settings file).
+// revoke ends the saved sign-in at plex.tv, when there is one and plex.tv answers (signing out, and Restore
+// defaults, which forgets the sign-in).
+func (p *plexAccount) revoke() {
+	cfg := p.st.Config()
+	if cfg.PlexToken == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := p.client(cfg.PlexClient).SignOut(ctx, cfg.PlexToken); err != nil && !errors.Is(err, plex.ErrToken) {
+		p.log("WARN", fmt.Sprintf("plex.tv did not confirm the sign-out (%v); the sign-in is forgotten here anyway.", err))
+	}
+}
+
+// signOut ends the sign-in at plex.tv (when it answers) and forgets it (the token is removed from the settings file).
 func (p *plexAccount) signOut() error {
-	if err := p.forget(func() error { return p.st.SetHidden(plexSignIn, map[string]any{}) }); err != nil {
+	if err := p.forget(func() error {
+		p.revoke()
+		return p.st.SetHidden(plexSignIn, map[string]any{})
+	}); err != nil {
 		return err
 	}
 	applySettings(p.st, p.eng)

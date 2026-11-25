@@ -265,8 +265,9 @@ What was tried with which player, and how, is in [What has been tried](#what-has
 ### Plex
 - **Signing in:** **Players > Sign in to Plex** opens plex.tv in your browser, and you approve the sign-in there (the
   program never sees your password). The program introduces itself to Plex as "MPCvibedRPC" and keeps the sign-in in
-  `config.json`; **Sign out** or **Restore defaults** removes it from this computer. Nothing is sent to Plex then: to
-  remove the sign-in on Plex's side, delete this program's entry on Plex's *Authorized Devices* page.
+  `config.json`; **Sign out** or **Restore defaults** asks plex.tv to end the sign-in, then removes it from this
+  computer (also when plex.tv does not answer). The program may stay listed on Plex's *Authorized Devices* page,
+  where its entry can be deleted.
 - **Your server:** it follows your server; choose another one under the button (your own servers come first, then
   those shared with you). **Players > Plex server address** is only needed when this computer cannot reach the server
   at the addresses plex.tv lists.

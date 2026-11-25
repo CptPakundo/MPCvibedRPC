@@ -169,6 +169,16 @@ func (c *Client) CheckPin(ctx context.Context, p *Pin) (string, error) {
 	return *r.AuthToken, nil
 }
 
+// SignOut ends this sign-in at plex.tv, so the token stops working. It is DELETE /api/v2/users/signout with the token, the call python-plexapi makes for
+// MyPlexAccount.signout() ("Sign out of the Plex account. Invalidates the authentication token."):
+// https://github.com/pkkid/python-plexapi/blob/master/plexapi/myplex.py (SIGNOUT). Plex does not document it
+// publicly, so a caller treats a failure as "could not tell" and forgets the token locally anyway. ErrToken means
+// plex.tv no longer accepted the token, which is as good as signed out.
+func (c *Client) SignOut(ctx context.Context, token string) error {
+	_, err := c.getJSON(ctx, "DELETE", c.tv()+"/api/v2/users/signout", token, nil)
+	return err
+}
+
 // Account is who signed in. Only the id (to tell the user's own playback from other people's on a server they own)
 // and a name for the window are kept.
 type Account struct {

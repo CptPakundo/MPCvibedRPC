@@ -31,7 +31,7 @@ And these, only for what they are named for:
 | `api.github.com` | GitHub | Check for updates is on (**General > Updates**): asks for the newest release. |
 | `github.com` | GitHub | The same: the release page when the API's hourly limit is used up, and the download. |
 | `release-assets.githubusercontent.com` | GitHub | An update is installed: GitHub sends the download from here. |
-| `plex.tv` | Plex | Signing in to Plex, and while signed in (your servers). |
+| `plex.tv` | Plex | Signing in to Plex, while signed in (your servers), and signing out (ends the sign-in on Plex's side). |
 | `clients.plex.tv` | Plex | While signed in to Plex: your servers and their addresses. |
 | `link.stremio.com` | Stremio | Signing in to Stremio (the link code). |
 | `api.strem.io` | Stremio | While signed in to Stremio: your library every 20 seconds, and signing out. |
