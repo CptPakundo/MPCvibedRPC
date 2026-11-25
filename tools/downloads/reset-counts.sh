@@ -13,12 +13,21 @@
 # (NAME.reset), check that copy's checksum, delete the old file, rename the copy, check name, checksum and count 0.
 # Any surprise stops it with a message; the old file is only deleted once its identical copy is in place. A left-over
 # NAME.reset from an interrupted run must be finished or removed by hand first.
+#
+# For about a second per file the file's name does not exist (between the DELETE and the rename): an updater or a
+# download that asks for it in that moment gets a 404 and tries again later.
+#
+# With GitHub's immutable releases on, published files cannot be replaced, so this script could no longer work
+# (docs/research/immutable-releases.md).
 set -euo pipefail
 repo=CptPakundo/MPCvibedRPC
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 if [ $# -eq 0 ]; then
-  set -- $(gh api --paginate "repos/$repo/releases?per_page=100" --jq '.[] | select(.draft | not) | .tag_name' | tac)
+  list=$(gh api --paginate "repos/$repo/releases?per_page=100" --jq '.[] | select(.draft | not) | .tag_name' | tac) ||
+    { echo "STOP: the list of releases could not be read"; exit 1; }
+  [ -n "$list" ] || { echo "STOP: the list of releases is empty"; exit 1; }
+  set -- $list
 fi
 for tag in "$@"; do
   rid=$(gh api "repos/$repo/releases/tags/$tag" --jq .id)
