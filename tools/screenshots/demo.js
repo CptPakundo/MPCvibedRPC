@@ -1,5 +1,5 @@
-// Shows a made-up "Sample Show" playing in the settings window, for the README screenshots (docs/images). Paste it
-// into the page of a throwaway copy (see "Screenshots" in docs/maintaining.md); nothing is sent to Discord or a player. It only
+// Shows a made-up "Sample Show" playing in the settings window, for the README screenshots (docs/images). take.js
+// runs it in the page of a throwaway copy (see "Screenshots" in docs/maintaining.md); nothing is sent to Discord or a player. It only
 // changes what the page is told: the status line, the preview of the Discord card and Your stats.
 (() => {
   const real = window.__realFetch || window.fetch;

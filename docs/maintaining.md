@@ -102,18 +102,22 @@ To check a release without downloading anything, GitHub lists each file's sha256
 
 ## Screenshots
 The README's pictures (`docs/images/window-main.jpg`, `window-privacy.jpg`; `window-plex.jpg` is used by
-[troubleshooting](troubleshooting.md)) are taken again when the part of the window they show changes:
+[troubleshooting](troubleshooting.md)) are taken again when the part of the window they show changes. Build the
+program, then:
 
-1. Build the program and start it as a throwaway copy ([how](development.md#running-the-program-safely)), with showing
-   on Discord off and `{"app": {"seenVersion": "<version>"}}` in its `config.json` so the What's new box stays closed.
-2. Open its settings page (the address and token are in `ipc.json` in that folder) in dark mode, at the size the
-   program itself uses: Edge's `--window-size=660,800` (`internal/winsys/window.go`). That is the outer window; about
-   35 px go to the title bar and border, which leaves a 660 x 760 page. A high-DPI screen gives sharper pictures.
-3. For `window-main.jpg`, paste `tools/screenshots/demo.js` into the page's console: it shows a made-up
-   "Sample Show" playing and sample stats, and nothing is sent anywhere. Take the General tab. For
-   `window-privacy.jpg` (Privacy tab, scrolled to "Services that may see your titles") and `window-plex.jpg`
-   (Players tab, scrolled to Plex), reload the page first, so showing on Discord is off.
-4. Save them 800 pixels wide (800 x 921). Only made-up titles; nothing from a real library or account.
+    node tools/screenshots/take.js dist/MPRP.exe
+
+It needs Node.js 22 or later and Edge or Chrome (found in the usual places; `MPRP_SHOT_BROWSER` names another one),
+and writes the three pictures into `docs/images` (`--out` another folder). It starts a throwaway copy
+([how](development.md#running-the-program-safely)) with a temporary data folder, no window of its own, showing on
+Discord, update checks and autostart off and its players pointed nowhere, and opens the settings page in a headless
+browser with a temporary profile: dark, at the program's own page size (660 x 760, from Edge's `--window-size=660,800`
+in `internal/winsys/window.go`) and 800 pixels wide (800 x 921). `window-main.jpg` is the General tab with the made-up
+"Sample Show" from `tools/screenshots/demo.js` (it only changes what the page is told; nothing is sent anywhere);
+`window-privacy.jpg` is the Privacy tab at "Services that may see your titles", `window-plex.jpg` the end of the
+Players tab. The player logos come from this checkout's `docs/players`. At the end it quits the copy and deletes both
+temporary folders. JPEG quality 70 (`--quality`) keeps them near 50-65 KB each. Look at the pictures before
+committing them: only made-up titles, nothing from a real library or account.
 
 ## Previewing the README
 `gh api markdown -f mode=markdown -f text="$(cat README.md)"` renders it the way GitHub does. `mode=gfm` misleads: it
