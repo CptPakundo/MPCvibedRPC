@@ -151,16 +151,7 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, r := range asArr(get(j, "results")) {
-				c := &Cand{
-					Titles:   nonEmptyTitles(get(r, "name"), get(r, "title"), get(r, "original_name"), get(r, "original_title")),
-					Year:     yearOf(firstTruthy(get(r, "first_air_date"), get(r, "release_date"))),
-					URL:      "https://www.themoviedb.org/" + kind + "/" + tmpl(get(r, "id")),
-					URLLabel: "TMDB", Ref: str(get(r, "id")), Kind: kind,
-				}
-				if truthy(get(r, "poster_path")) {
-					c.Poster = posterIf(str(get(r, "poster_path")))
-				}
-				out = append(out, c)
+				out = append(out, tmdbCand(r, kind))
 			}
 			return out, nil
 		},
@@ -190,10 +181,7 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, m := range asArr(get(j, "metas")) {
-				out = append(out, &Cand{
-					Titles: nonEmptyTitles(get(m, "name")), Year: yearOf(get(m, "releaseInfo")), Poster: str(get(m, "poster")),
-					URL: imdbURL(str(firstTruthy(get(m, "imdb_id"), get(m, "id")))), URLLabel: "IMDb",
-				})
+				out = append(out, cinemetaCand(m))
 			}
 			return out, nil
 		},
@@ -222,12 +210,7 @@ func buildProviders() map[string]*Provider {
 				if !slices.Contains(want, qid) {
 					continue
 				}
-				c := &Cand{Titles: nonEmptyTitles(get(d, "l")), Year: yearNum(get(d, "y")), URL: imdbURL(str(get(d, "id"))), URLLabel: "IMDb"}
-				if truthy(get(d, "i")) {
-					c.Poster = str(get(d, "i", "imageUrl"))
-				}
-				c.l0 = tmpl(get(d, "l"))
-				list = append(list, c)
+				list = append(list, imdbCand(d))
 			}
 			if len(list) > 0 {
 				qw := map[string]bool{}
@@ -262,16 +245,7 @@ func buildProviders() map[string]*Provider {
 				if !truthy(s) {
 					continue
 				}
-				c := &Cand{Titles: nonEmptyTitles(get(s, "name")), Year: yearOf(get(s, "premiered")), Ref: str(get(s, "id")), ID: str(get(s, "id"))}
-				if truthy(get(s, "image")) {
-					c.Poster = orStr(get(s, "image", "medium"), str(get(s, "image", "original")))
-				}
-				if u := imdbURL(str(get(s, "externals", "imdb"))); u != "" {
-					c.URL, c.URLLabel = u, "IMDb"
-				} else {
-					c.URL, c.URLLabel = str(get(s, "url")), "TVmaze"
-				}
-				out = append(out, c)
+				out = append(out, tvmazeCand(s))
 			}
 			return out, nil
 		},
@@ -312,9 +286,7 @@ func buildProviders() map[string]*Provider {
 	P["anilist"] = &Provider{
 		Label: "AniList", Types: []string{"movie", "series"}, Earliest: true,
 		Search: func(a *Artwork, typ, query string, media *core.Media) ([]*Cand, error) {
-			gql := "query ($s: String!) { Page(perPage: 25) { media(search: $s, type: ANIME, sort: SEARCH_MATCH) { " +
-				"siteUrl format episodes duration genres averageScore startDate { year } title { romaji english native } synonyms coverImage { large } " +
-				"staff(perPage: 8, sort: RELEVANCE) { edges { role node { name { full } } } } } } }"
+			gql := "query ($s: String!) { Page(perPage: 25) { media(search: $s, type: ANIME, sort: SEARCH_MATCH) { " + anilistFields + " } } }"
 			body := jsonString(struct {
 				Query     string            `json:"query"`
 				Variables map[string]string `json:"variables"`
@@ -328,16 +300,7 @@ func buildProviders() map[string]*Provider {
 				if wrongKind(typ, get(m, "format") == "MOVIE") {
 					continue
 				}
-				titles := nonEmptyTitles(get(m, "title", "romaji"), get(m, "title", "english"), get(m, "title", "native"))
-				titles = append(titles, nonEmptyTitles(asArr(get(m, "synonyms"))...)...)
-				c := &Cand{Titles: titles, Year: yearNum(get(m, "startDate", "year")), URL: str(get(m, "siteUrl")), URLLabel: "AniList",
-					Runtime: optPositive(get(m, "duration")), Eps: optPositive(get(m, "episodes")),
-					Alt:     &core.ArtAlt{English: orStr(get(m, "title", "english"), ""), Romaji: orStr(get(m, "title", "romaji"), "")},
-					AniInfo: aniInfoOf(m)}
-				if truthy(get(m, "coverImage")) {
-					c.Poster = str(get(m, "coverImage", "large"))
-				}
-				out = append(out, c)
+				out = append(out, anilistCand(m))
 			}
 			return out, nil
 		},
@@ -354,30 +317,10 @@ func buildProviders() map[string]*Provider {
 			}
 			var out []*Cand
 			for _, d := range asArr(get(j, "data")) {
-				attrs := get(d, "attributes")
-				if !truthy(attrs) {
-					attrs = &OMap{M: map[string]any{}}
-				}
-				if wrongKind(typ, get(attrs, "subtype") == "movie") {
+				if wrongKind(typ, get(d, "attributes", "subtype") == "movie") {
 					continue
 				}
-				t := get(attrs, "titles")
-				titles := nonEmptyTitles(get(attrs, "canonicalTitle"), get(t, "en"), get(t, "en_jp"), get(t, "en_us"), get(t, "ja_jp"))
-				titles = append(titles, nonEmptyTitles(asArr(get(attrs, "abbreviatedTitles"))...)...)
-				score := num(get(attrs, "averageRating"))
-				c := &Cand{Titles: titles, Year: yearOf(get(attrs, "startDate")), Ref: str(get(d, "id")), ID: str(get(d, "id")),
-					URLLabel: "Kitsu", Runtime: optPositive(get(attrs, "episodeLength")), Eps: optPositive(get(attrs, "episodeCount")),
-					Alt: &core.ArtAlt{English: orStr(firstTruthy(get(t, "en"), get(t, "en_us")), ""), Romaji: orStr(firstTruthy(get(t, "en_jp"), get(attrs, "canonicalTitle")), "")}}
-				if truthy(get(attrs, "posterImage")) {
-					c.Poster = str(firstTruthy(get(attrs, "posterImage", "large"), get(attrs, "posterImage", "medium"), get(attrs, "posterImage", "original")))
-				}
-				if truthy(get(attrs, "slug")) {
-					c.URL = "https://kitsu.io/anime/" + str(get(attrs, "slug"))
-				}
-				if score > 0 {
-					c.AniInfo = &core.ArtInfo{Genres: []string{}, Rating: jsRound(score) / 10}
-				}
-				out = append(out, c)
+				out = append(out, kitsuCand(d))
 			}
 			return out, nil
 		},
