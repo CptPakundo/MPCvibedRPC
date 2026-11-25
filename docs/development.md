@@ -132,7 +132,7 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 ### Packages: `internal/`
 | Package | Job |
 |---|---|
-| `engine` | the check loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window |
+| `engine` | the check loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, settings changes without a restart (`apply.go`), status for the window |
 | | `engine.go` types, Start/Stop, Status · `players.go` `fetchPlayer` and its `picker` · `tick.go` · `discord.go` · `events.go` player events · `remote.go` the Plex, Stremio and Jellyfin watchers, resting · `folder.go` the folder listing for `folderEpisodeNumbers` (read once per file, again when the folder changed) · `disc.go` a disc's own name at a drive's root (`bdmt_*.xml`, the volume label) · `stats.go` `stats.json`, counts only (taken under `e.mu`, written after it is released) |
 | `core` | settings and defaults (`config.go`), file-name parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, catalog services (`sources.go`), every other outside address (`hosts.go`), player logos (`icons.go`), titles written like file names (`names.go`) |
 | `mpvipc`, `pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `discord`) |
@@ -309,6 +309,23 @@ stat elsewhere; never a connection) and no settings window holds `/api/alive` (`
 (`winsys.TrimMemory`) hands memory back. A window opening calls `engine.Wake`. Tests get no resting unless they set
 `MayRest`.
 
+**Settings changes** (`apply.go`, `ApplySettings`): the run goes on, and only what the changed settings reach is
+redone, so the status does not blink, the pause clock stays, and Discord's connection stays open. Each field of
+`core.Config` says its reach in a `reach` tag:
+
+| Reach | Redone | Settings |
+|---|---|---|
+| `check` | nothing: the next check reads it, and the status is sent again | the look (`activityType`, `titleAsName`, `streamTitle`, the progress bar, `pauseClearMinutes`, the file-name cleanup, `episodeInDetails`, `folderEpisodeNumbers`, `useFolderName`, the Discord art names), `pollInterval` |
+| `lookups` | the cover and title finder is made again (lookups under way end quietly) | every setting `internal/artwork` reads (the catalogs, sources, aliases, overrides, `tmdbApiKey`, `richInfo`, the links, episode titles), the catalog addresses, `hideTitle`, `hideFiles` |
+| `players` | the player watch and the Plex, Stremio, Jellyfin and Emby watchers start again | the players' ports, pipes and passwords, `mpris`, `plexAddress`, the sign-ins (`plexToken`, `stremioKey`, `jellyfinToken`) and the accounts they follow |
+| `discord` | the connection is let go (its status cleared); the next check connects again | `clientId` |
+| `none` | nothing | names for the window (`plexUser`, `plexServerName`, `jellyfinUserName`, `jellyfinServerName`), `plexJwt`, `plexKey` |
+
+The screen-share watch starts or stops when `streamTitle` turns to or from "auto". No setting restarts the run. Tests:
+`internal/engine/apply_test.go` (`TestSettingsChangeKeepsTheDiscordConnection`, `TestClientIDChangeReconnectsToDiscord`,
+and `TestSettingsReachWhatReadsThem`, which fails when `internal/artwork`, the watchers or the Discord login read a
+setting whose reach does not make them again).
+
 **Clearing** (`tick.go`):
 - A status counts as shown from the moment it is sent, also when Discord's answer does not come (it may have been
   applied).
@@ -323,7 +340,8 @@ the cover finder and the API. The rules that keep them in step:
    late cover, a send Discord did not take).
 2. Only a change by the player restarts the pause limit or brings back a status cleared after a long pause.
 3. Every place that takes `e.mu` again after asking Discord checks that its run is still the current one
-   (`e.cur == r`) before it books anything.
+   (`e.cur == r`) before it books anything; a Discord answer also checks that its connection was not let go for new
+   settings meanwhile (`discGen`).
 4. The clear after a long pause is booked when Discord took it, not before.
 5. A send Discord did not take waits `retryAfter` (5 s, doubling to a minute) before the next try.
 6. `basicMode` and `noLinks` hold for the file they were found out for (`modeKey`).
@@ -387,9 +405,11 @@ Playing form while Discord shares the screen ([users' view](how-it-works.md#on-y
    log line, `diag`, and the repository description and topics. `TestPlayersAreNamedEverywhere` catches a missed text.
 
 ### A new setting
-A field with a `json` tag in `core.Config` and its default in `DefaultConfig()`; a `Field` in `store/schema.go` if it
-belongs in the window (int fields need Min/Max; `secret` for passwords and keys); a row in `docs/config.md` with the
-default in JSON form (`TestEverySettingIsDocumented`); `diag.summarise` if the value is private (shown as "(set)").
+A field with a `json` tag and a `reach` tag ([settings changes](#the-engine)) in the right group of `core.Config`
+(`Settings`, `Accounts` for what a sign-in writes, `Secrets` for its tokens and keys, `Hooks` for catalog addresses)
+and its default in `DefaultConfig()` (`TestEverySettingHasAReach`); a `Field` in `store/schema.go` if it belongs in the
+window (int fields need Min/Max; `secret` for passwords and keys); a row in `docs/config.md` with the default in JSON
+form (`TestEverySettingIsDocumented`); `diag.summarise` if the value is private (shown as "(set)").
 Defaults that change behaviour for existing users need the maintainer's decision and a line in the release notes.
 
 ### A new catalog service
@@ -416,6 +436,8 @@ run a copy or a real player without touching an installed setup: [Running the pr
 
 **Tests that tie texts to the code** (keep them passing; they fail when a doc falls behind):
 - `TestEverySettingIsDocumented` (`internal/store`): every setting has its row and default in [config.md](config.md).
+- `TestEverySettingHasAReach` and `TestSettingsReachWhatReadsThem` (`internal/engine`): every setting has a `reach`, and
+  the settings the cover finder, the watchers and the Discord login read make them again when they change.
 - `TestPlayersAreNamedEverywhere` (`cmd/mprp`): every text that lists the players names them all.
 - `TestEveryHostIsListed` and `TestSecurityListsEveryHost` (`internal/core`): every outside address the code and the
   page name is in `core.Hosts` or `core.Sources`, and `SECURITY.md` names each.

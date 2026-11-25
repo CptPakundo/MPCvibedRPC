@@ -156,7 +156,8 @@ text with no path; `TestPageScriptParses`.
 - Offsets meet folder numbers and the frozen golden data. The parser is not touched, offsets apply after it, and 0 and
   0 is the old path. `pickSeasonEntry`'s rules (the earliest entry wins) stay: an offset moves the number, not the
   entry choice.
-- Saving restarts the engine (`ApplySettings`); check that the card does not blink. Next up 1 is the same work.
+- Saving makes the cover and title finder again (`ApplySettings`; `matchFixes` reaches `lookups`) and sends the status
+  again, without a restart; check that the card does not blink.
 - A pinned page can disappear from its catalog. Fall back to searching the read title, with a WARN line.
 
 ## Decisions
