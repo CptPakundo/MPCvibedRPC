@@ -1,6 +1,6 @@
 // downloads works out how often the program was downloaded by people: GitHub's count of each release file, minus
 // the count when counting started (baseline.json) and minus every download made by development (the release checks
-// and Claude agents, each recorded as a file in ledger/ by tools/ci/dev-download.sh). Only the program files count
+// and automated agents, each recorded as a file in ledger/ by tools/ci/dev-download.sh). Only the program files count
 // (the exe, the Linux programs and the macOS zip; not checksums or notices). It reads the releases as the GitHub API
 // lists them and writes into the stats folder (the stats branch, kept by .github/workflows/downloads.yml):
 //

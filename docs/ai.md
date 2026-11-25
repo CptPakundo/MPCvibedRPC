@@ -3,10 +3,10 @@
 MPCvibedRPC is AI-generated ("vibe coded"). This page says what that means here, so you can judge it for yourself.
 
 ## Who did what
-- **The AI** (Claude, by Anthropic, through Claude Code) wrote the code, the tests, the CI workflows and the
+- **The AI** (Claude, by Anthropic) wrote the code, the tests, the CI workflows and the
   documentation, ran the tests, and read the CI results.
-- **The owner** of the repository gives the direction (what to build, what to leave out), makes the product decisions
-  ([listed here](decisions.md)), tries the results on their own computer, and approves every release. The owner does
+- **The maintainer** of the repository gives the direction (what to build, what to leave out), makes the product decisions
+  ([listed here](decisions.md)), tries the results on their own computer, and approves every release. The maintainer does
   not present the code as their own.
 - The idea comes from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC) (MIT).
 

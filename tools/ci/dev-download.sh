@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Every download of a release file made by development (the release checks, Claude agents) goes through here, so the
+# Every download of a release file made by development (the release checks, automated agents) goes through here, so the
 # download counter (tools/downloads, .github/workflows/downloads.yml) can leave it out. Each recording is a file of
 # its own in ledger/ on the stats branch, written through the GitHub API, so writers never conflict.
 #   dev-download.sh download BY TAG DIR [PATTERN]   gh release download into DIR (new or empty), then records it
 #   dev-download.sh record BY TAG/FILE[=N] ...      records downloads made another way (the program's own updater)
-# BY says who downloaded ("release check v0.9.39 draft", "Claude agent"). Needs gh signed in with write access.
+# BY says who downloaded ("release check v0.9.39 draft", "an automated agent"). Needs gh signed in with write access.
 set -euo pipefail
 repo="${GITHUB_REPOSITORY:-CptPakundo/MPCvibedRPC}"
 
