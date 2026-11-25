@@ -24,13 +24,13 @@ func TestMenuBarIconDot(t *testing.T) {
 		_, _, _, a := img.At(x, y).RGBA()
 		return a >> 8
 	}
-	if a := alpha(dotted, 29, 7); a != 255 { // the dot's middle
+	if a := alpha(dotted, 28, 8); a != 255 { // the dot's middle
 		t.Errorf("dot alpha %d", a)
 	}
-	if a := alpha(dotted, 22, 13); a != 0 { // in the gap (part of the square in the plain icon)
+	if a := alpha(dotted, 24, 13); a != 0 { // in the gap (part of the square in the plain icon)
 		t.Errorf("gap alpha %d", a)
 	}
-	if a := alpha(plain, 22, 13); a != 255 {
+	if a := alpha(plain, 24, 13); a != 255 {
 		t.Errorf("plain icon at the gap: alpha %d", a)
 	}
 	if alpha(plain, 6, 30) != alpha(dotted, 6, 30) { // far from the dot

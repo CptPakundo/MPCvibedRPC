@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"image"
-	"image/color"
 	"image/png"
+
+	"github.com/CptPakundo/MPRP/internal/logo"
 )
 
 // icnsTypes are the PNG entries of a macOS .icns file, by pixel size.
@@ -19,15 +19,8 @@ var icnsTypes = []struct {
 
 // pngOf draws the icon at one size.
 func pngOf(n int) []byte {
-	img := image.NewNRGBA(image.Rect(0, 0, n, n))
-	for y := 0; y < n; y++ {
-		for x := 0; x < n; x++ {
-			r, g, b, a := pixel(n, x, y)
-			img.SetNRGBA(x, y, color.NRGBA{r, g, b, a})
-		}
-	}
 	var out bytes.Buffer
-	_ = png.Encode(&out, img)
+	_ = png.Encode(&out, logo.Image(n, false))
 	return out.Bytes()
 }
 
