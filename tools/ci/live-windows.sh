@@ -7,25 +7,30 @@ here="$(cd "$(dirname "$0")" && pwd)"
 work="$RUNNER_TEMP/live-windows"
 mkdir -p "$work"
 
-# choco_install PACKAGE... [OPTION...]: choco install, tried up to three times, 30 seconds apart (a download
-# from Chocolatey's mirrors fails now and then, for example with a TLS error for Kodi).
+# choco_install CHECK PACKAGE... [OPTION...]: choco install, tried up to three times, 30 seconds apart (a download
+# from Chocolatey's mirrors fails now and then, for example with a TLS error for Kodi). CHECK is a shell test that must
+# hold afterwards: choco has answered success with the program missing, so its exit code alone is not trusted.
 choco_install() {
-  local try
+  local check="$1" try; shift
   for try in 1 2 3; do
-    if choco install -y --no-progress "$@" >> "$work/choco.log"; then return 0; fi
-    echo "choco install $* failed (try $try of 3)"
+    if choco install -y --no-progress "$@" >> "$work/choco.log" 2>&1 && eval "$check"; then return 0; fi
+    echo "choco install $* did not leave what it should ($check), try $try of 3"
     [ "$try" = 3 ] || sleep 30
   done
-  cat "$work/choco.log"
+  grep -iE "install|fail|error|warn|not " "$work/choco.log" | grep -viE "proceeds|community|chocolatey.org/compare|awesome" | tail -60
   return 1
 }
 
+# ffmpeg: Chocolatey puts its shim in its bin folder, which this shell may not have on PATH yet
+export PATH="$PATH:/c/ProgramData/chocolatey/bin"
+pot_exe() { ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files*/DAUM/PotPlayer/PotPlayerMini*.exe 2>/dev/null | head -1; }
+
 echo "::group::install"
 : > "$work/choco.log"
-choco_install kodi ffmpeg
+choco_install 'command -v ffmpeg >/dev/null && ls /c/Program\ Files*/Kodi/kodi.exe >/dev/null 2>&1' kodi ffmpeg
 # PotPlayer replaces the installer at its fixed download address, so the package's recorded checksum goes stale; on
 # this throwaway runner it is installed without that check.
-choco_install potplayer --ignore-checksums
+choco_install '[ -n "$(pot_exe)" ]' potplayer --ignore-checksums
 tail -5 "$work/choco.log"
 echo "::endgroup::"
 
@@ -40,7 +45,7 @@ live() { # live NAME [VAR=value ...]: the live engine test, which must really ru
 }
 
 echo "::group::PotPlayer"
-pot="$(ls /c/Program\ Files/DAUM/PotPlayer/PotPlayerMini64.exe /c/Program\ Files*/DAUM/PotPlayer/PotPlayerMini*.exe 2>/dev/null | head -1 || true)"
+pot="$(pot_exe || true)"
 [ -n "$pot" ] || { echo "PotPlayer was not installed where expected"; ls "/c/Program Files" "/c/Program Files (x86)"; exit 1; }
 "$pot" "$win_video" &
 sleep 10
