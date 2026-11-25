@@ -123,6 +123,16 @@ func livePauseEvent(t *testing.T, e *Engine, d *disc, name, how string) {
 	}
 	time.Sleep(time.Second) // the event connection is made at the start
 	set := livePauser(t, e.cfg, name, how)
+	// the pause must be the player's own change: a player that opened paused (IINA did once) is played first, and
+	// that may only show at the next regular check
+	if e.Status().Paused {
+		set(false)
+		for until := time.Now().Add(70 * time.Second); e.Status().Paused; time.Sleep(50 * time.Millisecond) {
+			if time.Now().After(until) {
+				t.Fatal("timed out waiting for: playing before the pause")
+			}
+		}
+	}
 	n := len(d.list())
 	start := time.Now()
 	set(true)
