@@ -54,7 +54,10 @@ type Notifier struct {
 func (n *Notifier) Show(title, text string) bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	for try := 0; try < 2; try++ { // a connection kept from earlier may have ended meanwhile: one new try
+	// A connection kept from earlier may have ended meanwhile: one new try, but only then (the connection ended, or
+	// the call could not be sent). A service that is slow to answer (one the bus starts on demand) may still show the
+	// notification: a second try would show it twice.
+	for try := 0; try < 2; try++ {
 		if n.conn == nil {
 			if err := n.connect(); err != nil {
 				n.log("INFO", "No desktop notification service ("+err.Error()+").")
@@ -78,6 +81,10 @@ func (n *Notifier) Show(title, text string) bool {
 		var de *dbus.Error
 		if errors.As(err, &de) { // the bus answered: there is no notification service, or it refused
 			n.log("INFO", "The desktop notification service did not show the notification ("+err.Error()+").")
+			return false
+		}
+		if errors.Is(err, dbus.ErrNoAnswer) { // the connection is kept: a later answer is simply dropped
+			n.log("INFO", "The desktop notification service did not answer in time ("+err.Error()+").")
 			return false
 		}
 		n.conn.Close()
