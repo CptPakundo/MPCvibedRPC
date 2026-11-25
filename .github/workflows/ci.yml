@@ -8,8 +8,8 @@
 name: ci
 on:
   # A change to documentation only (the README and other top-level .md files, docs/, the issue templates) changes
-  # nothing that is built or run, so it is not tested; a change that also touches anything else is. master is not
-  # tested on push: its commits come from a pull request whose branch was tested, and the release run tests the tagged
+  # nothing that is built or run, so it is not tested here (docs.yml runs the tests that read those files); a change
+  # that also touches anything else is. master is not tested on push: its commits come from a pull request whose branch was tested, and the release run tests the tagged
   # commit again before anything is published.
   push:
     branches: ['**', '!master']

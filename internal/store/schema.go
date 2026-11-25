@@ -100,7 +100,7 @@ var Sections = []Section{
 		{Type: "heading", Label: "Discord"},
 		{Key: "clientId", Type: "text", Label: "Discord application ID", Help: "Make your own at discord.com/developers/applications to change the name and artwork Discord shows."},
 		{Key: "pollInterval", Type: "int", Label: "Check every (ms)", Min: ip(1000), Max: ip(60000)},
-		{Type: "heading", Label: "Maintenance"}, // the window puts the update source, the settings folder and Restore defaults under it
+		{Type: "heading", Label: "Maintenance"}, // the window puts the settings folder and Restore defaults under it
 	}},
 }
 

@@ -441,7 +441,7 @@ after every change that touches them. A Linux or cloud environment can run almos
 window, the registry and the Windows players need Windows.
 
 `ci.yml` runs on every push to a branch other than `master` that changes more than documentation (top-level `.md`
-files, `docs/`, issue templates). A pull request from this repository is tested by its branch's push run; only pull
+files, `docs/`, issue templates); `docs.yml` covers those changes (below). A pull request from this repository is tested by its branch's push run; only pull
 requests from forks are tested through the `pull_request` event. `master` is not tested on push (its commits come from
 a tested branch, and the tag run tests again). A newer push cancels a run still going on the same branch.
 
@@ -462,6 +462,10 @@ and in the canary, not on every push ([decision](decisions.md#releases)). The bu
 actions `.github/actions/build-windows` and `build-unix`, shared with `release.yml`.
 
 Other workflows:
+- **`docs.yml`** (every push to a branch other than `master` and every pull request, with no paths filter): runs only
+  the tests that read the documentation (`TestEverySettingIsDocumented`, `TestPlayersAreNamedEverywhere`,
+  `TestEveryHostIsListed`, `TestSecurityListsEveryHost` and `tools/relnotes`' tests), because `ci.yml` skips a change
+  that touches only documentation.
 - **`release.yml`** (on a tag): tests, builds, smoke-tests and publishes; it does not run the lint gates (they gate the
   pull request before the merge). See [maintaining.md](maintaining.md#releasing).
 - **`canary.yml`** (Mondays, and by hand): runs all of `ci.yml` (`workflow_call`) against the newest players and
@@ -495,38 +499,47 @@ Testing:
 - **Fakes only answer what you thought of.** For a parse or lookup change, compare old and new on the real catalogs
   before release: a `git clone --branch vX` copy of the last release, the same scratch test in both, a diff of the
   outputs. Real titles stay in the scratch file; delete it after (and before any full test run).
-- **A hung test run:** a fake's deferred `mu.Lock()` after a panic under the same lock blocks `eventually()`. Kill
-  the run and run the new tests one at a time with `-timeout 40s -v`.
-- A property test's first failures are often about the property, not the code: check the property first.
-- Check the state a timing stands for, not the timing: wait with `eventually()` instead of reading Discord and the
-  engine one after the other.
-- Memory readings of one run mislead: compare several runs side by side.
-- `filepath.Base` does not split backslash paths on Linux.
-- An apostrophe in a single-quoted JavaScript string breaks the whole page.
+- **A hung test run:** if a test panics while it holds a fake's lock, the fake's deferred cleanup waits for that same
+  lock and never finishes, so the helper `eventually()` (which polls until a condition holds) waits forever. Kill the
+  run and run the new tests one at a time with `-timeout 40s -v` to find the one that panics.
+- A property test (one that checks a rule over many generated inputs) often fails first because the rule is stated
+  wrongly, not because the code is wrong: check the rule first.
+- Check the state a timing stands for, not the timing: wait with `eventually()` until the condition holds, instead of
+  reading the fake Discord and the engine one after the other (they are updated at slightly different moments, so the
+  second read can be stale).
+- One run's memory reading misleads (the garbage collector runs when it likes): compare several runs side by side.
+- `filepath.Base` does not split Windows paths (with backslashes) on Linux, so code that reads a player's file path
+  must not rely on it when the path came from a Windows player.
+- An apostrophe inside a single-quoted JavaScript string in `ui.js` ends the string early and breaks the whole
+  settings page (`TestPageScriptParses` catches it).
 
 Code:
-- When a delay or grace period is removed, grep for what it leaned on (first polls, page loads, tests that expect "no
-  update yet").
-- A feature that reads an operating-system record must first check that the record is still written today (the
-  newest entry's date).
-- Before deciding something cannot be done, look one layer down: what does the operating system record about it?
+- When a delay or grace period is removed (for example the wait before the first update check), grep for what other
+  code relied on it: the first poll of the players, a page that is still loading, tests that expect "no update yet".
+- A feature that reads an operating-system record (for example the Windows record of which program captures the
+  screen) must first check that the record is still written today: look at the newest entry's date.
+- Before deciding something cannot be done, look one layer down: Discord does not say which window is being shared,
+  but the operating system knew. Ask what the system records about it.
 - An asset key the Discord application does not hold is dropped silently. The application's assets are public at
   `https://discord.com/api/v10/oauth2/applications/<id>/assets`: check there before relying on a key.
 
 Catalogs and episodes:
-- Check an episode-title bug against a source with explicit numbers (Wikipedia's episode lists). Parse JSON lines;
-  counting them with `grep` miscounts.
-- The golden season data pins "earliest entry wins, a Part counts as its number", and `[ii part]` gives no mark. New
-  season rules must be narrow additions in `pickSeasonEntry`, checked against that data.
+- Check an episode-title bug against a source that gives explicit episode numbers (Wikipedia's episode lists). When
+  counting entries in a recorded response, parse the JSON lines; counting them with `grep` miscounts.
+- The golden season data (the recorded season lists of the catalogs) pins two rules: the earliest entry wins, and a
+  "Part" counts as its number. It also pins that a file name with `[ii part]` (the roman numeral "ii" and "part", as
+  anime releases write a season) gets no season mark. New season rules must be narrow additions in `pickSeasonEntry`
+  (the function that picks a catalog's season entry), checked against that data.
 
 CI:
-- macOS has bash 3.2: no negative array indexes, and no `${arr[@]}` of an empty array under `set -u`.
-  `defaults export <domain> -` succeeds for apps that were never installed.
-- Chocolatey's PotPlayer checksum goes stale whenever PotPlayer replaces its installer: CI installs it with
-  `--ignore-checksums`.
-- Emby ignores files with "sample" in the name (the test videos are called "Example Show"); adding a library only
+- The CI scripts run on macOS, which has bash 3.2: no negative array indexes, and no `${arr[@]}` of an empty array
+  under `set -u`. `defaults export <domain> -` (reading an app's settings) succeeds for apps that were never installed,
+  so it proves nothing about an install.
+- Chocolatey's package for PotPlayer (the live Windows job installs it from there) has a checksum that goes stale
+  whenever PotPlayer replaces its installer: CI installs it with `--ignore-checksums`.
+- When the live Emby job sets up its test server: Emby ignores files with "sample" in the name (the test videos are called "Example Show"); adding a library only
   checks its folders (run the `RefreshLibrary` task); `/Sessions/Playing` needs a `PlaySessionId`; its logs go to
   `/config/logs`.
-- Jellyfin 12 ignores the legacy `X-Emby-*` headers unless `EnableLegacyAuthorization` is on: send
+- Jellyfin 12 (the server the live job runs) ignores the legacy `X-Emby-*` headers unless `EnableLegacyAuthorization` is on: send
   `Authorization: MediaBrowser ...`.
 - To learn a third-party server's API without an account, run its official image on a CI branch with a probe script.

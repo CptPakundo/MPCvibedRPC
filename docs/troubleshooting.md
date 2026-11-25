@@ -138,7 +138,9 @@ default is in [docs/config.md](config.md).
 
 To uninstall:
 
-1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Players** tab first. That ends the sessions on their side.
+1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Players** tab first. For Stremio and Jellyfin / Emby that
+   ends the session on their side. Plex's sign-out only removes the sign-in from this computer; to remove it from your
+   account too, delete this program's entry on Plex's own *Authorized Devices* page (in your Plex account settings).
 2. Turn off "Start with Windows" / "Start at login" (General tab).
 3. Quit the program, then delete the program and the settings folder above.
 4. The player settings that **Set up the player connection** switched on are left as they are: the MPC-HC and MPC-BE
@@ -153,13 +155,15 @@ To uninstall:
   each version; after **Not now** a line at the top of the window keeps saying so, and its **See what's new** button
   brings the question back.
 - **Automatic install** (Windows and Linux; **Install updates automatically**, on by default): the update installs
-  itself as soon as nothing is playing and the window is closed, restarts in the tray and says so once. Until then the
+  itself as soon as nothing is playing and no settings window is open (the program then runs minimised to the tray, or
+  was started at login), restarts in the tray and says so once. Closing the window quits the program on Windows and
+  Linux, so an update only installs itself while it runs without its window. Until then the
   tray icon (macOS: the menu bar icon) shows a red dot. **Update now** in the window does it at once.
 - **Safety:** every update is checked against its checksum. The copy that installed it waits until the new version has
   come up; if it has not within half a minute, the old version is put back and started again, and a notice says so.
   That version is not installed by itself a second time (a newer one is).
 - **macOS:** the window links to the download.
-- After an update the window shows what's new once; the version number at the top of the window shows every version.
+- After an update the window shows what's new once; the version number at the bottom of the window shows every version.
 
 ## Is the download safe?
 

@@ -11,7 +11,8 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   nothing to send, and an idle program should not hold a connection.
 - **The window's X quits the program; minimizing sends it to the tray** (2026-11-20, the owner, from a user's wish).
   **Minimize to the tray** (Windows, on by default) can send it to the taskbar instead. On macOS the window still
-  closes to the menu bar. *Why:* the X should do what it says; the tray stays one click away for those who want the
+  closes to the menu bar (it has no tray to fall back on, so the menu bar app keeps running); on Linux, which has no tray
+  icon, the X quits like on Windows. *Why:* the X should do what it says; the tray stays one click away for those who want the
   program out of sight.
 - **Resting while Discord is closed has no setting.** With Discord closed (and the window closed), no player is asked
   and the account watchers stop. *Why:* the status only reaches your profile through the Discord app, so following

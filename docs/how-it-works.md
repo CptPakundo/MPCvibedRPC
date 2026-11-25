@@ -13,7 +13,8 @@ covers and episode names come from, and how each player is read. Every setting w
 - **Show the title on my streams** (ticked when on);
 - **Quit**.
 
-Linux has no tray icon: run the program again to show the window; Quit is in the window.
+Linux has no tray icon, and closing the window with its X quits the program there too. Keep the window open or
+minimised, or let the program start at login; running it again brings the window back. Quit is in the window.
 
 **The settings window** has a status block at the top (with a preview of your status on Discord) and these tabs:
 
@@ -249,11 +250,7 @@ Kodi elsewhere, both under Settings > Services > Control); without them it is ch
 **Names and streams.** With players outside the MPC family, the image tooltip names the player ("mpv", "IINA", "VLC
 media player", ...) instead of "Media Player Classic". Streams show their title (there is no file name or folder).
 
-**Tested with.** MPC-HC is what the program was built around (tested with MPC-HC 2.8.3). MPC-BE 1.9.1, MPC-QT 26.07,
-mpv 0.41.0 and VLC 3.0.24 were tried on Windows 11, set up as above (and a development build of VLC 4, not released
-yet). On macOS and Linux, mpv, IINA, VLC, mpv-mpris and Celluloid are tried on GitHub's test machines with every change,
-with a stand-in for Discord. IINA on a real Mac with the real Discord was tried by a tester; Linux has not been tried on
-a real desktop yet.
+What was tried with which player, and how, is in [What has been tried](#what-has-been-tried).
 
 ### VLC setup
 - **By hand:** Tools > Preferences > All > Interface > Main interfaces: tick Web, and set a password under Lua > Lua
@@ -268,16 +265,15 @@ a real desktop yet.
 ### Plex
 - **Signing in:** **Players > Sign in to Plex** opens plex.tv in your browser, and you approve the sign-in there (the
   program never sees your password). The program introduces itself to Plex as "MPCvibedRPC" and keeps the sign-in in
-  `config.json`; **Sign out** or **Restore defaults** removes it.
+  `config.json`; **Sign out** or **Restore defaults** removes it from this computer. Nothing is sent to Plex then: to
+  remove the sign-in on Plex's side, delete this program's entry on Plex's *Authorized Devices* page.
 - **Your server:** it follows your server; choose another one under the button (your own servers come first, then
   those shared with you). **Players > Plex server address** is only needed when this computer cannot reach the server
   at the addresses plex.tv lists.
 - **What it reads:** only titles, episode numbers and the position of what you play, on any of your devices. On a
   server you own, only your own playback shows, not that of people you share with. Music and photos are never shown.
 - The episode or movie name comes from your server; cover art is looked up as for files.
-- **Tested:** on GitHub's test machines with every change, against the official Plex Media Server without a Plex
-  account, with a stand-in player reporting playback to it. A real Plex account, servers shared by someone else and
-  real Plex apps have not been tried yet.
+- What was tried: see [What has been tried](#what-has-been-tried).
 
 ### Stremio
 - **Signing in:** **Players > Sign in to Stremio** works the way Stremio's TV apps do: stremio.com opens in your
@@ -291,8 +287,7 @@ a real desktop yet.
   taken down. When the regular updates stop coming, the video stopped without a word.
 - Series episodes come from the entry's video ("Sample Show - S01E02"); cover art is looked up as for files. Entries of
   type "other" (which Stremio does not save to the account) are never shown.
-- **Tested:** against a stand-in for Stremio's servers built from Stremio's own open-source core; a real Stremio account
-  has not been tried yet.
+- What was tried: see [What has been tried](#what-has-been-tried).
 
 ### Jellyfin and Emby
 - **Address:** type your server's address on the **Players** tab (`http://` is added if missing, and a path is kept for
@@ -312,9 +307,7 @@ a real desktop yet.
 - Titles are written like a file name ("Sample Show - S01E02 - Title", "Sample Movie (2020)"), so the usual parsing,
   cover art and episode lookups apply. Problems (the server refused the sign-in, or can't be reached) show as a hint in
   the window.
-- **Tested:** with unit tests against stand-ins, and on GitHub's test machines with every change against the official
-  Jellyfin and Emby server images, with a stand-in player reporting playback to them. A real user's server and the real
-  apps have not been tried yet.
+- What was tried: see [What has been tried](#what-has-been-tried).
 
 ## Resting while Discord is closed
 While Discord is not running and the settings window is closed, the program rests: no player is asked, the Plex server,
@@ -322,3 +315,20 @@ the Stremio account and the Jellyfin / Emby server are not followed, and memory 
 back to the system. At each check (every 5 seconds by default) it only looks whether Discord's connection is there; it
 never connects to see. Once Discord starts, everything picks up at the next check; opening the window does so at once.
 Resting needs no setting: with Discord closed there is nobody to show a status to.
+
+## What has been tried
+"Real" means the real program with the real player or service on the system named; "CI" means GitHub's test machines,
+on every change, with a stand-in for Discord (and a stand-in player for the media servers); "not yet" means nobody has
+tried it.
+
+| Player or service | System | How |
+|---|---|---|
+| MPC-HC 2.8.3 | Windows 11 | real (the player the program was built around) |
+| MPC-BE 1.9.1, MPC-QT 26.07, mpv 0.41.0, VLC 3.0.24 | Windows 11 | real, set up as described above (also a development build of VLC 4, not released yet) |
+| PotPlayer, Kodi | Windows | CI: the real players from Chocolatey with a generated test video |
+| Kodi | macOS, Linux, another device | only against a stand-in |
+| mpv, VLC, mpv-mpris, Celluloid | Linux | CI; a real desktop: not yet |
+| mpv, IINA | macOS | CI; IINA on a real Mac with the real Discord: once, by a tester |
+| Plex | any | CI: the official Plex Media Server without a Plex account, with a stand-in player; a real Plex account, shared servers and real Plex apps: not yet |
+| Stremio | any | against a stand-in for Stremio's servers built from Stremio's open-source core; a real Stremio account: not yet |
+| Jellyfin, Emby | any | unit tests against stand-ins, and CI against the official server images with a stand-in player; a real server and the real apps: not yet |

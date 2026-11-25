@@ -19,8 +19,8 @@ body:
     id: version
     attributes:
       label: Program version
-      description: Shown at the top right of the settings window.
-      placeholder: e.g. 0.9.x, see the window's header
+      description: Shown at the bottom of the settings window.
+      placeholder: e.g. 0.9.x, see the bar at the bottom of the window
     validations:
       required: true
   - type: input
