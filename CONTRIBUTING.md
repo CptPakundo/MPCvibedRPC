@@ -1,6 +1,6 @@
 # Contributing
 
-The program is AI-generated ("vibe coded"): the code, tests and docs were written with Claude from the owner's prompts
+The program is AI-generated ("vibe coded"): the code, tests and docs were written with an AI assistant (Claude) from the maintainer's prompts
 and testing. Bug reports, reviews and pull requests with tests are welcome all the same.
 
 ## Quick start
@@ -34,6 +34,16 @@ Optional tools:
   parts an AI wrote, and what you tested for real (not only against fakes); add tests for the change. A pull request
   you have not run yourself will most likely be closed. AI tools: start with [AGENTS.md](AGENTS.md).
 
+## Picking up work
+- **Where the work is:** the roadmap's [Next up](docs/roadmap.md#next-up) (work anyone can take without a decision), its
+  [Open decisions](docs/roadmap.md#open-decisions-the-maintainers) (they need the maintainer: ask before building),
+  [Not yet tried for real](docs/development.md#not-yet-tried-for-real) (checks that need a setup you may have) and the
+  open pull requests.
+- **Work in progress is a branch and a pull request** (a draft is fine). Its description says what was done, what was
+  tested and how (for real, against fakes, not at all), and what is next, in order, so that anyone can continue it
+  without asking. Update the description as the work moves.
+- Keep to one task per branch. If you stop, say so in the pull request.
+
 ## Ground rules
 - **Privacy first.** No personal data in commits, tags, code, docs, tests, screenshots or release files: no email
   addresses, local paths or user names, machine details, tokens. Commit and tag with a neutral identity, never a
@@ -48,9 +58,9 @@ Optional tools:
   for a real player, or change a real player's settings, the registry or `%APPDATA%`/`%LOCALAPPDATA%`. Use the fakes
   and throwaway data folders in [Running the program safely](docs/development.md#running-the-program-safely).
 - **The readers are read-only; real accounts are off-limits.** Never sign in to a real Plex, Stremio, Jellyfin or Emby
-  account, or call their sign-in services, from tests or by hand, without the owner's OK. Every reader has fakes.
+  account, or call their sign-in services, from tests or by hand, without the maintainer's OK. Every reader has fakes.
 - **No regressions, no churn.** Weigh pros and cons; don't change working behaviour for its own sake. New behaviour that
-  affects existing users stays off or unchanged by default unless the owner decides otherwise.
+  affects existing users stays off or unchanged by default unless the maintainer decides otherwise.
 - **Be exact about what was tested.** Say what ran for real, what ran against fakes, and what was not tested.
 - **Docs present the program as it is now**: no history of earlier versions or former names (the upstream credit to
   angeloanan/MPC-DiscordRPC stays in the README, `LICENSE` and `THIRD-PARTY-NOTICES.md`).

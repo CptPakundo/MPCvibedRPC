@@ -150,7 +150,7 @@ Example: `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count
 | `discord` | Discord's local IPC protocol |
 | `artwork`, `jsre` | catalog lookups and episode titles; a regex engine with JavaScript semantics that the matching rules rely on |
 | `store`, `jsonx` | `config.json`, the window's layout (`schema.go`), validation; a JSON reader/writer that keeps key order and unknown keys and prints numbers like JavaScript |
-| `server`, `assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP); the page (`ui.html`, `ui.css`, `ui.js`, embedded) and `changelog.json` |
+| `server`, `assets` | the local API on 127.0.0.1 (per-launch token, host check, CSP); the page (`ui.html`, `ui.css`, `ui.js`, embedded; its look: [design/settings-window.md](design/settings-window.md)) and `changelog.json` |
 | `winsys` | the operating system; see the next table |
 | `diag` | **Copy diagnostics**: keeps titles and file names, leaves out folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list |
 | `updater` | GitHub release check, download, checksum, swap and restore of the program file |
@@ -177,8 +177,9 @@ on every system.
 | `tools/relnotes` | the release text, rendered from the changelog |
 | `tools/screenshots` | `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
 | `tools/downloads` | the project's own download count (on the `stats` branch; see [CI](#ci)) |
+| `tools/downloads/reset-counts.sh` | starts the release files' download counts again from 0 (rewrites every asset; [how](maintaining.md#resetting-the-download-counts)) |
 | `tools/ci` | the CI scripts; see the list below |
-| `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`) |
+| `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, `design/` (design proposals and the window's look), `research/` (reports on Discord's card and on immutable releases), this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`) |
 
 `tools/ci`:
 - `smoke.ps1`, `smoke-unix.sh`: the smoke tests (Windows: also DPI awareness, version details and resting).
@@ -242,7 +243,7 @@ reads what plays.
   "Authenticating with Plex" describes). An Ed25519 key per install (`plexKey`, a secret); its JWK is sent with the PIN
   to `clients.plex.tv/api/v2/pins`; the token is collected with a signed device JWT and renewed (`/api/v2/auth/nonce`,
   then `/api/v2/auth/token`) two days before it runs out (`plexAccount.keepFresh`, hourly). Only tested against a
-  fake plex.tv; turn it on by default only after a real sign-in has been tried with the owner's OK.
+  fake plex.tv; turn it on by default only after a real sign-in has been tried with the maintainer's OK.
 
 ### Stremio
 - **Sign-in:** the account's key through a link code (`link.stremio.com/api/v2/create` and `read`, the TV apps'
@@ -386,12 +387,12 @@ Playing form while Discord shares the screen ([users' view](how-it-works.md#on-y
 A field with a `json` tag in `core.Config` and its default in `DefaultConfig()`; a `Field` in `store/schema.go` if it
 belongs in the window (int fields need Min/Max; `secret` for passwords and keys); a row in `docs/config.md` with the
 default in JSON form (`TestEverySettingIsDocumented`); `diag.summarise` if the value is private (shown as "(set)").
-Defaults that change behaviour for existing users need the owner's decision and a line in the release notes.
+Defaults that change behaviour for existing users need the maintainer's decision and a line in the release notes.
 
 ### A new catalog service
 An entry in `core.Sources` (id, label, use, host: it gets its switch on the Privacy tab); a `<Name>Base` field with its
 default in `core.Config` (tests point it at a fake); its id in the default `artworkSources` and/or `episodeSources` (a
-default change needs the owner); the `Provider` in `artwork/providers.go` and/or the `epProvider` in
+default change needs the maintainer); the `Provider` in `artwork/providers.go` and/or the `epProvider` in
 `artwork/episodes.go`; its line in `blockedHostFilter` (`artwork/disabled.go`); a subtest in
 `internal/artwork/live_test.go` (the canary); its row in `SECURITY.md`; the credit its terms ask for (Help tab credits,
 `THIRD-PARTY-NOTICES.md`); and `docs/config.md`.
@@ -492,6 +493,29 @@ A Go security fix means bumping the patch version in `go.mod` alone: every `setu
 - The concurrency group must include the event action.
 - Before re-running a failed job, save its log ([pitfalls](maintaining.md#pitfalls)).
 
+### Known flaky checks
+These have failed without a code change; read the log, then re-run once (after saving the log):
+- The **Chocolatey Kodi download** in `players-windows` (TLS errors from its mirror). The canary uses the same job.
+- The macOS **IINA pause check** in `players` timed out once (5 s) and passed on a re-run.
+- `TestEpisodeWithoutTitleIsAskedAgainWhilePlaying` (it counts sends) and two timing tests each failed once in a
+  full-suite run that came right after heavy work. Run the single test again before suspecting the change.
+
+## Not yet tried for real
+Everything below has only run against fakes, or not at all. Anyone with the setup can try it and report the result
+(then move the line to [What has been tried](how-it-works.md#what-has-been-tried)):
+- A **pinned taskbar button** of the settings window: it shows the program's icon and starts the program.
+- A viewer seeing "Streaming <title>" with no other Playing program running.
+- The **update dialog** in the real settings window, the tray's update notice, and the tray icon's sharpness at 200 %
+  display scaling.
+- **Copy diagnostics** in a normal browser window (not the `--app=` window).
+- **Start with Windows** after it was switched off in Task Manager's Startup list.
+- **Set up the player connection** end to end (it writes MPC-HC's registry values).
+- **MPC-QT's multi-window mode** with a portable build and the live engine test.
+- **mpv on a real Linux desktop.**
+- The settings window in **Chrome, Brave or Vivaldi** instead of Edge.
+- **Plex sign-out** against plex.tv.
+- A **Blu-ray's volume label** read from a real drive. (A real disc was recognised once in a real test.)
+
 ## Lessons
 Short rules learned on this project.
 
@@ -543,3 +567,16 @@ CI:
 - Jellyfin 12 (the server the live job runs) ignores the legacy `X-Emby-*` headers unless `EnableLegacyAuthorization` is on: send
   `Authorization: MediaBrowser ...`.
 - To learn a third-party server's API without an account, run its official image on a CI branch with a probe script.
+
+Working practice:
+- **Before building a sketched feature, check that it can do something for the user, and say its limits first.** For
+  example, Discord's status only goes through the local Discord app, so a "keep following Plex while Discord is
+  closed" switch would change nothing on any profile.
+- **A narrow test someone sanctioned** ("read-only, no setting changes") stays inside it, and its unavoidable side
+  effects (recent-files lists, titles visible to friends on Discord) are named before it starts.
+- **Commit after every coherent step.** A power loss once zero-filled the one file that had uncommitted edits; git's
+  objects were fine. `git fsck --full` plus a scan for zero-filled text files is the damage check.
+- **In a verify-then-commit command chain, never put `;` before the commit**: a failing check must stop it.
+- **`git config` run inside a `git worktree` writes the shared `.git/config`** (it once switched the main checkout off
+  `autocrlf`). Use `git -c key=value` per command, or a separate clone.
+- **Two people or agents on one checkout commit only their own paths** (`git commit -- <path>`), never `git add -A`.
