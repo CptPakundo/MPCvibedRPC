@@ -165,9 +165,7 @@ an update the window shows what's new once; the version number at the top of the
 The program isn't code-signed, so Windows may say "Windows protected your PC" the first time (More info > Run anyway),
 and an antivirus program may flag a new version for a while. Check the file as below before you allow it.
 
-Each release file has a `.sha256` checksum next to it, and GitHub keeps a signed record that it was built from this
-repository. With the [GitHub CLI](https://cli.github.com/): `gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC`.
-See [SECURITY.md](../SECURITY.md).
+Each release file has a `.sha256` checksum and a signed build record. How to check them: [SECURITY.md](../SECURITY.md#checking-a-download).
 
 ## Reporting a problem
 

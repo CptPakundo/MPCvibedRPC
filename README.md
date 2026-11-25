@@ -119,10 +119,8 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 3. Discord runs normally, not as administrator.
 4. The status line at the top of the window says what is missing, for example "No player found".
 
-**Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the
-current title was found and the recent log. It names what you played, so a wrong title can be traced; folder paths, sign-ins and keys are left out.
-Paste it into a
-[new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
+**Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies a report to paste into a
+[new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose); what it contains is in [Troubleshooting](docs/troubleshooting.md#reporting-a-problem).
 
 More problems, by player and service, plus updates and uninstalling: [Troubleshooting](docs/troubleshooting.md).
 
@@ -134,6 +132,6 @@ More problems, by player and service, plus updates and uninstalling: [Troublesho
 - [Security](SECURITY.md): every address the program connects to, how to verify a download, and how to report a
   security problem.
 - [Contributing](CONTRIBUTING.md): bug reports, building and testing.
-- [Development](docs/development.md): building, testing and releasing.
+- [Development](docs/development.md): building, testing, CI and how the code is laid out; [Maintaining](docs/maintaining.md): releasing and running it safely.
 - [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.
 - [Decisions](docs/decisions.md): why the program behaves the way it does.
