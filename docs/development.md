@@ -78,7 +78,8 @@ fakes below.
   three answers.
 - **Other variables.** `MPRP_BROWSER=none` opens no window (tests, CI); any other value names the browser to show
   the window in (one that understands `--app`). `MPRP_FOREGROUND=1` keeps a macOS copy from handing over to a
-  detached one.
+  detached one. Each `MPRP_*` variable that is not set takes the value of its former name (`MPCRPC_*`, listed in
+  `core.FormerEnv`): a copy of the former version starts the copy it updated itself to with its own environment.
 - **Portable players.** Use portable builds in a scratch folder and verify their published checksums: MPC-QT
   (`portable.txt`), MPC-BE (an ini next to the exe), mpv (`portable_config\`), VLC (a `portable\` folder next to
   `vlc.exe`; start it with `--no-qt-privacy-ask`, or a first-run dialog keeps it from closing normally). Check
