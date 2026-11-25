@@ -11,7 +11,8 @@ import (
 
 // Message is one D-Bus message. Body holds the values described by Signature: strings for s/o/g, the Go integer of
 // the matching size, float64 for d, bool for b, []any for arrays and structs, map[string]any for dictionaries (keys
-// written with fmt) and, when decoding, the value inside a variant. To encode a variant, pass a Variant.
+// written with fmt) and, when decoding, the value inside a variant. To encode a variant, pass a Variant; a byte array
+// (ay) can also be encoded from a []byte (it is decoded as []any).
 type Message struct {
 	Type        byte
 	Flags       byte
@@ -385,6 +386,11 @@ func (e *encoder) value(t string, v any) error {
 					return err
 				}
 			}
+		} else if x, ok := v.([]byte); ok {
+			if elem != "y" {
+				return wrongType(t, v)
+			}
+			e.b = append(e.b, x...)
 		} else {
 			var items []any
 			switch x := v.(type) {

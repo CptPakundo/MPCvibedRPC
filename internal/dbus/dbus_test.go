@@ -47,6 +47,30 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+// A []byte is a byte array, also inside a struct in a variant (as a notification's image-data hint carries it), and
+// comes back as the same bytes.
+func TestByteSlices(t *testing.T) {
+	pix := []byte{1, 2, 3, 4, 250, 251, 252, 253}
+	hints := map[string]any{"image-data": dbus.Variant{Sig: "(iiibiiay)", Value: []any{int32(2), int32(1), int32(8), true, int32(8), int32(4), pix}}}
+	m := &dbus.Message{Type: dbus.TypeMethodCall, Serial: 3, Path: "/p", Member: "M", Signature: "yaya{sv}", Body: []any{byte(9), []byte{}, hints}}
+	raw, err := m.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := dbus.ReadMessage(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	asAny := []any{}
+	for _, b := range pix {
+		asAny = append(asAny, b)
+	}
+	want := []any{byte(9), []any{}, map[string]any{"image-data": []any{int32(2), int32(1), int32(8), true, int32(8), int32(4), asAny}}}
+	if !reflect.DeepEqual(got.Body, want) {
+		t.Errorf("body:\n got %#v\nwant %#v", got.Body, want)
+	}
+}
+
 // A message as a big-endian bus would send it: a method return carrying the string "ok" (written out by hand from the
 // specification).
 func TestBigEndian(t *testing.T) {
@@ -88,6 +112,7 @@ func TestMarshalRejectsWrongValues(t *testing.T) {
 		{Signature: "ss", Body: []any{"one"}},
 		{Signature: "a{sv}", Body: []any{map[string]any{"k": "not a variant"}}},
 		{Signature: "z", Body: []any{1}},
+		{Signature: "as", Body: []any{[]byte("not strings")}},
 	} {
 		if _, err := m.Marshal(); err == nil {
 			t.Errorf("%q %v should be refused", m.Signature, m.Body)
