@@ -338,6 +338,11 @@ func (s *Store) settingsObj() *jsonx.Obj {
 			out.Set(k, o.M[k])
 		}
 	}
+	// The former default Discord application, saved by an install from before the project had its own, reads as the
+	// current default (an application the user made stays as it is).
+	if id, _ := out.M["clientId"].(string); id == core.FormerClientID {
+		out.Set("clientId", core.DefaultClientID)
+	}
 	return out
 }
 

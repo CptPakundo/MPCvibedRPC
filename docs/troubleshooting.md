@@ -22,7 +22,7 @@ in the [docs index](README.md).
 - More than one Discord (Stable, PTB, Canary) open: the status goes to the one that started first, which may be signed
   in to another account. Close the ones you don't use.
 - You can't click your own "View on ..." button or links on your profile; that's how Discord works. Others can.
-- "Watching Media Player Classic" instead of the title: turn on **Look > Show the title as the activity name**. The
+- "Watching MPRP" instead of the title: turn on **Look > Show the title as the activity name**. The
   name after "Watching" is the Discord application's name unless that switch puts the title there.
 - mpv-based players (mpv.net, for example) can be read like mpv when they open the same connection: add
   `input-ipc-server=mpvsocket` to that player's own `mpv.conf` (not tested with each of them). Players that drive

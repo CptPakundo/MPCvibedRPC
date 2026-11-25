@@ -22,11 +22,17 @@ func TestPreviewOf(t *testing.T) {
 		t.Errorf("times/button: %+v", p)
 	}
 
-	// an uploaded Discord asset (not an address) gives no image to load; the name falls back to the app name
+	// an uploaded Discord asset (not an address) gives no image to load; the name falls back to the application's:
+	// MPRP for the default one, the configured app name for one of the user's own
 	b := &Activity{Details: "Movie", Assets: &Assets{LargeImage: "mpc-hc"}}
 	q := PreviewOf(b, &cfg)
-	if q.Watching || q.Name != cfg.AppName || q.LargeImage != "" {
+	if q.Watching || q.Name != Name || q.LargeImage != "" {
 		t.Errorf("asset-key preview: %+v", q)
+	}
+	own := cfg
+	own.ClientID = "123456789012345678"
+	if q := PreviewOf(b, &own); q.Name != own.AppName {
+		t.Errorf("own application: name %q want %q", q.Name, own.AppName)
 	}
 	// only web addresses are ever handed to the page
 	for _, bad := range []string{"javascript:alert(1)", "file:///etc/passwd", "data:image/png;base64,AAAA", "//host/x.jpg"} {

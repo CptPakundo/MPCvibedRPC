@@ -7,6 +7,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
 ## Behaviour
 - **MPC-HC comes first.** It is the player the program was made for: anything new is added after it and must not
   change how it behaves. *Why:* the people who use it with MPC-HC should never notice that other players arrived.
+- **The default Discord application is the project's own** (2026-11-25, from 0.9.60), named MPRP. An install that
+  saved the former default (the upstream project's "Media Player Classic") moves to it; an application the user made
+  stays. *Why:* every install depends on it, and the former one was not the project's to keep; it named only MPC and
+  held no image the program uses, so nothing on the card is lost.
 - **Discord is only contacted once something plays** ("Discord on standby" until then). *Why:* nothing to show means
   nothing to send, and an idle program should not hold a connection.
 - **The window's X quits the program; minimizing sends it to the tray** (2026-11-20, from a user's wish).

@@ -171,7 +171,7 @@ Settled by the maintainer on 2026-11-25; the first version is part of version 0.
 ## As built
 Where the first version (0.9.60) differs from the plan above:
 - **The Playing style keeps today's lines.** Without the stream form the Playing style has no title in its name (it is
-  "Playing Media Player Classic" with the title as its first line), so it is the same case as "Show the title as the
+  "Playing MPRP" with the title as its first line), so it is the same case as "Show the title as the
   activity name" off: text lines would remove the title.
 - **Custom starts from the choice before** only while its lines are empty; lines written earlier are kept.
 - **The shared table** is `internal/core/testdata/lines.json`; the page's test (`TestPageBehaviour`) runs it through the

@@ -53,7 +53,7 @@ folder on macOS and Linux. A full path or `~/...` is used as it is. See
 | Setting | Default | What it does |
 |---|---|---|
 | `activityType` | `"watching"` | **Style.** `"watching"`: "Watching ..." with a real progress bar. `"playing"`: the classic "Playing ..." with an elapsed-time counter. |
-| `titleAsName` | `true` | **Show the title as the activity name:** "Watching <title>" instead of "Watching Media Player Classic". |
+| `titleAsName` | `true` | **Show the title as the activity name:** "Watching <title>" instead of "Watching MPRP". |
 | `streamTitle` | `"auto"` | **Show the title on my streams:** `"auto"` while Discord shares your screen, `"always"`, or `"off"`. [Details](#streamtitle). |
 | `textProgressBar` | `true` | **Text progress bar while paused or streaming:** `▰▰▰▱▱▱ 12:34 / 45:00` while paused; `▰▰▰▱▱▱ of 45:00` (and the speed when it is not 1x) in the stream form. Sent again each time the bar fills another cell. |
 | `progressWidth` | `12` | *(config.json only)* Width of that text bar (0 to 40). |
@@ -152,20 +152,21 @@ If a title still has no cover, the log says what each source returned. Then add 
 
 | Setting | Default | What it does |
 |---|---|---|
-| `clientId` | `"427863248734388224"` | **Discord application ID** (it holds the `mpc-hc` images below). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
+| `clientId` | `"1575219115981934734"` | **Discord application ID**: the project's own application, named MPRP (an install that saved the former default, `427863248734388224`, uses this one). For your own name and artwork, create an app at <https://discord.com/developers/applications> and paste its Application ID here. |
 | `pollInterval` | `5000` | **Check every (ms).** The status is only sent when something changes. mpv, IINA, Kodi and MPRIS players also report a pause, seek or new file at once. While Discord and the window are closed, a check only looks whether Discord has started ([Resting](how-it-works.md#resting-while-discord-is-closed)). |
 | `plexJwt` | `false` | *(config.json only)* Sign in to Plex with its newer tokens: they last 7 days and are renewed in time with a key of this install's own (`plexKey`), as Plex's developer documentation describes. Off: the long-lived token Plex still accepts. Takes effect at the next **Sign in to Plex**. |
 
 **Restore defaults** and **Open settings folder** are under **Advanced > Maintenance**.
 
 ### Discord art assets
-*(config.json only.)* These are uploaded to the Discord application whose `clientId` you use.
+*(config.json only.)* Keys of images uploaded to a Discord application of your own (`clientId`). The default
+application has none: covers and player logos are sent as addresses.
 
 | Setting | Default | What it does |
 |---|---|---|
 | `largeImageKey` | `"mpc-hc"` | Shown when no cover is found. While it is the default, players with a logo in `docs/players` (mpv, VLC, IINA, PotPlayer, Kodi, SMPlayer, Plex, Stremio, Jellyfin, Emby) show that logo instead. |
 | `smallImageKey` | `"mpc-hc"` | Small corner icon when a cover is shown. While it is the default, players outside the MPC family show their own logo there, or none. |
-| `appName` | `"Media Player Classic"` | Name used when `titleAsName` is off, and the text of the images. While it is the default, other players are named as themselves (mpv, VLC media player, Plex, ...). |
+| `appName` | `"Media Player Classic"` | The images' hover text, and the name the window's preview shows for an application of your own (Discord shows the application's name). While it is the default, other players are named as themselves (mpv, VLC media player, Plex, ...). |
 
 ### File-name cleanup
 *(config.json only.)* Smart mode (the default) strips release junk (BluRay, 1080p, x265, HDR, audio tags, release

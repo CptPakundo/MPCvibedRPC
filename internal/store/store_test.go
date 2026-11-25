@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CptPakundo/MPRP/internal/core"
 	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
@@ -91,6 +92,9 @@ func TestStoreAgainstJS(t *testing.T) {
 			gb, _ := json.Marshal(got)
 			var gv map[string]any
 			json.Unmarshal(gb, &gv)
+			if s.Values["clientId"] == core.FormerClientID {
+				s.Values["clientId"] = core.DefaultClientID // recorded with the former default application; it reads as the current one
+			}
 			if !reflect.DeepEqual(gv, s.Values) {
 				for k, v := range s.Values {
 					if !reflect.DeepEqual(gv[k], v) {

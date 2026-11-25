@@ -56,7 +56,8 @@ Read the named sections, make the change, then run the tests named with it (and 
   ([decision](docs/decisions.md#behaviour)).
 - **MPRIS reads only the allowlist** in `internal/mpris`: music players and browsers must never show as "Watching".
 - **Readers are read-only**, and tests never use real accounts or a real setup ([ground rules](CONTRIBUTING.md#ground-rules)).
-- **The default Discord application (`clientId`) belongs to the upstream project**; every install depends on it.
+- **The default Discord application (`clientId`, `core.DefaultClientID`) is the project's own**, named MPRP; every
+  install depends on it. A saved former default (`core.FormerClientID`) reads as it: keep that carry-over.
 - **Player logo addresses are fixed.** Every install fetches the logos from `docs/players/<name>.png` on the `master`
   branch (`PlayerIconBase` in `internal/core/icons.go`). Never move, rename or delete those files or rename `master`;
   adding a logo is fine.
