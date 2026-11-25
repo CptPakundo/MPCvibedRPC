@@ -333,6 +333,8 @@ Resting needs no setting: with Discord closed there is nobody to show a status t
 on every change, with a stand-in for Discord (and a stand-in player for the media servers); "not yet" means nobody has
 tried it.
 
+The list of what has only run against fakes, or not at all, is in [Not yet tried for real](development.md#not-yet-tried-for-real).
+
 | Player or service | System | How |
 |---|---|---|
 | MPC-HC 2.8.3 | Windows 11 | real (the player the program was built around) |
@@ -340,7 +342,7 @@ tried it.
 | PotPlayer, Kodi | Windows | CI: the real players from Chocolatey with a generated test video |
 | Kodi | macOS, Linux, another device | only against a stand-in |
 | mpv, VLC, mpv-mpris, Celluloid | Linux | CI; a real desktop: not yet |
-| Blu-ray and DVD titles | any | made-up disc folders in tests; a real disc: not yet |
+| Blu-ray and DVD titles | any | made-up disc folders in tests; a real Blu-ray disc was recognised once in a real test |
 | mpv, IINA | macOS | CI; IINA on a real Mac with the real Discord: once, by a tester |
 | Plex | any | CI: the official Plex Media Server without a Plex account, with a stand-in player; a real Plex account, shared servers and real Plex apps: not yet |
 | Stremio | any | against a stand-in for Stremio's servers built from Stremio's open-source core; a real Stremio account: not yet |

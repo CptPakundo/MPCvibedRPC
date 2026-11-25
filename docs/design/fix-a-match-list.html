@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix a match: list</title>
+<style>
+  :root {
+    --r-control: 4px; --r-card: 8px;
+    --bg: #f3f3f3; --surface: #fbfbfb; --surface-2: #f0f0f0;
+    --control: #ffffff; --control-hover: #f6f6f6;
+    --stroke: #e5e5e5; --stroke-control: #d1d1d1; --stroke-strong: #868686;
+    --text: #1b1b1b; --text-2: #5c5c5c; --text-3: #8a8a8a;
+    --accent: #4752c4; --accent-hover: #3f49b0; --on-accent: #ffffff;
+    --accent-text: #4752c4; --scrim: rgba(0, 0, 0, .30); --page: #e4e4e4; --note: #fffdf3; --note-stroke: #e8dfb8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+      --control: #353535; --control-hover: #3d3d3d;
+      --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+      --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+      --accent: #5865f2; --accent-hover: #6571f3; --accent-text: #a5acf8;
+      --scrim: rgba(0, 0, 0, .50); --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+    --control: #353535; --control-hover: #3d3d3d;
+    --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+    --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+    --accent: #5865f2; --accent-hover: #6571f3; --accent-text: #a5acf8;
+    --scrim: rgba(0, 0, 0, .50); --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/20px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .top h1 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0 auto 0 0; }
+  .stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .win { position: relative; width: 660px; max-width: 100%; min-height: 760px; background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--r-card); overflow: hidden; }
+  .win main { padding: 12px 16px 16px; }
+  .notes { flex: 1 1 300px; min-width: 0; background: var(--note); border: 1px solid var(--note-stroke); border-radius: var(--r-card); padding: 12px 16px; font-size: 12px; line-height: 18px; }
+  .notes h2 { font-size: 14px; margin: 12px 0 4px; } .notes h2:first-child { margin-top: 0; }
+  .notes p, .notes ul { margin: 4px 0 8px; } .notes ul { padding-left: 18px; }
+  .tabs { display: flex; gap: 4px; margin: 0 0 8px; color: var(--text-2); overflow-x: auto; }
+  .tabs span { position: relative; padding: 8px 10px 10px; white-space: nowrap; }
+  .tabs span.on { color: var(--text); }
+  .tabs span.on::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent-text); }
+  h3.grp { font-size: 14px; font-weight: 600; margin: 24px 2px 8px; }
+  h3.grp:first-of-type { margin-top: 8px; }
+  .group { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); padding: 0 16px; }
+  .field { padding: 10px 0; border-top: 1px solid var(--stroke); min-height: 48px; }
+  .group > .field:first-child { border-top: 0; }
+  .line { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+  .sw { width: 40px; height: 20px; border-radius: 10px; background: var(--accent); position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 4px; left: 24px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+  .help { color: var(--text-2); font-size: 12px; line-height: 16px; margin-top: 2px; }
+  .fix { display: flex; gap: 12px; align-items: center; }
+  .fix img { width: 32px; height: 48px; border-radius: 2px; flex: none; display: block; }
+  .fix .sq { width: 32px; height: 48px; flex: none; border: 1px dashed var(--stroke-control); border-radius: 2px; }
+  .fix .t { flex: 1; min-width: 0; }
+  .fix .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fix .m { font-size: 12px; line-height: 16px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { padding: 16px 0; color: var(--text-2); }
+  button { font: inherit; cursor: pointer; border-radius: var(--r-control); border: 1px solid var(--stroke-control); background: var(--control); color: var(--text); padding: 5px 12px; min-height: 32px; }
+  button:hover { background: var(--control-hover); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  button.quiet { background: none; border-color: transparent; color: var(--text-2); }
+  button.quiet:hover { background: var(--control-hover); color: var(--text); }
+  button.link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent-text); font-size: 12px; line-height: 16px; }
+  .add { padding: 10px 0; border-top: 1px solid var(--stroke); display: flex; gap: 8px; align-items: center; }
+  textarea { font: 12px/18px ui-monospace, Consolas, monospace; color: var(--text); background: var(--control); border: 1px solid var(--stroke-control); border-radius: var(--r-control); padding: 8px 10px; width: 100%; min-height: 150px; resize: vertical; }
+  .dlg-back { position: absolute; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .dlg { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); padding: 20px 24px; width: 100%; max-width: 520px; }
+  .dlg h2 { font-size: 20px; line-height: 28px; margin: 0 0 8px; font-weight: 600; }
+  .dlg p { margin: 0 0 12px; color: var(--text-2); }
+  .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Fix a match: the list on Titles &amp; art</h1>
+    <button id="thLight">Light</button><button id="thDark">Dark</button><button id="thAuto">System</button>
+    <button id="toggleEmpty">Show the empty list</button>
+  </div>
+  <div class="stage">
+    <div class="win">
+      <main>
+        <div class="tabs"><span>General</span><span>Players</span><span>Look</span><span class="on">Titles &amp; art</span><span>Privacy</span><span>Advanced</span><span>Help</span></div>
+
+        <h3 class="grp">Covers and titles</h3>
+        <div class="group">
+          <div class="field"><div class="line"><div><div>Look up covers and titles</div><div class="help">Asks the catalogs on under Privacy.</div></div><span class="sw" aria-hidden="true"></span></div></div>
+          <div class="field"><div class="line"><div><div>Episode titles</div></div><span class="sw" aria-hidden="true"></span></div></div>
+        </div>
+
+        <h3 class="grp">Fix a match</h3>
+        <div class="group" id="fixes">
+          <div class="field fix">
+            <img id="c1" alt="">
+            <div class="t"><div class="n">Sample Show</div><div class="m">Sample Show (2019) · Show · IMDb</div></div>
+            <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
+          </div>
+          <div class="field fix">
+            <span class="sq" aria-hidden="true"></span>
+            <div class="t"><div class="n">Sample Movie</div><div class="m">Searched as “Sample Movie Remastered”</div></div>
+            <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
+          </div>
+          <div class="field fix">
+            <img id="c3" alt="">
+            <div class="t"><div class="n">Another Sample</div><div class="m">Your image · Another Sample (2018) · Show · AniList</div></div>
+            <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
+          </div>
+          <div class="field fix">
+            <img id="c4" alt="">
+            <div class="t"><div class="n">Sample Concert</div><div class="m">Your image</div></div>
+            <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
+          </div>
+          <div class="empty hidden" id="empty">No fixes yet. When the card shows the wrong title or cover, choose <b>Wrong title or cover?</b> under it.</div>
+          <div class="add"><button id="addFix">Add a fix</button><span class="help">Each fix applies to every file read as that title.</span></div>
+        </div>
+        <p class="help" style="margin:8px 2px 0">Tell the project about a fix: <button class="link" id="tell">Tell the project about this</button> (shown here only to open the dialog; in the app it sits in the Fixed dialog).</p>
+      </main>
+
+      <div class="dlg-back hidden" id="tellDlg" role="dialog" aria-labelledby="tellH">
+        <div class="dlg">
+          <h2 id="tellH">Tell the project about this</h2>
+          <p>If the program should have found this by itself, a report helps it learn the pattern. The program sends nothing: you copy the text, look it over, and post it on GitHub yourself.</p>
+          <textarea id="report" spellcheck="false" aria-label="Report text">File name: sample.show.s01e02.1080p.mkv
+Read as: Sample Show, season 1, episode 2
+Matched by itself: The Sample Show (1998), a show, IMDb
+Your fix: Sample Show (2019), a show, IMDb (tt0000001)
+Catalogs on: TMDB (no key), IMDb, Cinemeta, TVmaze, AniList, Kitsu, Wikipedia
+Version: 0.9.58</textarea>
+          <div class="help">Folders, players' addresses and sign-ins are left out. You can edit the text before posting.</div>
+          <div class="row"><button class="quiet" id="tellCancel">Cancel</button><button class="primary" id="tellCopy">Copy and open GitHub</button></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="notes">
+      <h2>What this shows</h2>
+      <p>The "Fix a match" card on Titles &amp; art once the two text boxes are gone: one row per fix, a cover, the read title, and what it was fixed to.</p>
+      <ul>
+        <li>The row's name is the read title (what the fix is keyed on). The line under it says what happens: a pinned entry, "Searched as ..." (an old "Search under another name" line), or "Your image" (an old "Pin a cover image" line).</li>
+        <li>Old config lines show up as rows by themselves: the two existing keys are read and joined by title, so nothing needs migrating.</li>
+        <li><b>Edit</b> opens the same Fix this match dialog, prefilled. <b>Remove</b> removes the row at once (settings save as they change); the bar under the window offers Undo for a few seconds, as other removals do.</li>
+        <li><b>Add a fix</b> opens the dialog with an empty "read as" box, for a title that is not playing now.</li>
+        <li>Empty list: one sentence pointing to where fixes start (toggle it above).</li>
+      </ul>
+      <h2>Tell the project about this</h2>
+      <ul>
+        <li>The same pattern as Copy diagnostics: the text is shown, copied, and the GitHub issue form opens. No file name in the web address, nothing posted by the program.</li>
+        <li>The report holds the file name (never folders), what it was read as, the automatic match and the fix: exactly what a test case for the name reader needs.</li>
+      </ul>
+      <p>All titles and covers here are made up.</p>
+    </aside>
+  </div>
+</div>
+<script>
+(function () {
+  function cover(txt, hue) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="hsl(' + hue + ',22%,42%)"/><rect x="8" y="78" width="64" height="2" fill="rgba(255,255,255,.5)"/><text x="40" y="66" font-family="Segoe UI,sans-serif" font-size="26" font-weight="600" fill="#fff" text-anchor="middle">' + txt + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  $('c1').src = cover('SS', 220); $('c3').src = cover('AS', 330); $('c4').src = cover('SC', 10);
+  document.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = function () { b.closest('.fix').remove(); check(); }; });
+  function check() { $('empty').classList.toggle('hidden', document.querySelectorAll('#fixes .fix').length > 0); }
+  $('toggleEmpty').onclick = function () { document.querySelectorAll('#fixes .fix').forEach(function (r) { r.classList.toggle('hidden'); }); $('empty').classList.toggle('hidden', document.querySelectorAll('#fixes .fix:not(.hidden)').length > 0); };
+  $('tell').onclick = function () { $('tellDlg').classList.remove('hidden'); };
+  $('tellCancel').onclick = $('tellCopy').onclick = function () { $('tellDlg').classList.add('hidden'); };
+  $('addFix').onclick = function () { alert('Opens the Fix this match dialog (see mockup-fix-dialog.html) with an empty title box.'); };
+  function theme(t) { if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
+  $('thLight').onclick = function () { theme('light'); };
+  $('thDark').onclick = function () { theme('dark'); };
+  $('thAuto').onclick = function () { theme(null); };
+})();
+</script>
+</body>
+</html>

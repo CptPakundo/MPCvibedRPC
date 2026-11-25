@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix a match: dialog</title>
+<style>
+  :root {
+    --r-control: 4px; --r-card: 8px;
+    --bg: #f3f3f3; --surface: #fbfbfb; --surface-2: #f0f0f0;
+    --control: #ffffff; --control-hover: #f6f6f6; --control-active: #ececec;
+    --stroke: #e5e5e5; --stroke-control: #d1d1d1; --stroke-strong: #868686;
+    --text: #1b1b1b; --text-2: #5c5c5c; --text-3: #8a8a8a;
+    --accent: #4752c4; --accent-hover: #3f49b0; --on-accent: #ffffff;
+    --accent-text: #4752c4; --accent-soft: rgba(71, 82, 196, .10);
+    --scrim: rgba(0, 0, 0, .30); --page: #e4e4e4; --note: #fffdf3; --note-stroke: #e8dfb8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+      --control: #353535; --control-hover: #3d3d3d; --control-active: #313131;
+      --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+      --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+      --accent: #5865f2; --accent-hover: #6571f3;
+      --accent-text: #a5acf8; --accent-soft: rgba(88, 101, 242, .22);
+      --scrim: rgba(0, 0, 0, .50); --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+    --control: #353535; --control-hover: #3d3d3d; --control-active: #313131;
+    --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+    --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+    --accent: #5865f2; --accent-hover: #6571f3;
+    --accent-text: #a5acf8; --accent-soft: rgba(88, 101, 242, .22);
+    --scrim: rgba(0, 0, 0, .50); --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/20px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .top h1 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0 auto 0 0; }
+  .stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .win { position: relative; width: 660px; max-width: 100%; height: 760px; background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--r-card); overflow: hidden; }
+  .win main { padding: 12px 16px; }
+  .notes { flex: 1 1 300px; min-width: 0; background: var(--note); border: 1px solid var(--note-stroke); border-radius: var(--r-card); padding: 12px 16px; font-size: 12px; line-height: 18px; }
+  .notes h2 { font-size: 14px; margin: 12px 0 4px; } .notes h2:first-child { margin-top: 0; }
+  .notes p, .notes ul { margin: 4px 0 8px; } .notes ul { padding-left: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); margin-bottom: 8px; }
+  .st-row { display: flex; gap: 16px; align-items: center; padding: 12px 16px; }
+  .st-main { font-weight: 600; flex: 1; }
+  .st-sub { font-size: 12px; line-height: 16px; color: var(--text-2); }
+  .pv { display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--stroke); }
+  .pv img { width: 72px; height: 72px; border-radius: var(--r-control); object-fit: cover; display: block; }
+  .pv-text { flex: 1; min-width: 0; font-size: 12px; line-height: 16px; color: var(--text-2); }
+  .pv-name { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--text); }
+  .pv-btns { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .pv-button { font-size: 12px; line-height: 16px; padding: 4px 10px; background: var(--surface-2); border: 1px solid var(--stroke); border-radius: var(--r-control); }
+  button { font: inherit; cursor: pointer; border-radius: var(--r-control); border: 1px solid var(--stroke-control); background: var(--control); color: var(--text); padding: 5px 12px; min-height: 32px; }
+  button:hover { background: var(--control-hover); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  button.primary:hover { background: var(--accent-hover); }
+  button.primary:disabled { opacity: .55; cursor: default; }
+  button.quiet { background: none; border-color: transparent; color: var(--text-2); }
+  button.quiet:hover { background: var(--control-hover); color: var(--text); }
+  button.link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent-text); font-size: 12px; line-height: 16px; }
+  button.link:hover { text-decoration: underline; }
+  .ml { margin-left: auto; }
+  .tabs { display: flex; gap: 4px; margin: 4px 0 8px; font-size: 14px; color: var(--text-2); }
+  .tabs span { padding: 8px 10px; }
+  .ghost { height: 220px; background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); }
+  input[type=text] { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--stroke-control); border-bottom-color: var(--stroke-strong); border-radius: var(--r-control); padding: 5px 10px; min-height: 32px; width: 100%; }
+  input[type=text]:focus { outline: none; border-bottom: 2px solid var(--accent-text); padding-bottom: 4px; }
+  .help { color: var(--text-2); font-size: 12px; line-height: 16px; margin-top: 4px; }
+  /* the dialog */
+  .dlg-back { position: absolute; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .dlg { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); padding: 20px 24px; width: 100%; max-width: 520px; max-height: 100%; display: flex; flex-direction: column; }
+  .dlg h2 { font-size: 20px; line-height: 28px; margin: 0 0 4px; font-weight: 600; }
+  .from { font-size: 12px; line-height: 16px; color: var(--text-2); margin: 0 0 12px; overflow-wrap: anywhere; }
+  .from b { color: var(--text); font-weight: 600; }
+  .res { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; flex: 1; min-height: 120px; border-top: 1px solid var(--stroke); }
+  .res li { display: flex; gap: 12px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--stroke); cursor: pointer; border-radius: var(--r-control); }
+  .res li:hover { background: var(--control-hover); }
+  .res li[aria-selected="true"] { background: var(--accent-soft); }
+  .res img { width: 32px; height: 48px; border-radius: 2px; flex: none; display: block; }
+  .res .t { flex: 1; min-width: 0; }
+  .res .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .res .m { font-size: 12px; line-height: 16px; color: var(--text-2); }
+  .res .now { font-size: 12px; color: var(--text-2); flex: none; }
+  .res li.as { color: var(--text-2); }
+  .res li.as .sq { width: 32px; height: 48px; flex: none; border: 1px dashed var(--stroke-control); border-radius: 2px; }
+  .res li.wait { cursor: default; color: var(--text-2); font-size: 12px; }
+  .res li.wait:hover { background: none; }
+  .foot { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .foot .help { flex: 1 1 200px; margin: 0; }
+  .done-head { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 12px; }
+  .done-head img { width: 48px; height: 72px; border-radius: var(--r-control); flex: none; }
+  .opt { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--stroke); }
+  .opt input[type=radio] { accent-color: var(--accent); margin: 0; }
+  .covers { display: flex; gap: 8px; margin: 4px 0 4px 24px; }
+  .covers img { width: 40px; height: 60px; border-radius: 2px; cursor: pointer; outline-offset: 2px; }
+  .covers img.sel { outline: 2px solid var(--accent-text); }
+  details.fold { border-top: 1px solid var(--stroke); padding: 8px 0; }
+  details.fold summary { cursor: pointer; color: var(--text); list-style: none; }
+  details.fold summary::after { content: " \203A"; color: var(--text-2); }
+  .offs { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
+  .offs input { width: 64px; }
+  .hidden { display: none !important; }
+  @media (max-width: 700px) { .win { height: 820px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Fix a match: from the wrong card to a fix</h1>
+    <button id="thLight">Light</button><button id="thDark">Dark</button><button id="thAuto">System</button>
+    <button id="reset">Start over</button>
+  </div>
+  <div class="stage">
+    <div class="win" id="win">
+      <main>
+        <section class="card">
+          <div class="st-row">
+            <div style="flex:1">
+              <div class="st-main">Showing on Discord</div>
+              <div class="st-sub">Discord connected · MPC-HC playing</div>
+            </div>
+            <button>Stop showing</button>
+          </div>
+          <div class="pv">
+            <img id="pvImg" alt="">
+            <div class="pv-text">
+              <div class="pv-name">Watching <span id="pvDetails">The Sample Show (1998)</span></div>
+              <div>S01E02 · Pilot Two</div>
+              <div class="pv-btns"><span class="pv-button">View on IMDb</span><button class="link ml" id="openFix">Wrong title or cover?</button></div>
+            </div>
+          </div>
+        </section>
+        <div class="tabs"><span>General</span><span>Players</span><span>Look</span><span>Titles &amp; art</span><span>Privacy</span><span>Advanced</span><span>Help</span></div>
+        <div class="ghost"></div>
+      </main>
+
+      <!-- step 1: search and pick -->
+      <div class="dlg-back hidden" id="pick" role="dialog" aria-labelledby="pickH">
+        <div class="dlg">
+          <h2 id="pickH">Fix this match</h2>
+          <p class="from">From <b>sample.show.s01e02.1080p.mkv</b>, read as <b>Sample Show</b>, season 1, episode 2. Now matched to The Sample Show (1998).</p>
+          <input type="text" id="q" value="Sample Show" spellcheck="false" autocomplete="off" aria-label="Search the catalogs">
+          <div class="help" id="qHelp">Searches IMDb, Cinemeta, TVmaze and AniList (the catalogs on under Privacy).</div>
+          <ul class="res" id="res" role="listbox" aria-label="Results"></ul>
+          <div class="foot">
+            <p class="help">For every file read as <b>Sample Show</b>.</p>
+            <button class="quiet" id="cancel">Cancel</button>
+            <button class="primary" id="use" disabled>Use this</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- step 2: saved; cover and episodes -->
+      <div class="dlg-back hidden" id="done" role="dialog" aria-labelledby="doneH">
+        <div class="dlg">
+          <h2 id="doneH">Fixed</h2>
+          <div class="done-head">
+            <img id="doneImg" alt="">
+            <div>
+              <div id="doneName" style="font-weight:600"></div>
+              <div class="help" id="doneMeta"></div>
+              <div class="help">The card shows it in a moment. Episode titles come from this entry.</div>
+            </div>
+          </div>
+          <div class="opt"><input type="radio" name="cov" id="covEntry" checked><label for="covEntry">This entry's cover</label></div>
+          <div class="covers" id="covers" aria-label="Other covers of this title"></div>
+          <div class="opt"><input type="radio" name="cov" id="covOwn"><label for="covOwn" style="flex:none">An image address</label><input type="text" id="own" placeholder="https://example.com/poster.jpg" spellcheck="false"></div>
+          <details class="fold">
+            <summary>Episodes don't line up?</summary>
+            <div class="offs">Season <input type="text" value="1" aria-label="Season in the catalog"> episode <input type="text" value="1" aria-label="Episode in the catalog"> is episode 1 of season 1 in the files.</div>
+          </details>
+          <div class="foot">
+            <button class="link" id="undo">Undo</button>
+            <span class="help">·</span>
+            <button class="link" id="tell">Tell the project about this</button>
+            <span class="ml"></span>
+            <button class="primary" id="ok">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="notes">
+      <h2>What this shows</h2>
+      <p>The flow from a wrong card. Click <b>Wrong title or cover?</b> under the preview, type in the box (results update as you type, after a short pause), pick a row, then <b>Use this</b>.</p>
+      <h2>Step 1: Fix this match</h2>
+      <ul>
+        <li>The first line says where the title came from (the file name only, never its folder) and what it was read as. That answers "what am I fixing?".</li>
+        <li>The box starts with the read title; the list starts with the closest results the lookup already saw, so often no typing is needed.</li>
+        <li>Each row: cover, name, year, movie or show, and the catalog. The current match says "Now".</li>
+        <li>The last row keeps the old behaviour: search under the typed name, without pinning an entry.</li>
+        <li>Only catalogs switched on under Privacy are asked; with all off, the box says so and only the last row is offered.</li>
+        <li>"For every file read as Sample Show": the scope in one line. All episodes of the show follow.</li>
+      </ul>
+      <h2>Step 2: Fixed</h2>
+      <ul>
+        <li>"Use this" saved it (settings save as they change); Undo removes it.</li>
+        <li>Cover: the entry's own, another catalog's cover of the same title, or an image address (today's "Pin a cover image").</li>
+        <li>"Episodes don't line up?" is a later step (season and episode offset), shown folded.</li>
+        <li>"Tell the project about this" opens the copy-and-post dialog (second mockup). Nothing is sent by the program.</li>
+      </ul>
+      <p>All titles and covers here are made up.</p>
+    </aside>
+  </div>
+</div>
+<script>
+(function () {
+  // made-up covers: a quiet colour field with the initials
+  function cover(txt, hue) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="120"><rect width="80" height="120" fill="hsl(' + hue + ',22%,42%)"/><rect x="8" y="78" width="64" height="2" fill="rgba(255,255,255,.5)"/><text x="40" y="66" font-family="Segoe UI,sans-serif" font-size="26" font-weight="600" fill="#fff" text-anchor="middle">' + txt + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  var CAT = [
+    { n: 'Sample Show', y: 2019, k: 'Show', c: 'IMDb', img: cover('SS', 220), alt: [cover('SS', 200), cover('SS', 250)] },
+    { n: 'The Sample Show', y: 1998, k: 'Show', c: 'IMDb', img: cover('TS', 20), now: true, alt: [cover('TS', 30)] },
+    { n: 'Sample Show', y: 2024, k: 'Show', c: 'TVmaze', img: cover('S24', 150), alt: [] },
+    { n: 'Sample Show: The Movie', y: 2021, k: 'Movie', c: 'Cinemeta', img: cover('SM', 280), alt: [cover('SM', 300)] },
+    { n: 'Sample Story', y: 2020, k: 'Movie', c: 'IMDb', img: cover('ST', 100), alt: [] },
+    { n: 'Another Sample', y: 2018, k: 'Show', c: 'AniList', img: cover('AS', 330), alt: [] },
+    { n: 'Sample Movie', y: 2020, k: 'Movie', c: 'Cinemeta', img: cover('SM', 60), alt: [] }
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+  var sel = null, timer = null;
+  $('pvImg').src = cover('TS', 20);
+
+  function norm(s) { return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(); }
+  function render(list, q) {
+    var ul = $('res'); ul.innerHTML = '';
+    list.forEach(function (r) {
+      var li = document.createElement('li'); li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
+      li.innerHTML = '<img alt=""><div class="t"><div class="n"></div><div class="m"></div></div>' + (r.now ? '<span class="now">Now</span>' : '');
+      li.querySelector('img').src = r.img; li.querySelector('.n').textContent = r.n;
+      li.querySelector('.m').textContent = r.y + ' · ' + r.k + ' · ' + r.c;
+      li.onclick = function () { choose(li, r); };
+      li.ondblclick = function () { choose(li, r); use(); };
+      ul.appendChild(li);
+    });
+    if (q) {
+      var as = document.createElement('li'); as.className = 'as'; as.setAttribute('role', 'option');
+      as.innerHTML = '<span class="sq"></span><div class="t"></div>';
+      as.querySelector('.t').textContent = 'Search as “' + q + '” instead (no entry pinned)';
+      as.onclick = function () { choose(as, { n: q, as: true }); };
+      ul.appendChild(as);
+    }
+  }
+  function choose(li, r) {
+    document.querySelectorAll('#res li').forEach(function (x) { x.setAttribute('aria-selected', 'false'); });
+    li.setAttribute('aria-selected', 'true'); sel = r; $('use').disabled = !!r.now;
+  }
+  function search() {
+    var q = $('q').value.trim(); sel = null; $('use').disabled = true;
+    if (q.length < 2) { render([], ''); return; }
+    $('res').innerHTML = '<li class="wait">Searching…</li>';
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      var words = norm(q).split(/\s+/);
+      var hits = CAT.filter(function (r) { var n = norm(r.n); return words.every(function (w) { return n.indexOf(w) >= 0 || n.split(' ').some(function (p) { return p.indexOf(w) === 0; }); }); });
+      render(hits, q);
+    }, 350); // the real window waits for a pause in typing, then asks the program
+  }
+  function use() {
+    if (!sel) return;
+    $('pick').classList.add('hidden'); $('done').classList.remove('hidden');
+    if (sel.as) {
+      $('doneImg').src = cover('?', 0); $('doneName').textContent = 'Searched as “' + sel.n + '”';
+      $('doneMeta').textContent = 'The best match of that name is used.'; $('covers').innerHTML = '';
+      $('pvDetails').textContent = sel.n;
+    } else {
+      $('doneImg').src = sel.img; $('doneName').textContent = sel.n + ' (' + sel.y + ')';
+      $('doneMeta').textContent = sel.k + ' · ' + sel.c;
+      var cv = $('covers'); cv.innerHTML = '';
+      [sel.img].concat(sel.alt).forEach(function (src, i) {
+        var im = document.createElement('img'); im.src = src; im.alt = 'Cover ' + (i + 1); if (i === 0) im.className = 'sel';
+        im.onclick = function () { cv.querySelectorAll('img').forEach(function (x) { x.className = ''; }); im.className = 'sel'; $('covEntry').checked = true; $('pvImg').src = src; };
+        cv.appendChild(im);
+      });
+      $('pvImg').src = sel.img; $('pvDetails').textContent = sel.n + ' (' + sel.y + ')';
+    }
+  }
+  function open() { $('pick').classList.remove('hidden'); $('q').value = 'Sample Show'; render(CAT.slice(0, 4), 'Sample Show'); setTimeout(function () { $('q').focus(); $('q').select(); }, 0); }
+  function reset() { $('pick').classList.add('hidden'); $('done').classList.add('hidden'); $('pvImg').src = cover('TS', 20); $('pvDetails').textContent = 'The Sample Show (1998)'; }
+  $('openFix').onclick = open;
+  $('q').oninput = search;
+  $('q').onkeydown = function (e) { if (e.key === 'Enter') { var f = document.querySelector('#res li[role=option]'); if (f && !sel) f.click(); use(); } if (e.key === 'Escape') reset(); };
+  $('cancel').onclick = reset;
+  $('use').onclick = use;
+  $('ok').onclick = function () { $('done').classList.add('hidden'); };
+  $('undo').onclick = reset;
+  $('tell').onclick = function () { alert('Opens the "Tell the project" dialog: see mockup-fix-list.html.'); };
+  $('reset').onclick = reset;
+  function theme(t) { if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
+  $('thLight').onclick = function () { theme('light'); };
+  $('thDark').onclick = function () { theme('dark'); };
+  $('thAuto').onclick = function () { theme(null); };
+  open();
+})();
+</script>
+</body>
+</html>

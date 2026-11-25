@@ -5,21 +5,25 @@ release files are downloaded. Building, testing and running the program safely a
 the rules for everyone are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Rules for maintainers
-- **Outward-facing steps need the owner's go-ahead:** merging, tagging and publishing; deleting branches, releases or
+- **Outward-facing steps need the maintainer's go-ahead:** merging, tagging and publishing; deleting branches, releases or
   files; changing repository settings.
-- **The owner's product decisions** are recorded in [decisions.md](decisions.md); the open ones are in the
-  roadmap's [Open decisions](roadmap.md#open-decisions-the-owners). Don't change listed behaviour without saying which
+- **The maintainer's product decisions** are recorded in [decisions.md](decisions.md); the open ones are in the
+  roadmap's [Open decisions](roadmap.md#open-decisions-the-maintainers). Don't change listed behaviour without saying which
   decision it touches.
 - **Release files are only downloaded through `tools/ci/dev-download.sh`** ([how](#downloading-release-files)).
+- **Dependabot pull requests** are reported (what they change, whether CI is green) and merged only with the
+  maintainer's yes.
+- **A release with new features** also updates the repository description and topics ([step 5](#releasing)).
+- **Code signing is on hold** until a route exists that does not put a personal name in the signature
+  ([decision](decisions.md#releases)).
 
 ## Releasing
 One branch and one pull request per release: the change, the version bump and the release text together. Releases are
 bundles: a version collects several changes, and only a fix for something broken, or a security fix, ships alone
 ([why](decisions.md#releases)).
 
-Steps 1-2 are done where the change was made. Steps 3-4 (from the merge to the verify log) follow a written checklist
-and may be handed to the `releaser` agent (Claude Code), with the pull request number, the version and the owner's
-go-ahead in their words.
+Steps 1-2 are done where the change was made. Steps 3-4 (from the merge to the verify log) follow a written checklist and need only the pull request number, the
+version and the maintainer's go-ahead.
 
 1. **Branch and change.**
    - Bump `var version` in `cmd/mpcvibedrpc/main.go`. Nothing else carries the version: the workflows run
@@ -41,14 +45,14 @@ go-ahead in their words.
      ran.
    - The live jobs ran when the pull request was opened. If later commits touch the engine or a player reader, run
      `ci.yml` by hand (`workflow_dispatch`) on the branch before the release.
-3. **Merge, tag and publish** (with the owner's go-ahead).
+3. **Merge, tag and publish** (with the maintainer's go-ahead).
    1. **Wait for the pull request's CI.** The repository does not require passing checks, so `gh pr merge --auto`
       would merge at once.
    2. **Merge:** `gh pr merge <n> --rebase --delete-branch`. GitHub refuses to rebase a branch that holds merge
       commits (such as merged agent branches): use `--merge` then, or rebase the branch locally first.
    3. **Tag** the merged commit with an annotated tag and push it. An annotated tag stores the tagger's name and email,
       so tag with the same neutral identity used for commits, never a personal email:
-      `git -c user.name="Claude" -c user.email="noreply@anthropic.com" tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`, then
+      `git -c user.name="<name>" -c user.email="<noreply address>" tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`, then
       `git push origin vX.Y.Z`.
    4. **The release workflow** (`.github/workflows/release.yml`) checks the tag against `main.go`, runs the tests,
       builds the programs on Windows, Linux and macOS runners and smoke-tests each on its own system (Windows: tray,
@@ -66,7 +70,7 @@ go-ahead in their words.
 4. **Read the `verify` job's log** (`gh run view --log`) and report. Nothing needs re-running locally after a release.
 5. **Repository details.** A release with new features also updates the repository description and topics
    (`gh repo edit --description ... --add-topic ...`) so they name every player and system the program supports (the
-   owner gave a standing go-ahead for this).
+   maintainer has given a standing go-ahead for this).
 
 ### Pitfalls
 - The default branch is `master`, not `main`. Never name a branch like a tag (`v0.9.20`): `git push origin v0.9.20`
@@ -86,11 +90,18 @@ browser or curl. It records the download in a ledger on the `stats` branch, so t
 
 - `download` fetches into `DIR` (new or empty), then records it.
 - `record` is for a download made another way, such as a test copy updating itself.
-- `BY` says who downloaded ("release check v0.9.39 draft", "Claude agent"). It needs `gh` signed in with write access.
+- `BY` says who downloaded ("release check v0.9.39 draft", "an automated agent"). It needs `gh` signed in with write access.
 
 To check a release without downloading anything, GitHub lists each file's sha256 as `digest`
 (`gh api repos/OWNER/REPO/releases/tags/vX.Y.Z`). How users check a download:
 [SECURITY.md](../SECURITY.md#checking-a-download).
+
+### Resetting the download counts
+`tools/downloads/reset-counts.sh` starts the counts of the release files again from 0 by replacing each file with its
+identical bytes (names, links, checksums and build records stay the same). It rewrites every asset of the releases it
+is given, so it needs `gh` signed in with write access, and it is run only deliberately, never from CI. After it, run
+the `downloads` workflow by hand with `baseline` ticked ([CI](development.md#ci)). Its header says what each step
+checks.
 
 ## Screenshots
 The README's pictures (`docs/images/window-main.jpg`, `window-privacy.jpg`; `window-plex.jpg` is used by

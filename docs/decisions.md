@@ -2,14 +2,14 @@
 
 The product decisions behind the program, each with its reason, so that a change can be weighed against why things
 are the way they are. What the program deliberately leaves out is under [Not goals](roadmap.md#not-goals) in the
-roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-owners).
+roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-maintainers).
 
 ## Behaviour
 - **MPC-HC comes first.** It is the player the program was made for: anything new is added after it and must not
   change how it behaves. *Why:* the people who use it with MPC-HC should never notice that other players arrived.
 - **Discord is only contacted once something plays** ("Discord on standby" until then). *Why:* nothing to show means
   nothing to send, and an idle program should not hold a connection.
-- **The window's X quits the program; minimizing sends it to the tray** (2026-11-20, the owner, from a user's wish).
+- **The window's X quits the program; minimizing sends it to the tray** (2026-11-20, from a user's wish).
   **Minimize to the tray** (Windows, on by default) can send it to the taskbar instead. On macOS the window still
   closes to the menu bar (it has no tray to fall back on, so the menu bar app keeps running); on Linux, which has no tray
   icon, the X quits like on Windows. *Why:* the X should do what it says; the tray stays one click away for those who want the
@@ -32,6 +32,8 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   (macOS, Linux) the choice is always or never. *Why:* a switch to remember before every stream is friction, and the
   Watching status with its progress bar is what belongs on a profile. It is on by default because it changes nothing
   until a stream starts.
+  What each field of the status shows on a card, and what the program sends, is in
+  [Discord Rich Presence: what the card can show](research/discord-rich-presence.md).
   - **Not two statuses at once** (tried on a real stream, 2026-11-21, and not kept). *Why:* Discord shows one card per
     application and lists Playing before Watching, so a second, Playing status from the same application hides the
     Watching one; a second registered application would put three cards on the profile (the stream, Playing and
@@ -42,7 +44,7 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 - **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player
   answers is repeated a second later before the status is taken down. *Why:* a player that loads a file or seeks on
   a slow disk misses an answer now and then, and the status should not flicker for it; a second is a small price.
-- **Blu-ray and DVD files are named by themselves** (2026-11-25, the owner: on by default). *Why:* a disc's files are
+- **Blu-ray and DVD files are named by themselves** (2026-11-25: on by default). *Why:* a disc's files are
   named by number, so without it a disc showed a number and no cover; the folder, the disc's own title or its label
   says what it is, with nothing to set.
 - **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
@@ -55,7 +57,7 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   should not surprise anyone.
 
 ## The window and the tray
-- **The window looks like a quiet settings page** (2026-11-21, the owner, after two independent design reviews): neutral
+- **The window looks like a quiet settings page** (2026-11-21, after two independent design reviews): neutral
   greys with Discord's blurple as the one accent, three text sizes and two corner roundings, every setting a row with
   its control on the right, one status block with the preview at the top, and the version and Quit in the footer. The
   main control stays a button: "Show on Discord" in the accent colour, a plain "Stop showing" while it shows. *Why:*
