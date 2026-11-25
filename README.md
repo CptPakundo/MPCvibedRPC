@@ -57,7 +57,8 @@ You need the **Discord desktop app** with *User Settings > Activity Privacy > "S
 
 **Windows 10 and 11**
 1. Download **MPRP.exe** and run it; there is nothing to install. SmartScreen may warn, because the program isn't
-   code-signed: choose *More info > Run anyway*.
+   code-signed: choose *More info > Run anyway*. Windows 11's Smart App Control can block it outright
+   ([why](docs/troubleshooting.md#is-the-download-safe)).
 2. Play something. If your player isn't found yet, press **Set up the player connection** in the window.
 3. Optional: **Start with Windows** (General tab) starts it quietly in the tray when you log in.
 
