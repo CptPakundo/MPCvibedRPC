@@ -2,7 +2,8 @@
 
 The details behind what the [README](../README.md) promises: what shows on Discord, how titles are cleaned up, where
 covers and episode names come from, and how each player is read. Every setting with its default is in
-[All settings](config.md).
+[All settings](config.md); problems are in [Troubleshooting](troubleshooting.md); every page is listed in the
+[docs index](README.md).
 
 ## The window and the menu
 **The tray menu** (Windows) and **the menu bar menu** (macOS) hold:
@@ -26,7 +27,7 @@ minimised, or let the program start at login; running it again brings the window
 | Titles & art | episode titles, title spelling, anime titles, folder names, **Fix a match**, a TMDB key |
 | Privacy | hiding titles and files, clearing after a pause, which online services may see a title, Recent connections |
 | Advanced | the Discord application ID, how often players are checked, Maintenance (Restore defaults, Open settings folder) |
-| Help | Run a check, Copy diagnostics, the log, your stats, credits |
+| Help | Run a check, Copy diagnostics, the log, your stats, About (version, links, credits and licence) |
 
 Settings save as you change them; **Restore defaults** (Advanced > Maintenance) resets them all after asking. Closing
 the window with its X quits the program (on macOS it closes to the menu bar); minimizing it on Windows sends it to the
@@ -200,9 +201,7 @@ three, after a short pause), with each entry's cover, year, kind and catalog. Pi
 
 **Titles & art > Fix a match** lists every fix with **Edit** and **Remove** (the bar offers Undo), and **Add a fix** makes
 one for a title that is not playing: type it as the log shows it after `Playing:` (for a Blu-ray file named
-`00062.m2ts` that is `00062`). Lines in the old `artworkAliases` and `artworkOverrides` settings became fixes once and act
-as before; an older version of the program does not see fixes made since. The log also lists what each catalog
-returned. A free TMDB key (**Titles & art > More**) improves some matches.
+`00062.m2ts` that is `00062`). The log also lists what each catalog returned. A free TMDB key (**Titles & art > More**) improves some matches.
 
 ## On your streams
 When you share your screen, Discord names the stream after your *Playing* status and after no other kind, so
@@ -297,7 +296,7 @@ What was tried with which player, and how, is in [What has been tried](#what-has
 ### Plex
 - **Signing in:** **Players > Sign in to Plex** opens plex.tv in your browser, and you approve the sign-in there (the
   program never sees your password). The program introduces itself to Plex as "MPRP" and keeps the sign-in in
-  `config.json`; **Sign out** or **Restore defaults** asks plex.tv to end the sign-in, then removes it from this
+  `config.json` (encrypted for your user account on Windows); **Sign out** or **Restore defaults** asks plex.tv to end the sign-in, then removes it from this
   computer (also when plex.tv does not answer). The program may stay listed on Plex's *Authorized Devices* page,
   where its entry can be deleted.
 - **Your server:** it follows your server; choose another one under the button (your own servers come first, then
@@ -311,7 +310,7 @@ What was tried with which player, and how, is in [What has been tried](#what-has
 ### Stremio
 - **Signing in:** **Players > Sign in to Stremio** works the way Stremio's TV apps do: stremio.com opens in your
   browser and you approve a code there (the program never sees your password). The account's key is kept in
-  `config.json`; **Sign out** (or **Restore defaults**) ends that session on Stremio's side and removes it.
+  `config.json` (encrypted on Windows, as above); **Sign out** (or **Restore defaults**) ends that session on Stremio's side and removes it.
 - **What it reads:** Stremio has no live "now playing" for other apps, so the program reads the account's library:
   every 20 seconds it asks which entries changed, and fetches only those.
 - Stremio's player updates the entry of what you watch when it starts, pauses, resumes and stops, and every 180 seconds

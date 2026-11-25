@@ -7,7 +7,8 @@
 <sub>Media Player Rich Presence (formerly MPCvibedRPC)</sub>
 
 **Show what you're watching on Discord.**<br>
-A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
+A tiny app that turns what your video player plays into a Discord status: the title, the episode, the cover and a
+progress bar that keeps up.
 
 <p>
 <a href="https://github.com/CptPakundo/MPRP/releases/latest/download/MPRP.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
@@ -22,59 +23,62 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/CptPakundo/MPRP?color=444"></a>
 </p>
 
-<p>
-<img src="docs/images/window-main.jpg" width="380" alt="The window: what is playing, and how it looks on Discord">
-<img src="docs/images/window-privacy.jpg" width="380" alt="The Privacy tab: a switch for each online service">
-</p>
+<img src="docs/images/window-main.jpg" width="420" alt="The settings window: what is playing, and a preview of the status as Discord shows it">
+
+<sub>MPC-HC · MPC-BE · MPC-QT · mpv · VLC · PotPlayer · IINA · Kodi · Plex · Stremio · Jellyfin · Emby</sub>
 
 </div>
 
-> **Made with AI ("vibe coded").** The code, tests and documentation were written by an AI (Claude, by Anthropic) from
-> the repository maintainer's prompts and testing ([how that works](docs/ai.md)). There is no warranty (see `LICENSE`). The
-> idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the credit for that belongs to its author.
+<sub>Made with AI: the code, tests and docs were written by Claude (Anthropic) from the maintainer's prompts and testing. [How that works](docs/ai.md).</sub>
 
 ## ✨ What you get
 
-- 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking and pausing.
+- 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking
+  and pausing.
 - 🧹 **Clean titles** from messy file names: `Show.Name.S01E02.1080p.WEB-DL.x265-GRP.mkv` becomes *Show Name · S01E02*.
-- 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more). A wrong match is fixed from the preview with a search, and the text lines can be shorter, longer or your own.
-- 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; Kodi on any system; and **Plex**, **Stremio**, **Jellyfin** and **Emby** on any device. Players with a logo of their own show it on Discord.
-- 🔗 **Clickable**: both text lines and the cover open the title's page (IMDb, AniList, ...), next to up to two "View on ..." buttons, and the player's logo opens its site. Or "View on Letterboxd", if you switch that on. **Hide what I'm watching** is also in the tray / menu bar menu.
-- 📡 **On your streams**: while you share your screen, Discord says "Streaming Sample Show" instead of showing a stream without a name (Windows; elsewhere it is a switch).
-- 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
-- 🪶 **Tiny and tidy**: one file of under 10 MB, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it waits quietly and asks no player at all.
+- 🖼️ **Cover art, episode names and ratings** from free catalogs (IMDb, TVmaze, AniList and more).
+- 🎯 **Fix a match**: a wrong title or cover is put right from the window, with a search that suggests as you type.
+  The fix sticks for every episode.
+- ✏️ **Text lines your way**: Standard, Short, Detailed, or lines of your own with placeholders such as
+  `{episodeTitle}`.
+- 🔗 **Clickable**: the lines and the cover open the title's page (IMDb, AniList, ...), next to up to two "View on ..."
+  buttons.
+- 📡 **On your streams**: while you share your screen, Discord says "Streaming Sample Show" instead of a stream
+  without a name.
+- 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline.
+  No tracking.
+- 🪶 **Small and quiet**: one file under 10 MB, nothing to install, updates itself (on macOS it links to the download). While Discord is closed it
+  rests and asks no player at all.
 
 ## 🚀 Getting started
 
-Every system needs the **Discord desktop app** with *User Settings > Activity Privacy > "Share my activity"* turned on (Activity Privacy is in the *Games & Apps* section, called *Activity Settings* in older Discord versions).
+You need the **Discord desktop app** with *User Settings > Activity Privacy > "Share my activity"* on (under
+*Games & Apps*; *Activity Settings* in older Discord versions).
 
-**Windows 10/11**
-1. Download **MPRP.exe** and run it. There is nothing to install. SmartScreen may warn, because the program
-   isn't code-signed: choose *More info > Run anyway*.
+**Windows 10 and 11**
+1. Download **MPRP.exe** and run it; there is nothing to install. SmartScreen may warn, because the program isn't
+   code-signed: choose *More info > Run anyway*.
 2. Play something. If your player isn't found yet, press **Set up the player connection** in the window.
 3. Optional: **Start with Windows** (General tab) starts it quietly in the tray when you log in.
 
 **macOS 13 or later** (Apple silicon and Intel)
 1. Download **MPRP-macos.zip**, open it and move the app to Applications.
-2. The app isn't notarized by Apple, so the first time it won't open: go to *System Settings > Privacy & Security* and
+2. The app isn't notarized by Apple, so it won't open the first time: go to *System Settings > Privacy & Security* and
    choose **Open Anyway**.
 3. It lives in the menu bar. For IINA, press **Set up the player connection** once and reopen IINA.
 
 **Linux** (x64 and ARM64)
-1. Download **MPRP-linux-amd64** (or `-arm64`), run `chmod +x` on it and start it.
-2. VLC, Celluloid, Haruna and most other video players are found by themselves. mpv: press **Set up the player
+1. Download **MPRP-linux-amd64** (or `-arm64`), make it executable (`chmod +x`) and start it.
+2. VLC, Celluloid, Haruna and most other video players are found by themselves. For mpv, press **Set up the player
    connection** (it adds one line to `mpv.conf`); the mpv-mpris script works too.
 3. There's no tray icon, and closing the window with its X quits the program. Keep the window open or minimised, or
-   let the program start at login (**General** tab), and run it again to bring the window back.
+   let it start at login (**General** tab); running it again brings the window back.
 
-**Plex** (any system): sign in on the **Players** tab. Whatever you play with your Plex account then shows up, on any device.
-
-**Stremio** (any system): sign in on the **Players** tab. What you watch with your Stremio account then shows up, on any device.
-
-**Jellyfin and Emby** (any system): enter your server's address and sign in on the **Players** tab.
+**Plex, Stremio, Jellyfin and Emby** (any system): sign in on the **Players** tab (for Jellyfin and Emby, enter your
+server's address first). What you play with that account then shows up, on any device.
 
 **Kodi** (any system): in Kodi, turn on *Settings > Services > Control > Allow remote control via HTTP* with a user
-name and password; enter the password (and the address, for a Kodi on another device) under the **Players** tab.
+name and password, then enter the password (and the address, for a Kodi on another device) on the **Players** tab.
 
 ## 📺 Players
 
@@ -93,25 +97,46 @@ name and password; enter the password (and the address, for a Kodi on another de
 | Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Players tab |
 | Jellyfin, Emby (any app, web or TV) | ✓ | ✓ | ✓ | server address and sign in on the Players tab |
 
-"One click" is the **Set up the player connection** button in the window. It closes and reopens MPC-HC, MPC-BE or VLC
-after you confirm. Exactly what each player needs, and how it is read, is in
-[How it works](docs/how-it-works.md#players-in-detail).
+"One click" is the **Set up the player connection** button in the window; it closes and reopens MPC-HC, MPC-BE or VLC
+after you confirm. When several players are open, the one playing a video wins. What each player needs, and how it is
+read: [Players in detail](docs/how-it-works.md#players-in-detail).
+
+## 🔧 Settings
+
+Everything is in one window: open it from the tray icon on Windows or the menu bar on macOS; on Linux it is the app's
+own window. Settings save as you change them.
+
+| Tab | What you set there |
+|---|---|
+| General | starting with the system, showing on Discord when the app opens, updates |
+| Players | the players on this computer, and the Plex, Stremio and Jellyfin / Emby sign-ins |
+| Look | how the status reads: style, text lines, progress bar, links, streams |
+| Titles & art | episode titles, anime titles, folder names, **Fix a match** |
+| Privacy | hidden titles and files, which online services may see a title |
+| Advanced | how often players are checked, Restore defaults |
+| Help | Run a check, Copy diagnostics, the log, your stats, About |
+
+Every setting, with its default: [All settings](docs/config.md).
 
 ## 🔒 Privacy
 
-- The status is put together on your computer. Only Discord, the services you turn on or sign in to, and GitHub
-  (the update check, which you can switch off) are contacted.
-- To find covers, the **title** (never the file path) is sent to the catalog services you allow. The **Privacy** tab has
-  a switch for each one, plus one switch to stay fully offline.
-- **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders, names or a whole Plex library completely.
-- Music played in a video player shows as "Listening to" and is never looked up in the movie and TV catalogs.
-- Your status clears itself after a long pause (30 minutes, adjustable).
-- **Your stats** (Help tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
-  analytics, no tracking. The download count above is GitHub's public count of release downloads.
-- With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads. The same
-  goes for Stremio and Stremio's servers, and for Jellyfin / Emby and your own server.
-- [SECURITY.md](SECURITY.md) lists every address the program connects to, and how to verify a download (release files
-  come with checksums and a signed build record).
+- Your status is put together on your computer. Only Discord, the services you allow or sign in to, and GitHub (the
+  update check, which you can switch off) are contacted.
+- To find a cover, only the **title** (never the file path) goes to the catalogs you allow, each with its own switch.
+  One switch keeps the program fully offline.
+- **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders, names or a whole
+  Plex library.
+- With Plex, Stremio, Jellyfin or Emby the program only reads what you play. On Windows their sign-ins are kept
+  encrypted for your user account.
+- Your stats stay on your computer. No analytics, no tracking.
+
+Every address the program connects to, and how to check a download: [SECURITY.md](SECURITY.md).
+
+<details>
+<summary>The Privacy tab</summary>
+<br>
+<img src="docs/images/window-privacy.jpg" width="380" alt="The Privacy tab: a switch for each online service">
+</details>
 
 ## ❓ Help
 
@@ -120,21 +145,27 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 1. The Discord desktop app (not the browser) is running.
 2. "Share my activity" is turned on in Discord (where: see [Getting started](#-getting-started)).
 3. Discord runs normally, not as administrator.
-4. The status line at the top of the window says what is missing, for example "No player found".
+4. The status line at the top of the window says what is missing, for example "No player found". **Help > Run a
+   check** tells you what works and what doesn't.
 
 **Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies a report to paste into a
-[new issue](https://github.com/CptPakundo/MPRP/issues/new/choose); what it contains is in [Troubleshooting](docs/troubleshooting.md#reporting-a-problem).
+[new issue](https://github.com/CptPakundo/MPRP/issues/new/choose); what it contains is in
+[Troubleshooting](docs/troubleshooting.md#reporting-a-problem).
 
 More problems, by player and service, plus updates and uninstalling: [Troubleshooting](docs/troubleshooting.md).
 
-## 📚 More
+## 📚 Documentation
 
-- [How it works](docs/how-it-works.md): title cleanup, cover lookups, and each player in detail.
+- [How it works](docs/how-it-works.md): what shows on Discord, title cleanup, covers, Fix a match, each player.
 - [All settings](docs/config.md), with their defaults.
 - [Troubleshooting](docs/troubleshooting.md): each player and service, updates, uninstalling.
-- [Security](SECURITY.md): every address the program connects to, how to verify a download, and how to report a
-  security problem.
-- [Contributing](CONTRIBUTING.md): bug reports, building and testing.
-- [Development](docs/development.md): building, running it safely, testing, CI and how the code is laid out; [Maintaining](docs/maintaining.md): releasing.
-- [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.
-- [Decisions](docs/decisions.md): why the program behaves the way it does.
+- [Security](SECURITY.md): every address the program connects to, checking a download, reporting a security problem.
+- [Contributing](CONTRIBUTING.md) and [the full docs index](docs/README.md): building, testing, the roadmap and the
+  decisions behind the program.
+
+## 🙏 Credits
+
+The idea and the approach come from [angeloanan/MPC-DiscordRPC](https://github.com/angeloanan/MPC-DiscordRPC); the
+credit for that belongs to its author. Titles, covers and episode names come from TMDB, IMDb, Cinemeta, TVmaze,
+AniList, Kitsu, Wikipedia and Bulbapedia ([notices](THIRD-PARTY-NOTICES.md)). MPRP is free software under the
+[MIT license](LICENSE), with no warranty.
