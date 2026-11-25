@@ -143,8 +143,8 @@ not been tried with MPRP.
 ## Where are my settings? How do I remove it?
 
 Everything is in `%LOCALAPPDATA%\MPRP` (macOS: `~/Library/Application Support/MPRP`; Linux:
-`~/.local/share/MPRP`): settings, log, cover cache, your stats, and the window's own browser profile (your
-regular browser is left alone). **Open settings folder** (**Advanced > Maintenance**) opens it. Every setting with its
+`$XDG_DATA_HOME/MPRP`, else `~/.local/share/MPRP`): settings, log, cover cache, your stats, and the window's own
+browser profile (your regular browser is left alone). **Open settings folder** (**Advanced > Maintenance**) opens it. Every setting with its
 default is in [docs/config.md](config.md).
 
 To uninstall:

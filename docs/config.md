@@ -4,7 +4,7 @@ Every setting with its default and what it does, grouped by the settings window'
 ones and saves them as you change them. The others go in `config.json`:
 - Windows: `%LOCALAPPDATA%\MPRP\config.json`
 - macOS: `~/Library/Application Support/MPRP/config.json`
-- Linux: `~/.local/share/MPRP/config.json`
+- Linux: `$XDG_DATA_HOME/MPRP/config.json`, else `~/.local/share/MPRP/config.json`
 
 `config.json` is JSON: use the names below and write values as the Default column does, for example
 `{"artworkSources": ["imdb", "tvmaze"]}`. The settings of the General tab go inside `"app"`:
