@@ -104,7 +104,8 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   the check goes out as the program starts. With no window open nothing is asked: the update installs itself as
   above, though never in the first ten seconds after the start. *Why:* a line at the top and a button on a tab were
   easy to miss; whoever has the window open can decide on the spot, and a program that has only just started cannot
-  know yet whether something plays or a window is about to open.
+  know yet whether something plays or a window is about to open. No popup of its own opens without a window
+  (2026-11-25): every system shows a notification instead (an update is available, or one installed itself).
 
 ## Privacy
 - **Copy diagnostics keeps titles and file names**, and leaves out folder paths, web address details, server names,

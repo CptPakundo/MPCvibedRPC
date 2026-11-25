@@ -142,10 +142,8 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 3. Keep an offline signing key and sign each stable release (one manual step each).
 4. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
    account to try it; the maintainer has none.
-5. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows a
-   notification when automatic installs are off.
 
-Settled: the macOS minimum is 13. On 2026-11-25 the maintainer settled the Fix a match redesign and presence templates (both built in 0.9.60), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4).
+Settled: the macOS minimum is 13. On 2026-11-25 the maintainer settled the Fix a match redesign and presence templates (both built in 0.9.60), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4). A popup for a found update with no window open is not needed: every system shows a notification ([decision](decisions.md#the-window-and-the-tray)).
 
 ## Watch list
 Outside facts the program depends on, with the date they were last checked.
