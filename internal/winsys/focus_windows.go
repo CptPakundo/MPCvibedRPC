@@ -122,7 +122,9 @@ func WindowState(h uintptr) (exists, minimised bool) {
 	return true, ic != 0
 }
 
-// CloseWindow asks the window h to close, as its X button does (the browser then ends by itself).
-func CloseWindow(h uintptr) {
-	pPostMessage.Call(h, wmClose, 0, 0)
+// CloseWindow asks the window h to close, as its X button does (the browser then ends by itself). It reports whether
+// the request was delivered (the window may still refuse it).
+func CloseWindow(h uintptr) bool {
+	r, _, _ := pPostMessage.Call(h, wmClose, 0, 0)
+	return r != 0
 }

@@ -44,6 +44,7 @@ type app struct {
 	watching  atomic.Bool    // watchMinimise runs
 	opened    atomic.Int64   // windows asked for so far: one asked for after a window went means it was not the X
 	winHandle atomic.Uintptr // the settings window as watchMinimise last found it (Windows; 0: not known)
+	winSys    *windowSys     // nil: the system's window functions (tests stand in for a window)
 	busyUntil atomic.Int64   // until then (Unix nanoseconds) no update installs itself: see settle
 
 	mu       sync.Mutex

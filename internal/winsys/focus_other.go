@@ -16,4 +16,4 @@ func SettingsWindow(profileDir string) uintptr { return 0 }
 func WindowState(h uintptr) (exists, minimised bool) { return false, false }
 
 // CloseWindow does nothing here (see SettingsWindow).
-func CloseWindow(h uintptr) {}
+func CloseWindow(h uintptr) bool { return false }
