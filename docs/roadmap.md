@@ -43,6 +43,33 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
    portal). Today Linux chooses always or never ([decision](decisions.md#behaviour)).
 9. **CI: the Chocolatey Kodi download** (TLS errors from its mirror) fails `players-windows` now and then, and the
     canary uses it. Add a retry or another source ([known flaky checks](development.md#known-flaky-checks)).
+10. **Fix a match, first version** (settled 2026-11-25; part of version 0.9.60). Build what
+    [design/fix-a-match.md](design/fix-a-match.md) describes: the dialog and the list with the scope choice, covers from
+    the other catalogs, offsets and "Tell the project". *Where:* `internal/artwork`, the `cmd/mpcvibedrpc` API,
+    `internal/assets` (the window), `core.Config` and the store schema (`matchFixes`), the docs. Done when the dialog and
+    the list replace the two text boxes, old `artworkAliases` and `artworkOverrides` lines still act as before (they
+    become fixes once), and the tests the design names pass.
+11. **Presence templates, first version** (settled 2026-11-25; part of version 0.9.60). Build
+    [design/presence-templates.md](design/presence-templates.md): the Text lines row with Standard, Short, Detailed and
+    Custom, including a film's cover text. *Where:* `internal/core` (`lines.go`, `BuildActivity`), the store schema
+    (`textLines`, `customLines`), `internal/assets` (Look tab), the docs. Done when Standard reproduces the recorded
+    golden data byte for byte, Custom lines show on the card, and the tests the design names pass.
+12. **A notice after an automatic update** (settled 2026-11-25; part of version 0.9.60). After an update has installed
+    itself, one native notification, "Updated to <version>. Click to see what's new", once per update, on Windows first,
+    **on by default** (a deliberate change for existing users, decided by the maintainer). *Where:*
+    `cmd/mpcvibedrpc/app.go` (a tray notice `Tray.Balloon` for `autoFrom` is already there, and `update.go` shows one for
+    a found update) and `internal/winsys`. Check first what that notice does today and make it once per update, with a
+    setting to turn it off, and the changelog says it. Later: macOS (the menu bar app has no notifications) and Linux
+    (D-Bus desktop notifications). Done when an automatic update shows the notice once and a test covers the "once".
+13. **Sign-ins encrypted on Windows** (settled 2026-11-25; part of version 0.9.60). Encrypt the secrets in `config.json`
+    with the per-user Windows DPAPI (`CryptProtectData` / `CryptUnprotectData` through `syscall`, standard library only):
+    `plexToken`, `plexKey`, `stremioKey` and `jellyfinToken` (the sign-ins), and, to decide while building, the secrets
+    typed in the window (`vlcPassword`, `kodiPassword`, `tmdbApiKey`). *Where:* `internal/store` (load and save),
+    `core.Config`, SECURITY.md, `docs/config.md`. Existing plain values are read as before and encrypted at the next
+    write; a config copied to another user or computer cannot be decrypted, so those sign-ins count as signed out and
+    ask to sign in again; macOS and Linux are unchanged. Done when a saved config holds no plain secret on Windows, a
+    plain one still loads, an undecryptable one reads as signed out (a test with a fake decrypter), and Diagnostics
+    still leaves the values out.
 
 ## Goals
 
@@ -87,8 +114,9 @@ The updater checks a checksum from the same release, so anyone able to publish a
   - *Status:* done (Privacy tab; every request through Go's default transport is counted by host, in memory only).
 - MPC-HC's web interface answers any web page once switched on (no password, open to all origins). The Privacy tab and
   SECURITY.md say so.
-- Possibly, keep sign-ins in the system's key store (Windows DPAPI, the macOS Keychain, the Secret Service on Linux)
-  instead of plain text in `config.json`.
+- Keep sign-ins out of plain text in `config.json`.
+  - *Status:* settled 2026-11-25 as Windows' per-user DPAPI encryption (Next up 13); macOS and Linux stay as they are,
+    and the full system key store (the macOS Keychain, the Secret Service) is not planned.
 
 ### 5. Readable by a human, decisions in the open
 - A public record of the product decisions and of the non-goals below, with the reason for each.
@@ -154,19 +182,12 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 1. Register a project-owned Discord application.
 2. Turn on immutable releases (a repository setting; [how they fit the release flow](research/immutable-releases.md)).
 3. Keep an offline signing key and sign each stable release (one manual step each).
-4. Keep sign-ins in the system's key store (see goal 4). It changes how existing installs store them.
-5. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
+4. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
    account to try it; the maintainer has none.
-6. Presence templates: a user-written layout of the two status lines ([design](design/presence-templates.md); its
-   [five questions](design/presence-templates.md#open-decisions)).
-7. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
+5. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
    tray notice when automatic installs are off.
-8. The Fix a match redesign ([design](design/fix-a-match.md)) waits on four decisions: scope, sharing, covers in the
-   first version, and a season and episode offset ([the questions](design/fix-a-match.md#open-decisions)). Once they are
-   settled the first version is work for Next up; it is done when the dialog and the list replace the two text boxes,
-   with the tests the design names.
 
-Settled: the macOS minimum is 13.
+Settled: the macOS minimum is 13. On 2026-11-25 the maintainer settled the Fix a match redesign, presence templates (both in Next up), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4).
 
 ## Watch list
 Outside facts the program depends on, with the date they were last checked.
