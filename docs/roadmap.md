@@ -157,7 +157,8 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 4. Keep sign-ins in the system's key store (see goal 4). It changes how existing installs store them.
 5. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
    account to try it; the maintainer has none.
-6. Presence templates: a user-written layout of the two status lines.
+6. Presence templates: a user-written layout of the two status lines ([design](design/presence-templates.md); its
+   [five questions](design/presence-templates.md#open-decisions)).
 7. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
    tray notice when automatic installs are off.
 8. The Fix a match redesign ([design](design/fix-a-match.md)) waits on four decisions: scope, sharing, covers in the
