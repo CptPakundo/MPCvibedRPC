@@ -1,7 +1,6 @@
 package diag
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 
@@ -67,9 +66,8 @@ func TestPrivateKeysCoverEverySignIn(t *testing.T) {
 	// names that sound private but hold nothing personal: Discord image names, a switch, a product name, a folder rule
 	public := map[string]bool{"largeImageKey": true, "smallImageKey": true, "plexJwt": true, "jellyfinProduct": true, "useFolderName": true}
 	words := []string{"token", "key", "password", "address", "user", "account", "server", "secret", "device"}
-	rt := reflect.TypeOf(core.Config{})
-	for i := 0; i < rt.NumField(); i++ {
-		tag := strings.Split(rt.Field(i).Tag.Get("json"), ",")[0]
+	for _, f := range core.ConfigFields() {
+		tag := strings.Split(f.Tag.Get("json"), ",")[0]
 		lower := strings.ToLower(tag)
 		private := false
 		for _, w := range words {
