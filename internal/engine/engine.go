@@ -136,6 +136,7 @@ type Engine struct {
 	stopWatch  context.CancelFunc // ends the player watch (watchPlayers); a settings change for the players starts another
 	stopShare  context.CancelFunc // ends the screen-share watch (nil: none runs; it runs while streamTitle is "auto")
 	discGen    uint64             // counts the Discord connections dropped for new settings: an attempt of an older one is let go
+	cfgGen     uint64             // counts the settings changes that reach the engine: a check that read older ones sends nothing
 	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
 	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nudges     nudger             // early checks after mpv or IINA reported a change (events.go)
@@ -252,13 +253,6 @@ func (e *Engine) client() *http.Client {
 		return e.opts.HTTPClient
 	}
 	return http.DefaultClient
-}
-
-// isCurrent reports whether r is still the active run.
-func (e *Engine) isCurrent(r *run) bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.cur == r
 }
 
 // Start begins watching for a player (no-op when already running).

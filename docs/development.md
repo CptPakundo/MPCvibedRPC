@@ -341,7 +341,8 @@ the cover finder and the API. The rules that keep them in step:
 2. Only a change by the player restarts the pause limit or brings back a status cleared after a long pause.
 3. Every place that takes `e.mu` again after asking Discord checks that its run is still the current one
    (`e.cur == r`) before it books anything; a Discord answer also checks that its connection was not let go for new
-   settings meanwhile (`discGen`).
+   settings meanwhile (`discGen`). A check that read settings older than the current ones sends nothing (`cfgGen`):
+   a title hidden a moment ago must not go out.
 4. The clear after a long pause is booked when Discord took it, not before.
 5. A send Discord did not take waits `retryAfter` (5 s, doubling to a minute) before the next try.
 6. `basicMode` and `noLinks` hold for the file they were found out for (`modeKey`).
