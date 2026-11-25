@@ -10,6 +10,44 @@ import (
 	"github.com/CptPakundo/MPRP/internal/store"
 )
 
+// run() announces this copy (ipc.json) before anything in it writes config.json: a write placed above a.announce
+// would happen before the copy has shown that it runs, which after an update the version put back may not read. Only
+// writeEarly, which writes nothing after an update (TestStartWritesWaitForIPCAfterAnUpdate), comes before.
+func TestRunAnnouncesBeforeItWrites(t *testing.T) {
+	b, err := os.ReadFile("app.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := strings.ReplaceAll(string(b), "\r\n", "\n")
+	start := strings.Index(src, "\nfunc run() error {\n")
+	if start < 0 {
+		t.Fatal("no func run in app.go")
+	}
+	body := src[start:]
+	body = body[:strings.Index(body, "\n}\n")]
+	announce := strings.Index(body, "a.announce(")
+	if announce < 0 || strings.Count(body, "a.announce(") != 1 {
+		t.Fatal("run() must call a.announce once")
+	}
+	if early := strings.Index(body, "a.writeEarly("); early < 0 || early > announce {
+		t.Error("run() must call a.writeEarly before a.announce")
+	}
+	// every Store method that writes config.json, and the callers that write through one
+	for _, w := range []string{"st.Update(", "st.SetSettings(", "st.SetHidden(", "st.Reset(", ".MigrateMatchFixes(",
+		"a.startWrites(", "keepFresh(", "applySettings(", "setHideTitle(", "setStreamTitle("} {
+		for from := 0; ; {
+			i := strings.Index(body[from:], w)
+			if i < 0 {
+				break
+			}
+			if from+i < announce {
+				t.Errorf("run() calls %s before a.announce: it would write config.json before ipc.json", w)
+			}
+			from += i + len(w)
+		}
+	}
+}
+
 // When every old Fix a match line is left out after an update, the engine that runs already drops them too: the
 // migration wrote an empty list, and the settings are applied although no fix was written.
 func TestStartWritesAppliesWhenNoOldLineIsKept(t *testing.T) {
