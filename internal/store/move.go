@@ -64,14 +64,53 @@ func exists(path string) bool {
 	return err == nil
 }
 
-// renameLogs gives the log files of the former name the current one (where no file of that name is there yet).
+// renameLogs gives the log files of the former name the current one. When a file of the current name is there too
+// (the copy that a former version updated itself to logs under the new name in the former folder), the former file's
+// lines go first in it; either way no file of the former name is left, which nothing would ever rotate or remove
+// (a log holds titles).
 func renameLogs(dir string) {
 	for _, l := range formerLogs {
 		old, cur := filepath.Join(dir, l[0]), filepath.Join(dir, l[1])
-		if exists(old) && !exists(cur) {
+		switch {
+		case !exists(old):
+		case !exists(cur):
 			_ = os.Rename(old, cur)
+		default:
+			_ = joinFiles(old, cur)
+			_ = os.Remove(old)
 		}
 	}
+}
+
+// joinFiles puts the text of first before that of second, in second (through a temporary file: a failure changes
+// nothing).
+func joinFiles(first, second string) error {
+	tmp := second + ".joining"
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	for _, p := range []string{first, second} {
+		in, err := os.Open(p)
+		if err == nil {
+			_, err = io.Copy(out, in)
+			in.Close()
+		}
+		if err != nil {
+			out.Close()
+			_ = os.Remove(tmp)
+			return err
+		}
+	}
+	if err := out.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := os.Rename(tmp, second); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // copyDir copies the folder from, with everything in it, to a new folder to. Links are not followed (a data folder

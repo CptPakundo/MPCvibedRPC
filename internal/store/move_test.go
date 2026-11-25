@@ -58,6 +58,29 @@ func TestMoveFormerDataRenames(t *testing.T) {
 	}
 }
 
+// The copy that a former version updated itself to ran in the former folder and logged under the new name: at the
+// move, the former log's lines go first in it, and no file of the former name is left.
+func TestMoveFormerDataJoinsTheLogs(t *testing.T) {
+	base := t.TempDir()
+	from, to := filepath.Join(base, "Old"), filepath.Join(base, "New")
+	formerFolder(t, from)
+	if err := os.WriteFile(filepath.Join(from, logName), []byte("a line of the update\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if dir, _ := MoveFormerData(from, to); dir != to {
+		t.Fatalf("dir %q", dir)
+	}
+	if got := readText(t, filepath.Join(to, logName)); got != "a log line\na line of the update\n" {
+		t.Errorf("log %q", got)
+	}
+	entries, _ := os.ReadDir(to)
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".log") && e.Name() != logName || strings.HasSuffix(e.Name(), ".joining") {
+			t.Errorf("%s is left in the data folder", e.Name())
+		}
+	}
+}
+
 func TestMoveFormerDataNothingToDo(t *testing.T) {
 	base := t.TempDir()
 	from, to := filepath.Join(base, "Old"), filepath.Join(base, "New")
