@@ -1,4 +1,11 @@
 [
+  {"version": "0.9.58", "date": "2026-11-25", "items": [
+    "💿 Blu-ray and DVD movies get their real title and cover, from the disc's folder, its own title or its label.",
+    "🛠️ Fixed: Fix a match now also works for files named only by a number.",
+    "⏸️ Fixed: changing a setting no longer brings back a status that was cleared after a long pause.",
+    "🔐 Signing out of Plex now also ends the sign-in on Plex's side. Restore defaults keeps this device's Plex and Jellyfin id.",
+    "🔄 An open window now follows Show the title on my streams when you switch it from the tray."
+  ]},
   {"version": "0.9.57", "date": "2026-11-22", "items": [
     "🔢 Episode files with a version number (\"S2 - 06v2\", \"E05v2\") are recognised, so their show, cover and episode title are found.",
     "📺 Anime seasons listed under a name of their own (\"Show II: Subtitle\") get the right cover and their episode titles.",
