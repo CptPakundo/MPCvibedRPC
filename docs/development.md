@@ -1,6 +1,8 @@
 # Development
 
-How MPCvibedRPC is built, tested and released. For using it, see the [README](../README.md).
+How MPCvibedRPC is built, tested and kept working. For using it, see the [README](../README.md); for the rules that
+apply to every change, [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md); for releasing, screenshots
+and running the program safely, [maintaining.md](maintaining.md).
 
 ## Building
 The program is written in Go and uses only the standard library: one small file (under 10 MB, about 17 MB of memory while
@@ -22,30 +24,42 @@ The Linux program is built the same way (`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 
 whole program is built and driven end to end. On GitHub, Linux runs the tests with the race detector, Windows and macOS run them too, each system's
 program gets a smoke test, and the engine is run against real players on Linux (mpv, VLC, mpv-mpris, Celluloid, a real Plex Media Server, and the official Jellyfin and Emby server images: `tools/ci/live-jellyfin.sh jellyfin|emby`), macOS (mpv, and IINA after the program has set it up) and Windows (PotPlayer and Kodi). Once a week the canary (`.github/workflows/canary.yml`) runs all of it against the newest players, server images and catalog services and opens an issue when something outside changed. Linux also runs `gofmt`, `govulncheck`, `staticcheck` and `deadcode`. A few tests tie the texts to the code: every setting has its row and default in [config.md](config.md), every text that lists the players names them all, the release notes are for the version being built, and the settings page's script parses.
 
-Running a copy that cannot touch an installed one: `MPCRPC_HOME` gives it its own data folder (and its own
-run-at-login entry), and `MPCRPC_BROWSER` names the browser to show the window in (one that understands `--app`), or
-`none` for no window at all.
 
-## Releasing
-To publish a version:
+How to run a copy of the program or a real player without touching an installed setup: [maintaining.md](maintaining.md#running-the-program-safely).
 
-1. In the change that makes the release: the version in `cmd/mpcvibedrpc/main.go` (the workflows and smoke tests read
-   it from there), the version's lines at the top of `internal/assets/changelog.json` (the window shows them once
-   after the update; a test checks that the newest entry is the version being built). That entry is also the release
-   text: the workflow renders it with `tools/relnotes`, adding `.github/release-advisory.md` when that file exists (for
-   what one-liners cannot say) and the "Get it" footer.
-2. The change goes through a pull request whose CI is green and is merged; then
-   `git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z` - the workflow in
-   `.github/workflows/release.yml` checks that the tag matches the version, runs the tests, builds the programs on
-   Windows, Linux and macOS runners, smoke-tests each of them (Windows: tray, Discord pipe, resting while Discord is
-   closed, DPI awareness, version details, autostart, self-update; macOS and Linux: the API, login item, player setup, a
-   second start, and on macOS opening the app like the Finder does) and attaches them with their `.sha256` files and
-   build records to a release that is still a draft.
-3. A second runner rebuilds the Windows and Linux programs from the tag (`tools/ci/reproduce.sh`) while the release job
-   runs, and hands the files' SHA-256 to the `verify` job, which compares them with the release's before anything else:
-   each must match byte for byte, or the draft stays a draft. Then the draft is checked as a user would get it (`tools/ci/verify-release.ps1`):
-   the ten files, each program's checksum and build record, the exe's version. Only then is the release made public,
-   and a real self-update from the release before it is tried.
+### Writing tests
+- `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
+  Windows-only or opt-in must be added to `tools/ci/allowed-skips.sh` (`ci.yml` and `release.yml` both use it). The
+  live test scripts run through `must-pass.sh`, so a live test that skips fails its CI job.
+- Engine tests use a fake Discord (Unix socket on Linux, named pipe on Windows) and fake players (`players_test.go`,
+  `vlc_test.go`). Timing matters: wait for state with the `eventually()` helper rather than reading it once. They run
+  in parallel and poll every 25 ms (`newTestEngine` sets `Options.MinPoll`; `ReclearEvery`, `RecheckAfter` and
+  `RetryAfter` shorten the other waits), so a test must never change a package variable; the one that has to (it
+  shortens `discord.RequestTimeout`) stays sequential. Pure timer logic is tested on `testing/synctest`'s clock
+  (`TestNudgesArePaced`).
+- `Options.Pipes` keeps a real local MPC-QT/mpv/IINA out of the tests and `Options.MPRIS` the real session bus; VLC is
+  only asked when a test sets a password. On macOS a socket path may only be 104 bytes, so test sockets go in a short
+  folder under /tmp there (`sockDir`).
+- Run `go test -race` somewhere that supports it (Linux CI) after concurrency changes.
+
+Lessons:
+- **Fakes only answer what you thought of.** For any parse or lookup change, compare old and new on the real catalogs
+  before release: a `git clone --branch vX` copy of the last release, the same scratch test in both, and a diff of the
+  outputs. Real titles stay in the scratch file; delete it after (and before any full test run).
+- **Window script changes need the real page opened.** Unit tests cover the server side only; `TestPageScriptParses`
+  (`node --check` on `ui.js`) catches a broken script (an apostrophe in a single-quoted JavaScript string broke the
+  page once).
+- **A hung test run:** a fake's deferred `mu.Lock()` after a panic under the same lock blocks `eventually()`. Kill the
+  run and run the new tests one at a time with `-timeout 40s -v`.
+- **A property test's first failures are often about the property**, not the code: check the property first.
+- **Check the state a timing stands for, not the timing.** Reading what Discord shows and then what the engine booked,
+  without waiting, is a race: wait with `eventually()`.
+- **Memory readings of one run mislead:** compare several runs side by side.
+- **A test copy with `checkUpdates` on shows real operating-system notifications:** keep it off and trigger checks
+  through `api/update-check` (see [maintaining.md](maintaining.md#running-the-program-safely)).
+- **Paths:** `filepath.Base` does not split backslash paths on Linux.
+- **Chocolatey's PotPlayer checksum goes stale** whenever PotPlayer replaces its installer; CI installs it with
+  `--ignore-checksums`.
 
 ## Updates
 Updates are looked for as the program starts, then every six hours by the wall clock
@@ -99,23 +113,30 @@ update waits, the tray and menu bar icon show a red dot (`assets.IconUpdate`, ma
   workflow. The README's badge shows GitHub's own count (decision of 2026-10-25); the exact one is `summary.json` there. GitHub's counts were reset on 2026-10-18
   (every release file replaced by its identical bytes) and counting started then; after another reset, run the
   workflow by hand with `baseline` ticked. Its summary's `notCountedYet` is a download recorded in the ledger that
-  GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
+  GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened. Development downloads are recorded with `tools/ci/dev-download.sh` ([maintaining.md](maintaining.md#downloading-release-files)).
 
-## Screenshots
-The README's pictures (`docs/images/window-*.jpg`) are taken again when the part of the window they show changes:
+### Rules for CI files
+- **Actions are pinned by commit** (`uses: owner/action@<sha> # vX.Y.Z`); Dependabot updates the pins. A new action
+  gets the same form, and a job gets only the `permissions` it needs (workflows are read-only by default).
+- The CI scripts share `tools/ci/lib.sh` (the test video, `wait_socket`, `wait_bus`, `done_file`): a shared script
+  must source it. `run-annotated.sh` fails a step whose script did not reach `done_file` when `PASSED_FILE` is set: CI
+  scripts write `$PASSED_FILE` at their end and steps check it.
+- The concurrency group must include the event action.
+- Save a failed job's log before `gh run rerun` (the rerun erases it).
 
-1. Build the program and start it with a throwaway data folder (`MPCRPC_HOME`), with presence off and
-   `{"app": {"seenVersion": "<version>"}}` in its `config.json` so the What's new box stays closed.
-2. Open its settings page (the address and token are in `ipc.json` in that folder) in a browser at 660 x 760 pixels,
-   dark mode (a high-DPI screen gives sharper pictures).
-3. For `window-main.jpg` paste `tools/screenshots/demo.js` into the page's console: it shows a made-up
-   "Sample Show" playing and sample stats, and nothing is sent anywhere. Take the General tab. For
-   `window-privacy.jpg` (Privacy tab, scrolled to "Services that may see your titles") and `window-plex.jpg`
-   (Players tab, scrolled to Plex) reload the page first, so presence shows as off.
-4. Save them 800 pixels wide (800 x 921). Only made-up titles; nothing from a real library or account.
+### CI lessons
+- **macOS has bash 3.2:** no negative array indexes, and no `${arr[@]}` of an empty array under `set -u`.
+  `defaults export <domain> -` succeeds for apps that were never installed.
+- **Emby** ignores files with "sample" in the name (the test videos are called "Example Show"); adding a library only
+  checks its folders (run the `RefreshLibrary` task); `/Sessions/Playing` needs a `PlaySessionId`; its logs go to
+  `/config/logs`.
+- **Jellyfin 12** ignores the legacy `X-Emby-*` headers unless `EnableLegacyAuthorization` is on: send
+  `Authorization: MediaBrowser ...`.
+- **To learn a third-party server's API without an account,** run its official image on a CI branch with a probe
+  script.
 
 ## Where things are
-One row per package; the rules that go with them are in the repository's CLAUDE.md.
+One row per package; the rules that go with them are in [CONTRIBUTING.md](../CONTRIBUTING.md) and [AGENTS.md](../AGENTS.md).
 
 | Path | Job |
 |---|---|
@@ -140,14 +161,14 @@ One row per package; the rules that go with them are in the repository's CLAUDE.
 | `internal/winsys` | the operating system: tray (Windows), autostart (registry, LaunchAgent, XDG autostart: `autostart_unix.go`), single instance (mutex, file lock), the window's browser, "Set up the player connection" (MPC registry/ini, `mpv.conf`, `vlcrc`, IINA's settings: `setup_unix.go`); by topic: `run.go`, `mpcsetup.go` (`EnableMpcWebInterface`), `window.go` (browser, open URL/folder), `taskbar_windows.go` (the browser window's taskbar button gets the program's name, icon and start command: the window's System.AppUserModel properties, set from outside once it has appeared), `autostart.go`, `tray.go` (`TrayOptions`). The macOS/Linux parts live in untagged files where possible so their logic is tested on every system |
 | `internal/diag` | "Copy diagnostics": titles and file names kept (a wrong title is traced back to its file name); folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list left out |
 | `internal/updater` | GitHub release check, download, checksum, swap and restore of the program file. The hand-over is in `cmd/mpcvibedrpc/update.go` (`handOverTo`): the old copy frees the window, tray, port and single-instance lock, waits for the new copy's `ipc.json`, and otherwise puts the old file back, writes `update-failed` (the version) and starts itself again with `--update-failed` |
-| `tools/mkrsrc`, `tools/mkico` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon) |
+| `tools/mkrsrc`, `tools/mkico`, `tools/relnotes`, `tools/screenshots` | exe resources (version info, icon, DPI manifest); the icon generator (`-icns` writes the macOS app icon); the release text rendered from the changelog; `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
 | `tools/downloads` | the project's own count of people who downloaded the program (the README shows GitHub's count): GitHub's counts of the program files since `baseline.json`, minus the ledger of development downloads (both on the `stats` branch, kept by `.github/workflows/downloads.yml`, which writes `downloads.json` and `summary.json`) |
 | `cmd/mpcvibedrpc/launch_darwin.go` | macOS: started from the Finder, the program hands over to a detached `--serve` copy and leaves (a build without the Cocoa code then still finds the running copy when opened again; with it, macOS sends the running app a reopen event, which shows the window); also gives a login-started copy a TMPDIR |
-| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one; its downloads go into the ledger), `dev-download.sh` (every development download of a release file, recorded in the ledger), `version.sh`, `lib.sh` (shared by the CI scripts: the test video, waiting for sockets), `reproduce.sh` (rebuilds the programs from a tag and compares them byte for byte; `sums` and `same` give the release workflow's comparison), `live-players.sh` (real players on CI), `live-windows.sh` (real PotPlayer and Kodi on Windows CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, fakes for Discord and HTTP |
-| `docs/config.md` | every setting with its default |
-| `docs/` | the settings reference (`config.md`), how it works (`how-it-works.md`), troubleshooting (`troubleshooting.md`), the roadmap (`roadmap.md`), the decisions (`decisions.md`), how AI is used (`ai.md`), this file, the README's images (`images/`) and the player logos (`players/`) |
+| `tools/ci` | `smoke.ps1` (Windows smoke test of the real exe, including DPI awareness, version details and resting), `smoke-unix.sh` (macOS/Linux), `verify-release.ps1` (the release: its draft, then the public one; its downloads go into the ledger), `dev-download.sh` (every development download of a release file, recorded in the ledger), `version.sh`, `lib.sh` (shared by the CI scripts: the test video, waiting for sockets), `reproduce.sh` (rebuilds the programs from a tag and compares them byte for byte; `sums` and `same` give the release workflow's comparison), `live-players.sh` (real players on CI), `live-windows.sh` (real PotPlayer and Kodi on Windows CI), `live-flathub.sh` (mpv, VLC and Celluloid from Flathub, canary only), `live-plex.sh` (a real Plex Media Server on CI), `live-jellyfin.sh` (real Jellyfin and Emby servers on CI), `canary-report.sh` (the weekly canary's issue), `package-macos.sh` (the .app), `test-noskip.sh` with the per-system list of tests that may skip (`allowed-skips.sh`), `must-pass.sh` (a live test must really run and pass), `run-annotated.sh`, `windows.swift` (lists the windows on screen on macOS, to count the settings window's browser windows and find the menu bar icon), fakes for Discord and HTTP |
+| `docs/` | the settings reference with every default (`config.md`), how it works (`how-it-works.md`), troubleshooting (`troubleshooting.md`), the roadmap (`roadmap.md`), the decisions (`decisions.md`), how AI is used (`ai.md`), this file, `maintaining.md` (releasing, screenshots, running safely), the README and troubleshooting images (`images/`) and the player logos (`players/`) |
 
 Flags of the program: `--background` (start in the tray), `--after-update` (the copy an update started), `--home <folder>` (a data folder of its own, like `MPCRPC_HOME`), `--version`; on macOS `--serve` (the copy that keeps running after the app is opened, see `launch_darwin.go`).
+
 
 ## How players are read
 `engine.fetchPlayer` asks, in this order: the MPC web interface (`/variables.html` on `port`, named by `core.PlayerOf`:
@@ -156,11 +177,7 @@ socket (`iinaPipe`, an mpv option in IINA's settings), then VLC's web interface 
 set), on Linux the MPRIS players on the session bus (`mpris`; `engine.HasMPRIS`), on Windows PotPlayer's windows
 (`internal/potplayer`: its documented WM_USER messages, the path back as WM_COPYDATA), Kodi's JSON-RPC web server
 (`kodiAddress`, only when `kodiPassword` is set), then Plex, Stremio and last
-Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). **The first player
-that plays a video wins; otherwise the first that plays music; otherwise the first that is paused; otherwise the first
-that answers is reported.** A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is shown as "Listening to" (`core.Listening`)
-with its file name (`core.MusicMedia`), never looked up and not counted in the stats. MPC-HC must keep behaving exactly as before whenever
-anything is added. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
+Jellyfin / Emby, each only while signed in (`plexToken`, `stremioKey`, `jellyfinToken`; see below). The first player that plays a video wins, then music, then paused, then the first that answers ([users' view](how-it-works.md#players-in-detail)); a new player is asked after the existing ones, and MPC-HC behaves as before ([decision](decisions.md#behaviour)). A song (`core.IsAudioFile`: `.mp3`, `.flac`, ...) is shown as "Listening to" (`core.Listening`) with its file name (`core.MusicMedia`), never looked up and not counted in the stats. On macOS and Linux a bare pipe name is a socket in `os.TempDir()` (`pipe.Path`; `~/` is expanded);
 a copy started at login on macOS gets TMPDIR from `getconf DARWIN_USER_TEMP_DIR`, because launchd sets none and that
 folder is where Discord, IINA and MPC-QT put their sockets. Players that report changes are also watched
 (`engine/events.go`): mpv and IINA (`mpvipc.Watch`: one more IPC connection that observes `pause` and listens for seek
@@ -203,6 +220,25 @@ Every request carries `Authorization: MediaBrowser ...` (Jellyfin 12 ignores the
 sessions count (`UserId`), the position is moved on by the server's `Date` minus `LastPlaybackCheckIn` (Emby sends no check-in time: an unchanged report keeps its first time base). Sign-out and
 Restore defaults call `/Sessions/Logout`. Error messages never carry the server's address (`jellyfin.Reason`).
 
+
+Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
+state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
+playlist. With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's
+logo) is left out for players outside the MPC family. The default Discord application (`clientId`, which holds the
+`mpc-hc` images) was registered by the upstream project, not by this one: every install depends on it staying there.
+
+"Set up the player connection" (`winsys.EnableMpcWebInterface`): MPC-HC/MPC-BE get their web interface on (registry
+and ini; they are closed and reopened, after the user confirms) and **this-PC-only when the button switches it on**;
+mpv gets `input-ipc-server` in the `mpv.conf` it reads (a name the user set is kept and adopted); VLC gets
+`extraintf=http`, a password and `http-host=127.0.0.1` in the `vlcrc` it reads (existing password/port kept and
+adopted; VLC is closed/reopened only if something must change, because it rewrites `vlcrc` on exit). MPC-QT needs nothing.
+On macOS and Linux (`winsys.enableUnix`): mpv gets the full socket path in `~/.config/mpv/mpv.conf`; IINA gets
+`enableAdvancedSettings` and an `input-ipc-server` row in `userOptions` through `defaults write com.colliderli.iina`
+(an existing row is kept and adopted; IINA is not closed, the user reopens it); VLC on macOS as on Windows, in
+`~/Library/Preferences/org.videolan.vlc/vlcrc` (closed with AppleScript and reopened with `open -b`); on Linux VLC and
+the other MPRIS players need nothing.
+
+## The engine
 **Resting** (`engine.rest`): while Discord's IPC endpoint is absent (`pipe.Exists`: a directory query on Windows,
 a stat elsewhere; never a connection) and no settings window holds `/api/alive` (`server.Options.OnWindow` ->
 `engine.Options.MayRest`), a tick asks no player, the Plex, Stremio and Jellyfin watchers are stopped, and `OnRest`
@@ -230,19 +266,63 @@ orders of player, Discord and settings events against the fakes and checks that 
 what the player's last state calls for (`MPCRPC_CONVERGE_SEEDS=500` tries that many orders; run it after a change
 to the tick).
 
-Known quirks: MPC-QT's web page reports a meaningless `playbackRate` (its pipe is preferred) and reports seeking as
-state 3 (treated as playing). VLC 3 rounds `time` to whole seconds (position x length is used), VLC 4 uses a flat
-playlist. With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's
-logo) is left out for players outside the MPC family. The default Discord application (`clientId`, which holds the
-`mpc-hc` images) was registered by the upstream project, not by this one: every install depends on it staying there.
 
-"Set up the player connection" (`winsys.EnableMpcWebInterface`): MPC-HC/MPC-BE get their web interface on (registry
-and ini; they are closed and reopened, after the user confirms) and **this-PC-only when the button switches it on**;
-mpv gets `input-ipc-server` in the `mpv.conf` it reads (a name the user set is kept and adopted); VLC gets
-`extraintf=http`, a password and `http-host=127.0.0.1` in the `vlcrc` it reads (existing password/port kept and
-adopted; VLC is closed/reopened only if something must change, because it rewrites `vlcrc` on exit). MPC-QT needs nothing.
-On macOS and Linux (`winsys.enableUnix`): mpv gets the full socket path in `~/.config/mpv/mpv.conf`; IINA gets
-`enableAdvancedSettings` and an `input-ipc-server` row in `userOptions` through `defaults write com.colliderli.iina`
-(an existing row is kept and adopted; IINA is not closed, the user reopens it); VLC on macOS as on Windows, in
-`~/Library/Preferences/org.videolan.vlc/vlcrc` (closed with AppleScript and reopened with `open -b`); on Linux VLC and
-the other MPRIS players need nothing.
+## The stream title
+`streamTitle` ("auto", "always", "off"): Discord names a stream after a Playing activity only. `internal/capture`
+tells whether Discord shares the screen from the thread its app runs only then (`shareThreads`: `RsVideoSource`, seen
+with Discord 1.0.9267 for a screen share and a window share, not for the share picker or a camera) and, as a second
+sign, from Windows' record of screen captures, which Windows 11 25H2 and later no longer write where it can be read.
+The engine builds the Playing form only then. A Discord that renames the thread makes "auto" see nothing: the fix is
+the name in `shareThreads`, found by listing Discord's thread names while a share starts and stops. Engine tests never
+look at this computer (`Options.Sharing`; the engine tests' `init` replaces the default); the capture package's own
+tests read this computer's Discord, read-only. It cannot be tried against a real Discord in tests: it is checked on a
+real stream.
+
+## Adding things
+
+### A new player
+A reader package with unit tests on recorded-style responses; wire it into `fetchPlayer` *after* the existing players;
+engine tests including player order; setup support in `winsys` if the player needs switching on; a live run in
+`tools/ci/live-players.sh` if it exists on Linux or macOS (a Linux MPRIS player only needs its bus-name part in
+`mpris.videoPlayers`, its process name in `winsys.unixPlayers`, and the lists below). Then every place that lists
+players: `ui.html` and `ui.js` (welcome card, "No player is answering" card, "Nothing playing" hint, Privacy "What else
+leaves this PC"; the macOS and Linux texts are in `OS_TEXT`), the README (tagline, What you get, Getting started, the
+Players table, Help), `docs/how-it-works.md` (Players in detail), `docs/troubleshooting.md`, `docs/development.md`
+(Where things are), `docs/config.md`, the help texts in `store/schema.go` (`port`, `mpris`, `iinaPipe`), `SECURITY.md`,
+`.github/ISSUE_TEMPLATE/bug_report.yml`, the exe description in `tools/mkrsrc/main.go`, the header comment in
+`main.go`, the engine's "Looking for a player on ..." log line, `diag`, and the repository description and topics.
+`TestPlayersAreNamedEverywhere` catches a missed text.
+
+### A new setting
+A field with a `json` tag in `core.Config` and its default in `DefaultConfig()`; a `Field` in `store/schema.go` if it
+belongs in the window (int fields need Min/Max; `secret` for passwords and keys); a row in `docs/config.md`
+(`TestEverySettingIsDocumented`); `diag.summarise` if the value is private (shown as "(set)"). Defaults that change
+behaviour for existing users need the owner's decision and a line in the release notes.
+
+### A new catalog service
+An entry in `core.Sources` (id, label, use, host: it gets its switch on the Privacy tab), a `<Name>Base` field with its
+default in `core.Config` (tests point it at a fake), its id in the default `artworkSources` and/or `episodeSources` (a
+default change needs the owner), the `Provider` in `artwork/providers.go` and/or the `epProvider` in
+`artwork/episodes.go`, its line in `blockedHostFilter` (`artwork/disabled.go`), a subtest in
+`internal/artwork/live_test.go` (the canary), its row in `SECURITY.md`, the credit its terms ask for (Help tab
+credits, `THIRD-PARTY-NOTICES.md`) and `docs/config.md`.
+
+### A new outside address
+Any host the code names (a service, a link, an image) goes in `core.Hosts` (or `core.Sources`) and in `SECURITY.md` >
+Where it connects; `TestEveryHostIsListed` scans the code and the page and fails otherwise.
+
+## Catalog and episode notes
+- Check an episode-title bug against a source with explicit numbers (Wikipedia's episode lists). Counting JSON lines
+  with `grep` miscounts: parse them.
+- The Jikan episode source has only been tested against fakes.
+- The frozen golden season data pins "earliest entry wins, a Part counts as its number" and `[ii part]` gives no
+  mark. New season rules must be narrow additions in `pickSeasonEntry`, checked against that data.
+- **Discord assets:** an asset key the Discord application does not hold is dropped silently. The application's assets
+  are public at `https://discord.com/api/v10/oauth2/applications/<id>/assets`: check there before relying on a key.
+
+## Working notes
+- When a delay or grace period is removed, grep for what it protected (the engine's first poll, the window's page
+  load and a test that expected "no update yet" all leaned on one).
+- A feature that reads an operating-system record must first check that the record is still being written today (the
+  newest entry's date).
+- Before deciding something cannot be done, look one layer down: what does the operating system record about it?
