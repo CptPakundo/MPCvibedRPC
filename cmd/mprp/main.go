@@ -218,7 +218,8 @@ func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg strin
 func isOurApp(name string) bool { return name == core.Name || name == core.FormerName }
 
 // chooseDataDir picks the data folder at the start: dir, the folder of the program's name, unless only the former
-// name's folder (former; "" for a copy with a data folder of its own) is there. Then:
+// name's folder (former; "" for a copy with a data folder of its own) is there (with both there, dir is used; during
+// an update formerIPC then lets the old copy see this one in either). Then:
 //   - after an update (updating), the former version that started this copy watches ipc.json in that folder to see
 //     that this copy came up, so the folder is used where it is this time and moved at a later start;
 //   - when a copy that uses it still runs (ping finds it), that copy is given back (other), to be shown as for any
@@ -242,4 +243,19 @@ func chooseDataDir(dir, former string, updating bool, ping func(ipcFile string) 
 	}
 	use, note = store.MoveFormerData(former, dir)
 	return use, nil, note
+}
+
+// formerIPC is a second place for ipc.json during an update ("": none). The copy that started this one watches ipc.json
+// in its own data folder to see that this copy came up, and that may be the former name's folder although this copy
+// uses the new one: a copy of the former version that runs again after a downgrade made that folder anew. So while
+// both folders are there, ipc.json is written to both; whichever the old copy watches, it sees this one, and an
+// update from a version of the new name (which watches the new folder) is not mistaken either.
+func formerIPC(use, former string, updating bool) string {
+	if !updating || former == "" || use == former {
+		return ""
+	}
+	if fi, err := os.Stat(former); err != nil || !fi.IsDir() {
+		return ""
+	}
+	return filepath.Join(former, "ipc.json")
 }

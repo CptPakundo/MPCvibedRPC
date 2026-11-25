@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The carrying over of an install made under the program's former name, at the start.
@@ -68,6 +69,37 @@ func TestChooseDataDir(t *testing.T) {
 		}
 		if _, err := os.Stat(dir); err == nil {
 			t.Error("the new folder was made during the update")
+		}
+	})
+	t.Run("updating while both folders exist: the new folder, with ipc.json in both", func(t *testing.T) {
+		// a copy of the former version that runs again after a downgrade made its folder anew, and updates itself
+		dir, former := setup(t, true, true)
+		use, other, note := chooseDataDir(dir, former, true, noCopy)
+		if use != dir || other != nil || note != "" {
+			t.Fatalf("use %q other %v note %q", use, other, note)
+		}
+		mirror := formerIPC(use, former, true)
+		if mirror != filepath.Join(former, "ipc.json") {
+			t.Fatalf("formerIPC = %q", mirror)
+		}
+		a := &app{ipcFile: filepath.Join(use, "ipc.json"), ipcFormer: mirror, token: "t"}
+		a.writeIPC(4321)
+		// the old copy, whichever folder it watches, sees this copy come up
+		for _, f := range []string{a.ipcFile, mirror} {
+			if !copyCameUp(f, os.Getpid(), make(chan struct{}), time.Second) {
+				t.Errorf("%s does not show this copy", f)
+			}
+		}
+		a.removeIPCFiles()
+		for _, f := range []string{a.ipcFile, mirror} {
+			if _, err := os.Stat(f); err == nil {
+				t.Errorf("%s is left behind", f)
+			}
+		}
+		// no second place outside an update, or when the former folder is the one in use, or is not there
+		if formerIPC(use, former, false) != "" || formerIPC(former, former, true) != "" || formerIPC(use, "", true) != "" ||
+			formerIPC(use, filepath.Join(t.TempDir(), "none"), true) != "" {
+			t.Error("a second ipc.json outside an update while both folders are there")
 		}
 	})
 	t.Run("a copy of the former version still runs: it is shown and nothing moves", func(t *testing.T) {
