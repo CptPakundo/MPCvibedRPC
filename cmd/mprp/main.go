@@ -44,6 +44,7 @@ var (
 )
 
 func main() {
+	core.AdoptFormerEnv() // before anything reads the environment: the former version may have started this copy
 	artwork.SetVersion(version)
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
