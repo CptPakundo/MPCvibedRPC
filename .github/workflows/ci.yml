@@ -1,9 +1,10 @@
-# Every push: tests on Linux (with the race detector), Windows and macOS, and a lint job (gofmt, govulncheck,
-# staticcheck and deadcode); then the programs built for each system and smoke-tested for real, and the Windows exe
-# rebuilt on Linux to prove it is reproducible. Once per pull request (when it is opened, reopened or marked ready; also by hand, and in the weekly
-# canary): the live jobs, which install real players and real media servers on throwaway runners and run the engine
-# against them. A pull request's later pushes run only the fast jobs; the canary runs everything against the newest
-# players and servers every week.
+# Every push to a branch other than master that changes more than documentation, and every pull request from a fork:
+# tests on Linux (with the race detector), Windows and macOS, and a lint job (gofmt, govulncheck, staticcheck and
+# deadcode); then the programs built for each system and smoke-tested for real, and the Windows exe rebuilt on Linux to
+# prove it is reproducible. (A pull request from this repository is tested by its branch's push run.) Once per pull
+# request (when it is opened, reopened or marked ready; also by hand, and in the weekly canary): the live jobs, which
+# install real players and real media servers on throwaway runners and run the engine against them. A pull request's
+# later pushes run only the fast jobs; the canary runs everything against the newest players and servers every week.
 name: ci
 on:
   # A change to documentation only (the README and other top-level .md files, docs/, the issue templates) changes

@@ -4,39 +4,47 @@ Guidance for any AI coding assistant working on this repository.
 
 ## What this is
 MPCvibedRPC is a small Windows tray app (Go, standard library only, one exe under 10 MB, nothing to install) that
-shows what a video player is playing as Discord Rich Presence: "Watching <title>" with a progress bar, cover art,
-episode titles and the player's logo. It reads MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex,
-Stremio, Jellyfin and Emby, talks to the Discord desktop app over its local IPC pipe, and shows its settings in a
-local web page. It also runs on macOS (menu bar) and Linux. Windows is the main system and its behaviour must not
-change for the others.
+shows what a video player is playing as a Discord status: "Watching <title>" with a progress bar, cover art, episode
+titles and the player's logo. It reads the players listed in the [README](README.md#-players), talks to the Discord
+desktop app over its local IPC pipe, and shows its settings in a local web page. It also runs on macOS (menu bar) and
+Linux. Windows is the main system and its behaviour must not change for the others.
+
+## Build and test
+```bash
+go vet ./...
+go test -count=1 ./...
+go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=X.Y.Z" -o dist/MPCvibedRPC.exe ./cmd/mpcvibedrpc
+```
+CI runs the rest (the race detector, the lint gates, macOS and Linux for real): see
+[development.md > CI](docs/development.md#ci).
 
 ## Read first
-1. [CONTRIBUTING.md](CONTRIBUTING.md): the rules for everyone (privacy, generic names, frozen golden data, never touch
-   a real setup, tested-for-real reports, Windows line endings).
-2. [docs/development.md](docs/development.md): packages, how players are read, the engine's state, building, testing,
-   CI, and the checklists for adding a player, setting, catalog or host.
-3. [docs/maintaining.md](docs/maintaining.md): releasing, screenshots, throwaway copies and fakes.
+1. [CONTRIBUTING.md](CONTRIBUTING.md): the [ground rules](CONTRIBUTING.md#ground-rules) for everyone and
+   [working on Windows](CONTRIBUTING.md#working-on-windows). They apply to you in full.
+2. [docs/development.md](docs/development.md): packages, how players are read, the engine's state, testing, CI, and
+   the checklists for adding a player, setting, catalog or host. Before you run the program or a real player, read
+   [Running the program safely](docs/development.md#running-the-program-safely): a *throwaway copy* is one started
+   with a data folder of its own (`MPCRPC_HOME`), so it cannot touch an installed copy.
+3. [docs/maintaining.md](docs/maintaining.md): releasing, screenshots, downloading release files.
 4. [docs/roadmap.md](docs/roadmap.md) before proposing a feature, a service or a distribution change (don't propose a
    listed non-goal without saying so), and [docs/decisions.md](docs/decisions.md) before changing listed behaviour.
 
 ## Invariants: never break these
 - **Player order.** The first player that plays a video wins, then music, then paused, then the first that answers
-  ([how it works](docs/how-it-works.md#players-in-detail); code order: [development.md](docs/development.md#how-players-are-read)).
+  ([how it works](docs/how-it-works.md#players-in-detail); code order:
+  [development.md](docs/development.md#how-players-are-read)).
 - **MPC-HC behaves as before** whenever anything is added: new players are asked after the existing ones
   ([decision](docs/decisions.md#behaviour)).
 - **MPRIS reads only the allowlist** in `internal/mpris`: music players and browsers must never show as "Watching".
-- **Readers are read-only.** Never sign in to a real Plex, Stremio, Jellyfin or Emby account, or call their sign-in
-  services, from tests or by hand without the owner's OK.
+- **Readers are read-only**, and real accounts are off-limits ([ground rules](CONTRIBUTING.md#ground-rules)).
 - **The default Discord application (`clientId`) belongs to the upstream project**; every install depends on it.
 - **Docs in the same pull request.** A change that makes the README, `docs/`, schema help text or release notes wrong
   fixes them in that change. New behaviour for existing users is off by default.
-- **Tests that tie texts to code** must keep passing: `TestEverySettingIsDocumented` (every setting has its row and
-  default in `docs/config.md`), `TestPlayersAreNamedEverywhere` (every text that lists players names them all),
-  `TestPageScriptParses` (`node --check` on `ui.js`), `TestEveryHostIsListed` (outside addresses are in `core.Hosts`
-  and `SECURITY.md`) and the `tools/relnotes` test (the release text renders from `internal/assets/changelog.json`).
-- **UI text.** A recorded store test pins the label "MPC-HC web interface port": change only its help text. The window
-  follows "less is more": short help texts, one term per thing, rarely used actions under Advanced > Maintenance. The
-  README is for people: short, scannable, one emoji per section heading; details go in `docs/`.
+- **The tests that tie texts to code** must keep passing ([the list](docs/development.md#testing)).
+- **UI text.** The window says "Show on Discord" and "status", never "presence"; use the same words in user docs. A
+  recorded store test pins the label "MPC-HC web interface port": change only its help text. The window follows "less
+  is more": short help texts, one term per thing, rarely used actions under Advanced > Maintenance. The README is for
+  people: short, scannable, one emoji per section heading; details go in `docs/`.
 
 ## Other facts
 - The program is AI-generated; the README says so once, near the top, and that is enough. Never present the code as
@@ -44,5 +52,4 @@ change for the others.
   `LICENSE` and `THIRD-PARTY-NOTICES.md`.
 - Versions are `0.9.x`; the current one is in `cmd/mpcvibedrpc/main.go`. Changelog lines are short, one emoji each.
 - Merging, tagging and publishing are outward-facing: do them only with the owner's go-ahead
-  ([releasing](docs/maintaining.md#releasing)).
-- Commit with a neutral identity, never anyone's personal email.
+  ([maintaining.md](docs/maintaining.md#rules-for-maintainers)).
