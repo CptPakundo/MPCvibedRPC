@@ -489,3 +489,34 @@ func TestSetSettingsTakesPlainValues(t *testing.T) {
 		t.Fatal("an invalid port must be refused")
 	}
 }
+
+// Restore defaults is a sign-out everywhere that clears every setting, but this install's device ids stay, as they do
+// after a sign-out: signing in again is then the same device, not a new one in the account's list.
+func TestResetKeepsTheDeviceIDs(t *testing.T) {
+	s := openStore(t, t.TempDir())
+	err := s.SetHidden([]string{"plexToken", "plexUser", "plexClient", "jellyfinToken", "jellyfinDevice"}, map[string]any{
+		"plexToken": "sample-token", "plexUser": "SampleUser", "plexClient": "plex-id-1", "jellyfinToken": "sample-jf", "jellyfinDevice": "jf-id-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSettings(map[string]any{"plexAddress": "http://192.168.1.20:32400"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	c := s.Config()
+	if c.PlexClient != "plex-id-1" || c.JellyfinDevice != "jf-id-1" {
+		t.Errorf("the device ids are kept: %+v", c)
+	}
+	if c.PlexToken != "" || c.PlexUser != "" || c.PlexAddress != "" || c.JellyfinToken != "" {
+		t.Errorf("everything else goes: %+v", c)
+	}
+	// a sign-out keeps the same two
+	if err := s.SetHidden([]string{"plexToken"}, map[string]any{"plexToken": "sample-token"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetHidden([]string{"plexToken"}, map[string]any{}); err != nil || s.Config().PlexClient != "plex-id-1" {
+		t.Errorf("sign-out: %v %+v", err, s.Config())
+	}
+}
