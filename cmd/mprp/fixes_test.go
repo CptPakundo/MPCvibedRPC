@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/CptPakundo/MPRP/internal/core"
@@ -13,10 +14,22 @@ import (
 )
 
 // catalogStub answers every catalog request: IMDb's suggestions list one show, the others nothing.
-type catalogStub struct{ hosts []string }
+type catalogStub struct {
+	mu    sync.Mutex // the lookups ask several catalogs at once
+	hosts []string
+}
+
+// asked is a copy of the hosts asked so far.
+func (c *catalogStub) asked() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string(nil), c.hosts...)
+}
 
 func (c *catalogStub) RoundTrip(req *http.Request) (*http.Response, error) {
+	c.mu.Lock()
 	c.hosts = append(c.hosts, req.URL.Host)
+	c.mu.Unlock()
 	body := `{}`
 	if strings.Contains(req.URL.Path, "/suggestion/") {
 		body = `{"d":[{"id":"tt0000003","l":"Sample Show","y":2019,"qid":"tvSeries"}]}`
@@ -55,7 +68,7 @@ func TestMatchEndpoints(t *testing.T) {
 	if m := out.(map[string]any); m["n"] != float64(3) || m["covers"] == nil {
 		t.Errorf("covers: %+v", m)
 	}
-	for _, host := range stub.hosts {
+	for _, host := range stub.asked() {
 		if core.IsSourceID(host) || !strings.Contains(host, ".") {
 			t.Errorf("odd host %q", host)
 		}
@@ -66,8 +79,8 @@ func TestMatchEndpoints(t *testing.T) {
 	stub2 := &catalogStub{}
 	a2 := &app{eng: engine.New(cfg, engine.Options{HTTPClient: &http.Client{Transport: stub2}})}
 	out, _ = a2.handlers()["match-search"].Fn(parseObj(t, `{"q":"Sample Show","n":1}`))
-	if m := out.(map[string]any); len(m["catalogs"].([]string)) != 0 || len(stub2.hosts) != 0 {
-		t.Errorf("with lookups off: %+v, %v", m, stub2.hosts)
+	if m := out.(map[string]any); len(m["catalogs"].([]string)) != 0 || len(stub2.asked()) != 0 {
+		t.Errorf("with lookups off: %+v, %v", m, stub2.asked())
 	}
 }
 
