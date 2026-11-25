@@ -314,7 +314,6 @@ Where it connects; `TestEveryHostIsListed` scans the code and the page and fails
 ## Catalog and episode notes
 - Check an episode-title bug against a source with explicit numbers (Wikipedia's episode lists). Counting JSON lines
   with `grep` miscounts: parse them.
-- The Jikan episode source has only been tested against fakes.
 - The frozen golden season data pins "earliest entry wins, a Part counts as its number" and `[ii part]` gives no
   mark. New season rules must be narrow additions in `pickSeasonEntry`, checked against that data.
 - **Discord assets:** an asset key the Discord application does not hold is dropped silently. The application's assets
