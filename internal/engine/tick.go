@@ -284,11 +284,11 @@ func (e *Engine) clearWhenIdle(r *run, hidden, ended bool) {
 		switch failed = e.logClearResult(err, first); {
 		case failed || !shown:
 		case hidden:
-			e.log("INFO", "This file is on your don't-show list - presence cleared.")
+			e.log("INFO", "This file is on your don't-show list - status cleared.")
 		case ended:
-			e.log("INFO", "The video ended - presence cleared.")
+			e.log("INFO", "The video ended - status cleared.")
 		default:
-			e.log("INFO", "Nothing playing - presence cleared.")
+			e.log("INFO", "Nothing playing - status cleared.")
 		}
 	}
 	e.mu.Lock()
@@ -366,7 +366,7 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 	if err == errStale || e.logClearResult(err, first) {
 		return
 	}
-	e.log("INFO", fmt.Sprintf("Paused for %d min - presence cleared (it returns when you resume).", minutes))
+	e.log("INFO", fmt.Sprintf("Paused for %d min - status cleared (it returns when you resume).", minutes))
 }
 
 // sendUpdate builds the activity for what plays (at: when the player reported it), sends it, and records and logs
@@ -404,7 +404,7 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, st stamp, info *core.In
 		e.retryAt = time.Now().Add(min(wait, 12*e.retryAfter))
 		e.mu.Unlock()
 		if !again {
-			e.log("ERROR", "Failed to update presence: "+msg)
+			e.log("ERROR", "Failed to update the status: "+msg)
 		}
 		return
 	}

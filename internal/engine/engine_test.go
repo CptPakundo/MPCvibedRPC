@@ -441,7 +441,7 @@ func TestApplySettingsAppliesWithoutARestart(t *testing.T) {
 	if last["type"] != nil && last["type"] != float64(0) {
 		t.Fatalf("playing mode must not be type 3: %v", last)
 	}
-	if l.has("Presence stopped") || isClear(d) {
+	if l.has("Stopped sending the status to Discord") || isClear(d) {
 		t.Fatal(l.l)
 	}
 	// a stopped engine stays stopped after ApplySettings

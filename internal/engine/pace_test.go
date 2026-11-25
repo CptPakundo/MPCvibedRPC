@@ -19,7 +19,7 @@ func TestFailedSendsArePaced(t *testing.T) {
 		l.mu.Lock()
 		defer l.mu.Unlock()
 		for _, s := range l.l {
-			if strings.Contains(s, "Failed to update presence") {
+			if strings.Contains(s, "Failed to update the status") {
 				n++
 			}
 		}

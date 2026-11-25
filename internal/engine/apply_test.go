@@ -58,7 +58,7 @@ func TestSettingsChangeKeepsTheDiscordConnection(t *testing.T) {
 			t.Fatalf("%s connected to Discord again: %v", ch.name, h)
 		}
 	}
-	if l.count("Connected to Discord") != 1 || l.has("Presence stopped") {
+	if l.count("Connected to Discord") != 1 || l.has("Stopped sending the status to Discord") {
 		t.Errorf("the run was restarted:\n%s", strings.Join(l.list(), "\n"))
 	}
 	if !l.has("Settings changed. Looking for a player on the web interface") {
@@ -84,7 +84,7 @@ func TestClientIDChangeReconnectsToDiscord(t *testing.T) {
 	if h := d.handshakes(); h[0] != core.DefaultConfig().ClientID {
 		t.Errorf("the first connection used %q", h[0])
 	}
-	if l.has("Presence stopped") || l.has("Lost connection") {
+	if l.has("Stopped sending the status to Discord") || l.has("Lost connection") {
 		t.Errorf("the reconnect was not a quiet one:\n%s", strings.Join(l.list(), "\n"))
 	}
 	time.Sleep(10 * testPoll)

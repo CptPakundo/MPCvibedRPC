@@ -198,7 +198,7 @@ func TestSettingsChangeDuringASendLeavesNoError(t *testing.T) {
 			if s := e.Status(); s.LastError != nil {
 				t.Errorf("an error after the change: %s", *s.LastError)
 			}
-			if l.has("Failed to update presence") {
+			if l.has("Failed to update the status") {
 				t.Errorf("the send was logged as a failure:\n%s", strings.Join(l.list(), "\n"))
 			}
 		})
