@@ -92,7 +92,14 @@ try {
     function Ping { $j = Ipc; if ($null -eq $j) { return $null }; (Invoke-RestMethod "http://127.0.0.1:$($j.port)/api/ping" -TimeoutSec 2).version }
     $p = Start-Process $app -ArgumentList '--background' -PassThru
     Check (WaitFor { (Ping) -eq $prev.TrimStart('v') } 30 'old version up') "$prev starts"
-    $u = Api 'update-check'
+    # A rate-limited GitHub API makes the previous release fall back to the website, and a version of the former name
+    # does not follow the website's redirect after the rename: so a check that offers nothing is tried a few times
+    for ($try = 1; $try -le 4; $try++) {
+      $u = Api 'update-check'
+      if ($u.newer -eq $true -and $u.latest -eq $Version) { break }
+      Write-Host "update check $try offered $($u.latest) (newer: $($u.newer)); trying again"
+      if ($try -lt 4) { Start-Sleep -Seconds 30 }
+    }
     Check ($u.newer -eq $true -and $u.latest -eq $Version) "$prev is offered $Version (offered $($u.latest))"
     Api 'update-install' | Out-Null
     $exited = $p.WaitForExit(60000)
