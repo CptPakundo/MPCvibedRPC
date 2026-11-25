@@ -127,6 +127,13 @@
   .checks .ok .mark { color: var(--good); } .checks .problem .mark { color: var(--bad); }
   .checks .what { min-width: 0; overflow-wrap: anywhere; }
   #diagText { min-height: 120px; margin-top: 8px; }
+  .about .ab-head { display: flex; align-items: center; gap: 12px; }
+  .about .ab-logo { flex: none; display: block; }
+  .about .ab-name { font-size: 20px; line-height: 28px; font-weight: 600; }
+  .about .ab-what { margin: 12px 0 8px; }
+  .about .ab-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; }
+  .about .ab-links button.link { margin-left: 0; font-size: 14px; line-height: 20px; }
+  .about .ab-links a { text-decoration: none; } .about .ab-links a:hover { text-decoration: underline; }
   .credits { font-size: 12px; line-height: 16px; }
   .credits .cr { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 8px 0 4px; }
   .credits img { display: block; }

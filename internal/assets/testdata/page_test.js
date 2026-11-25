@@ -366,6 +366,12 @@ const change = (el, v) => { if (el.type === 'checkbox') el.checked = v; else el.
   key('Escape');
   check(await until(() => !sheet()), 'Escape closes Fix this match');
 
+  // 10. About (Help tab): the version the program reports, and links to the project's own pages only
+  check($('aboutVer').textContent === 'Version ' + state.version, 'About shows the version', $('aboutVer').textContent);
+  const aboutLinks = $('p-help').querySelectorAll('.about a').map((a) => a.attrs.href);
+  check(aboutLinks.length >= 4 && aboutLinks.every((u) => u.startsWith('https://github.com/')) && aboutLinks.includes('https://github.com/CptPakundo/MPRP'),
+    'About links to the project page, the licence and the credit', aboutLinks);
+
   console.log(failed ? failed + ' failed' : 'all passed');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.log('FAIL the test itself: ' + (e && e.stack || e)); process.exit(1); });

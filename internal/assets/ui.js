@@ -974,6 +974,7 @@ const MPRP_LINES = (() => {
     model = m;
     $('ver').textContent = 'Version ' + m.version;
     $('ver').setAttribute('aria-label', 'Changelog (version ' + m.version + ')');
+    $('aboutVer').textContent = 'Version ' + m.version;
     if (!$('updText').textContent) $('updText').textContent = 'Version ' + m.version; // until a check says more
     $('autoStart').checked = !!m.autoStart; $('startPresence').checked = !!m.app.startPresence; $('openWindow').checked = !!m.app.openWindow; $('minimizeToTray').checked = !!m.app.minimizeToTray;
     $('minimizeRow').classList.toggle('hidden', m.os !== 'windows'); // only Windows can tell a minimised window and has a tray for it
@@ -1284,6 +1285,7 @@ const MPRP_LINES = (() => {
   };
   $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPRP/issues/new/choose', '_blank', 'noopener');
   $('ver').onclick = () => showChangelog(true);
+  $('aboutNews').onclick = () => showChangelog(true);
   // the preview's "Wrong title or cover?": the Fix this match dialog for what plays, else the list of fixes
   $('fixMatch').onclick = () => {
     if (lastMatch) { openFix({ match: lastMatch }); return; }
