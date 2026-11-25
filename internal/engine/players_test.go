@@ -114,15 +114,25 @@ func (f *fakeMpv) serve(c io.ReadWriteCloser) {
 	}
 }
 
-// deadPort is a local port nothing listens on, so the web interface counts as off.
+// deadPort is a local port where no web interface answers, so it counts as off. The test holds the port for its whole
+// run and hangs up on every connection: a port that was only looked up and freed could be handed to a parallel test's
+// fake MPC-HC, whose video would then show up here.
 func deadPort(t *testing.T) int {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	ln.Close()
-	return port
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}()
+	return ln.Addr().(*net.TCPAddr).Port
 }
 
 func pipeEngine(t *testing.T, port int, pipes []PlayerPipe) (*Engine, *disc, *logs) {
