@@ -30,6 +30,7 @@ type app struct {
 	log            func(level, msg string)
 	exe            string // this program, where the autostart entry and updates point
 	ipcFile        string
+	ipcFormer      string // during an update, ipc.json also goes here (formerIPC; "": nowhere else)
 	browserProfile string // the profile of the browser that shows the settings window
 	token          string // the window's key to the local API (new each launch)
 	srv            *server.Server
@@ -57,7 +58,8 @@ type app struct {
 }
 
 func run() error {
-	dir, other, moved := chooseDataDir(store.DataDir(), store.FormerDataDir(), afterUpdate || updateFailed, pingExisting)
+	former := store.FormerDataDir()
+	dir, other, moved := chooseDataDir(store.DataDir(), former, afterUpdate || updateFailed, pingExisting)
 	if other != nil {
 		handOver(other) // a copy of the former version runs: it is the one to show
 		return nil
@@ -99,7 +101,7 @@ func run() error {
 	lg := newLogger(st.LogPath())
 	defer lg.close()
 	st.Log = lg.log
-	a := &app{st: st, lg: lg, log: lg.log, exe: exe, ipcFile: ipcFile, browserProfile: filepath.Join(st.Dir, "window"),
+	a := &app{st: st, lg: lg, log: lg.log, exe: exe, ipcFile: ipcFile, ipcFormer: formerIPC(dir, former, afterUpdate || updateFailed), browserProfile: filepath.Join(st.Dir, "window"),
 		token: server.NewToken(), quitDone: make(chan struct{})}
 	a.busy()
 
@@ -229,11 +231,28 @@ func (a *app) getTray() *winsys.Tray {
 
 func (a *app) writeIPC(port int) {
 	b, _ := json.Marshal(ipcInfo{Port: port, Token: a.token, Pid: os.Getpid()})
-	// in one step: a second start that reads the file meanwhile must not find half of it and take it for "none running"
-	tmp := a.ipcFile + ".tmp"
-	if os.WriteFile(tmp, b, 0o600) != nil || os.Rename(tmp, a.ipcFile) != nil {
-		_ = os.Remove(tmp)
-		_ = os.WriteFile(a.ipcFile, b, 0o600)
+	for _, f := range a.ipcFiles() {
+		// in one step: a second start that reads the file meanwhile must not find half of it and take it for "none running"
+		tmp := f + ".tmp"
+		if os.WriteFile(tmp, b, 0o600) != nil || os.Rename(tmp, f) != nil {
+			_ = os.Remove(tmp)
+			_ = os.WriteFile(f, b, 0o600)
+		}
+	}
+}
+
+// ipcFiles are the places of ipc.json: the data folder's, and during an update maybe a second one (formerIPC).
+func (a *app) ipcFiles() []string {
+	if a.ipcFormer != "" {
+		return []string{a.ipcFile, a.ipcFormer}
+	}
+	return []string{a.ipcFile}
+}
+
+// removeIPCFiles deletes ipc.json from every place writeIPC wrote it.
+func (a *app) removeIPCFiles() {
+	for _, f := range a.ipcFiles() {
+		_ = removeIPC(f)
 	}
 }
 
@@ -280,7 +299,7 @@ func (a *app) quit() {
 		go func() {
 			a.srv.Close() // ends the page's keep-alive connection, so an open window closes right away
 			// the port and token are gone with the server: a new copy must not find them while this one winds down
-			_ = removeIPC(a.ipcFile)
+			a.removeIPCFiles()
 			winsys.CloseWindowBrowser(a.browserProfile) // and no browser is left running for it
 			a.plex.stopWaiting()
 			a.stremio.stopWaiting()

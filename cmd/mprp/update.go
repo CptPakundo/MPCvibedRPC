@@ -269,7 +269,7 @@ func (a *app) installUpdate(quiet func() bool) error {
 	wasRunning := a.eng.Status().Running
 	a.eng.Stop()
 	a.log("INFO", "Update downloaded; restarting.")
-	_ = removeIPC(a.ipcFile)
+	a.removeIPCFiles()
 	// goOn puts this copy back to work when the new one cannot take over
 	goOn := func() {
 		if !a.quitting.Load() { // a quit that began meanwhile has closed the server and stopped the engine for good
