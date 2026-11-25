@@ -1,136 +1,104 @@
 # Discord Rich Presence: what the card can show and what MPCvibedRPC sends
 
-A research report, read 2026-11-21 and checked against the code on 2026-11-25. It is read-only research: sources are
-Discord web client build **677695** (main bundle `web.f53eaa9877e51f2f.js`), Discord's developer docs and this
-repository. No Discord app was contacted. The decisions that follow from it are in [decisions.md](../decisions.md#behaviour);
-the outside facts to watch are in the roadmap's [watch list](../roadmap.md#watch-list).
+A research report, written 2026-11-21 and checked against the code on 2026-11-25. Its sources are Discord's public
+developer documentation, what was seen on real profiles and streams, and this repository. Nothing here comes from
+reading Discord's own application code. The decisions that follow from it are in
+[decisions.md](../decisions.md#behaviour); the outside facts to watch are in the roadmap's
+[watch list](../roadmap.md#watch-list).
 
-Evidence tags: **[code]** read in the client bundle (module / function named), **[doc]** documented (URL), **[repo]**
-read in this repository, **[established]** seen on a real card in an earlier real test, **[inferred]** a conclusion from
-the above, to be settled by a real test (see the open questions at the end).
+Evidence tags: **[doc]** in Discord's documentation (links below), **[observed]** seen on a real profile, card or
+stream, **[repo]** read in this repository, **unconfirmed** a belief or a report that has not been tried (the open
+questions at the end say how to settle them).
+
+Documentation used (all read 2026-11-25):
+- D1 <https://docs.discord.com/developers/events/gateway-events> (the Activity object)
+- D2 <https://docs.discord.com/developers/rich-presence/using-with-the-embedded-app-sdk>
+- D3 <https://docs.discord.com/developers/topics/rpc> (SET_ACTIVITY)
+- D4 <https://docs.discord.com/developers/change-log>
 
 ## What the program does today
-From the ranked list below, these are built: **both buttons** (a second page of the title, such as Letterboxd or IMDb),
-**`small_url`** (the player's logo opens the player's site), **the player logos as external image addresses** (the
-`docs/players` files, served from the repository's raw address, `core.PlayerIconBase`; the default Discord application
-holds no `mpc-hc` image), **the 300-character guard** (`core/activity.go`: a cover address over 300 characters is left
-out, because Discord refuses the whole status for it), and **a text progress bar on the stream form** (a Playing status
-has no bar of its own). Not done: items 5 to 11 of the ranked list, and the open questions need a real Discord test.
+Built: **both buttons** (a second page of the title, such as Letterboxd or IMDb); **`small_url`** (the player's logo
+opens the player's site); **the player logos as external image addresses** (the `docs/players` files, served from the
+repository's raw address, `core.PlayerIconBase`) **[repo]**; **the 300-character guard** (`core/activity.go`: a cover
+address over 300 characters is left out, because the whole status would otherwise be at risk, see below); and **a text
+progress bar on the stream form** (a Playing status has no bar of its own). Not done: the unconfirmed ideas at the end.
 
-Module ids are those of the minified bundle and change with every build; the names below are descriptive.
+## What was observed
+- **An image key the application does not hold is dropped, and the update still succeeds.** The default application
+  holds only `default`, `pause_small`, `play_small`, `stop_small` and `mpcbe_logo` (its asset list is public; checked
+  2026-11-21), so the key `mpc-hc` showed no image at all. That is why the program sends the player logos as external
+  addresses instead of keys. **[observed]**
+- **A screen share is named after the streamer's first *Playing* activity**, never a Watching one. **[observed]**
+- **A profile shows one card per application, and Playing is listed before Watching.** **[observed]**
+- **A Playing status has one timestamp that counts:** with only an end it shows time left, with only a start it shows
+  elapsed time. **[observed]**
+- **Only start and end together make a progress bar** (Watching and Listening); a start or an end alone shows no bar.
+  **[observed]** The documentation agrees that both are needed for the time bar [doc D1].
+- **Your own buttons are not shown to you**, only to other people. Reported widely; not retried here. Unconfirmed.
 
-Doc URLs used:
-- D1 https://docs.discord.com/developers/events/gateway-events (Activity object)
-- D2 https://docs.discord.com/developers/rich-presence/using-with-the-embedded-app-sdk
-- D3 https://docs.discord.com/developers/topics/rpc (SET_ACTIVITY)
-- D4 https://docs.discord.com/developers/change-log
+## Field table
+Fields and limits as Discord's documentation gives them [doc D1, D3], and what the program sends today **[repo]**.
+The documentation states no length limits for names, texts, timestamps, images or the party; the 128-character cut
+the program applies to texts (padded to at least 2) is its own choice. How each field is drawn on a card is mostly
+unconfirmed (see the open questions).
 
-## 0. Where the card differs from what one would expect
-
-1. **State line on the Watching profile card.** The card component (`UserProfileActivityCard`, function `e0`, module 802880) has three text slots: `ee()` heading, `et()` second line, `en()` third line. `en()` starts with `if(r.type===WATCHING)return null`, so only the **third** slot is dropped for Watching. For Watching the slots are: heading = `details` (link `details_url`), second line = **`state`** (link `state_url`), third = nothing. For Playing: heading = `name`, second line = `details`, third = `state` (see 1.4 for the party catch). **[code]** So `state` probably does show on a Watching card, directly under `details`. An earlier reading that a Watching card shows no state line probably saw only the `en()` line. **[inferred]**: needs a real screenshot (open question Q1). The text that Watching loses for sure is `large_text` and the party "(n of m)" (third slot).
-2. **A small player icon may not show.** The card does render a small image (`smallImage` passed to the card image component; the Active Now panel also draws it as a 64 px overlay) **[code]**. The only suppression is for application id 981509069309354054 (Crunchyroll's app; module "isCrunchyroll") **[code]**. The likely cause (it explained a missing icon in a real test) is the asset resolution step: before sending, the client resolves `large_image`/`small_image` through `resolveAssets` (module 913659, function `RG`). A key that is not among the *application's* uploaded assets is silently **deleted** (`null!=t?p.small_image=t:delete p.small_image`) and the update still succeeds **[code]**. So `small_image = "mpc-hc"` shows only if the application behind `clientId` really has an asset named `mpc-hc` (lowercase; keys are lower-cased **[doc D2]**). The same rule applies to `large_image` keys. The default application's assets are public (`https://discord.com/api/v10/oauth2/applications/<id>/assets`); on 2026-11-21 it held `default`, `pause_small`, `play_small`, `stop_small` and `mpcbe_logo`, so the program sends the player logos as external addresses instead of keys.
-3. The progress bar and the name display match the code (progress bar needs Listening/Watching plus start and end: module 53257; status_display_type consumer: module 566903).
-
-## (a) Field table
-
-"Accepted" is the SET_ACTIVITY IPC schema (Joi, bundle map `[SET_ACTIVITY]: { request: ... }`, near the RPC command tables) **[code]**. The schema ends `.unknown(true)` on the activity and on the sub-objects, so unknown keys are not rejected; the handler (`yZ[SET_ACTIVITY]`) passes the activity on. Minimum lengths matter: Discord counts **characters** here (Joi string length), and our `clip()` already pads to 2 and cuts at 128 (UTF-16 units; fine).
-
-| Field | Accepted over IPC? | Limit | Watching (type 3) renders | Playing (type 0) renders | We send now |
-|---|---|---|---|---|---|
-| `type` | yes; only 0, 2, 3, 5 valid, default 0 **[code]** [doc D3] | enum | Header "Watching <name>" | Header "Playing <name>" | 3 or 0 (0 omitted) |
-| `name` | yes **[code]** | 1..128 | Header text; member-list text when `status_display_type` is 0/absent; the *application name* is used when absent (`name: u.name ?? application.name`) **[code]** | Same; also the name a **stream** is labelled with **[established]** | the title, only when title-as-name or stream form |
-| `details` | yes | 2..128 | Profile card heading (bold, 1st line) **[code]**; Active Now heading (falls back to `name` if empty) **[code]** | Profile card 2nd line **[code]** | episode/movie line, or file name in basic form |
-| `details_url` | yes (uri) | 1..256 | Heading becomes a link **[code]** | 2nd line becomes a link **[code]** | catalog page (`AddLinks`) |
-| `state` | yes | 2..128 | Card 2nd line (see section 0) **[code]**, Active Now line under details **[code]** | Card 3rd line, **only if no `party` object** (1.4) **[code]**; Active Now line **[code]** | season/info line, "Playing" in Playing style; progress text while paused / in stream form |
-| `state_url` | yes (uri) | 1..256 | Link on the state line **[code]** | Link on the state line **[code]** | catalog page |
-| `timestamps.start` / `.end` | yes; numbers >= 1; seconds auto-converted to ms when more than 2 digits shorter than `Date.now()` **[code]** | min 1 | start+end: **progress bar** with elapsed / total on the card **[code]** (module 753713, condition module 53257); elapsed is shown rounded down to 10 s steps **[code]**; only start or only end: no bar (member list/Active Now timer only) **[established]** | One number: end wins ("left"), else start ("elapsed") **[established]** | Watching: start+end while playing, none while paused. Playing: end if `showRemainingTime`, else start |
-| `assets.large_image` | yes | 1..300 chars | Card image (60/100 px) **[code]**; falls back to the app icon if empty/unresolvable **[code]** | same | cover URL (left out over 300 characters), else asset key |
-| `assets.large_text` | yes | 2..128 | Hover text; the visible 3rd line is *not* rendered for Watching (`en()` returns null) **[code]** | Hover text; the 3rd-line `large_text` fallback is reached only for non-Playing types, so for Playing it is hover only **[code]** | "Season n, Episode m" or title (year) |
-| `assets.large_url` | yes (uri) | 1..256 | Click on image/text area opens it **[code]** (the whole text block is a button when set) | same | catalog page |
-| `assets.small_image` | yes | 1..300 | Corner overlay on the card image; hidden only for the Crunchyroll app id **[code]** | same | the player's logo address (`core.PlayerIcon`) |
-| `assets.small_text` | yes | 2..128 | Hover text | Hover text | `appName` |
-| `assets.small_url` | yes (uri) | 1..256 | Link on the small image (docs: `small_url`) [doc D1] | same | the player's site (`core.PlayerSite`) |
-| `assets.invite_cover_image` | yes | 1..300 | Game-invite banner only [doc D1] | same | no |
-| `party.id` | yes | 2..128 | none visible | none visible; used for join/party logic **[code]** | no |
-| `party.size` `[n, m]` | yes; array of exactly 2 numbers >= 0 | length 2 | **Not rendered** (3rd slot null) **[code]** | "(n of m)" appended after state **only if the activity has the EMBEDDED flag**; otherwise a present `party` **hides the state line** on the card **[code]** (see 1.4) | no |
-| `party.privacy` | yes; 0 private / 1 public | enum | sets PARTY_PRIVACY flags **[code]** | same | no |
-| `secrets.match/join/spectate` | yes | 2..128 each; must be unique, must not equal party id, **cannot be sent with buttons** (error INVALID_ACTIVITY_SECRET) **[code]** | `join` sets the JOIN flag, which creates join / "Ask to join" UI for viewers **[code]** (button module for JOIN) | same | no |
-| `buttons[]` | yes | min 1, max **2** items; `label` 1..32 (required), `url` 1..512 (required, uri) **[code]** [doc D1] | Full-width buttons under the card, labels only; URL fetched on click from the server-side metadata **[code]** | same | up to 2 buttons ("View on <site>" plus a second page of the title; label cut to 32, URL <= 512, http(s)) |
-| `instance` | yes (boolean) | | sets INSTANCE flag; the viewer-side "notify" branch is dead code (`flag check` returns false for INSTANCE) **[code]** so no visible effect | same | `false` always sent |
-| `supported_platforms` | yes; 1..10 items from the platform enum (`ActivityGamePlatforms`) **[code]** | | affects join/platform UI only [inferred] | same | no |
-| `status_display_type` | yes; 0 name, 1 state, 2 details **[code]** | enum | One-line text in member list / DM list / friends rows **[code]** (module 566903). Default (absent) = `name` (for Streaming: details) | same function; Playing text then reads "Playing <chosen field>" with tooltip "Playing <chosen>" **[code]** | Watching: 0 (title in name) or 2 (title in details). Playing: not sent |
-| `flags` | not accepted from the client as such; the client **computes** it (INSTANCE, JOIN, CONTEXTLESS, EMBEDDED, party privacy bits) **[code]** (module 182892) | | | | no |
-| `platform` | set by the client to DESKTOP **[code]** | | | | no |
-| `emoji` | not in the SET_ACTIVITY schema; allowed through as an unknown key but only meaningful for type 4 (custom status), which SET_ACTIVITY refuses **[code]** [doc D1/D3] | | none | none | no |
-| `url` (stream URL) | only for type 1, not valid over SET_ACTIVITY **[code]** | | | | no |
-| `application_id`, `created_at`, `session_id`, `sync_id`, `metadata` | set by the client/server; not ours to set | | | | no |
-
-### 1.x Notes on the table
-
-1. **Buttons.** Two are allowed (the program sends up to two). You never see your own buttons on your profile card: in the button renderer (`eV`) the first branch is `if(isSelf) return null` (or the "add to games" button for Playing in popouts), before the buttons are considered **[code]**. Other people see them. The URL is not in the gateway payload: the client sends `metadata.button_urls` and others fetch it on click **[code]**; bots cannot read button URLs [doc D1]. Buttons cannot be combined with `secrets` **[code]**.
-2. **Images.** Two forms **[code]** [doc D1, D2]:
-   - Uploaded asset key: must exist among the *application's* assets (up to 300, PNG/JPEG/WebP, no animation); resolved by name, unknown keys are dropped silently.
-   - External `http(s)` URL: the client POSTs it to `/applications/<id>/external-assets`, gets an `mp:` path back, and the server serves it from the media proxy. Works for large and small image, accepts GIF, animated WebP, AVIF [doc D2]. The string must be **<= 300 characters** (schema), otherwise the whole SET_ACTIVITY is refused with a payload error **[code]**. The program leaves out a cover address over 300 characters **[repo]**, so one long poster address (some catalog CDNs) cannot push the title into the fallback chain.
-   - Hover text: `large_text` / `small_text` (2..128). Image size on the card: 60 px (popout) / 100 px (full profile) **[code]**; aspect "default" is square-ish; no cropping rules were found in code (Q6).
-   - The Active Now panel draws large image 160 px and small image 64 px **[code]**; it returns *nothing* for the rich section when the activity has no `assets` at all (`null==t.assets && ... return null`) **[code]**.
-3. **Small image on the card**: see section 0, point 2.
-4. **Party.** Profile card, `en()` (Playing only) **[code]**:
-   `if party is null -> state; else if EMBEDDED flag and size has 2 numbers -> state + "(n of m)" (or "(n)" when m is 0); else -> nothing`.
-   So with `party` set and no EMBEDDED flag (the case for ordinary RPC), the Playing card shows **no state line at all**, and no "(n of m)". The documentation says the opposite ("(1 of max_party)" badge when `party` is present) [doc D2], so either the client changed, or EMBEDDED is meant to be set another way. This is the largest "inferred, must test" item (Q3). `party.size` is also what makes a party "full" for join logic (`partySize >= maxPartySize`, module 702631) **[code]**; and `secrets.join` is what creates join buttons. Party without secrets: no join UI is created by this code path **[inferred]**. Episode "n of m" via party is therefore **not a reliable use** unless Q3 shows the badge renders.
-5. **Rate limit.** [doc D1]: "5 times per 20 seconds". Code agrees: the presence sender keeps a list of send times, pushes `now + 20000` per send, allows 5, then queues the **latest** update with a timeout until the oldest slot frees up (throttle around `emitPresenceUpdate`, near the gateway `presenceUpdate` sender) **[code]**. So bursts are collapsed, not refused; later updates win. Seeks/pauses within a burst can be delayed by up to 20 s.
-6. **Live updates without resending.** The progress bar (start+end) and the elapsed/left timer tick locally in each viewer's client from the timestamps **[code]**; nothing needs resending while play continues at 1x. A speed change, seek or pause needs a new activity (we already do that via `NeedsUpdate`).
-7. **Wrapping.** In the popout/mini profile theme every text line is wrapped in a clamp component: **one line with an ellipsis** and a hover tooltip when truncated (`lineClamp` default 1) **[code]** (module 3026). In the full profile modal themes the text is rendered without that wrapper, so long lines are likely to wrap onto several lines **[inferred]** (Q5). Text is `trim()`med, so leading/trailing spaces are lost, and an empty string renders nothing **[code]**. The member list line is single-line text from module 566903 (ellipsis by CSS) **[inferred]**.
-
-## Surface by surface
-
-| Surface | What it shows | Source |
+| Field | Documented | What the program sends now |
 |---|---|---|
-| Profile "Activity" card and user popout / mini profile | Same component `UserProfileActivityCard`; popout = one-line clamp, modal = full size. Header (type + name), slots as in the table, image + small image, progress bar (Watching/Listening with start+end) or timer, buttons (others only) | **[code]** |
-| Member list line / DM list / friends rows | One line of text chosen by `status_display_type` (default `name`), tooltip "Watching X" / "Playing X". Nothing else from the activity | **[code]** module 566903; DM list use **[inferred]** (same helper) |
-| Friends "Active Now" panel (`RichPresenceSection`) | Large image 160 px + small overlay 64 px with hover texts, heading = `details` (or `name` if empty), `state` line, a timer/progress component. No type check, so **state shows for Watching here**. Not shown at all when `assets` is absent | **[code]** |
-| Mobile | Not examined in code. Docs say the Social SDK added Android RPC support (2026-07-28) [doc D4]; card rendering on mobile is assumed to follow the same fields, with the same single-line truncation | **[inferred]** |
+| `type` | SET_ACTIVITY allows Playing (0), Listening (2), Watching (3) and Competing (5) [doc D3] | 3, or 0 (Playing; left out of the payload) |
+| `name` | string | the title only when "title as the name" or the stream form is on |
+| `details`, `state` | strings | the episode or movie line and the season or info line; the file name in the basic form; progress text while paused or in the stream form |
+| `details_url`, `state_url` | strings [doc D1] | the title's catalog page |
+| `timestamps.start`, `.end` | Unix milliseconds; both give a time bar for Listening and Watching [doc D1] | Watching: both while playing, none while paused. Playing: the end if `showRemainingTime`, else the start |
+| `assets.large_image`, `.small_image` | an asset key, or an external image address [doc D2] | the cover address (left out over 300 characters), else an asset key; the player's logo address |
+| `assets.large_text`, `.small_text` | strings | "Season n, Episode m" or the title (year); the player's name |
+| `assets.large_url`, `.small_url` | strings [doc D1] | the catalog page; the player's site (`core.PlayerSite`) |
+| `assets.invite_cover_image` | string [doc D1] | no |
+| `buttons` | at most 2; label 1-32 characters, URL 1-512 characters; a bot sees only the labels [doc D1] | up to 2 ("View on <site>" and a second page of the title; label cut to 32, URL up to 512, http or https) |
+| `party` | `id`, and `size` as two integers [doc D1] | no |
+| `secrets` | join, spectate and match secrets [doc D1] | no |
+| `instance` | boolean [doc D1] | `false` always |
+| `status_display_type` | 0 name, 1 state, 2 details [doc D1] | Watching: 0 (title in the name) or 2 (title in the details). Playing: not sent |
+| `emoji`, `flags`, `url`, `application_id`, `created_at` | part of the Activity object [doc D1]; not set by a program through SET_ACTIVITY | no |
 
-## (b) Ranked improvements
+Update rate: "Clients may only update their game status 5 times per 20 seconds" [doc D1]. The engine collapses bursts of
+changes and the latest state wins **[repo]**, so a seek or pause within a burst can show up to 20 seconds late
+(unconfirmed on a real card).
 
-Items 1 to 4 are done; 5 to 11 are not. Effort: S = a few lines + tests, M = a day, L = larger. "Fallback" = what the engine does today when Discord refuses (`sendActivity`: drop links, then drop the button, then basic mode).
+External images: an address may be used instead of an asset key [doc D2]. The program keeps cover addresses under 300
+characters and falls back, in order, to the status without links, without the button, and the basic form when Discord
+refuses a status (`sendActivity`) **[repo]**. Whether one over-long address makes Discord refuse the whole status is
+unconfirmed; the guard exists so that it can never matter.
 
-1. **Fix the small player icon. Done.** The logos are sent as external https addresses (`docs/players`, `core.PlayerIcon`), so no asset upload is needed; the address is at most 300 characters and Discord's media proxy must reach it.
-2. **Use both buttons. Done.** The second button is another page of the title (`core.SecondLink`: Letterboxd and IMDb, or another catalog); label <= 32, URL <= 512 (`buttonURL` checks). A refusal falls back to the existing chain. (You cannot see your own buttons, so a second one is for viewers only.)
-3. **`small_url`. Done.** `Assets.SmallURL` is the player's site (`core.PlayerSite`), so the logo is clickable; it is dropped with the other links by the `WithoutLinks` fallback.
-4. **The 300-character limit on image strings. Done for covers.** A `large_image` over 300 characters is left out before sending, so one long poster address does not push the title into the no-links or basic fallbacks (the refusal is whole-payload).
-5. **Watching: put the useful line in the heading/second line, knowing the layout (S).** On the card heading = `details`, 2nd line = `state`, 3rd line gone, `large_text` hover only. So for Watching put the episode title in `details` and "Season/Episode · info" in `state` (already roughly the case). Consider moving "Season n, Episode m" from `large_text` (hover only for Watching) into `state` (Q1 must confirm `state` shows). Risk: verify first.
-6. **Playing: do not send `party` (S, "negative" finding).** Sending `party` without the EMBEDDED flag appears to hide the state line on the Playing card (1.4). Keep `party` unused, or test first (Q3) before using it for "episode n of m".
-7. **`status_display_type` in Playing mode (S).** Currently not sent. Setting it to 2 (details) or 1 (state) changes only the one-line member-list text (e.g. show the episode line rather than the title). Accepted in code for any type **[code]**. Risk: changes the look for existing users; keep opt-in. Stream form: no effect on the stream's name (named after the first Playing activity's `name`, established).
-8. **Animated cover (M, both modes, optional).** External URLs may be GIF/animated WebP/AVIF [doc D2]; animated covers/trailers-like posters are possible, but catalog posters are static. Low value.
-9. **Timestamp fidelity (S).** Seconds are auto-converted by the client if you send seconds, but we send ms; fine. The bar shows elapsed in 10 s steps **[code]**, so sub-10-second drift is invisible; the engine could resend less often (fewer 5/20 s budget hits) for tiny corrections. Risk: none if thresholds are kept above 10 s.
-10. **`supported_platforms` (S, low value).** Not needed; affects join UI only.
-11. **Avoid:** `secrets` (creates join/Ask-to-join UI, cannot coexist with buttons), `instance` (no visible effect), `emoji` (custom status only), `party` for episode counts (see 6), type 1/4 (refused).
+## What the program decided because of this
+1. **The small player icon.** The logos are external https addresses (`docs/players`, `core.PlayerIcon`), so no asset
+   upload is needed. Their addresses never change ([the rule](../../CONTRIBUTING.md#ground-rules)).
+2. **Both buttons.** The second button is another page of the title (`core.SecondLink`). A refusal falls back to the
+   existing chain.
+3. **`small_url`.** The logo is clickable; it is dropped with the other links by the `WithoutLinks` fallback.
+4. **The 300-character guard** on cover addresses.
 
-## (c) Hard limits
+## Ideas not done (all unconfirmed until tried)
+- Moving "Season n, Episode m" into `state` for Watching, if a real card shows the state line there (Q1).
+- Sending `status_display_type` for a Playing status, which would only change the one-line text in member lists; it
+  would change the look for existing users, so it would stay opt-in (Q4).
+- Using `party` for "episode n of m": not worth trying until Q3 shows what it does to the card.
+- Avoid `secrets` (they create join UI), `instance`, `emoji` and the Streaming type, which SET_ACTIVITY does not allow
+  [doc D3].
 
-- Types over SET_ACTIVITY: only 0, 2, 3, 5. No type 1 (Streaming) or 4 (Custom) [code, D3].
-- One activity per application id on profile cards/member list (established); Playing is listed before Watching.
-- Progress bar only for type 2/3 with start and end [code]; a Playing timer is one number [established].
-- Third text slot is not rendered for Watching [code]: no party "(n of m)", no `large_text` line.
-- Strings: name 1..128; details/state/hover texts 2..128; image strings <= 300; link URLs <= 256 (uri); button label <= 32, URL <= 512; max 2 buttons; party size exactly 2 numbers [code].
-- Update rate: 5 per 20 s, latest wins [doc D1, code].
-- Your own buttons are invisible to you [code]. Buttons cannot be sent with secrets [code].
-- App name is the application's, not settable except via `name` (which we use) [code].
-- Image formats: assets PNG/JPEG/WebP, max 300 assets; external URLs need a publicly reachable URL [doc D2]. No animation for uploaded assets.
-- A stream is named after the streamer's first Playing activity (established); `status_display_type` does not rename it.
-- Docs no longer list a length limit for name/details/state [doc D1]; the 128 limits come from the client schema [code] and are not guaranteed by Discord.
+## Open questions only a real Discord test settles
+Test with an account in a private test server and a throwaway data folder
+([Running the program safely](../development.md#running-the-program-safely)).
 
-## (d) Open questions only a real Discord test settles
-
-Test with an account in a private test server and a throwaway data folder ([Running the program safely](../development.md#running-the-program-safely)).
-
-- **Q1** Does a Watching card show `state` as the second line under `details` (code says yes), and is `large_text` visible anywhere except as hover text?
-- **Q2** Does an external https address as `small_image` (the player logos) render on the Playing card in the popout and in the profile modal? (The application's own asset keys are known: section 0.)
-- **Q3** Playing + `party {size:[n,m]}` without EMBEDDED: does the state line really disappear, and is "(n of m)" shown anywhere? Same for Watching (code says never).
-- **Q4** Does `status_display_type` work for a Playing activity, and what exactly does the member list show with 1 and 2?
-- **Q5** Truncation and wrapping in the full-profile modal vs. the popout: how long can details/state be before cut off; does the modal wrap.
-- **Q6** Image box shape: does a 2:3 poster get letter-boxed or cropped in the 60 px and 100 px boxes, and in Active Now (160 px)?
-- **Q7** Do `details_url` / `state_url` / `large_url` / `small_url` work on both modes in the popout, and is the whole text block (not just the line) clickable (code: whole block is a button when `large_url`-like handler is set)?
-- **Q8** Behaviour when an external image URL cannot be fetched by the proxy: is the image dropped quietly (code suggests yes), and is it retried on the next update?
-- **Q9** Mobile rendering of Watching cards, buttons and links (no code read).
-- **Q10** Whether two buttons render in the popout as well as in the modal (code renders all in both themes).
+- **Q1** Does a Watching card show `state` as a line under `details`, and is `large_text` visible anywhere except as
+  hover text?
+- **Q2** Does an external https address as `small_image` (the player logos) render on the Playing card in the popout
+  and in the full profile?
+- **Q3** Playing with a `party`: does it change or hide the state line, and is "(n of m)" shown anywhere?
+- **Q4** Does `status_display_type` work for a Playing status, and what does the member list show with 1 and 2?
+- **Q5** How long can `details` and `state` be before they are cut off, in the popout and in the full profile?
+- **Q6** Is a 2:3 poster letter-boxed or cropped in the card's image box?
+- **Q7** Do `details_url`, `state_url`, `large_url` and `small_url` work on both kinds of status in the popout?
+- **Q8** When Discord cannot fetch an external image, is the image dropped quietly and tried again on the next update?
+- **Q9** How do Watching cards, buttons and links look on mobile?
+- **Q10** Do two buttons render in the popout as well as in the full profile?
+- **Q11** Does one cover address over 300 characters make Discord refuse the whole status?
