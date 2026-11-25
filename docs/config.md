@@ -22,7 +22,7 @@ These live under `"app"` in `config.json`. The update switches and **Check now**
 | `minimizeToTray` | `true` | **Minimize to the tray** (Windows): minimizing the window closes it, and the program stays in the tray. Off: it minimizes to the taskbar. Either way, the window's X quits the program (on macOS it closes to the menu bar). |
 | `startPresence` | `true` | **Show on Discord when the app opens.** Otherwise it waits until you press Show on Discord. |
 | `checkUpdates` | `true` | **Check for updates automatically:** as the program starts, then every six hours ([how updates work](troubleshooting.md#updates)). |
-| `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update installs itself once nothing is playing and no settings window is open (the program runs minimised to the tray or started at login; closing the window quits it on Windows and Linux). Off: the window and a tray notice offer it, and **Install** installs it. |
+| `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update installs itself once nothing is playing and no settings window is open (the program runs minimised to the tray or started at login; closing the window quits it on Windows and Linux). Off: the window and a notification offer it, and **Install** installs it. |
 | `updateRepo` | `"CptPakundo/MPRP"` | *(config.json only)* The GitHub repository (`owner/repo`) that publishes releases. A release is only installed when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
 
 ## Players

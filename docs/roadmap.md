@@ -23,22 +23,11 @@ Every goal has to fit these:
 ## Next up
 Work anyone can pick up without a decision from the maintainer (work that waits on one is under [Open decisions](#open-decisions-the-maintainers)). Each entry says what and where, and how to tell it is
 done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBUTING.md#picking-up-work).)
-1. **Tests for how the window's X quits** (`cmd/mprp/window.go`): the order of the dropped `/api/alive`
-   connection and the window-handle polling. Also check whether `inTray` stays true when closing the window fails; if
-   it does, a later X would not quit.
-2. **The settings window in Chrome, Brave or Vivaldi** instead of Edge: does the taskbar identity (name, pin, icon)
+1. **The settings window in Chrome, Brave or Vivaldi** instead of Edge: does the taskbar identity (name, pin, icon)
    apply there?
-3. **MPC-QT's multi-window mode** with a portable build and the live engine test.
-4. **The stream title on Linux:** research how to tell that Discord shares the screen (PipeWire, the screen-cast
+2. **MPC-QT's multi-window mode** with a portable build and the live engine test.
+3. **The stream title on Linux:** research how to tell that Discord shares the screen (PipeWire, the screen-cast
    portal). Today Linux chooses always or never ([decision](decisions.md#behaviour)).
-5. **The update notices on Linux and macOS** (settled 2026-11-25; part of version 0.9.60). Windows already shows three
-   native notifications through the tray (`Tray.Balloon`): "updated to <version>" once after an automatic update
-   (`cmd/mprp/app.go`, `autoFrom`), "could not update to ..." after a rollback, and "<version> is available"
-   when automatic installs are off (`update.go`). Linux and macOS show none (`Balloon` returns false in
-   `internal/winsys/tray_other.go` and `macapp_darwin.go`). Bring the same three there: Linux through the desktop
-   notification service over D-Bus (`org.freedesktop.Notifications`, with `internal/dbus`), macOS through the menu bar
-   app (cgo; tested on CI only). A click opens the settings window as on Windows. Done when each system shows the
-   three notices, tests cover the D-Bus message against a fake bus, and the docs and changelog say so.
 
 ## Goals
 
@@ -153,8 +142,8 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 3. Keep an offline signing key and sign each stable release (one manual step each).
 4. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
    account to try it; the maintainer has none.
-5. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
-   tray notice when automatic installs are off.
+5. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows a
+   notification when automatic installs are off.
 
 Settled: the macOS minimum is 13. On 2026-11-25 the maintainer settled the Fix a match redesign and presence templates (both built in 0.9.60), the notice after an automatic update (on by default) and the sign-ins' storage: encrypted with Windows' DPAPI on Windows, plain on macOS and Linux, not the full key store (goal 4).
 

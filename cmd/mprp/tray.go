@@ -1,8 +1,11 @@
 package main
 
 import (
+	"runtime"
+
 	"github.com/CptPakundo/MPRP/internal/assets"
 	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/notify"
 	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
@@ -46,4 +49,31 @@ func trayTooltip(s engine.Status) string {
 		t = string(r[:62])
 	}
 	return t
+}
+
+// notifyOverBus: with no tray icon, notifications go to the desktop's notification service over D-Bus (Linux).
+var notifyOverBus = runtime.GOOS == "linux"
+
+// notify shows a notification; a click on it opens the settings window. Windows shows it next to the tray icon, macOS
+// through the menu bar app, Linux through the desktop's notification service. It reports whether it was shown.
+func (a *app) notify(title, text string) bool {
+	if t := a.getTray(); t != nil {
+		return t.Balloon(title, text)
+	}
+	if !notifyOverBus {
+		return false
+	}
+	a.mu.Lock()
+	if a.notifier == nil {
+		a.notifier = &notify.Notifier{AppName: "MPRP", OnClick: a.openWindow, Log: a.log}
+	}
+	n := a.notifier
+	a.mu.Unlock()
+	return n.Show(title, text)
+}
+
+func (a *app) getNotifier() *notify.Notifier {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.notifier
 }

@@ -194,7 +194,8 @@ func TestEndToEnd(t *testing.T) {
 	cfg := fmt.Sprintf(`{"port":%d,"pollInterval":250,"showArtwork":false,"clientId":"1","app":{"autoUpdate":false}}`, mpcPort)
 	os.WriteFile(filepath.Join(home, "config.json"), []byte(cfg), 0o644)
 
-	env := append(os.Environ(), "MPRP_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPRP_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPRP_BROWSER=none", "MPRP_FOREGROUND=1")
+	// no session bus (XDG_RUNTIME_DIR holds none): the program must not reach the real one, its players or its notifications
+	env := append(os.Environ(), "MPRP_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPRP_UPDATE_API="+rel.URL, "DISPLAY=", "DBUS_SESSION_BUS_ADDRESS=", "PATH=/nonexistent", "MPRP_BROWSER=none", "MPRP_FOREGROUND=1")
 	cmd := exec.Command(exe, "--background")
 	cmd.Env = env
 	var out bytes.Buffer

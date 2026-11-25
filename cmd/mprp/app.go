@@ -15,6 +15,7 @@ import (
 	"github.com/CptPakundo/MPRP/internal/assets"
 	"github.com/CptPakundo/MPRP/internal/engine"
 	"github.com/CptPakundo/MPRP/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/notify"
 	"github.com/CptPakundo/MPRP/internal/server"
 	"github.com/CptPakundo/MPRP/internal/store"
 	"github.com/CptPakundo/MPRP/internal/updater"
@@ -45,8 +46,9 @@ type app struct {
 	winHandle atomic.Uintptr // the settings window as watchMinimise last found it (Windows; 0: not known)
 	busyUntil atomic.Int64   // until then (Unix nanoseconds) no update installs itself: see settle
 
-	mu   sync.Mutex
-	tray *winsys.Tray
+	mu       sync.Mutex
+	tray     *winsys.Tray
+	notifier *notify.Notifier // Linux: the desktop notification service (made at the first notification)
 
 	quitOnce sync.Once
 	quitting atomic.Bool // quit has begun: an install that fails now must not bring the server's file or the engine back
@@ -176,12 +178,12 @@ func run() error {
 	a.mu.Lock()
 	a.tray = t
 	a.mu.Unlock()
-	if failedUpdate != "" && t != nil {
-		t.Balloon("MPRP could not update to "+failedUpdate, "The new version did not start, so "+version+" is back.")
+	if failedUpdate != "" {
+		a.notify("MPRP could not update to "+failedUpdate, "The new version did not start, so "+version+" is back.")
 	}
-	if autoFrom != "" && t != nil {
-		if !t.Balloon("MPRP updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
-			a.log("INFO", "No notice of the automatic update was shown (no tray notifications here).")
+	if autoFrom != "" {
+		if !a.notify("MPRP updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
+			a.log("INFO", "No notice of the automatic update was shown (no notifications here).")
 		}
 	}
 
@@ -284,6 +286,7 @@ func (a *app) quit() {
 			a.jellyfin.stopWaiting()
 			a.eng.Stop()
 			a.getTray().Close()
+			a.getNotifier().Close()
 			a.log("INFO", "Quit.")
 			close(a.quitDone)
 		}()

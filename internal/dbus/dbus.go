@@ -86,13 +86,18 @@ func unescape(s string) string {
 	return b.String()
 }
 
-// Conn is a connection to a bus. Calls are made one at a time.
+// Conn is a connection to a bus. Calls are made one at a time, unless Receive reads the connection in the background.
 type Conn struct {
-	mu     sync.Mutex
-	c      net.Conn
-	r      *bufio.Reader
-	serial uint32
+	mu      sync.Mutex
+	c       net.Conn
+	r       *bufio.Reader
+	serial  uint32
+	replies map[uint32]chan *Message // while Receive reads: the calls waiting for their answer
+	ended   error                    // why Receive's reading stopped (the connection is then of no more use)
 }
+
+// ErrEnded is returned by a call on a connection whose reading (Receive) has stopped.
+var ErrEnded = errors.New("dbus: the connection has ended")
 
 // Dial connects to the bus at address, logs in and says Hello. each step (connecting, logging in, Hello) gets the timeout.
 func Dial(address string, timeout time.Duration) (*Conn, error) {
@@ -175,12 +180,62 @@ func (e *Error) Error() string {
 	return e.Name + ": " + e.Message
 }
 
-// Call calls a method and returns the values of its answer. sig is the signature of args ("" for none).
+// Call calls a method and returns the values of its answer. sig is the signature of args ("" for none). The bus does
+// not start a program to answer it (FlagNoAutoStart).
 func (c *Conn) Call(dest, path, iface, member string, timeout time.Duration, sig string, args ...any) ([]any, error) {
+	return c.call(FlagNoAutoStart, dest, path, iface, member, timeout, sig, args)
+}
+
+// CallStart is Call for a service that the bus may start to answer (a notification service started on demand).
+func (c *Conn) CallStart(dest, path, iface, member string, timeout time.Duration, sig string, args ...any) ([]any, error) {
+	return c.call(0, dest, path, iface, member, timeout, sig, args)
+}
+
+// Receive reads the connection in the background from now on: answers go to the calls that wait for them, and
+// on is called with each signal (on the reading goroutine: it must not block, nor make calls itself). Calls may then
+// be made from several goroutines at once. When the connection ends, so does the reading; calls then fail with
+// ErrEnded.
+func (c *Conn) Receive(on func(*Message)) {
 	c.mu.Lock()
+	c.replies = map[uint32]chan *Message{}
+	c.mu.Unlock()
+	go func() {
+		for {
+			m, err := ReadMessage(c.r)
+			if err != nil {
+				c.mu.Lock()
+				c.ended = err
+				for s, ch := range c.replies {
+					close(ch)
+					delete(c.replies, s)
+				}
+				c.mu.Unlock()
+				return
+			}
+			switch m.Type {
+			case TypeSignal:
+				on(m)
+			case TypeMethodReturn, TypeError:
+				c.mu.Lock()
+				ch := c.replies[m.ReplySerial]
+				delete(c.replies, m.ReplySerial)
+				c.mu.Unlock()
+				if ch != nil {
+					ch <- m // buffered: never blocks
+				}
+			}
+		}
+	}()
+}
+
+func (c *Conn) call(flags byte, dest, path, iface, member string, timeout time.Duration, sig string, args []any) ([]any, error) {
+	c.mu.Lock()
+	if c.replies != nil {
+		return c.callReceiving(flags, dest, path, iface, member, timeout, sig, args) // unlocks c.mu
+	}
 	defer c.mu.Unlock()
 	c.serial++
-	m := &Message{Type: TypeMethodCall, Flags: FlagNoAutoStart, Serial: c.serial, Path: path, Interface: iface,
+	m := &Message{Type: TypeMethodCall, Flags: flags, Serial: c.serial, Path: path, Interface: iface,
 		Member: member, Destination: dest, Signature: sig, Body: args}
 	b, err := m.Marshal()
 	if err != nil {
@@ -199,13 +254,60 @@ func (c *Conn) Call(dest, path, iface, member string, timeout time.Duration, sig
 		if r.ReplySerial != m.Serial || (r.Type != TypeMethodReturn && r.Type != TypeError) {
 			continue // a signal (NameAcquired, ...) or someone else's answer
 		}
-		if r.Type == TypeError {
-			e := &Error{Name: r.ErrorName}
-			if len(r.Body) > 0 {
-				e.Message, _ = r.Body[0].(string)
-			}
-			return nil, e
-		}
-		return r.Body, nil
+		return answer(r)
 	}
+}
+
+// callReceiving makes a call while Receive reads the connection: it waits for the answer the reader hands over.
+// c.mu is held on entry and released here.
+func (c *Conn) callReceiving(flags byte, dest, path, iface, member string, timeout time.Duration, sig string, args []any) ([]any, error) {
+	if c.ended != nil {
+		c.mu.Unlock()
+		return nil, ErrEnded
+	}
+	c.serial++
+	m := &Message{Type: TypeMethodCall, Flags: flags, Serial: c.serial, Path: path, Interface: iface,
+		Member: member, Destination: dest, Signature: sig, Body: args}
+	b, err := m.Marshal()
+	if err != nil {
+		c.mu.Unlock()
+		return nil, err
+	}
+	ch := make(chan *Message, 1)
+	c.replies[m.Serial] = ch
+	_ = c.c.SetWriteDeadline(time.Now().Add(timeout))
+	_, err = c.c.Write(b)
+	_ = c.c.SetWriteDeadline(time.Time{})
+	if err != nil {
+		delete(c.replies, m.Serial)
+		c.mu.Unlock()
+		return nil, err
+	}
+	c.mu.Unlock()
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+	select {
+	case r, ok := <-ch:
+		if !ok {
+			return nil, ErrEnded
+		}
+		return answer(r)
+	case <-t.C:
+		c.mu.Lock()
+		delete(c.replies, m.Serial)
+		c.mu.Unlock()
+		return nil, fmt.Errorf("dbus: no answer to %s.%s within %v", iface, member, timeout)
+	}
+}
+
+// answer turns a method return into its values and an error reply into an *Error.
+func answer(r *Message) ([]any, error) {
+	if r.Type == TypeError {
+		e := &Error{Name: r.ErrorName}
+		if len(r.Body) > 0 {
+			e.Message, _ = r.Body[0].(string)
+		}
+		return nil, e
+	}
+	return r.Body, nil
 }
