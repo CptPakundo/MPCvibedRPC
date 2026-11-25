@@ -1,7 +1,7 @@
 # Fix a match: design proposal
 
 A proposal for redesigning the **Fix a match** setting (Titles & art), with the research behind it. It is not built
-yet: it is the first entry of the roadmap's [Next up](../roadmap.md#next-up), after its [open decisions](#open-decisions).
+yet: it waits on its [open decisions](#open-decisions), listed in the roadmap's [Open decisions](../roadmap.md#open-decisions-the-maintainers).
 The window's look is described in [settings-window.md](settings-window.md): the dialog and the list follow it (neutral
 greys, the blurple accent only on the selected row and the main button, no pills, capitals, stripes or shadows, short
 help texts).
@@ -10,20 +10,16 @@ Mockups, in this folder (open them in a browser; Light, Dark and System buttons 
 web and only draw made-up results): [fix-a-match-dialog.html](fix-a-match-dialog.html) and
 [fix-a-match-list.html](fix-a-match-list.html).
 
-## Current state
-- A fix is keyed on the *read title* and kept in two maps, `artworkAliases` (search under another name) and
-  `artworkOverrides` (a pinned cover); the window shows two text boxes.
-- A digits-only name, such as a Blu-ray's `00062`, is marked junk and not looked up, unless Fix a match names it: then
-  the fix is read first and the lookup runs.
-- Blu-ray and DVD titles are found from the disc itself (its volume label), so most discs need no fix.
-
 ## Questions answered
 
 **How does it work today?** A fix is keyed on the *read title*: the title the program reads from the file name
-(lowercased and cleaned, `normTitle`). "Search under another name" swaps the search text for that title;
+(lowercased and cleaned, `normTitle`), and kept in two maps, `artworkAliases` (search under another name) and
+`artworkOverrides` (a pinned cover). "Search under another name" swaps the search text for that title;
 "Pin a cover image" swaps the cover. So one line already covers every file read as that title (all episodes of a
 show), not one file. The window gives no hint of this: two monospace text boxes, no search, no way to see what the
-file was read as, and no feedback. A digits-only title (a Blu-ray's `00062`) is looked up when Fix a match names it.
+file was read as, and no feedback. A digits-only name, such as a Blu-ray's `00062`, is marked junk and not looked up,
+unless Fix a match names it: then the fix is read first and the lookup runs. Blu-ray and DVD titles are found from
+the disc itself (its volume label), so most discs need no fix.
 
 **Does the user fix per file name?** No, and the design should keep it that way: a fix applies to "every file read as
 *this title*". That is the right unit (Plex, Infuse and Jellyfin all fix a show once and the episodes follow). The new

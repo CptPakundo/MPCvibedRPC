@@ -32,7 +32,7 @@ CI runs the rest (the race detector, the lint gates, macOS and Linux for real): 
    what to hand off, how to brief, and how to check what comes back.
 
 ## Picking up work
-The work to do and how to continue what someone else started are in [CONTRIBUTING.md > Picking up work](CONTRIBUTING.md#picking-up-work): the roadmap's [Next up](docs/roadmap.md#next-up) needs no decision; open decisions need the maintainer. Everything the repository needs is in the repository: there are no instructions kept elsewhere.
+The work to do and how to continue what someone else started are in [CONTRIBUTING.md > Picking up work](CONTRIBUTING.md#picking-up-work): the roadmap's [Next up](docs/roadmap.md#next-up) lists work anyone can take; whatever waits on a decision is under its [Open decisions](docs/roadmap.md#open-decisions-the-maintainers) and needs the maintainer. Nothing the repository needs is kept elsewhere.
 
 ## Your first change
 Read the named sections, make the change, then run the tests named with it (and always `go vet ./...` and
@@ -55,8 +55,11 @@ Read the named sections, make the change, then run the tests named with it (and 
 - **MPC-HC behaves as before** whenever anything is added: new players are asked after the existing ones
   ([decision](docs/decisions.md#behaviour)).
 - **MPRIS reads only the allowlist** in `internal/mpris`: music players and browsers must never show as "Watching".
-- **Readers are read-only**, and real accounts are off-limits ([ground rules](CONTRIBUTING.md#ground-rules)).
+- **Readers are read-only**, and tests never use real accounts or a real setup ([ground rules](CONTRIBUTING.md#ground-rules)).
 - **The default Discord application (`clientId`) belongs to the upstream project**; every install depends on it.
+- **Player logo addresses are fixed.** Every install fetches the logos from `docs/players/<name>.png` on the `master`
+  branch (`PlayerIconBase` in `internal/core/icons.go`). Never move, rename or delete those files or rename `master`;
+  adding a logo is fine.
 - **Docs in the same pull request.** A change that makes the README, `docs/`, schema help text or release notes wrong
   fixes them in that change. New behaviour for existing users is off by default.
 - **The tests that tie texts to code** must keep passing ([the list](docs/development.md#testing)).

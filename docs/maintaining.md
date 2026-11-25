@@ -10,7 +10,9 @@ the rules for everyone are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - **The maintainer's product decisions** are recorded in [decisions.md](decisions.md); the open ones are in the
   roadmap's [Open decisions](roadmap.md#open-decisions-the-maintainers). Don't change listed behaviour without saying which
   decision it touches.
-- **Release files are only downloaded through `tools/ci/dev-download.sh`** ([how](#downloading-release-files)).
+- **Release files are only downloaded through `tools/ci/dev-download.sh`** ([how](#downloading-release-files)). The
+  one exception is `tools/downloads/reset-counts.sh`, which downloads every asset to upload it again; its counts start
+  from 0 anyway ([how](#resetting-the-download-counts)).
 - **Dependabot pull requests** are reported (what they change, whether CI is green) and merged only with the
   maintainer's yes.
 - **A release with new features** also updates the repository description and topics ([step 5](#releasing)).
@@ -40,7 +42,8 @@ version and the maintainer's go-ahead.
 2. **Check locally, then open the pull request.**
    - `go vet ./...` (also with `GOOS=linux` and `GOOS=darwin`), gofmt on LF copies, `go test -count=1 ./...` and
      `govulncheck` (a Go advisory published the same day would fail the pull request).
-   - Scan the diff and new files for personal data before the first push.
+   - Scan the diff and new files for personal data before the first push (the command is in
+     [CONTRIBUTING](../CONTRIBUTING.md#ground-rules)), and check that the commits and the tag name no personal email.
    - Push, `gh pr create --base master`, wait for CI (`gh run watch`) and read the logs to confirm the expected steps
      ran.
    - The live jobs ran when the pull request was opened. If later commits touch the engine or a player reader, run
@@ -48,8 +51,8 @@ version and the maintainer's go-ahead.
 3. **Merge, tag and publish** (with the maintainer's go-ahead).
    1. **Wait for the pull request's CI.** The repository does not require passing checks, so `gh pr merge --auto`
       would merge at once.
-   2. **Merge:** `gh pr merge <n> --rebase --delete-branch`. GitHub refuses to rebase a branch that holds merge
-      commits (such as merged agent branches): use `--merge` then, or rebase the branch locally first.
+   2. **Merge:** `gh pr merge <n> --rebase --delete-branch`. GitHub may refuse to rebase a branch that holds merge
+      commits (seen once with merged helper branches): use `--merge` then, or rebase the branch locally first.
    3. **Tag** the merged commit with an annotated tag and push it. An annotated tag stores the tagger's name and email,
       so tag with the same neutral identity used for commits, never a personal email:
       `git -c user.name="<name>" -c user.email="<noreply address>" tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`, then
@@ -69,13 +72,13 @@ version and the maintainer's go-ahead.
       publish it by hand once checked.
 4. **Read the `verify` job's log** (`gh run view --log`) and report. Nothing needs re-running locally after a release.
 5. **Repository details.** A release with new features also updates the repository description and topics
-   (`gh repo edit --description ... --add-topic ...`) so they name every player and system the program supports (the
-   maintainer has given a standing go-ahead for this).
+   (`gh repo edit --description ... --add-topic ...`) so they name every player and system the program supports.
 
 ### Pitfalls
 - The default branch is `master`, not `main`. Never name a branch like a tag (`v0.9.20`): `git push origin v0.9.20`
   becomes ambiguous; use `release-X.Y.Z`.
-- **Save a failed job's log before `gh run rerun`**: the rerun erases it.
+- **A rerun keeps the earlier attempts' logs.** After `gh run rerun`, read the failed attempt with
+  `gh run view <id> --attempt 1 --log` (or `--log-failed`).
 - A release run whose macOS job is cancelled with "not acquired by Runner" built nothing and left no draft:
   `gh run rerun <id> --failed` is the remedy.
 - Versions stay `0.9.x`, three-part: the updater compares three numbers.
@@ -99,7 +102,9 @@ To check a release without downloading anything, GitHub lists each file's sha256
 ### Resetting the download counts
 `tools/downloads/reset-counts.sh` starts the counts of the release files again from 0 by replacing each file with its
 identical bytes (names, links, checksums and build records stay the same). It rewrites every asset of the releases it
-is given, so it needs `gh` signed in with write access, and it is run only deliberately, never from CI. After it, run
+is given, so it needs `gh` signed in with write access, and it is run only deliberately, never from CI. For about a second per file the file's name does not exist, so a download
+in that moment gets a 404 and tries again later. With immutable releases on, published files cannot be replaced, so
+the script could no longer work ([research](research/immutable-releases.md)). After it, run
 the `downloads` workflow by hand with `baseline` ticked ([CI](development.md#ci)). Its header says what each step
 checks.
 

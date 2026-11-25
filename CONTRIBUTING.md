@@ -46,19 +46,30 @@ Optional tools:
 
 ## Ground rules
 - **Privacy first.** No personal data in commits, tags, code, docs, tests, screenshots or release files: no email
-  addresses, local paths or user names, machine details, tokens. Commit and tag with a neutral identity, never a
-  personal email (an annotated tag stores the tagger's email too). Scan the diff before the first push.
+  addresses, local paths or user names, machine details, tokens. Commit and tag with any identity that holds no
+  personal email: your GitHub noreply address (`<id>+<user>@users.noreply.github.com`, under Settings > Emails) or a
+  project noreply address (an annotated tag stores the tagger's email too). Scan the diff before the first push:
+  `git diff origin/master | grep '^+' | grep -inE '@[a-z0-9.-]+\.[a-z]{2,}|[A-Z]:.Users|/home/|/Users/' | grep -v noreply`
+  lists added lines with an email address or a home path (read each hit), and
+  `git log origin/master..HEAD --format='%an <%ae> %cn <%ce>'` shows who the commits name.
 - **Generic names.** UI text, docs, code comments and new tests use made-up titles ("Sample Show S01E02", "Sample Movie
   (2020)"), never real shows, films or episode numbers. Exempt: the golden data (below), and real behaviour about a
   specific source (the Bulbapedia episode lists).
 - **Golden data is frozen.** The golden data are recorded reference outputs in `internal/*/testdata/*.gz` that the
   parsers and lookups are checked against. They were recorded once and their generators no longer exist. Never
   regenerate or "fix" them; make the code match them.
-- **Never touch a real setup while testing.** Tests and manual checks must not contact the real Discord, show a status
-  for a real player, or change a real player's settings, the registry or `%APPDATA%`/`%LOCALAPPDATA%`. Use the fakes
-  and throwaway data folders in [Running the program safely](docs/development.md#running-the-program-safely).
-- **The readers are read-only; real accounts are off-limits.** Never sign in to a real Plex, Stremio, Jellyfin or Emby
-  account, or call their sign-in services, from tests or by hand, without the maintainer's OK. Every reader has fakes.
+- **Automated tests never touch a real setup.** They must not contact the real Discord, show a status for a real
+  player, or change a real player's settings, the registry or `%APPDATA%`/`%LOCALAPPDATA%`; they use fakes and
+  temporary data folders. One read-only exception: `internal/capture`'s Windows tests read this computer's record of
+  screen captures and the thread names of any running Discord processes (they send nothing to Discord and change
+  nothing), so they run in the normal `go test ./...`. By hand, never touch anyone's setup but your own, and even on
+  your own a throwaway copy is the safe way: [Running the program safely](docs/development.md#running-the-program-safely).
+- **The readers are read-only; real accounts stay out of tests.** Tests never sign in to a real Plex, Stremio,
+  Jellyfin or Emby account or call their sign-in services; every reader has fakes. By hand, sign in only to your own
+  account, and prefer a throwaway copy.
+- **The player logos have fixed addresses.** Every install fetches them from `docs/players/<name>.png` on the
+  `master` branch (`PlayerIconBase` in `internal/core/icons.go`). Never move, rename or delete those files, or rename
+  `master`; adding a logo is fine.
 - **No regressions, no churn.** Weigh pros and cons; don't change working behaviour for its own sake. New behaviour that
   affects existing users stays off or unchanged by default unless the maintainer decides otherwise.
 - **Be exact about what was tested.** Say what ran for real, what ran against fakes, and what was not tested.
@@ -68,19 +79,24 @@ Optional tools:
 Maintainers have a few more rules (outward-facing steps, release-file downloads): [maintaining.md](docs/maintaining.md#rules-for-maintainers).
 
 ## Working on Windows
-- Working-copy files are CRLF (git `autocrlf`; the index is LF), except `internal/jsre/*_table.go`. Some editing tools
-  silently rewrite a CRLF file as LF: convert it back before committing so diffs stay small.
+- The repository stores every text file with LF (`.gitattributes`: `* text=auto`). On Windows, Git's defaults
+  (`core.autocrlf`, `core.eol`) give a CRLF working copy; elsewhere it is LF. Some editing tools silently rewrite a
+  CRLF file as LF: convert it back before committing so diffs stay small (`git ls-files --eol` shows both sides).
 - `gofmt -l` flags every CRLF file on Windows. Check formatting on LF copies (or rely on the Linux CI gate), and never
   `gofmt -w` a CRLF file in place.
 - Scripts that rewrite many files can damage them silently: read the diff before committing.
 - Git Bash's `sed -i` drops every carriage return of a CRLF file, even when its pattern matches nothing. Use `perl -pi`
-  (it keeps line ends), or `tr -d '\r' < f | sed ... | sed 's/$/\r/'`, then check with `file <name>`.
-- Never write emoji or other non-ASCII text through perl escape sequences: perl then re-encodes every UTF-8 character
-  in the file. Edit such text in an editor (or a tool that writes UTF-8 as it is) and read the diff.
+  (it keeps line ends), or `tr -d '\r' < f | sed ... | sed 's/$/\r/'`, then check with `file <name>`. With `perl -pi`
+  on a CRLF file, `$` does not match before `\r\n`: match `\r?$`, or strip the CRs first.
+- Never write emoji or other non-ASCII text through perl escape sequences: a `\x{...}` escape above 0xFF in a
+  substitution double-encodes the non-ASCII characters on the lines it changes (not the whole file). Byte escapes,
+  `-CSD`, or an editor (or a tool that writes UTF-8 as it is) avoid it; read the diff either way.
 - Multi-pattern perl one-liners misread code: `$(` in JavaScript, `||` alternations and Go backticks have broken files.
   Keep scripted edits to exact strings, and `die` when a string is not found.
-- Shell heredocs and quoting can drop backslashes (`\\.\pipe\` became `\.\pipe\`; a `\0` in a commit message became a
-  NUL byte). Write text with Windows paths or backslashes to a file with an editor, then grep for it.
+- Backslashes get lost on the way to a file: an unquoted heredoc halves `\\` (standard bash), some agent tools'
+  inline-command wrappers drop backslashes even inside single quotes, and `printf` turns `\0` into a NUL byte (it ate
+  a commit message). A quoted heredoc (`<<'EOF'`) in a script file keeps them. Write text with Windows paths or
+  backslashes with an editor or a file-writing tool, then grep for it.
 
 ## Where to find what
 | You want | Read |
