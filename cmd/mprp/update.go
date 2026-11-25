@@ -42,7 +42,7 @@ func (u *updates) newer() *updater.Info {
 // checkUpdates asks GitHub for a newer version: when the window asks (manual), or in the background while
 // "Check for updates automatically" is on. A version found in the background is offered by an open settings window
 // at once (its page asks for the state every second); with no window open, and when it will not install itself, it is
-// announced next to the tray icon once.
+// announced once in a notification (see notify).
 func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	s := a.st.App()
 	if !manual && !(s.CheckUpdates && s.UpdateRepo != "") {
@@ -67,12 +67,11 @@ func (a *app) checkUpdates(manual bool) (*updater.Info, error) {
 	first := a.upd.notified != r.Latest
 	a.upd.notified = r.Latest
 	a.upd.mu.Unlock()
-	t := a.getTray()
-	if first && t != nil && winsys.IsWindows { // the macOS menu bar icon has no notifications
-		if t.Balloon("MPRP "+r.Latest+" is available", "You have "+version+". Click here to see what's new and install it.") {
-			a.log("INFO", "Showed an update notice next to the tray icon.")
+	if first {
+		if a.notify("MPRP "+r.Latest+" is available", "You have "+version+". Click here to see what's new and install it.") {
+			a.log("INFO", "Showed an update notice.")
 		} else {
-			a.log("WARN", "Windows did not show the update notice.")
+			a.log("WARN", "The update notice was not shown (no notifications here, or the system refused it).")
 		}
 	}
 	return r, nil

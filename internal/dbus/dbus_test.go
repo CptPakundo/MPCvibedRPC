@@ -3,7 +3,9 @@ package dbus_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -133,5 +135,50 @@ func TestDialFailures(t *testing.T) {
 			c.Close()
 			t.Errorf("Dial(%q) should fail", a)
 		}
+	}
+}
+
+// While Receive reads the connection, calls from several goroutines get their own answers, signals go to the
+// handler, and once the connection ends calls fail at once.
+func TestReceive(t *testing.T) {
+	bus := dbustest.New(t)
+	bus.Own("org.example.Thing", func(m *dbus.Message) dbustest.Reply {
+		return dbustest.Reply{Sig: "s", Body: []any{"echo: " + m.Body[0].(string)}}
+	})
+	c, err := dbus.Dial(bus.Address, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signals := make(chan string, 1)
+	c.Receive(func(m *dbus.Message) { signals <- m.Member })
+	if _, err := c.Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch", time.Second, "s", "type='signal'"); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			s := fmt.Sprint(i)
+			got, err := c.CallStart("org.example.Thing", "/", "org.example.Thing", "Echo", time.Second, "s", s)
+			if err != nil || !reflect.DeepEqual(got, []any{"echo: " + s}) {
+				t.Errorf("call %d = %v, %v", i, got, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	bus.Emit(&dbus.Message{Serial: 5, Path: "/a", Interface: "org.example.Thing", Member: "Changed", Signature: ""})
+	select {
+	case got := <-signals:
+		if got != "Changed" {
+			t.Errorf("signal %q", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the signal did not arrive")
+	}
+	c.Close()
+	time.Sleep(50 * time.Millisecond)
+	if _, err := c.Call("org.example.Thing", "/", "org.example.Thing", "Echo", time.Second, "s", "x"); err == nil {
+		t.Error("a call on an ended connection should fail")
 	}
 }

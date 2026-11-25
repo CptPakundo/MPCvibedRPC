@@ -69,7 +69,8 @@ func TestEndToEndUpdateRollback(t *testing.T) {
 	os.MkdirAll(home, 0o755)
 	// nothing is asked and nothing is shown: only the update is under test
 	os.WriteFile(filepath.Join(home, "config.json"), []byte(`{"port":1,"showArtwork":false,"mpris":false,"app":{"startPresence":false,"checkUpdates":false,"autoUpdate":false,"welcomeSeen":true}}`), 0o644)
-	env := append(os.Environ(), "MPRP_HOME="+home, "XDG_RUNTIME_DIR="+filepath.Join(dir, "run"), "MPRP_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPRP_BROWSER=none", "MPRP_FOREGROUND=1")
+	// no session bus (XDG_RUNTIME_DIR holds none): the program must not reach the real one, its players or its notifications
+	env := append(os.Environ(), "MPRP_HOME="+home, "XDG_RUNTIME_DIR="+filepath.Join(dir, "run"), "MPRP_UPDATE_API="+rel.URL, "DISPLAY=", "DBUS_SESSION_BUS_ADDRESS=", "PATH=/nonexistent", "MPRP_BROWSER=none", "MPRP_FOREGROUND=1")
 	cmd := exec.Command(exe, "--background")
 	cmd.Env = env
 	var out bytes.Buffer

@@ -136,7 +136,8 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 | | `engine.go` types, Start/Stop, Status · `players.go` `fetchPlayer` and its `picker` · `tick.go` · `discord.go` · `events.go` player events · `remote.go` the Plex, Stremio and Jellyfin watchers, resting · `folder.go` the folder listing for `folderEpisodeNumbers` (read once per file, again when the folder changed) · `disc.go` a disc's own name at a drive's root (`bdmt_*.xml`, the volume label) · `stats.go` `stats.json`, counts only (taken under `e.mu`, written after it is released) |
 | `core` | settings and defaults (`config.go`), file-name parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, catalog services (`sources.go`), every other outside address (`hosts.go`), player logos (`icons.go`), titles written like file names (`names.go`) |
 | `mpvipc`, `pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `discord`) |
-| `mpris`, `dbus` | Linux players through MPRIS (an allowlist of video players) and their signals (`watch.go`); a minimal D-Bus client; `dbus/dbustest` is a fake bus |
+| `mpris`, `dbus` | Linux players through MPRIS (an allowlist of video players) and their signals (`watch.go`); a minimal D-Bus client (`Receive` reads a connection in the background, for calls and signals at once); `dbus/dbustest` is a fake bus |
+| `notify` | Linux: the update notices through the desktop's notification service (`org.freedesktop.Notifications` on the session bus); a click calls back to open the window |
 | `vlchttp` | VLC's web interface, read-only |
 | `potplayer` | PotPlayer (Windows): window messages from its control header `InternalSimpleCmd.h`, read-only |
 | `kodi` | Kodi's JSON-RPC and its notifications on TCP 9090 (`watch.go`), read-only |
@@ -163,7 +164,7 @@ on every system.
 |---|---|
 | `tray.go` (`TrayOptions`), `tray_windows.go` | the tray (Windows) |
 | `run.go` | helper commands without a console, the running players, system details for diagnostics |
-| `macapp_darwin.go` | macOS (cgo only): the menu bar icon and the settings window (WebKit) |
+| `macapp_darwin.go` | macOS (cgo only): the menu bar icon, the settings window (WebKit) and the notifications (`UNUserNotificationCenter`, only as an app bundle) |
 | `window.go`, `browser*.go` | the window's browser, opening a URL or folder |
 | `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside once it appears) |
 | `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`), and carrying an entry of the former name over (`MigrateAutoStart`) |
@@ -542,6 +543,9 @@ Everything below has only run against fakes, or not at all. Anyone with the setu
 - A viewer seeing "Streaming <title>" with no other Playing program running.
 - The **update dialog** in the real settings window, the tray's update notice, and the tray icon's sharpness at 200 %
   display scaling.
+- The **update notices on Linux and macOS**: a real desktop's notification service (GNOME, KDE Plasma, dunst) and its
+  click, and the macOS notification centre for the ad-hoc signed app (its permission prompt and click). The D-Bus
+  messages are tested against a fake bus; the macOS code is only compiled on CI.
 - **Copy diagnostics** in a normal browser window (not the `--app=` window).
 - **Start with Windows** after it was switched off in Task Manager's Startup list.
 - **An install from before the rename** on a real system: its data folder moved (or copied while a file is held),

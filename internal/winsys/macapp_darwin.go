@@ -7,9 +7,10 @@ package winsys
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc -mmacosx-version-min=11.0
-#cgo LDFLAGS: -framework Cocoa -framework WebKit -mmacosx-version-min=11.0
+#cgo LDFLAGS: -framework Cocoa -framework WebKit -framework UserNotifications -mmacosx-version-min=11.0
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+#import <UserNotifications/UserNotifications.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 
@@ -19,7 +20,7 @@ static NSWindow *window;
 static WKWebView *web;
 static atomic_int pending; // the menu command waiting for the Go side: 1 open, 2 start/stop, 3 quit, 4 hide what is watched, 5 the title on streams
 
-@interface MRController : NSObject <NSApplicationDelegate, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate>
+@interface MRController : NSObject <NSApplicationDelegate, NSWindowDelegate, WKUIDelegate, WKNavigationDelegate, UNUserNotificationCenterDelegate>
 @end
 
 @implementation MRController
@@ -33,6 +34,18 @@ static atomic_int pending; // the menu command waiting for the Go side: 1 open, 
 }
 
 - (void)windowWillClose:(NSNotification *)n { window = nil; web = nil; }
+
+// A click on one of the program's notifications opens the settings window.
+- (void)userNotificationCenter:(UNUserNotificationCenter *)c didReceiveNotificationResponse:(UNNotificationResponse *)r
+	withCompletionHandler:(void (^)(void))done {
+	if ([r.actionIdentifier isEqualToString:UNNotificationDefaultActionIdentifier]) atomic_store(&pending, 1);
+	done();
+}
+// The app counts as in front while its window is: show the notification all the same.
+- (void)userNotificationCenter:(UNUserNotificationCenter *)c willPresentNotification:(UNNotification *)n
+	withCompletionHandler:(void (^)(UNNotificationPresentationOptions))done {
+	done(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList);
+}
 
 // alert() and confirm() from the page (WebKit shows nothing unless the app does)
 - (void)webView:(WKWebView *)v runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame
@@ -98,6 +111,9 @@ static void macRunApp(void) {
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 		controller = [MRController new];
 		NSApp.delegate = controller;
+		// The notification centre needs a bundle identifier: a bare program (a test build) has none, and asking for
+		// the centre would stop it with an exception. The delegate is set before the app runs, as a click must find it.
+		if ([NSBundle mainBundle].bundleIdentifier) [UNUserNotificationCenter currentNotificationCenter].delegate = controller;
 		mainMenu();
 		[NSApp run];
 	}
@@ -196,6 +212,24 @@ static void macShowWindow(const char *url) {
 		[window orderFrontRegardless]; // also when another app is active (opening the app again from the Finder)
 		[NSApp activateIgnoringOtherApps:YES];
 	});
+}
+
+// macNotify shows a notification: macOS asks the user once whether the app may (the answer is kept in System
+// Settings > Notifications). It returns 0 when the program cannot notify at all (not an app bundle); whether the
+// user allows it is known only later, so 1 means handed to macOS.
+static int macNotify(const char *title, const char *text) {
+	if (![NSBundle mainBundle].bundleIdentifier) return 0; // see macRunApp
+	NSString *t = [NSString stringWithUTF8String:title], *b = [NSString stringWithUTF8String:text];
+	UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+	[center requestAuthorizationWithOptions:UNAuthorizationOptionAlert completionHandler:^(BOOL granted, NSError *err) {
+		if (!granted) return;
+		UNMutableNotificationContent *m = [UNMutableNotificationContent new];
+		m.title = t ? t : @"MPRP";
+		m.body = b ? b : @"";
+		UNNotificationRequest *r = [UNNotificationRequest requestWithIdentifier:[NSUUID UUID].UUIDString content:m trigger:nil];
+		[center addNotificationRequest:r withCompletionHandler:nil];
+	}];
+	return 1;
 }
 
 static void macCloseWindow(void) {
@@ -362,5 +396,15 @@ func (t *Tray) Close() {
 	})
 }
 
-// Balloon would show a notification; the menu bar icon has none (the window shows updates).
-func (t *Tray) Balloon(title, text string) bool { return false }
+// Balloon shows a notification through the notification centre; a click on it opens the settings window. macOS asks
+// the user once whether the app may notify. It returns false when the program is not an app bundle (a bare build),
+// which cannot notify.
+func (t *Tray) Balloon(title, text string) bool {
+	if t == nil {
+		return false
+	}
+	ct, cx := C.CString(title), C.CString(text)
+	defer C.free(unsafe.Pointer(ct))
+	defer C.free(unsafe.Pointer(cx))
+	return C.macNotify(ct, cx) != 0
+}

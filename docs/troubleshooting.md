@@ -155,6 +155,10 @@ To uninstall:
 - **With the window open:** the window asks at once, with what is new: **Update now** or **Not now**. It asks once for
   each version; after **Not now** a line at the top of the window keeps saying so, and its **See what's new** button
   brings the question back.
+- **Without the window:** a notification says once that a new version is available (when it does not install itself),
+  that it installed itself, or that it failed and the old version is back. Click it to open the window. Windows shows
+  it next to the tray icon, Linux through the desktop's notification service (none: no notification), macOS through
+  the notification centre, which asks once whether MPRP may notify (System Settings > Notifications).
 - **Automatic install** (Windows and Linux; **Install updates automatically**, on by default): the update installs
   itself as soon as nothing is playing and no settings window is open (the program then runs minimised to the tray, or
   was started at login), restarts in the tray and says so once. Closing the window quits the program on Windows and
