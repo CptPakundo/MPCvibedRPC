@@ -545,6 +545,24 @@ func TestPauseClearLimitRestartsWhenSettingsChange(t *testing.T) {
 	}
 }
 
+// A settings change is not a change by the player: a status cleared after a long pause stays cleared through it (the
+// run restarts for the new settings), and comes back only when the player does something.
+func TestPauseClearSurvivesAnotherSettingsChange(t *testing.T) {
+	t.Parallel()
+	e, m, d := pauseSetup(t, 1)
+	pauseUntilCleared(t, e, m, d)
+	cfg := e.Config()
+	cfg.ArtworkWaitMs++ // any setting that has nothing to do with the pause
+	e.ApplySettings(cfg)
+	time.Sleep(900 * time.Millisecond) // several checks of the restarted run
+	if !isClear(d) || !e.Status().PauseCleared {
+		t.Fatalf("a settings change brought a cleared status back: %+v", e.Status())
+	}
+	n := len(d.list())
+	m.set(func(m *mpc) { m.state = 2 })
+	eventually(t, "status back on resume", func() bool { return len(d.list()) > n && !isClear(d) })
+}
+
 func TestClearArtworkCache(t *testing.T) {
 	t.Parallel()
 	m := newMPC(t)
