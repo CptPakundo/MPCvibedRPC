@@ -3,13 +3,85 @@ package winsys
 import (
 	"bytes"
 	"encoding/binary"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/CptPakundo/MPRP/internal/assets"
 )
 
+// The real keeping's thread, with a profile no browser uses (so it finds and names nothing, and touches nothing): it
+// starts, registers its shell hook, and while it looks at every window often (its first seconds after a window was
+// asked for, each look taking the window list) other threads take the window list too, which reads every window's
+// details, the keeper's hidden window among them. Asking a window of this process for its title waits for the
+// thread that owns it; when that thread is the keeper waiting for the same list, both waited for good (fixed by
+// leaving this process's own windows' titles alone). Then the hidden window's procedure answers on the keeper's
+// thread, and StopWindowIcon ends the thread and its window.
+func TestKeeperThreadRunsAndEnds(t *testing.T) {
+	StopWindowIcon()
+	defer StopWindowIcon()
+	profile := filepath.Join(t.TempDir(), "window")
+	var logMu sync.Mutex
+	var logs []string
+	log := func(level, msg string) {
+		logMu.Lock()
+		defer logMu.Unlock()
+		logs = append(logs, level+" "+msg)
+	}
+	if !NameWindow(profile, log) {
+		t.Fatal("the keeping did not start")
+	}
+	k := currentKeeper()
+	if k == nil || k.done == nil || k.hidden == 0 {
+		t.Fatalf("no keeping, or no hidden window: %+v", k)
+	}
+
+	until := time.Now().Add(1500 * time.Millisecond)
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for time.Now().Before(until) {
+				topWindows()
+				findWindow(profile)
+			}
+		}()
+	}
+	listed := make(chan struct{})
+	go func() { wg.Wait(); close(listed) }()
+	select {
+	case <-listed:
+	case <-time.After(20 * time.Second):
+		t.Fatal("the window lists hung while the keeper looked at the windows (a deadlock)")
+	}
+
+	var res uintptr
+	if r, _, _ := pSendMessageTimeout.Call(k.hidden, shellHookMessage(), hshellRedraw, 0, smtoAbortIfHung, 2000, uintptr(unsafe.Pointer(&res))); r == 0 {
+		t.Error("the hidden window's procedure did not answer")
+	}
+	if !k.armed.Load() {
+		logMu.Lock()
+		t.Logf("the shell hook could not be registered here (no shell?): %q", logs)
+		logMu.Unlock()
+	}
+
+	StopWindowIcon()
+	select {
+	case <-k.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the keeper's thread did not end after StopWindowIcon")
+	}
+	if ok, _, _ := pIsWindow.Call(k.hidden); ok != 0 {
+		t.Error("the hidden window outlived the keeper")
+	}
+	if currentKeeper() != nil {
+		t.Error("a keeping is still current")
+	}
+}
 
 func TestWindowIdentity(t *testing.T) {
 	const exe = `C:\Programs\Sample\MPRP.exe`
