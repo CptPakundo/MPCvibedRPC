@@ -86,6 +86,10 @@ version and the maintainer's go-ahead.
   `gh run view <id> --attempt 1 --log` (or `--log-failed`).
 - A release run whose macOS job is cancelled with "not acquired by Runner" built nothing and left no draft:
   `gh run rerun <id> --failed` is the remedy.
+- **The public `verify` stage's update check.** When GitHub's API refuses the previous release's check (rate limit),
+  that release falls back to the website, and a release of the former name does not follow the website's redirect
+  after a rename, so it is offered nothing. `verify-release.ps1` tries the check four times, 30 seconds apart; if it
+  still fails, re-run the job later (a release run: with the maintainer's word).
 - Versions stay `0.9.x`, three-part: the updater compares three numbers.
 
 ## Downloading release files
