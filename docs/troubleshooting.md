@@ -125,8 +125,8 @@ stays in the menu bar); minimizing it on Windows sends it to the tray.
 
 The log (**Help** tab, or `mprp.log` in the settings folder) shows each title next to the file name it was read
 from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each catalog
-returned. Under **Titles & art > Fix a match** you can search under another name or pin your own cover image: start
-each line with the title as the log shows it after `Playing:` ([an example](how-it-works.md#fixing-a-match)). A free
+returned. While it plays, **Wrong title or cover?** under the preview opens Fix this match: search, pick the right
+entry, and the fix applies to every file read as that title or to that file only ([how](how-it-works.md#fixing-a-match)). A free
 TMDB key (**Titles & art > More**) improves some matches. A show found only by TVmaze can take about a minute to get its
 cover the first time: TVmaze answers a search slowly until it has it cached.
 

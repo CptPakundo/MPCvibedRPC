@@ -1,7 +1,8 @@
 # Fix a match: design proposal
 
-A proposal for redesigning the **Fix a match** setting (Titles & art), with the research behind it. It is not built
-yet; its [decisions](#decisions) are settled, and the work is listed in the roadmap's [Next up](../roadmap.md#next-up).
+A proposal for redesigning the **Fix a match** setting (Titles & art), with the research behind it. The first version is
+built (version 0.9.60) as described here, with the differences listed under [As built](#as-built); its
+[decisions](#decisions) are settled.
 The window's look is described in [settings-window.md](settings-window.md): the dialog and the list follow it (neutral
 greys, the blurple accent only on the selected row and the main button, no pills, capitals, stripes or shadows, short
 help texts).
@@ -168,3 +169,15 @@ program never sends anything itself).
 2. **Sharing.** "Opt-in ability to Tell the project." The user prepares, copies and posts the report.
 3. **Covers.** "Other catalogs' covers from the start." The cover step offers them in the first version.
 4. **Offsets.** "In the first version." A season and episode offset per fix.
+
+## As built
+Where the first version (0.9.60) differs from the plan above:
+- **The dialog's first results** come from a search of the read title as the dialog opens (mostly answered from the
+  request cache the lookup filled), not from `a.closest`, which keeps only names and no covers or pages.
+- **Two more fields per fix**, `label` and `poster`: how the window describes the pinned entry and its cover in the
+  list, without asking the catalog again.
+- **The legacy lines** act as before even before they are written as fixes: while config.json has no `matchFixes`,
+  the maps are read as fixes (`core.Config.Fixes`). The window no longer shows the two text boxes, but the store still
+  takes and checks them, as its recorded tests expect.
+- **A pinned IMDb page** is read from IMDb's suggestions, else Cinemeta, else TVmaze (shows), whichever is on; a
+  catalog that does not answer is asked again later rather than replaced by a search.

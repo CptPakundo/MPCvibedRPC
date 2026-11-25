@@ -37,7 +37,7 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 
 - 🎬 **"Watching Sample Show"** on your profile, with the episode, its title and a progress bar that follows seeking and pausing.
 - 🧹 **Clean titles** from messy file names: `Show.Name.S01E02.1080p.WEB-DL.x265-GRP.mkv` becomes *Show Name · S01E02*.
-- 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more).
+- 🖼️ **Cover art, episode names and ratings**, looked up in several free catalogs (IMDb, TVmaze, AniList and more). A wrong match is fixed from the preview with a search, and the text lines can be shorter, longer or your own.
 - 📺 **Your players**: MPC-HC, MPC-BE, MPC-QT, mpv, VLC and PotPlayer on Windows; IINA, mpv, VLC and MPC-QT on macOS; VLC, mpv, Celluloid, Haruna and most other video players on Linux; Kodi on any system; and **Plex**, **Stremio**, **Jellyfin** and **Emby** on any device. Players with a logo of their own show it on Discord.
 - 🔗 **Clickable**: both text lines and the cover open the title's page (IMDb, AniList, ...), next to up to two "View on ..." buttons, and the player's logo opens its site. Or "View on Letterboxd", if you switch that on. **Hide what I'm watching** is also in the tray / menu bar menu.
 - 📡 **On your streams**: while you share your screen, Discord says "Streaming Sample Show" instead of showing a stream without a name (Windows; elsewhere it is a switch).
