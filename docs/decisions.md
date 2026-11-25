@@ -47,6 +47,18 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
 - **Blu-ray and DVD files are named by themselves** (2026-11-25: on by default). *Why:* a disc's files are
   named by number, so without it a disc showed a number and no cover; the folder, the disc's own title or its label
   says what it is, with nothing to set.
+- **Fix a match offers a file-only fix, other catalogs' covers, an episode offset and an opt-in report** (2026-11-25;
+  [design](design/fix-a-match.md#decisions)). A fix applies to every file read as a title or only to one file; the
+  cover step offers covers from the other enabled catalogs; a season and episode offset belongs to each fix; "Tell the
+  project" prepares an editable report the user posts themselves. *Why:* a fix should be able to be exactly as wide as
+  the mistake, and the program still sends nothing by itself.
+- **Text lines: choices plus Custom, with a film's cover text** (2026-11-25; [design](design/presence-templates.md#decisions)).
+  Standard, Short, Detailed and Custom; `[ ]` sections and dropped separators for missing values; today's marks on
+  values. An episode's cover text stays fixed because it makes Discord's S1E2 badge. *Why:* most people want another
+  look, not a language, and Standard stays today's code.
+- **A notice after an automatic update is on by default** (2026-11-25, Windows first). "Updated to <version>. Click to
+  see what's new", once per update. *Why:* an update that installs itself should say so. This is a deliberate change for
+  existing users.
 - **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
   Discord restarts, a setting changes or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
   its own.
@@ -100,6 +112,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   everything else that could name a person stays out.
 - **Stats are counts and times only, on your computer.** *Why:* a history of titles is exactly what a privacy-minded
   user does not want stored, and nothing about it is ever sent.
+- **Sign-ins are encrypted with Windows' own per-user encryption (DPAPI) on Windows** (2026-11-25). A config copied to
+  another user or computer cannot be read, so those sign-ins ask to be made again. macOS and Linux keep plain text;
+  the full system key store was not chosen. *Why:* it protects a copied or backed-up `config.json` for the price of
+  one standard-library call, with no new window or password.
 - **The cover cache forgets a title 90 days after it was last played.** *Why:* the cache speeds up lookups, but it
   must not turn into a list of everything ever watched.
 - **Every online service can be switched off**, and one switch makes the program fully offline. *Why:* each lookup

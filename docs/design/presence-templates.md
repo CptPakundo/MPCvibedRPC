@@ -1,7 +1,7 @@
 # Text lines: design proposal
 
-A proposal for roadmap open decision 9, "Presence templates: a user-written layout of the two status lines", with the
-research behind it. It is not built yet: it waits on its [open decisions](#open-decisions). The window's look follows
+A proposal for "Presence templates: a user-written layout of the status lines", with the research behind it. It is
+not built yet; its [decisions](#decisions) are settled, and the work is in the roadmap's [Next up](../roadmap.md#next-up). The window's look follows
 [settings-window.md](settings-window.md). In the window and the docs the feature is called **Text lines**, because
 "template" and "presence" are not words the window uses.
 
@@ -10,13 +10,13 @@ and draws only made-up titles): [presence-templates-look.html](presence-template
 
 ## Questions answered
 
-**Which parts of the status can a user shape?** Two: the first text line (`details`) and the second line while the
-video plays (`state`). Everything else stays as it is:
+**Which parts of the status can a user shape?** Three: the first text line (`details`), the second line while the
+video plays (`state`), and, for films only, the cover's hover text (`large_text`). Everything else stays as it is:
 - **The name and type** ("Watching Sample Show", "Listening to", "Playing"). They come from Look > Style, "Show the
   title as the activity name" and the stream form, and Discord names streams after them.
-- **The cover's hover text.** For an episode it is "Season 1, Episode 2", which Discord turns into the S1E2 badge; a
-  free text would break the badge. For a film it is "Sample Movie (2020)". The player logo's hover text stays the
-  player's name.
+- **An episode's cover text.** It is "Season 1, Episode 2", which Discord turns into the S1E2 badge; a free text
+  would break the badge, so episodes keep it fixed. A film's cover text ("Sample Movie (2020)") has no badge and can
+  be shaped by Custom. The player logo's hover text stays the player's name.
 - **The progress bar and the pause line.** While paused, the second line is the pause bar (`⏸ ▰▰▱▱ 12:00 / 45:00`) as
   today, and the timestamps are not touched.
 - **Privacy always wins.** Hide what I'm watching sends "Watching a video" and the don't-show list sends nothing; text
@@ -87,9 +87,10 @@ and **Custom**. A choice comes first because most people want a different look, 
 | Short | `S01E02 · Sample Episode` / nothing | `2020` / `Dir. Sample Name` |
 | Detailed | `S01E02 · Sample Episode` / `Drama, Comedy · ★ 8.3 · on VLC media player` | `2020 · Drama, Comedy · 1:52:10` / `★ 7.1 · Dir. Sample Name · on VLC media player` |
 
-**Custom** opens four fields under the row, in two groups, Episodes and Films, each with a first and a second line.
-They start filled with the lines of the choice that was on before. Under the fields:
-- **Placeholder chips**, one per placeholder that fits the group (films get no `{code}`); a click inserts it at the
+**Custom** opens five fields under the row, in two groups: Episodes (a first and a second line) and Films (a first line,
+a second line and the cover text).
+They start filled with the lines of the choice that was on before. The cover text of every choice is today's, `{title}[ ({year})]`; an empty cover text falls back to it. Under the fields:
+- **Placeholder chips**, one per placeholder that fits the group (films get no `{code}`; the cover text takes the film's placeholders); a click inserts it at the
   cursor with a ` · ` before it when the field is not empty.
 - **A sample** of both lines for "Sample Show S01E02" and "Sample Movie (2020)", drawn like the preview, updated as
   you type. While a video plays, the status block's preview at the top shows the real card once the change is saved.
@@ -115,8 +116,8 @@ line), and the Playing style follows the same choice as Watching.
 
 **Data model.** Two settings, both new, with defaults that change nothing:
 - `textLines`: `"standard"` (default), `"short"`, `"detailed"` or `"custom"`.
-- `customLines`: a map with the keys `episodeDetails`, `episodeState`, `movieDetails` and `movieState` (default empty;
-  a missing key is an empty line).
+- `customLines`: a map with the keys `episodeDetails`, `episodeState`, `movieDetails`, `movieState` and `movieCover`
+  (default empty; a missing line key is an empty line, a missing `movieCover` is today's text).
 
 Both go into `core.Config` and `DefaultConfig`, a choice field and a custom renderer in `internal/store/schema.go`
 (the same way the `map` type is rendered today), rows in `docs/config.md` (Look), so `TestEverySettingIsDocumented`
@@ -125,30 +126,30 @@ passes. An older version ignores both keys.
 **Where it applies.** A new `internal/core/lines.go` holds `Expand(tpl string, vars map[string]string) string` and the
 presets. In `BuildActivity`, only in the branch with the title in the name and not the stream form: `episodeDetails`
 and `movieDetails` also return their parts (they already compute them), and when `textLines` is not `"standard"` the
-two lines come from `Expand`; the second goes to `stateAndTimes` in place of the season and info lines, so the pause
+two lines come from `Expand`, and a film's large image text too (episodes keep "Season N, Episode M"); the second goes to `stateAndTimes` in place of the season and info lines, so the pause
 line still wins. **Standard is not a template**: it stays today's code path, so the recorded golden data in
 `activity.json.gz` (whose configs carry no `textLines`) is reproduced byte for byte. Standard's fallbacks (the season
 name moving up when there is no episode title, a special's own words) are not template rules, and need not become
 some. `HiddenActivity` and the music path set `textLines` to `"standard"` in their copies of the settings, so privacy
 and songs cannot be reached by a template.
 
-**The window.** The choice row, the four fields, chips and the sample in `ui.html`/`ui.js`. The sample expands in the
+**The window.** The choice row, the five fields, chips and the sample in `ui.html`/`ui.js`. The sample expands in the
 page with the same four rules (a few lines of script); a Go test runs a shared table of templates, values and results
 through `Expand`, and the same table is embedded in the page's test so the two cannot drift.
 
 **Tests.** `Expand`: each rule, unknown names, brackets around empty values, separators at the ends, 128 cut, UTF-16
-counting of `★` and emoji. `BuildActivity`: each preset for an episode, a special, a film, a film without catalog data;
+counting of `★` and emoji. `BuildActivity`: each preset for an episode, a special, a film, a film without catalog data; a film's cover text (custom, empty, no year) and an episode's unchanged;
 the pause line, the stream form, Hide what I'm watching and a song unchanged with `"custom"`; the golden test unchanged.
 `TestPageScriptParses`, `TestEverySettingIsDocumented`.
 
 **Docs.** `docs/config.md` (two rows), `docs/how-it-works.md` (What shows on Discord: one bullet), the schema's help
 texts, the README's Look line if it lists the switches, a `docs/decisions.md` line (what stays fixed, and why), the
-roadmap (open decision 9 settled), the changelog.
+roadmap (Next up), the changelog.
 
-**Size.** Small to medium: about 150 lines of Go and 200 of tests, 120 of page script and markup, the docs.
+**Size.** Small to medium: about 170 lines of Go and 230 of tests, 130 of page script and markup, the docs.
 
-**First version:** the four choices and Custom with the four fields, chips and the sample. **Later:** a music line
-(`{title}` only, for "Listening to"); the cover's hover text for films; text lines for the stream form's first line;
+**First version:** the three choices and Custom with its five fields, chips and the sample (a film's cover text
+included). **Later:** a music line (`{title}` only, for "Listening to"); text lines for the stream form's first line;
 with "Show the title as the activity name" off.
 
 **Risks.**
@@ -158,13 +159,11 @@ with "Show the title as the activity name" off.
 - A later change to Standard does not move custom lines with it: custom lines are the user's.
 - Users can write odd lines. That is the feature; the 128 cut and the empty-line rule keep Discord from refusing them.
 
-## Open decisions
-The maintainer's to settle before the first version is built:
-1. **Scope of the first version:** choices plus Custom (recommended), or the three choices only, with Custom later?
-2. **Fixed parts:** keep the name, the cover's hover text, the pause line and the stream form fixed (recommended), or
-   also let Custom shape the film's cover text now?
-3. **Missing values:** `[ ]` sections plus dropped ` · ` parts (recommended), or the ` · ` rule only (simpler, but no
-   literal text like "on" next to a value)?
-4. **Value format:** values with today's marks, `★ 7.1` and `Dir. Sample Name` (recommended), or bare values
-   (`7.1`, `Sample Name`) that the user decorates?
-5. **Preset names and contents:** Standard, Short, Detailed as above (recommended), or other sets?
+## Decisions
+Settled by the maintainer on 2026-11-25; the first version is part of version 0.9.60.
+1. **Scope.** "Choices plus Custom": the three choices and Custom in the first version.
+2. **Fixed parts.** "Also a film's cover text": Custom may shape a film's cover hover text. The name, the pause line,
+   the stream form and an episode's cover text (it makes Discord's S1E2 badge) stay fixed.
+3. **Missing values.** "[ ] sections plus dropped separators."
+4. **Value format.** "With today's marks": `★ 7.1`, `Dir. Sample Name`.
+5. **Presets.** "Standard, Short, Detailed."

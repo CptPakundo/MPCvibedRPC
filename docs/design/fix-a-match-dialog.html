@@ -96,6 +96,11 @@
   .res li.wait:hover { background: none; }
   .foot { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
   .foot .help { flex: 1 1 200px; margin: 0; }
+  .scope { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 16px; color: var(--text-2); }
+  .scope label { display: flex; gap: 6px; align-items: center; overflow-wrap: anywhere; }
+  .scope b { color: var(--text); font-weight: 600; }
+  .scope input { accent-color: var(--accent); margin: 0; }
+  .covcap { margin: 8px 0 0 24px; }
   .done-head { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 12px; }
   .done-head img { width: 48px; height: 72px; border-radius: var(--r-control); flex: none; }
   .opt { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--stroke); }
@@ -152,7 +157,10 @@
           <div class="help" id="qHelp">Searches IMDb, Cinemeta, TVmaze and AniList (the catalogs on under Privacy).</div>
           <ul class="res" id="res" role="listbox" aria-label="Results"></ul>
           <div class="foot">
-            <p class="help">For every file read as <b>Sample Show</b>.</p>
+            <div class="scope" role="radiogroup" aria-label="Apply the fix to">
+              <label><input type="radio" name="scope" checked> Every file read as <b>Sample Show</b></label>
+              <label><input type="radio" name="scope"> Only this file (<b>sample.show.s01e02.1080p.mkv</b>)</label>
+            </div>
             <button class="quiet" id="cancel">Cancel</button>
             <button class="primary" id="use" disabled>Use this</button>
           </div>
@@ -172,11 +180,12 @@
             </div>
           </div>
           <div class="opt"><input type="radio" name="cov" id="covEntry" checked><label for="covEntry">This entry's cover</label></div>
-          <div class="covers" id="covers" aria-label="Other covers of this title"></div>
+          <div class="help covcap">Covers of this title from the other catalogs on under Privacy (made-up here; the real ones are asked with the usual request gaps):</div>
+          <div class="covers" id="covers" aria-label="Covers from other catalogs"></div>
           <div class="opt"><input type="radio" name="cov" id="covOwn"><label for="covOwn" style="flex:none">An image address</label><input type="text" id="own" placeholder="https://example.com/poster.jpg" spellcheck="false"></div>
           <details class="fold">
             <summary>Episodes don't line up?</summary>
-            <div class="offs">Season <input type="text" value="1" aria-label="Season in the catalog"> episode <input type="text" value="1" aria-label="Episode in the catalog"> is episode 1 of season 1 in the files.</div>
+            <div class="offs">Season <input type="text" value="0" aria-label="Season offset"> episode <input type="text" value="0" aria-label="Episode offset"> added to the numbers read from the file (0 and 0: no change). Example: file S01E02 with offset 0 and +12 is looked up as S01E14.</div>
           </details>
           <div class="foot">
             <button class="link" id="undo">Undo</button>
@@ -199,13 +208,13 @@
         <li>Each row: cover, name, year, movie or show, and the catalog. The current match says "Now".</li>
         <li>The last row keeps the old behaviour: search under the typed name, without pinning an entry.</li>
         <li>Only catalogs switched on under Privacy are asked; with all off, the box says so and only the last row is offered.</li>
-        <li>"For every file read as Sample Show": the scope in one line. All episodes of the show follow.</li>
+        <li>Scope: "Every file read as Sample Show" (the default; all episodes follow) or "Only this file" (keyed on the exact file name; it stops working if the file is renamed).</li>
       </ul>
       <h2>Step 2: Fixed</h2>
       <ul>
         <li>"Use this" saved it (settings save as they change); Undo removes it.</li>
-        <li>Cover: the entry's own, another catalog's cover of the same title, or an image address (today's "Pin a cover image").</li>
-        <li>"Episodes don't line up?" is a later step (season and episode offset), shown folded.</li>
+        <li>Cover: the entry's own, a cover of the same title from another enabled catalog, or an image address (today's "Pin a cover image"). The mockup draws made-up covers; the program asks those catalogs only when this step opens.</li>
+        <li>"Episodes don't line up?" holds the season and episode offset, added to the numbers read from the file before the lookup (folded, 0 and 0 by default). It also moves the episode title.</li>
         <li>"Tell the project about this" opens the copy-and-post dialog (second mockup). Nothing is sent by the program.</li>
       </ul>
       <p>All titles and covers here are made up.</p>

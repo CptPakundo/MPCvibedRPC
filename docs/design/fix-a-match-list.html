@@ -104,7 +104,7 @@
         <div class="group" id="fixes">
           <div class="field fix">
             <img id="c1" alt="">
-            <div class="t"><div class="n">Sample Show</div><div class="m">Sample Show (2019) · Show · IMDb</div></div>
+            <div class="t"><div class="n">Sample Show</div><div class="m">Sample Show (2019) · Show · IMDb · episodes +12</div></div>
             <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
           </div>
           <div class="field fix">
@@ -122,8 +122,13 @@
             <div class="t"><div class="n">Sample Concert</div><div class="m">Your image</div></div>
             <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
           </div>
+          <div class="field fix">
+            <span class="sq" aria-hidden="true"></span>
+            <div class="t"><div class="n">sample.movie.2020.720p.mkv</div><div class="m">Only this file · Sample Movie (2020) · Movie · Cinemeta</div></div>
+            <button class="quiet">Edit</button><button class="quiet" data-rm>Remove</button>
+          </div>
           <div class="empty hidden" id="empty">No fixes yet. When the card shows the wrong title or cover, choose <b>Wrong title or cover?</b> under it.</div>
-          <div class="add"><button id="addFix">Add a fix</button><span class="help">Each fix applies to every file read as that title.</span></div>
+          <div class="add"><button id="addFix">Add a fix</button><span class="help">A fix applies to every file read as that title, or to one file.</span></div>
         </div>
         <p class="help" style="margin:8px 2px 0">Tell the project about a fix: <button class="link" id="tell">Tell the project about this</button> (shown here only to open the dialog; in the app it sits in the Fixed dialog).</p>
       </main>
@@ -148,8 +153,8 @@ Version: 0.9.58</textarea>
       <h2>What this shows</h2>
       <p>The "Fix a match" card on Titles &amp; art once the two text boxes are gone: one row per fix, a cover, the read title, and what it was fixed to.</p>
       <ul>
-        <li>The row's name is the read title (what the fix is keyed on). The line under it says what happens: a pinned entry, "Searched as ..." (an old "Search under another name" line), or "Your image" (an old "Pin a cover image" line).</li>
-        <li>Old config lines show up as rows by themselves: the two existing keys are read and joined by title, so nothing needs migrating.</li>
+        <li>The row's name is the read title (what the fix is keyed on) or, for a fix for one file, the exact file name. The line under it says what happens: a pinned entry, "Searched as ..." (an old "Search under another name" line), "Your image" (an old "Pin a cover image" line), "Only this file", and "episodes +12" when an offset is set.</li>
+        <li>Old config lines show up as rows by themselves: the program turns them into fixes once, the first time a version with this list starts and the new setting is still empty (the design's migration section).</li>
         <li><b>Edit</b> opens the same Fix this match dialog, prefilled. <b>Remove</b> removes the row at once (settings save as they change); the bar under the window offers Undo for a few seconds, as other removals do.</li>
         <li><b>Add a fix</b> opens the dialog with an empty "read as" box, for a title that is not playing now.</li>
         <li>Empty list: one sentence pointing to where fixes start (toggle it above).</li>
@@ -157,7 +162,7 @@ Version: 0.9.58</textarea>
       <h2>Tell the project about this</h2>
       <ul>
         <li>The same pattern as Copy diagnostics: the text is shown, copied, and the GitHub issue form opens. No file name in the web address, nothing posted by the program.</li>
-        <li>The report holds the file name (never folders), what it was read as, the automatic match and the fix: exactly what a test case for the name reader needs.</li>
+        <li>The report holds the file name (never folders), what it was read as, the automatic match and the fix: exactly what a test case for the name reader needs. It is opt-in: it appears only when the user chooses it, and the program sends nothing itself.</li>
       </ul>
       <p>All titles and covers here are made up.</p>
     </aside>

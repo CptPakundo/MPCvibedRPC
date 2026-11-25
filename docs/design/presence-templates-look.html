@@ -137,9 +137,11 @@
               <h3>Films</h3>
               <div class="field"><label for="mvD">First line</label><input id="mvD" spellcheck="false"></div>
               <div class="field"><label for="mvS">Second line</label><input id="mvS" spellcheck="false"></div>
+              <div class="field"><label for="mvC">Cover text</label><input id="mvC" spellcheck="false"></div>
               <div class="chips" data-kind="mv"></div>
               <div class="bad" id="mvBad"></div>
               <div class="sample"><div class="cover film"></div><div class="pv-text"><div class="pv-name">Watching Sample Movie</div><div id="sMvD"></div><div id="sMvS"></div></div></div>
+              <div class="help" style="margin: 4px 0 0 96px">Shown when you point at the cover: <span id="sMvC"></span></div>
             </div>
             <p class="help" style="margin: 8px 0 0 96px">Parts in [ ] drop out when a value is missing. Discord shows up to 128 characters a line.</p>
           </div>
@@ -149,7 +151,7 @@
     </div>
     <aside class="notes">
       <h2>What this shows</h2>
-      <p>The Look tab with the new <b>Text lines</b> row. Pick a choice: the preview at the top changes at once. <b>Custom</b> opens four fields filled with the lines of the choice that was on before.</p>
+      <p>The Look tab with the new <b>Text lines</b> row. Pick a choice: the preview at the top changes at once. <b>Custom</b> opens five fields (a film also gets its cover text) filled with the lines of the choice that was on before.</p>
       <ul>
         <li>Click a chip to insert a placeholder at the cursor (with <code> · </code> when the field is not empty).</li>
         <li>Try <code>{seasonName}</code> on an episode: the sample has no season name, so the part drops out with its separator.</li>
@@ -157,7 +159,7 @@
         <li>"Also show S01E02 in the title line" only shows for Standard.</li>
       </ul>
       <h2>Not shaped</h2>
-      <p>The name ("Watching Sample Show"), the progress bar, the pause line, the cover's hover text (it makes the S1E2 badge), the stream form, songs and a hidden title.</p>
+      <p>The name ("Watching Sample Show"), the progress bar, the pause line, an episode's cover text (it makes the S1E2 badge; a film's cover text can be shaped), the stream form, songs and a hidden title.</p>
       <h2>Made-up data</h2>
       <p>Sample Show S01E02 "Sample Episode", Drama and Comedy, rated 8.3, in VLC. Sample Movie (2020), 1:52:10, rated 7.1, directed by Sample Name.</p>
     </aside>
@@ -179,10 +181,10 @@
   var CHIPS = { ep: ['title', 'code', 'season', 'episode', 'episodeTitle', 'seasonName', 'genres', 'rating', 'player', 'length'],
     mv: ['title', 'year', 'genres', 'rating', 'director', 'player', 'length'] };
   var PRESETS = {
-    standard: ['{episodeTitle}', '{seasonName}' + SEP + '{genres}' + SEP + '{rating}', '{year}' + SEP + '{genres}', '{rating}' + SEP + '{director}'],
-    short: ['{code}' + SEP + '{episodeTitle}', '', '{year}', '{director}'],
+    standard: ['{episodeTitle}', '{seasonName}' + SEP + '{genres}' + SEP + '{rating}', '{year}' + SEP + '{genres}', '{rating}' + SEP + '{director}', '{title}[ ({year})]'],
+    short: ['{code}' + SEP + '{episodeTitle}', '', '{year}', '{director}', '{title}[ ({year})]'],
     detailed: ['{code}' + SEP + '{episodeTitle}', '{genres}' + SEP + '{rating}' + SEP + '[on {player}]',
-      '{year}' + SEP + '{genres}' + SEP + '{length}', '{rating}' + SEP + '{director}' + SEP + '[on {player}]']
+      '{year}' + SEP + '{genres}' + SEP + '{length}', '{rating}' + SEP + '{director}' + SEP + '[on {player}]', '{title}[ ({year})]']
   };
 
   // the four rules of the design: values, [ ] sections, dropped " · " parts, trim and the 128 cut
@@ -203,12 +205,12 @@
     return out.length ? 'Unknown: ' + out.join(', ') : '';
   }
 
-  var ids = ['epD', 'epS', 'mvD', 'mvS'];
+  var ids = ['epD', 'epS', 'mvD', 'mvS', 'mvC'];
   function render() {
     var t = ids.map(function (id) { return $(id).value; });
     $('sEpD').textContent = expand(t[0], EP); $('sEpS').textContent = expand(t[1], EP);
-    $('sMvD').textContent = expand(t[2], MV); $('sMvS').textContent = expand(t[3], MV);
-    $('epBad').textContent = unknown([t[0], t[1]], EP); $('mvBad').textContent = unknown([t[2], t[3]], MV);
+    $('sMvD').textContent = expand(t[2], MV); $('sMvS').textContent = expand(t[3], MV); $('sMvC').textContent = expand(t[4], MV);
+    $('epBad').textContent = unknown([t[0], t[1]], EP); $('mvBad').textContent = unknown([t[2], t[3], t[4]], MV);
     $('pvDetails').textContent = expand(t[0], EP); $('pvState').textContent = expand(t[1], EP);
   }
   function choose() {
