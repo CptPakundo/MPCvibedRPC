@@ -523,7 +523,9 @@ A Go security fix means bumping the patch version in `go.mod` alone: every `setu
 
 ### Known flaky checks
 These have failed without a code change; read the log, then re-run once:
-- The **Chocolatey Kodi download** in `players-windows` (TLS errors from its mirror). The canary uses the same job.
+- The **Chocolatey downloads** in `players-windows` (TLS errors from a mirror, seen for Kodi): `live-windows.sh` tries
+  each install three times, 30 seconds apart, so a failure that gets through has lasted over a minute. The canary uses
+  the same job.
 - The macOS **IINA pause check** in `players` timed out once (5 s) and passed on a re-run.
 - `TestEpisodeWithoutTitleIsAskedAgainWhilePlaying` (it counts sends) and two timing tests each failed once in a
   full-suite run that came right after heavy work. Run the single test again before suspecting the change.
