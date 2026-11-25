@@ -159,3 +159,25 @@ func TestPlexProblemShownAndStoppedWithPresence(t *testing.T) {
 	e.Stop()
 	eventually(t, "stream closed", func() bool { return e.Status().Player == "" })
 }
+
+// A sign-in made while presence runs (a secret that changes) starts following Plex without a restart, and a sign-out
+// stops it.
+func TestPlexSignInWhileRunning(t *testing.T) {
+	t.Parallel()
+	p := newFakePlex(t)
+	e, _, l := plexEngine(t, deadPort(t), p)
+	token := e.cfg.PlexToken
+	e.cfg.PlexToken = ""
+	e.Start()
+	eventually(t, "started", func() bool { return l.has("Presence started.") })
+	cfg := e.Config()
+	cfg.PlexToken = token
+	e.ApplySettings(cfg)
+	eventually(t, "Plex followed", func() bool { s := e.Status(); return s.Player == "Plex" && s.PlayerAnswers })
+	cfg.PlexToken = ""
+	e.ApplySettings(cfg)
+	eventually(t, "Plex no longer followed", func() bool { return !e.Status().PlayerAnswers })
+	if l.has("Presence stopped") {
+		t.Error("a sign-in restarted the engine")
+	}
+}

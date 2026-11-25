@@ -164,7 +164,7 @@ func (e *Engine) tick(r *run) {
 		e.connectDiscord(r)
 		return
 	}
-	rpc := e.rpc
+	rpc, gen := e.rpc, e.discGen
 	if live != e.live {
 		// a stream began or ended: the same file goes out again in the other form
 		e.live, e.resend = live, true
@@ -197,7 +197,7 @@ func (e *Engine) tick(r *run) {
 	if !update {
 		return
 	}
-	e.sendUpdate(r, rpc, info, &cfg, art, now)
+	e.sendUpdate(r, rpc, gen, info, &cfg, art, now)
 }
 
 // notePlayer remembers which player answers (none: "") and logs when it changes. Called with e.mu held; it is
@@ -366,8 +366,8 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 // what was shown. A status Discord did not take stays due, but the next try waits: retryAfter, doubling up to twelve
 // times that while Discord keeps failing, so a Discord that refuses everything is not asked at every check (it
 // limits a status to five changes in 20 seconds), and the log names a repeated failure once. Called with e.mu
-// released (it takes it only for the bookkeeping).
-func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
+// released (it takes it only for the bookkeeping). gen is e.discGen as it was when rpc was taken.
+func (e *Engine) sendUpdate(r *run, rpc *discord.Client, gen uint64, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
 	b := buildActivity(info, cfg, art, &e.folders, at)
 	if !e.isCurrent(r) {
 		return
@@ -376,8 +376,10 @@ func (e *Engine) sendUpdate(r *run, rpc *discord.Client, info *core.Info, cfg *c
 	if err != nil {
 		msg := err.Error()
 		e.mu.Lock()
-		if e.cur != r {
-			e.mu.Unlock() // the run ended while Discord was asked (its connection was closed): not the next run's error
+		if e.cur != r || e.discGen != gen {
+			// the run ended while Discord was asked, or a settings change let its connection go (the status goes out again
+			// on the next one): not an error of what runs now
+			e.mu.Unlock()
 			return
 		}
 		again := e.lastError != nil && *e.lastError == msg
@@ -465,7 +467,7 @@ func (e *Engine) logShown(info *core.Info, cfg *core.Config, b built) {
 	e.log("INFO", fmt.Sprintf("%s: %s%s (%s)", word, b.display, tag, src))
 }
 
-func (e *Engine) loop(r *run, interval time.Duration) {
+func (e *Engine) loop(r *run) {
 	for {
 		func() {
 			defer func() {
@@ -475,6 +477,9 @@ func (e *Engine) loop(r *run, interval time.Duration) {
 			}()
 			e.tick(r)
 		}()
+		e.mu.Lock()
+		interval := e.pollInterval(e.cfg) // read each time: a settings change takes effect without a restart
+		e.mu.Unlock()
 		t := time.NewTimer(interval)
 		select {
 		case <-r.ctx.Done():

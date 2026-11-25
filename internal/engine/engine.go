@@ -7,7 +7,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -134,6 +133,9 @@ type Engine struct {
 	vlcProblem string             // why VLC's web interface did not answer (logged once; the window shows it)
 	remotes    []remote           // the Plex, Stremio and Jellyfin/Emby watchers of the run, in the order they are asked
 	stopRemote context.CancelFunc // ends the remotes (they stop while resting)
+	stopWatch  context.CancelFunc // ends the player watch (watchPlayers); a settings change for the players starts another
+	stopShare  context.CancelFunc // ends the screen-share watch (nil: none runs; it runs while streamTitle is "auto")
+	discGen    uint64             // counts the Discord connections dropped for new settings: an attempt of an older one is let go
 	resting    bool               // Discord is not running: nothing is asked until it is (see Options.MayRest)
 	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nudges     nudger             // early checks after mpv or IINA reported a change (events.go)
@@ -150,8 +152,6 @@ type Engine struct {
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
 	pauseCleared bool
-	// carry is what a settings change hands from the stopped run to the next one (see ApplySettings); nil otherwise
-	carry        *carried
 	hidden       bool          // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
 	minPoll      time.Duration // the pace (see Options.MinPoll, ReclearEvery and RecheckAfter)
@@ -279,32 +279,54 @@ func (e *Engine) start() {
 	e.cur = r
 	e.basicMode, e.noLinks, e.prev, e.shown, e.warnedDisc, e.player = false, false, nil, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
-	if c := e.carry; c != nil { // a restart for new settings (ApplySettings): before the first check can run
-		e.prev, e.pausedSince, e.pauseCleared = c.prev, c.pausedSince, c.pauseCleared
-	}
-	e.carry = nil
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
 	e.lastError, e.nowPlaying, e.why = nil, nil, nil
 	e.resend, e.modeKey, e.sendFails, e.retryAt, e.live, e.missed = false, "", 0, time.Time{}, false, false
 	e.clearStuck, e.clearedAt = false, time.Time{}
 	e.recheckKey, e.recheckAt, e.rechecks = "", time.Time{}, 0
 	cfg := e.cfg
-	cfgCopy := cfg
-	e.art = artwork.New(&cfgCopy, artwork.Options{
+	e.art = e.newArtwork(cfg)
+	e.remotes, e.stopRemote, e.resting = nil, nil, false // the first check starts them (unless it rests)
+	e.startPlayerWatch(r)
+	e.startShareWatch(r, cfg)
+	e.mu.Unlock()
+	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
+	go e.loop(r) // recovers from a panic in a check itself
+}
+
+// newArtwork makes the cover and title finder for the settings cfg (it keeps a copy of them).
+func (e *Engine) newArtwork(cfg core.Config) *artwork.Artwork {
+	return artwork.New(&cfg, artwork.Options{
 		CacheFile:  e.opts.CacheFile,
 		Log:        e.log,
 		Client:     e.opts.HTTPClient,
 		OnResolved: func(*core.Art) { e.mu.Lock(); e.resend = true; e.mu.Unlock() },
 	})
-	e.remotes, e.stopRemote, e.resting = nil, nil, false // the first check starts them (unless it rests)
-	e.mu.Unlock()
-	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
-	go e.loop(r, e.pollInterval(cfg)) // recovers from a panic in a check itself
-	Go(e.log, "The player watch", func() { e.watchPlayers(r) })
-	if cfg.StreamTitle == "auto" {
-		// a stream that begins or ends shows at once, not at the next check
-		Go(e.log, "The screen share watch", func() { e.watchSharing(r.ctx, e.Wake) })
+}
+
+// startPlayerWatch starts the player watch of run r (watchPlayers), ending the one before (e.mu held).
+func (e *Engine) startPlayerWatch(r *run) {
+	if e.stopWatch != nil {
+		e.stopWatch()
 	}
+	ctx, cancel := context.WithCancel(r.ctx)
+	e.stopWatch = cancel
+	Go(e.log, "The player watch", func() { e.watchPlayers(ctx) })
+}
+
+// startShareWatch starts the screen-share watch of run r when streamTitle is "auto", ending the one before (e.mu
+// held): a stream that begins or ends then shows at once, not at the next check.
+func (e *Engine) startShareWatch(r *run, cfg core.Config) {
+	if e.stopShare != nil {
+		e.stopShare()
+		e.stopShare = nil
+	}
+	if cfg.StreamTitle != "auto" {
+		return
+	}
+	ctx, cancel := context.WithCancel(r.ctx)
+	e.stopShare = cancel
+	Go(e.log, "The screen share watch", func() { e.watchSharing(ctx, e.Wake) })
 }
 
 // Stop clears the presence (waiting at most 1.5 s for Discord) and disconnects.
@@ -326,30 +348,15 @@ func (e *Engine) stop() {
 	e.mu.Unlock()
 	r.cancel()
 
-	if c != nil && ready {
-		done := make(chan struct{})
-		go func() { _ = c.ClearActivity(); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(1500 * time.Millisecond):
-		}
-	}
 	if c != nil {
-		// Closing a pipe that is stuck in a write (Discord stopped reading) can block in Windows until the write
-		// ends; stopping, and quitting, must not wait for that.
-		closed := make(chan struct{})
-		go func() { c.Close(); close(closed) }()
-		select {
-		case <-closed:
-		case <-time.After(1500 * time.Millisecond):
-			e.log("WARN", "Discord did not let go of the connection; leaving it behind.")
-		}
+		closeDiscord(e.log, c, ready)
 	}
 	e.mu.Lock()
 	e.rpc, e.ready, e.connecting, e.shown, e.prev, e.resend = nil, false, false, false, nil, false
 	e.nowPlaying, e.preview = nil, nil
 	e.pausedSince, e.pauseCleared, e.hidden, e.paused = time.Time{}, false, false, false
 	e.remotes, e.stopRemote, e.resting = nil, nil, false // their runs ended with the run's context
+	e.stopWatch, e.stopShare = nil, nil                  // so did the watches
 	save := e.statSnapshot(time.Now())
 	if save == nil {
 		save = e.statLast // a write another goroutine took but has not finished: wait for it, so Quit loses nothing
@@ -362,45 +369,6 @@ func (e *Engine) stop() {
 	e.writeStats(save)
 	e.folders.forget()
 	e.log("INFO", "Presence stopped.")
-}
-
-// ApplySettings restarts the engine with new settings if it was running. Settings that did not change (a save of
-// an app-only option such as "Start with Windows") leave it alone, so Discord is not cleared and reconnected for nothing.
-func (e *Engine) ApplySettings(cfg core.Config) {
-	e.stopMu.Lock()
-	defer e.stopMu.Unlock()
-	e.mu.Lock()
-	was := e.cur != nil
-	same := reflect.DeepEqual(e.cfg, cfg)
-	e.mu.Unlock()
-	if same {
-		return
-	}
-	var keep *carried
-	if was {
-		// What the player last reported and the pause clock go on into the new run: a settings change is not a change
-		// by the player, so it must not bring back a status cleared after a long pause, nor restart the pause wait.
-		e.mu.Lock()
-		if e.prev != nil {
-			keep = &carried{prev: e.prev, pausedSince: e.pausedSince, pauseCleared: e.pauseCleared}
-		}
-		e.mu.Unlock()
-		e.stop()
-	}
-	e.mu.Lock()
-	e.cfg = cfg
-	e.carry = keep
-	e.mu.Unlock()
-	if was {
-		e.start()
-	}
-}
-
-// carried is the playback state a settings change keeps across the restart of the run.
-type carried struct {
-	prev         *core.Prev
-	pausedSince  time.Time
-	pauseCleared bool
 }
 
 // ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is
