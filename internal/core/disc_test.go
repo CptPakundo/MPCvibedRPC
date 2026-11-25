@@ -25,9 +25,9 @@ func TestDiscTitle(t *testing.T) {
 	// No title to be had: the number stays, and stays junk (not looked up unless Fix a match names it).
 	for _, p := range []string{
 		`E:\BDMV\STREAM\00062.m2ts`,                       // a disc's root: the engine reads its name from the disc
-		`E:\PRIVATE\AVCHD\BDMV\STREAM\00000.MTS`,         // a camcorder
-		`/media/user/BDROM/BDMV/STREAM/00062.m2ts`,       // a generic label
-		`D:\Movies\Disc 2\BDMV\STREAM\00062.m2ts`,        // nothing above "Disc 2"
+		`E:\PRIVATE\AVCHD\BDMV\STREAM\00000.MTS`,          // a camcorder
+		`/media/user/BDROM/BDMV/STREAM/00062.m2ts`,        // a generic label
+		`D:\Movies\Disc 2\BDMV\STREAM\00062.m2ts`,         // nothing above "Disc 2"
 		`D:\Movies\Sample Movie (2020)\STREAM\00062.m2ts`, // STREAM alone is no disc
 	} {
 		in := NewInfo("x", p, "", 2, 0, 0, 1)

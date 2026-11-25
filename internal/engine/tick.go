@@ -73,7 +73,11 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, fold
 		core.Listening(b.activity)
 		b.display = media.Display
 	default:
-		media := core.ParseMedia(info.File, cfg, info.Dir)
+		dirs := info.Dir
+		if cfg.UseFolderName {
+			dirs = discDirs(dirs, info.FullDir, folders) // a disc at a drive's root names itself
+		}
+		media := core.ParseMedia(info.File, cfg, dirs)
 		if info.Duration > 0 {
 			media.DurationMin = int(math.Floor(float64(info.Duration)/60000 + 0.5))
 		}

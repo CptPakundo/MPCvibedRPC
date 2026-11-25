@@ -16,6 +16,10 @@ type folderNames struct {
 	mod       time.Time
 	names     []string
 	reads     int // how often a folder was read (tests)
+
+	// the name of a disc played from a drive's root (disc.go), with its root and when it was read
+	discRoot, disc string
+	discAt         time.Time
 }
 
 // list returns the names in dir for the file that plays (nil when the folder cannot be read).
