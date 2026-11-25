@@ -175,11 +175,12 @@ on every system.
 | `tools/mkrsrc` | exe resources (version info, icon, DPI manifest) |
 | `tools/mkico` | the icon generator (`-icns`: the macOS app icon; `-dot`: the update dot) |
 | `tools/relnotes` | the release text, rendered from the changelog |
+| `tools/doclinks` | only a test: every relative link and anchor in the Markdown files resolves |
 | `tools/screenshots` | `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
 | `tools/downloads` | the project's own download count (on the `stats` branch; see [CI](#ci)) |
 | `tools/downloads/reset-counts.sh` | starts the release files' download counts again from 0 (rewrites every asset; [how](maintaining.md#resetting-the-download-counts)) |
 | `tools/ci` | the CI scripts; see the list below |
-| `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, `design/` (design proposals and the window's look), `research/` (reports on Discord's card and on immutable releases), this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`) |
+| `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, `design/` (design proposals and the window's look), `research/` (reports on Discord's card and on immutable releases), this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`). **Every install fetches the logos from `docs/players/<name>.png` on the `master` branch** (`PlayerIconBase`): never move, rename or delete a logo or rename `master`; adding one is fine |
 
 `tools/ci`:
 - `smoke.ps1`, `smoke-unix.sh`: the smoke tests (Windows: also DPI awareness, version details and resting).
@@ -278,8 +279,9 @@ reads what plays.
 - VLC 3 rounds `time` to whole seconds (position x length is used); VLC 4 uses a flat playlist.
 - With the default app name, the tooltip names mpv and VLC as themselves, and the default corner icon (MPC's logo) is
   left out for players outside the MPC family.
-- The default Discord application (`clientId`, which holds the `mpc-hc` images) was registered by the upstream
-  project, not by this one: every install depends on it staying there.
+- The default Discord application (`clientId`) was registered by the upstream project, not by this one: every install
+  depends on it staying there. It holds only a few images (`default`, `pause_small`, `play_small`, `stop_small` and
+  `mpcbe_logo`, checked 2026-11-21); the player logos, the MPC family's too, are fetched from `docs/players` (below).
 
 ### Set up the player connection
 `winsys.EnableMpcWebInterface`:
@@ -402,10 +404,11 @@ Any host the code names (a service, a link, an image) goes in `core.Hosts` (or `
 Where it connects; `TestEveryHostIsListed` scans the code and the page and fails otherwise.
 
 ## Testing
-`go test -count=1 ./...` runs everything:
+`go test -count=1 ./...` runs nearly everything:
 - the parsers, artwork matching and activity builder against the golden data (tens of thousands of cases);
 - the engine against fakes: MPC-HC, mpv, VLC, Plex, Stremio, Jellyfin / Emby and Discord;
-- the whole program, built and driven end to end.
+- the whole program, built and driven end to end (not on Windows: `TestEndToEnd` and `TestEndToEndUpdateRollback`
+  skip there, and the Windows smoke test in CI covers them; they run on Linux and macOS, the rollback test on Linux only).
 
 What CI adds (the race detector, the lint gates, the smoke tests, the live jobs and the canary) is in [CI](#ci). How to
 run a copy or a real player without touching an installed setup: [Running the program safely](#running-the-program-safely).
@@ -418,6 +421,8 @@ run a copy or a real player without touching an installed setup: [Running the pr
 - `TestPageScriptParses` (`internal/assets`): `node --check` on `ui.js` (skips without Node.js).
 - `TestChangelog` (`cmd/mpcvibedrpc`): the newest changelog entry is the version in `main.go`.
 - `tools/relnotes`'s test: the release text renders from `internal/assets/changelog.json`.
+- `TestLinksResolve` (`tools/doclinks`): every relative link and `#anchor` in every Markdown file resolves (GitHub's
+  anchor rules; links to other websites are not followed).
 
 ### Writing tests
 - `tools/ci/test-noskip.sh` fails CI when a test skips that should run on that OS. A new test that is Linux-only,
@@ -465,7 +470,7 @@ actions `.github/actions/build-windows` and `build-unix`, shared with `release.y
 Other workflows:
 - **`docs.yml`** (every push to a branch other than `master` and every pull request, with no paths filter): runs only
   the tests that read the documentation (`TestEverySettingIsDocumented`, `TestPlayersAreNamedEverywhere`,
-  `TestEveryHostIsListed`, `TestSecurityListsEveryHost` and `tools/relnotes`' tests), because `ci.yml` skips a change
+  `TestEveryHostIsListed`, `TestSecurityListsEveryHost`, `tools/relnotes`' tests and `tools/doclinks`), because `ci.yml` skips a change
   that touches only documentation.
 - **`release.yml`** (on a tag): tests, builds, smoke-tests and publishes; it does not run the lint gates (they gate the
   pull request before the merge). See [maintaining.md](maintaining.md#releasing).
@@ -491,10 +496,9 @@ A Go security fix means bumping the patch version in `go.mod` alone: every `setu
   must source it. `run-annotated.sh` fails a step whose script did not reach `done_file` when `PASSED_FILE` is set: CI
   scripts write `$PASSED_FILE` at their end and steps check it.
 - The concurrency group must include the event action.
-- Before re-running a failed job, save its log ([pitfalls](maintaining.md#pitfalls)).
 
 ### Known flaky checks
-These have failed without a code change; read the log, then re-run once (after saving the log):
+These have failed without a code change; read the log, then re-run once:
 - The **Chocolatey Kodi download** in `players-windows` (TLS errors from its mirror). The canary uses the same job.
 - The macOS **IINA pause check** in `players` timed out once (5 s) and passed on a re-run.
 - `TestEpisodeWithoutTitleIsAskedAgainWhilePlaying` (it counts sends) and two timing tests each failed once in a

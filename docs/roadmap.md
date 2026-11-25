@@ -2,7 +2,7 @@
 
 Where MPCvibedRPC is heading, what it deliberately leaves out, and the outside changes it has to watch. It comes from
 a research pass over Discord's documentation, the projects the program reads from, similar presence tools and their
-users, and distribution channels (last reviewed 2026-11-25, with 0.9.57).
+users, and distribution channels (last reviewed 2026-11-25, with 0.9.58).
 
 Keep it current: when a change moves a goal, finishes a step, or settles a decision, update this page in the same pull
 request. Re-check the watch list about twice a year (with each Go release, in February and August).
@@ -14,33 +14,34 @@ Every goal has to fit these:
 - **Private by design**: no telemetry, no account of its own, no image uploads, stats that are counts only, and every
   online service switchable off.
 - **Honest**: openly made with AI, and exact about what was tested for real.
+- **It acts by itself in the right situation**: a feature that can tell from what is happening should do the right
+  thing on its own rather than be a switch someone must remember (the stream title and resting, in
+  [decisions](decisions.md#behaviour)).
 - **Windows first**: MPC-HC's behaviour never changes when something is added; macOS and Linux follow without
   costing Windows anything.
 
 ## Next up
-Work anyone can pick up without a decision from the maintainer. Each entry says what and where, and how to tell it is
+Work anyone can pick up without a decision from the maintainer (work that waits on one is under [Open decisions](#open-decisions-the-maintainers)). Each entry says what and where, and how to tell it is
 done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBUTING.md#picking-up-work).)
-1. **The Fix a match redesign, first version** as in [design/fix-a-match.md](design/fix-a-match.md), after its four open
-   decisions are settled. Done when the dialog and the list replace the two text boxes, with the tests the design names.
-2. **A settings change restarts the run and reconnects to Discord** (`internal/engine/engine.go`, `ApplySettings`).
+1. **A settings change restarts the run and reconnects to Discord** (`internal/engine/engine.go`, `ApplySettings`).
    Restart only what a setting needs, so the status does not blink and Discord's rate limit is not hit. Done when a
    change that touches no player or Discord setting leaves the connection open (an engine test against the fake Discord).
-3. **Behaviour tests for the settings page's script** (`internal/assets/ui.js`): a few tests with a stubbed `fetch` for
+2. **Behaviour tests for the settings page's script** (`internal/assets/ui.js`): a few tests with a stubbed `fetch` for
    the saver and the status sync. Today only `TestPageScriptParses` (`node --check`) covers it.
-4. **Tests for how the window's X quits** (`cmd/mpcvibedrpc/window.go`): the order of the dropped `/api/alive`
+3. **Tests for how the window's X quits** (`cmd/mpcvibedrpc/window.go`): the order of the dropped `/api/alive`
    connection and the window-handle polling. Also check whether `inTray` stays true when closing the window fails; if
    it does, a later X would not quit.
-5. **Historic names in the code.** The API's `mpc-web`, `winsys.EnableMpcWebInterface` and `Status.MPC` cover every
+4. **Historic names in the code.** The API's `mpc-web`, `winsys.EnableMpcWebInterface` and `Status.MPC` cover every
    player. Rename them; the page and the server ship together, so they change together. Done when no name says MPC for
    a thing that serves all players.
-6. **Split `core.Config`.** User settings, sign-in secrets and test hooks are one flat struct, compared with
+5. **Split `core.Config`.** User settings, sign-in secrets and test hooks are one flat struct, compared with
    `reflect.DeepEqual` to decide a restart (`engine.go`). Separate them so a secret or a hook cannot cause a restart.
-7. **The settings window in Chrome, Brave or Vivaldi** instead of Edge: does the taskbar identity (name, pin, icon)
+6. **The settings window in Chrome, Brave or Vivaldi** instead of Edge: does the taskbar identity (name, pin, icon)
    apply there?
-8. **MPC-QT's multi-window mode** with a portable build and the live engine test.
-9. **The stream title on Linux:** research how to tell that Discord shares the screen (PipeWire, the screen-cast
+7. **MPC-QT's multi-window mode** with a portable build and the live engine test.
+8. **The stream title on Linux:** research how to tell that Discord shares the screen (PipeWire, the screen-cast
    portal). Today Linux chooses always or never ([decision](decisions.md#behaviour)).
-10. **CI: the Chocolatey Kodi download** (TLS errors from its mirror) fails `players-windows` now and then, and the
+9. **CI: the Chocolatey Kodi download** (TLS errors from its mirror) fails `players-windows` now and then, and the
     canary uses it. Add a retry or another source ([known flaky checks](development.md#known-flaky-checks)).
 
 ## Goals
@@ -81,8 +82,8 @@ The updater checks a checksum from the same release, so anyone able to publish a
 Trust on Windows is built per file: SmartScreen reputation starts again with every build, SignPath approves every
 release by hand, and winget needs one pull request per version. Frequent releases work against all three.
 - Steps: a stable release about once a month, pre-releases in between, and a 1.0 that promises calm maintenance;
-  winget (it marks its downloads as trusted), a Scoop bucket and a Homebrew tap of the project's own (Homebrew's
-  official cask list does not accept unsigned apps since 2026-09-01); announcements written by hand in the communities
+  a Homebrew tap of the project's own (Homebrew's official cask list does not accept unsigned apps since 2026-09-01);
+  winget and a Scoop bucket come after signing ([why they wait](#considered-and-left)); announcements written by hand in the communities
   of the supported players; then SignPath Foundation's free signing once the project is visibly used (it declines
   projects without independent references).
 
@@ -140,12 +141,15 @@ Each of these sank or burdened a similar tool, or breaks a principle:
 
 ## Considered and left
 Ideas weighed and not done, each with its reason, so nobody has to weigh them again:
-- **`.gitattributes` with `eol=lf`:** it would change every Windows working copy at once.
+- **`.gitattributes` with `eol=lf`:** it would change every Windows working copy at once. (`* text=auto` is in place:
+  it keeps the index LF and leaves each system's own line ends in the working copy.)
 - **Pinning the live tests' images and player versions in pull-request runs:** pins need upkeep, and the weekly canary
   tries the newest versions anyway.
 - **Building with `-tags nethttpomithttp2`:** saves about 0.6 MB, not worth the divergence.
 - **UPX compression:** antivirus programs flag compressed executables.
-- **Scoop or winget manifests before the exe is signed:** see goal 4 and [decisions](decisions.md#releases).
+- **Scoop or winget manifests before the exe is signed:** they wait for signing (the last step of goal 4). *Why:*
+  trust on Windows is built per file and winget needs a pull request per version, so frequent unsigned releases work
+  against both; the signing decision is under [Releases](decisions.md#releases).
 - **Fetching episode lists less often than every 10 minutes:** that is the cache's life; a longer one delays a new
   episode's title.
 - **MPRIS keeping its bus connection** instead of opening one per check: a kept connection adds states that only CI
@@ -171,8 +175,10 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 9. Presence templates: a user-written layout of the two status lines.
 10. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
     tray notice when automatic installs are off.
-11. Fix a match's four decisions: scope, sharing, covers in the first version, and a season and episode offset
-    ([design](design/fix-a-match.md#open-decisions)).
+11. The Fix a match redesign ([design](design/fix-a-match.md)) waits on four decisions: scope, sharing, covers in the
+    first version, and a season and episode offset ([the questions](design/fix-a-match.md#open-decisions)). Once they are
+    settled the first version is work for Next up; it is done when the dialog and the list replace the two text boxes,
+    with the tests the design names.
 
 Settled: the macOS minimum is 13.
 
@@ -184,7 +190,7 @@ Outside facts the program depends on, with the date they were last checked.
 | Discord local presence | Documented and supported without sign-in (changelog 2026-04-03; Android since 2026-07-28). Settings group "Activity" renamed "Games & Apps" (2026-08-04). No later change to Rich Presence in the developer changelog (checked 2026-11-11). | Any move to signed-in-only presence, or limits on Watching or the activity name for non-games. |
 | Discord stream labels | A screen share is named after the streamer's first *Playing* activity, never a Watching one, and a profile shows one card per application, Playing first (checked 2026-11-21; [decision](decisions.md#behaviour)). The program tells a share from the thread `RsVideoSource` in Discord's app (Discord 1.0.9267, checked 2026-11-11). Windows' capture record (`ConsentStore\graphicsCaptureProgrammatic`) is no longer written to the registry on Windows 11 25H2 and later (it moved to a database only administrators can read). `SCREENSHARE_STATE_UPDATE` needs `rpc.screenshare.read`, which only approved applications get. Which of two Playing statuses names a stream is not documented. What each field shows on a card: [research](research/discord-rich-presence.md). | Discord naming streams after Watching activities too (the setting could then go), Discord opening the screen-share event to local programs, Discord renaming that thread (then `auto` sees no stream: Help > Run a check shows it), or a way to tell on macOS and Linux. |
 | Go and operating systems | Go 1.27 needs macOS 13; Windows 10 stays supported. Discord dropped macOS 11 and 12 in 2026. Go 1.27.3 (2026-10-19) distrusts a set of CA intermediates (GO-2026-6809); the builds use it (checked 2026-10-22). Go 1.27.4 fixes a crash of HTTP servers that limit a request's size, as the settings page's server does (GO-2026-6859, published 2026-11-11); the builds use it. Go 1.27.4 is still the newest release (checked 2026-11-11). | Each Go release's notes (February, August), and govulncheck on CI for security releases between them. |
-| Plex | New short-lived tokens since 2025-09; old tokens still accepted. "Plex2Shell" (CVE-2026-96652/96654/96655/96656): Plex Media Server 1.43.2 and older can be taken over without a sign-in and give away the maintainer's token; fixed in 1.43.3.10861, exploited since 2026-10-17 (checked 2026-10-22). Not a breach of plex.tv. The program sends a server a token only after it has shown its identity, and never the account's token to a shared server. Plex's download feed lists Plex Media Server 1.43.5.11079 as current (checked 2026-11-11). | A retirement date for old tokens; a breach of plex.tv itself (then everyone signs in again). |
+| Plex | New short-lived tokens since 2025-09; old tokens still accepted. "Plex2Shell" (CVE-2026-96652/96654/96655/96656): Plex Media Server 1.43.2 and older can be taken over without a sign-in and give away the server owner's token; fixed in 1.43.3.10861, exploited since 2026-10-17 (checked 2026-10-22). Not a breach of plex.tv. The program sends a server a token only after it has shown its identity, and never the account's token to a shared server. Plex's download feed lists Plex Media Server 1.43.5.11079 as current (checked 2026-11-11). | A retirement date for old tokens; a breach of plex.tv itself (then everyone signs in again). |
 | Jellyfin, Emby | Jellyfin 12 removed the old headers and routes; only endpoints in its OpenAPI spec are kept between majors. Jellyfin 12.0 came out 2026-09-07 and 12.4 on 2026-10-26 (checked 2026-11-11). | A new Jellyfin major; Emby API changes. |
 | Stremio | Saves playback every 180 s in newer apps (90 s in older ones); both handled. stremio-core-web 0.65.1 (2026-10-12) says it "pushes library items every 180 seconds"; the constant itself was not read (checked 2026-11-11). | Another change to `PUSH_TO_LIBRARY_EVERY` in stremio-core. |
 | Catalog services | The public Jikan API closed on 2026-10-01: `jikan` left the default source lists, and a self-hosted Jikan still works (`jikanBase`). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (given). On 2026-10-17 TVmaze's search took 30 to 55 s for any query it had not cached (then cached for an hour; an aborted request does not warm it; shows and episodes answered at once): the program waits for it in the background. And Bulbapedia refused GitHub's runners (HTTP 403), so the canary cannot check it. | A service failing the weekly check (goal 1). |

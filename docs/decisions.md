@@ -109,11 +109,11 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
 - **Standard library only, including the Windows plumbing** (reaffirmed 2026-10-25). The tray, window, registry and
   process code in `internal/winsys` is written against Go's `syscall` package by hand rather than the Go team's
   `golang.org/x/sys/windows`. *Why:* "standard library only" is a promise the README makes, and the hand-written code
-  was audited correct (layouts, handles, bounds) and is exercised by the Windows smoke test on every run. The question
+  was reviewed in an AI-run code audit (layouts, handles, bounds) and is exercised by the Windows smoke test on every run. The question
   comes back only if that code has to grow materially.
 
 ## Releases
-- **Versions stay 0.9.x, three-part.** *Why:* the updater compares three numbers; a fix takes the next number.
+- **Versions are three-part, and stay 0.9.x until 1.0.** *Why:* the updater compares three numbers, so a fix takes the next number; the roadmap's [goal 4](roadmap.md#4-reach-the-people-it-is-for-calmly) names the 1.0 that promises calm maintenance.
 - **The README shows GitHub's own download count** (2026-10-25); the project's exact count of people (without its own
   downloads) stays on the `stats` branch ([how](development.md#ci)). The program itself never reports anything. *Why:*
   the badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page.
@@ -121,8 +121,7 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   it cannot pick the visitor's system for them, and a separate page was not wanted.
 - **Releases are bundles** (2026-11-11): a version collects several changes; only a fix for something broken, or a
   security fix, ships alone and at once. *Why:* every release takes checks, attention and a restart of each install,
-  and three versions in one evening showed that single small improvements are not worth that. Windows SmartScreen and
-  package managers also trust calm releases more.
+  and three versions in one evening showed that single small improvements are not worth that.
 - **The release text is the changelog** (2026-10-24): the GitHub release's body is rendered from the in-app changelog's
   newest entry (`tools/relnotes`), plus a hand-written block only when a release needs one (a security note). *Why:*
   the same facts were written twice, in two wordings, for every release, and nothing checked that the second text was
