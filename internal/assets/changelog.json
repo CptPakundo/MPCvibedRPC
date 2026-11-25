@@ -1,4 +1,16 @@
 [
+  {"version": "0.9.60", "date": "2026-11-25", "items": [
+    "✨ MPCvibedRPC is now MPRP, Media Player Rich Presence, with a new logo. Your settings and start-up entry move over by themselves.",
+    "🎮 The status comes from the project's own Discord app: it reads \"Watching MPRP\" when the title is not the name.",
+    "🎯 Fix a match is new: search the catalogs as you type, then pick the title, cover and episode offset, for one file or all.",
+    "✏️ Text lines on the Look tab: Standard, Short, Detailed, or lines of your own for the status.",
+    "⚡ Saving a setting no longer reconnects to Discord, so the status stays put.",
+    "🔐 On Windows, saved sign-ins are encrypted. Going back to an older version means signing in again.",
+    "🔔 Linux and macOS show the same update notices as Windows; macOS asks once whether MPRP may notify.",
+    "🍎 macOS: the app has a new identity, so it may ask again for Local Network access.",
+    "🪟 The settings window's taskbar button has MPRP's own sharp icon. A pin made under the old name stays separate.",
+    "🐛 Fixed: the window's X quits again after a close to the tray did not go through."
+  ]},
   {"version": "0.9.58", "date": "2026-11-25", "items": [
     "💿 Blu-ray and DVD movies get their real title and cover, from the disc's folder, its own title or its label.",
     "🛠️ Fixed: Fix a match now also works for files named only by a number.",
