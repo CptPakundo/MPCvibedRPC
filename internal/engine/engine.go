@@ -284,7 +284,7 @@ func (e *Engine) start() {
 	e.startPlayerWatch(r)
 	e.startShareWatch(r, cfg)
 	e.mu.Unlock()
-	e.log("INFO", "Presence started. Looking for a player on "+lookingOn(cfg)+".")
+	e.log("INFO", "Sending the status to Discord. Looking for a player on "+lookingOn(cfg)+".")
 	go e.loop(r) // recovers from a panic in a check itself
 }
 
@@ -362,7 +362,7 @@ func (e *Engine) stop() {
 	e.mu.Unlock()
 	e.writeStats(save)
 	e.folders.forget()
-	e.log("INFO", "Presence stopped.")
+	e.log("INFO", "Stopped sending the status to Discord.")
 }
 
 // ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is

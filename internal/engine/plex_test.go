@@ -128,7 +128,7 @@ func TestPlexNotAskedWithoutSignIn(t *testing.T) {
 	e, _, l := plexEngine(t, deadPort(t), p)
 	e.cfg.PlexToken = ""
 	e.Start()
-	eventually(t, "a few ticks", func() bool { return l.has("Presence started.") })
+	eventually(t, "a few ticks", func() bool { return l.has("Sending the status to Discord.") })
 	for i := 0; i < 3; i++ {
 		eventually(t, "no player", func() bool { return !e.Status().PlayerAnswers })
 	}
@@ -169,7 +169,7 @@ func TestPlexSignInWhileRunning(t *testing.T) {
 	token := e.cfg.PlexToken
 	e.cfg.PlexToken = ""
 	e.Start()
-	eventually(t, "started", func() bool { return l.has("Presence started.") })
+	eventually(t, "started", func() bool { return l.has("Sending the status to Discord.") })
 	cfg := e.Config()
 	cfg.PlexToken = token
 	e.ApplySettings(cfg)
@@ -177,7 +177,7 @@ func TestPlexSignInWhileRunning(t *testing.T) {
 	cfg.PlexToken = ""
 	e.ApplySettings(cfg)
 	eventually(t, "Plex no longer followed", func() bool { return !e.Status().PlayerAnswers })
-	if l.has("Presence stopped") {
+	if l.has("Stopped sending the status to Discord") {
 		t.Error("a sign-in restarted the engine")
 	}
 }

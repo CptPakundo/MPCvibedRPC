@@ -234,7 +234,7 @@ func Report(in Input) string {
 	}
 	w("")
 	w("State")
-	w("  Presence on: %s", yn(in.Status.Running))
+	w("  Showing on Discord: %s", yn(in.Status.Running))
 	w("  Discord: %s", in.Status.Discord)
 	if in.Status.PlayerAnswers && in.Status.Player != "" {
 		w("  Player reachable: yes (%s)", in.Status.Player)
@@ -257,7 +257,7 @@ func Report(in Input) string {
 	}
 	w("")
 	w("App settings")
-	w("  start with Windows: %s, start presence at launch: %s, show window at launch: %s, minimize to the tray: %s, check for updates: %s, install them automatically: %s", yn(in.App.AutoStart), yn(in.App.StartPresence), yn(in.App.OpenWindow), yn(in.App.MinimizeToTray), yn(in.App.CheckUpdates), yn(in.App.AutoUpdate))
+	w("  start with Windows: %s, show on Discord when the app opens: %s, show window at launch: %s, minimize to the tray: %s, check for updates: %s, install them automatically: %s", yn(in.App.AutoStart), yn(in.App.StartPresence), yn(in.App.OpenWindow), yn(in.App.MinimizeToTray), yn(in.App.CheckUpdates), yn(in.App.AutoUpdate))
 	if in.App.UpdateRepo != store.DefaultUpdateRepo {
 		w("  update source: (custom)")
 	}

@@ -37,7 +37,7 @@ func TestUnchangedSettingsSendNothing(t *testing.T) {
 	cfg.ProgressWidth++
 	e.ApplySettings(cfg)
 	eventually(t, "sent again for a real change", func() bool { return len(d.list()) > n })
-	if strings.Contains(strings.Join(l.list(), "\n"), "Presence stopped.") {
+	if strings.Contains(strings.Join(l.list(), "\n"), "Stopped sending the status to Discord.") {
 		t.Fatal("a settings change restarted the engine")
 	}
 }

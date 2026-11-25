@@ -58,7 +58,7 @@ func TestFailedClearIsRetried(t *testing.T) {
 	d.mu.Lock()
 	d.failClears = false
 	d.mu.Unlock()
-	eventually(t, "cleared", func() bool { return l.has("Nothing playing - presence cleared.") })
+	eventually(t, "cleared", func() bool { return l.has("Nothing playing - status cleared.") })
 	k := len(d.list())
 	time.Sleep(600 * time.Millisecond) // more checks: no clear storm once one worked
 	if extra := clears(d, k); extra > 0 {
@@ -80,7 +80,7 @@ func TestNothingPlayingIsClearedAgainNowAndThen(t *testing.T) {
 	cleared := 0
 	l.mu.Lock()
 	for _, s := range l.l {
-		if s == "INFO Nothing playing - presence cleared." {
+		if s == "INFO Nothing playing - status cleared." {
 			cleared++
 		}
 	}
@@ -101,7 +101,7 @@ func TestPausedAtTheEndClears(t *testing.T) {
 	m.set(func(m *mpc) { m.state, m.pos = 1, m.dur-1000 })
 	eventually(t, "cleared", func() bool { return clears(d, n) >= 1 })
 	// Discord gets the clear a moment before the log and the status say so
-	eventually(t, "logged as ended", func() bool { return l.has("The video ended - presence cleared.") && e.Status().NowPlaying == nil })
+	eventually(t, "logged as ended", func() bool { return l.has("The video ended - status cleared.") && e.Status().NowPlaying == nil })
 	m.set(func(m *mpc) { m.state, m.pos = 2, 60000 }) // played again from earlier on: shown again
 	eventually(t, "shown again", func() bool { return e.Status().NowPlaying != nil })
 }
