@@ -314,6 +314,7 @@ func (a *app) openWindow() {
 	a.opened.Add(1)
 	a.winHandle.Store(0)
 	a.inTray.Store(false)
+	winsys.StopWindowIcon() // the window before, if any, is no longer looked after
 	mode := winsys.OpenWindow(windowURL(a.srv.Port(), a.srv.NewCode()), a.browserProfile)
 	a.appWindow.Store(mode == "app")
 	if mode == "app" {
@@ -330,6 +331,7 @@ func (a *app) quit() {
 			a.srv.Close() // ends the page's keep-alive connection, so an open window closes right away
 			// the port and token are gone with the server: a new copy must not find them while this one winds down
 			a.removeIPCFiles()
+			winsys.StopWindowIcon()
 			winsys.CloseWindowBrowser(a.browserProfile) // and no browser is left running for it
 			a.plex.stopWaiting()
 			a.stremio.stopWaiting()
