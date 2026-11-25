@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text lines: Look tab</title>
+<style>
+  :root {
+    --r-control: 4px; --r-card: 8px;
+    --bg: #f3f3f3; --surface: #fbfbfb; --surface-2: #f0f0f0;
+    --control: #ffffff; --control-hover: #f6f6f6; --control-active: #ececec;
+    --stroke: #e5e5e5; --stroke-control: #d1d1d1; --stroke-strong: #868686;
+    --text: #1b1b1b; --text-2: #5c5c5c; --text-3: #8a8a8a;
+    --accent: #4752c4; --accent-hover: #3f49b0; --on-accent: #ffffff;
+    --accent-text: #4752c4; --accent-soft: rgba(71, 82, 196, .10);
+    --warn: #8a5a00; --page: #e4e4e4; --note: #fffdf3; --note-stroke: #e8dfb8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+      --control: #353535; --control-hover: #3d3d3d; --control-active: #313131;
+      --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+      --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+      --accent: #5865f2; --accent-hover: #6571f3;
+      --accent-text: #a5acf8; --accent-soft: rgba(88, 101, 242, .22);
+      --warn: #f2c661; --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #202020; --surface: #2b2b2b; --surface-2: #262626;
+    --control: #353535; --control-hover: #3d3d3d; --control-active: #313131;
+    --stroke: #3a3a3a; --stroke-control: #484848; --stroke-strong: #9a9a9a;
+    --text: #f3f3f3; --text-2: #c8c8c8; --text-3: #8f8f8f;
+    --accent: #5865f2; --accent-hover: #6571f3;
+    --accent-text: #a5acf8; --accent-soft: rgba(88, 101, 242, .22);
+    --warn: #f2c661; --page: #161616; --note: #2a2716; --note-stroke: #4a4426;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 14px/20px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .top h1 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0 auto 0 0; }
+  .stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .win { width: 660px; max-width: 100%; min-height: 760px; background: var(--bg); border: 1px solid var(--stroke); border-radius: var(--r-card); overflow: hidden; }
+  .win main { padding: 12px 16px; }
+  .notes { flex: 1 1 300px; min-width: 0; background: var(--note); border: 1px solid var(--note-stroke); border-radius: var(--r-card); padding: 12px 16px; font-size: 12px; line-height: 18px; }
+  .notes h2 { font-size: 14px; margin: 12px 0 4px; } .notes h2:first-child { margin-top: 0; }
+  .notes p, .notes ul { margin: 4px 0 8px; } .notes ul { padding-left: 18px; }
+  .notes code { font-family: Consolas, monospace; }
+  .card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-card); margin-bottom: 8px; }
+  .st-row { display: flex; gap: 16px; align-items: center; padding: 12px 16px; }
+  .st-main { font-weight: 600; flex: 1; }
+  .pv { display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--stroke); }
+  .cover { width: 72px; height: 72px; flex: none; border-radius: var(--r-control); background: linear-gradient(135deg, #6b74c9, #2f356f); }
+  .cover.film { background: linear-gradient(135deg, #b0794a, #4a2f1f); }
+  .pv-text { flex: 1; min-width: 0; font-size: 12px; line-height: 16px; color: var(--text-2); }
+  .pv-text > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-name { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--text); }
+  .pv-bar { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .pv-track { flex: 1; height: 4px; background: var(--stroke); border-radius: 2px; overflow: hidden; }
+  .pv-fill { height: 100%; width: 38%; background: var(--text-2); }
+  button { font: inherit; cursor: pointer; border-radius: var(--r-control); border: 1px solid var(--stroke-control); background: var(--control); color: var(--text); padding: 5px 12px; min-height: 32px; }
+  button:hover { background: var(--control-hover); }
+  .tabs { display: flex; gap: 4px; margin: 4px 0 8px; color: var(--text-2); overflow-x: auto; }
+  .tabs span { padding: 8px 10px; white-space: nowrap; }
+  .tabs .on { color: var(--text); border-bottom: 2px solid var(--accent); }
+  .row { display: flex; gap: 16px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--stroke); }
+  .row:first-child { border-top: 0; }
+  .row .lbl { flex: 1; min-width: 0; }
+  .help { font-size: 12px; line-height: 16px; color: var(--text-2); }
+  select { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--stroke-control); border-radius: var(--r-control); padding: 5px 8px; min-height: 32px; }
+  .sw { width: 40px; height: 20px; border-radius: 10px; background: var(--accent); position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; right: 4px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--on-accent); }
+  .custom { padding: 0 16px 12px; }
+  .grp { margin-top: 8px; }
+  .grp h3 { font-size: 14px; font-weight: 600; margin: 8px 0 4px; }
+  .field { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+  .field label { width: 88px; flex: none; font-size: 12px; color: var(--text-2); }
+  .field input { flex: 1; min-width: 0; font: 13px/18px Consolas, monospace; color: var(--text); background: var(--control); border: 1px solid var(--stroke-control); border-radius: var(--r-control); padding: 6px 8px; }
+  .field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 0 96px; }
+  .chips button { font: 12px/16px Consolas, monospace; min-height: 0; padding: 2px 6px; color: var(--text-2); }
+  .bad { font-size: 12px; line-height: 16px; color: var(--warn); margin-left: 96px; min-height: 0; }
+  .sample { display: flex; gap: 12px; margin: 8px 0 0 96px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--r-control); }
+  .sample .cover { width: 48px; height: 48px; }
+  .row select { max-width: 60%; }
+  .hidden { display: none !important; }
+  @media (max-width: 560px) { .field label { width: auto; } .field { flex-wrap: wrap; } .chips, .bad, .sample { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Text lines on the Look tab</h1>
+    <button id="thLight">Light</button><button id="thDark">Dark</button><button id="thAuto">System</button>
+  </div>
+  <div class="stage">
+    <div class="win">
+      <main>
+        <section class="card">
+          <div class="st-row"><div class="st-main">Showing on Discord</div><button>Stop showing</button></div>
+          <div class="pv">
+            <div class="cover" id="pvCover"></div>
+            <div class="pv-text">
+              <div class="pv-name" id="pvName">Watching Sample Show</div>
+              <div id="pvDetails"></div>
+              <div id="pvState"></div>
+              <div class="pv-bar"><span>17:06</span><div class="pv-track"><div class="pv-fill"></div></div><span>45:00</span></div>
+            </div>
+          </div>
+        </section>
+        <div class="tabs"><span>General</span><span>Players</span><span class="on">Look</span><span>Titles &amp; art</span><span>Privacy</span><span>Advanced</span><span>Help</span></div>
+        <section class="card">
+          <div class="row"><div class="lbl">Style</div><select><option>Watching (with progress bar)</option></select></div>
+          <div class="row"><div class="lbl">Show the title as the activity name</div><span class="sw"></span></div>
+          <div class="row"><div class="lbl">Genres, rating and director<div class="help">Extra info line from the catalog match.</div></div><span class="sw"></span></div>
+          <div class="row">
+            <div class="lbl">Text lines<div class="help">The two lines under the title.</div></div>
+            <select id="choice">
+              <option value="standard">Standard</option><option value="short">Short</option>
+              <option value="detailed">Detailed</option><option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="custom hidden" id="custom">
+            <div class="grp">
+              <h3>Episodes</h3>
+              <div class="field"><label for="epD">First line</label><input id="epD" spellcheck="false"></div>
+              <div class="field"><label for="epS">Second line</label><input id="epS" spellcheck="false"></div>
+              <div class="chips" data-kind="ep"></div>
+              <div class="bad" id="epBad"></div>
+              <div class="sample"><div class="cover"></div><div class="pv-text"><div class="pv-name">Watching Sample Show</div><div id="sEpD"></div><div id="sEpS"></div></div></div>
+            </div>
+            <div class="grp">
+              <h3>Films</h3>
+              <div class="field"><label for="mvD">First line</label><input id="mvD" spellcheck="false"></div>
+              <div class="field"><label for="mvS">Second line</label><input id="mvS" spellcheck="false"></div>
+              <div class="chips" data-kind="mv"></div>
+              <div class="bad" id="mvBad"></div>
+              <div class="sample"><div class="cover film"></div><div class="pv-text"><div class="pv-name">Watching Sample Movie</div><div id="sMvD"></div><div id="sMvS"></div></div></div>
+            </div>
+            <p class="help" style="margin: 8px 0 0 96px">Parts in [ ] drop out when a value is missing. Discord shows up to 128 characters a line.</p>
+          </div>
+          <div class="row" id="epInDetails"><div class="lbl">Also show S01E02 in the title line<div class="help">Discord already shows a season and episode badge.</div></div><span class="sw" style="background: var(--stroke-strong)"></span></div>
+        </section>
+      </main>
+    </div>
+    <aside class="notes">
+      <h2>What this shows</h2>
+      <p>The Look tab with the new <b>Text lines</b> row. Pick a choice: the preview at the top changes at once. <b>Custom</b> opens four fields filled with the lines of the choice that was on before.</p>
+      <ul>
+        <li>Click a chip to insert a placeholder at the cursor (with <code> · </code> when the field is not empty).</li>
+        <li>Try <code>{seasonName}</code> on an episode: the sample has no season name, so the part drops out with its separator.</li>
+        <li><code>[on {player}]</code> drops out whole when the player is unknown. Try <code>{titel}</code>: it stays as typed and is named under the fields.</li>
+        <li>"Also show S01E02 in the title line" only shows for Standard.</li>
+      </ul>
+      <h2>Not shaped</h2>
+      <p>The name ("Watching Sample Show"), the progress bar, the pause line, the cover's hover text (it makes the S1E2 badge), the stream form, songs and a hidden title.</p>
+      <h2>Made-up data</h2>
+      <p>Sample Show S01E02 "Sample Episode", Drama and Comedy, rated 8.3, in VLC. Sample Movie (2020), 1:52:10, rated 7.1, directed by Sample Name.</p>
+    </aside>
+  </div>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function theme(t) { if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
+  $('thLight').onclick = function () { theme('light'); };
+  $('thDark').onclick = function () { theme('dark'); };
+  $('thAuto').onclick = function () { theme(null); };
+
+  var SEP = ' · ';
+  var EP = { title: 'Sample Show', year: '', genres: 'Drama, Comedy', rating: '★ 8.3', director: '', player: 'VLC media player',
+    length: '45:00', code: 'S01E02', season: '1', episode: '2', episodeTitle: 'Sample Episode', seasonName: '' };
+  var MV = { title: 'Sample Movie', year: '2020', genres: 'Drama, Comedy', rating: '★ 7.1', director: 'Dir. Sample Name',
+    player: 'VLC media player', length: '1:52:10' };
+  var CHIPS = { ep: ['title', 'code', 'season', 'episode', 'episodeTitle', 'seasonName', 'genres', 'rating', 'player', 'length'],
+    mv: ['title', 'year', 'genres', 'rating', 'director', 'player', 'length'] };
+  var PRESETS = {
+    standard: ['{episodeTitle}', '{seasonName}' + SEP + '{genres}' + SEP + '{rating}', '{year}' + SEP + '{genres}', '{rating}' + SEP + '{director}'],
+    short: ['{code}' + SEP + '{episodeTitle}', '', '{year}', '{director}'],
+    detailed: ['{code}' + SEP + '{episodeTitle}', '{genres}' + SEP + '{rating}' + SEP + '[on {player}]',
+      '{year}' + SEP + '{genres}' + SEP + '{length}', '{rating}' + SEP + '{director}' + SEP + '[on {player}]']
+  };
+
+  // the four rules of the design: values, [ ] sections, dropped " · " parts, trim and the 128 cut
+  function expand(tpl, v) {
+    var fill = function (s) { return s.replace(/\{(\w+)\}/g, function (m, k) { return k in v ? v[k] : m; }); };
+    var s = tpl.replace(/\[([^\[\]]*)\]/g, function (m, inner) {
+      var empty = false;
+      inner.replace(/\{(\w+)\}/g, function (x, k) { if (k in v && !v[k]) empty = true; });
+      return empty ? '' : fill(inner);
+    });
+    s = fill(s).split(SEP).map(function (p) { return p.trim(); }).filter(Boolean).join(SEP).trim();
+    if (s.length > 128) s = s.slice(0, 125) + '...';
+    return s;
+  }
+  function unknown(tpls, v) {
+    var out = [];
+    tpls.forEach(function (t) { t.replace(/\{(\w+)\}/g, function (m, k) { if (!(k in v) && out.indexOf(m) < 0) out.push(m); }); });
+    return out.length ? 'Unknown: ' + out.join(', ') : '';
+  }
+
+  var ids = ['epD', 'epS', 'mvD', 'mvS'];
+  function render() {
+    var t = ids.map(function (id) { return $(id).value; });
+    $('sEpD').textContent = expand(t[0], EP); $('sEpS').textContent = expand(t[1], EP);
+    $('sMvD').textContent = expand(t[2], MV); $('sMvS').textContent = expand(t[3], MV);
+    $('epBad').textContent = unknown([t[0], t[1]], EP); $('mvBad').textContent = unknown([t[2], t[3]], MV);
+    $('pvDetails').textContent = expand(t[0], EP); $('pvState').textContent = expand(t[1], EP);
+  }
+  function choose() {
+    var c = $('choice').value;
+    if (c !== 'custom') ids.forEach(function (id, i) { $(id).value = PRESETS[c][i]; });
+    $('custom').classList.toggle('hidden', c !== 'custom');
+    $('epInDetails').classList.toggle('hidden', c !== 'standard');
+    render();
+  }
+  $('choice').onchange = choose;
+  ids.forEach(function (id) { $(id).oninput = render; });
+
+  var last = $('epD');
+  ids.forEach(function (id) { $(id).onfocus = function () { last = $(id); }; });
+  Array.prototype.forEach.call(document.querySelectorAll('.chips'), function (box) {
+    var kind = box.getAttribute('data-kind');
+    CHIPS[kind].forEach(function (k) {
+      var b = document.createElement('button');
+      b.textContent = '{' + k + '}';
+      b.onmousedown = function (e) { e.preventDefault(); };
+      b.onclick = function () {
+        var f = last && last.id.indexOf(kind) === 0 ? last : $(kind + 'D');
+        var pos = f.selectionStart == null ? f.value.length : f.selectionStart;
+        var before = f.value.slice(0, pos), after = f.value.slice(pos);
+        var ins = (before.trim() ? (/ · $/.test(before) ? '' : SEP) : '') + '{' + k + '}';
+        f.value = before + ins + after;
+        f.focus(); f.selectionStart = f.selectionEnd = (before + ins).length;
+        render();
+      };
+      box.appendChild(b);
+    });
+  });
+  choose();
+})();
+</script>
+</body>
+</html>
