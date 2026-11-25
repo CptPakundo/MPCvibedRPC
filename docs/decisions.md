@@ -129,6 +129,14 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   comes back only if that code has to grow materially.
 
 ## Releases
+- **The program is called MPRP, "Media Player Rich Presence"** (2026-11-25; it was called MPCvibedRPC before). The
+  rename covers everything: the program, the repository and Go module, the release files, the data folder, the
+  run-at-login entry, the window's identity and the environment variables (`MPRP_*`). An install from before carries
+  over by itself at its first start: its data folder and run-at-login entry are moved to the new name (a start switched
+  off in Task Manager stays off), and every release also publishes its program files under the former names, so copies
+  that update themselves find them, until the maintainer drops those names (`tools/ci/former-names.txt`). The upstream
+  credit and MPC-HC's own names are unchanged. *Why:* the program long since serves many players and services, not
+  only the MPC family; the new name says what it is, and the maintainer wanted it to apply to everything.
 - **Versions are three-part, and stay 0.9.x until 1.0.** *Why:* the updater compares three numbers, so a fix takes the next number.
 - **The README shows GitHub's own download count** (2026-10-25); the project's exact count of people (without its own
   downloads) stays on the `stats` branch ([how](development.md#ci)). The program itself never reports anything. *Why:*
