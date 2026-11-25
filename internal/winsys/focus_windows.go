@@ -98,6 +98,26 @@ func topWindows() []topWindow {
 	return wins
 }
 
+var (
+	// made once, as enumWindowsCallback: it only notes each window's handle
+	enumHandlesCallback = syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
+		enumHandles = append(enumHandles, hwnd)
+		return 1
+	})
+	enumHandles []uintptr // under enumMu
+)
+
+// topWindowHandles lists the handles of the top-level windows, without reading anything else about them.
+func topWindowHandles() []uintptr {
+	enumMu.Lock()
+	defer enumMu.Unlock()
+	enumHandles = nil
+	pEnumWindows.Call(enumHandlesCallback, 0)
+	hwnds := enumHandles
+	enumHandles = nil
+	return hwnds
+}
+
 // FocusWindow brings the settings window that is already open to the front (restoring it when minimised). It looks
 // for the top-level windows of the browser processes that use profileDir, so the user's own browser windows are
 // never touched. It returns true when such a window was found, even if Windows only flashed its taskbar button
@@ -116,11 +136,6 @@ func FocusWindow(profileDir string) bool {
 
 // findWindow finds the settings window: the top-level window of the browser processes that use profileDir.
 func findWindow(profileDir string) (topWindow, bool) {
-	return findWindowWith(profileDir, pickWindow)
-}
-
-// findWindowWith finds a top-level window of the browser processes that use profileDir, chosen by pick.
-func findWindowWith(profileDir string, pick func([]topWindow, map[uint32]bool) (topWindow, bool)) (topWindow, bool) {
 	if profileDir == "" {
 		return topWindow{}, false
 	}
@@ -132,7 +147,7 @@ func findWindowWith(profileDir string, pick func([]topWindow, map[uint32]bool) (
 	if len(pids) == 0 {
 		return topWindow{}, false
 	}
-	return pick(topWindows(), pids)
+	return pickWindow(topWindows(), pids)
 }
 
 // AllowForeground lets the process pid take the foreground. A second start of the program was launched by the user

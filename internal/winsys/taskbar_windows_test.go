@@ -1,6 +1,14 @@
 package winsys
 
-import "testing"
+import (
+	"bytes"
+	"encoding/binary"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/CptPakundo/MPRP/internal/assets"
+)
 
 func TestWindowIdentity(t *testing.T) {
 	const exe = `C:\Programs\Sample\MPRP.exe`
@@ -18,9 +26,9 @@ func TestWindowIdentity(t *testing.T) {
 	}
 }
 
-// A window that is not there is not named, and nothing is waited for without a profile.
+// Nothing is kept without a profile, and no properties are set on no window.
 func TestNameWindowWithoutAWindow(t *testing.T) {
-	if NameWindow("") {
+	if NameWindow("", nil) {
 		t.Error("a window was named without a profile")
 	}
 	if setWindowStrings(0, []windowString{{propAppID, "Sample"}}) {
@@ -88,135 +96,200 @@ func TestTaskbarWindow(t *testing.T) {
 			t.Errorf("%s: %v, want %v", c.why, got, c.want)
 		}
 	}
-	// a bubble over the settings window is not taken for it, nor is another program's window above both
-	pids := map[uint32]bool{10: true}
-	wins := []topWindow{
-		{Handle: 1, Pid: 99, Visible: true, Titled: true},
-		{Handle: 2, Pid: 10, Visible: true, Titled: true, Owned: true},
-		{Handle: 3, Pid: 10, Visible: true},
-		{Handle: 4, Pid: 10, Visible: true, Titled: true},
-	}
-	if w, ok := pickTaskbarWindow(wins, pids); !ok || w.Handle != 4 {
-		t.Errorf("picked %+v %v, want the window 4", w, ok)
-	}
-	if _, ok := pickTaskbarWindow(wins[:3], pids); ok {
-		t.Error("a window was picked where the browser has only a bubble and an untitled window")
+}
+
+// All windows are looked at often in the first seconds after a window was asked for, less often until it appears,
+// and for a while after one was taken on; a window that does not appear is reported after 30 s; otherwise the keeping
+// only waits for events.
+func TestKeepWait(t *testing.T) {
+	now := time.Now()
+	var zero time.Time
+	for _, c := range []struct {
+		asked, settleEnd time.Time
+		wait             time.Duration
+		overdue          bool
+		why              string
+	}{
+		{zero, zero, -1, false, "nothing awaited"},
+		{now.Add(-time.Second), zero, nameWindowFastEvery, false, "just asked for"},
+		{now.Add(-5 * time.Second), zero, nameWindowEvery, false, "asked for a while ago"},
+		{now.Add(-nameWindowWarn), zero, 0, true, "not there after 30 s"},
+		{zero, now.Add(5 * time.Second), keepSettleEvery, false, "just taken on"},
+		{zero, now.Add(100 * time.Millisecond), 100 * time.Millisecond, false, "the settling ends sooner"},
+		{zero, now.Add(-time.Second), -1, false, "settled"},
+		{now.Add(-time.Second), now.Add(5 * time.Second), nameWindowFastEvery, false, "the shorter of both"},
+	} {
+		w, o := keepWait(now, c.asked, c.settleEnd)
+		if w != c.wait || o != c.overdue {
+			t.Errorf("%s: wait %v overdue %v, want %v %v", c.why, w, o, c.wait, c.overdue)
+		}
 	}
 }
 
-// fakeKeeper is a keeping of the browser process 10 whose windows are described by wins.
+// fakeKeeper is a keeping whose windows are described by wins; the processes in profile use the window profile.
 type fakeKeeper struct {
-	wins           map[uintptr]topWindow
-	named, checked map[uintptr]int
-	ended          int
+	wins             map[uintptr]topWindow
+	profile          map[uint32]bool
+	looked           map[uint32]int // how often each process was looked up
+	named, checked   map[uintptr]int
+	hooked, unhooked map[uint32]int
+	hasIcon          map[uintptr]bool
+	noIcons, refuse  bool
+	logs             []string
+	ended            int
 }
 
-func newFakeKeeper(first uintptr) (*fakeKeeper, *iconKeeper) {
-	f := &fakeKeeper{wins: map[uintptr]topWindow{}, named: map[uintptr]int{}, checked: map[uintptr]int{}}
-	k := &iconKeeper{pid: 10,
+func newFakeKeeper() (*fakeKeeper, *iconKeeper) {
+	f := &fakeKeeper{wins: map[uintptr]topWindow{}, profile: map[uint32]bool{10: true, 11: true}, looked: map[uint32]int{},
+		named: map[uintptr]int{}, checked: map[uintptr]int{}, hooked: map[uint32]int{}, unhooked: map[uint32]int{},
+		hasIcon: map[uintptr]bool{}}
+	k := &iconKeeper{self: 1,
+		visible: func(h uintptr) bool { return f.wins[h].Visible },
 		inspect: func(h uintptr) topWindow { return f.wins[h] },
-		name:    func(h uintptr) { f.named[h]++ },
-		check:   func(h uintptr) { f.checked[h]++ },
-		end:     func() { f.ended++ },
-		named:   map[uintptr]bool{first: true}}
-	f.wins[first] = topWindow{Handle: first, Pid: 10, Visible: true, Titled: true}
+		ours:    func(pid uint32) bool { f.looked[pid]++; return f.profile[pid] },
+		name:    func(h uintptr) bool { f.named[h]++; return !f.refuse },
+		check:   func(h uintptr) bool { f.checked[h]++; return f.hasIcon[h] },
+		hook: func(pid uint32) []uintptr {
+			f.hooked[pid]++
+			return []uintptr{uintptr(pid)}
+		},
+		unhook:      func(hooks []uintptr) { f.unhooked[uint32(hooks[0])]++ },
+		iconsLoaded: func() bool { return !f.noIcons },
+		log:         func(level, msg string) { f.logs = append(f.logs, level+" "+msg) },
+		end:         func() { f.ended++ }}
 	return f, k
 }
 
-// A new window of the browser process (the browser replaced the first one) is named once and then has its icon kept;
-// a window of another process, and the browser's bubble, are left alone. The first window's going does not end the
-// keeping, and a handle given to a window again is named again.
-func TestIconKeeperAdoptsNewWindows(t *testing.T) {
-	f, k := newFakeKeeper(0x10)
-	f.wins[0x20] = topWindow{Handle: 0x20, Pid: 10, Visible: true}
-	f.wins[0x30] = topWindow{Handle: 0x30, Pid: 99, Visible: true, Titled: true}
-	f.wins[0x40] = topWindow{Handle: 0x40, Pid: 10, Visible: true, Owned: true}
+func (f *fakeKeeper) add(h uintptr, w topWindow) {
+	w.Handle = h
+	f.wins[h] = w
+}
 
-	k.shell(hshellRedraw, 0x10) // the first window: named already, its icon is checked
-	if f.named[0x10] != 0 || f.checked[0x10] != 1 {
-		t.Errorf("the first window: named %d, checked %d", f.named[0x10], f.checked[0x10])
+// A taskbar window of a process that uses the profile is named once, whenever it appears and whichever process it
+// is in (the browser replaced its process, or the window came late); then its icon is kept. Another program's window,
+// the browser's bubble and its hidden windows are left alone, and whose a window is is looked up only once.
+func TestIconKeeperAdoptsTheProfilesWindows(t *testing.T) {
+	f, k := newFakeKeeper()
+	f.add(0x10, topWindow{Pid: 10, Visible: true, Titled: true})
+	f.add(0x30, topWindow{Pid: 99, Visible: true, Titled: true})
+	f.add(0x40, topWindow{Pid: 10, Visible: true, Owned: true})
+	f.add(0x50, topWindow{Pid: 10})
+
+	k.shell(hshellWindowCreated, 0x10)
+	k.event(eventObjectShow, 0x10, objIDWindow, childIDSelf)
+	k.shell(hshellRedraw, 0x10)
+	if f.named[0x10] != 1 || f.checked[0x10] != 2 || f.hooked[10] != 1 {
+		t.Errorf("the window: named %d (want 1), checked %d (want 2), its process hooked %d (want 1)", f.named[0x10], f.checked[0x10], f.hooked[10])
 	}
-	k.event(eventObjectDestroy, 0x10, objIDWindow, childIDSelf)
-	delete(f.wins, 0x10)
-	k.shell(hshellWindowCreated, 0x20) // its replacement
-	k.event(eventObjectShow, 0x20, objIDWindow, childIDSelf)
-	k.event(eventObjectNameChange, 0x20, objIDWindow, childIDSelf)
-	if f.named[0x20] != 1 || f.checked[0x20] != 2 {
-		t.Errorf("the new window: named %d (want 1), checked %d (want 2)", f.named[0x20], f.checked[0x20])
-	}
-	if !k.adopted {
+	if k.settleEnd.IsZero() {
 		t.Error("taking on a window did not start a while of looking")
 	}
-	k.shell(hshellWindowCreated, 0x30)
-	k.shell(hshellRedraw, 0x30)
-	k.event(eventObjectShow, 0x40, objIDWindow, childIDSelf)
-	if f.named[0x30]+f.checked[0x30]+f.named[0x40]+f.checked[0x40] != 0 {
-		t.Errorf("another program's window or a bubble was touched: %v %v", f.named, f.checked)
+	for i := 0; i < 3; i++ {
+		k.shell(hshellRedraw, 0x30)
 	}
-	if f.ended != 0 {
-		t.Error("the first window's going ended the keeping")
+	k.shell(hshellWindowCreated, 0x40)
+	k.sweep([]uintptr{0x30, 0x40, 0x50})
+	if f.named[0x30]+f.checked[0x30]+f.named[0x40]+f.checked[0x40]+f.named[0x50]+f.checked[0x50] != 0 {
+		t.Errorf("another program's window, a bubble or a hidden window was touched: %v %v", f.named, f.checked)
 	}
-	// the handle 0x20 goes and comes back for another window of the browser
-	k.shell(hshellWindowDestroyed, 0x20)
-	k.shell(hshellWindowCreated, 0x20)
-	if f.named[0x20] != 2 {
-		t.Errorf("a reused handle was named %d times, want 2", f.named[0x20])
+	if f.looked[99] != 1 || f.looked[10] != 1 {
+		t.Errorf("processes looked up %v, want each once", f.looked)
 	}
-	// a look at all the windows (the hooks' first moments): only the browser's taskbar windows
-	f2, k2 := newFakeKeeper(0x10)
-	k2.sweep([]topWindow{f.wins[0x30], f.wins[0x40], {Handle: 0x50, Pid: 10, Visible: true}, {Handle: 0x10, Pid: 10, Visible: true}, {Handle: 0x60, Pid: 10}})
-	if f2.named[0x50] != 1 || f2.checked[0x10] != 1 || len(f2.named) != 1 || len(f2.checked) != 1 {
-		t.Errorf("the look named %v and checked %v", f2.named, f2.checked)
-	}
-}
-
-// When the browser's end cannot be waited for, the keeping ends once the process has no window left.
-func TestIconKeeperEndsWithTheLastWindow(t *testing.T) {
-	f, k := newFakeKeeper(0x10)
-	left := []topWindow{{Handle: 0x10, Pid: 10}, {Handle: 0x77, Pid: 99}}
-	k.alive = func() bool { return hasWindow(left, 10) }
-	k.shell(hshellWindowDestroyed, 0x55) // a window never named: nothing is looked up
+	// the browser's process ends and a new one shows the window: taken on as well
 	k.shell(hshellWindowDestroyed, 0x10)
-	if f.ended != 0 {
-		t.Error("ended while the process still has a window")
+	delete(f.wins, 0x10)
+	if f.unhooked[10] != 1 {
+		t.Error("the process's hooks stayed after its last window went")
 	}
-	k.named[0x10] = true
-	left = left[1:]
-	k.event(eventObjectDestroy, 0x10, objIDWindow, childIDSelf)
-	if f.ended != 1 {
-		t.Error("did not end with the process's last window")
+	f.add(0x20, topWindow{Pid: 11, Visible: true})
+	k.sweep([]uintptr{0x30, 0x20})
+	if f.named[0x20] != 1 || f.hooked[11] != 1 {
+		t.Errorf("the window of the new process: named %d, hooked %d", f.named[0x20], f.hooked[11])
+	}
+	// a handle given to another program's window is looked up again
+	k.shell(hshellWindowDestroyed, 0x20)
+	f.add(0x20, topWindow{Pid: 99, Visible: true})
+	k.shell(hshellWindowCreated, 0x20)
+	if f.named[0x20] != 1 || f.looked[99] != 2 {
+		t.Errorf("a reused handle: named %d (want 1), process 99 looked up %d (want 2)", f.named[0x20], f.looked[99])
+	}
+	// the program's own windows are never touched
+	f.add(0x60, topWindow{Pid: 1, Visible: true})
+	k.shell(hshellWindowCreated, 0x60)
+	if f.named[0x60] != 0 || f.looked[1] != 0 {
+		t.Error("the program's own window was looked at")
+	}
+	if f.ended != 0 {
+		t.Error("the keeping ended with a window")
 	}
 }
 
-// One keeping at a time: a new one, or StopWindowIcon, ends the one before; the hook's callback and the shell window's
-// procedure reach the current one, with idObject as Windows passes it (a LONG in a pointer-sized argument).
+// What the log gets: the window's icon confirmed once, each failure once, a window that does not appear.
+func TestIconKeeperLog(t *testing.T) {
+	f, k := newFakeKeeper()
+	// a window that goes while it is named refuses its name too: that is no failure
+	f.add(0x05, topWindow{Pid: 10, Visible: true})
+	k.name = func(h uintptr) bool { f.wins[h] = topWindow{}; return false }
+	k.shell(hshellWindowCreated, 0x05)
+	k.name = func(h uintptr) bool { f.named[h]++; return !f.refuse }
+	f.add(0x10, topWindow{Pid: 10, Visible: true})
+	f.add(0x20, topWindow{Pid: 10, Visible: true})
+	k.windowAsked(time.Now())
+	f.noIcons, f.refuse = true, true
+	k.shell(hshellWindowCreated, 0x10)
+	k.shell(hshellWindowCreated, 0x20)
+	if !k.asked.IsZero() {
+		t.Error("a window taken on still counts as awaited")
+	}
+	k.shell(hshellRedraw, 0x10) // no icon yet: nothing to report
+	f.hasIcon[0x10], f.hasIcon[0x20] = true, true
+	k.shell(hshellRedraw, 0x10)
+	k.shell(hshellRedraw, 0x20)
+	k.windowAsked(time.Now())
+	k.overdue()
+	got := strings.Join(f.logs, "\n")
+	want := strings.Join([]string{
+		"WARN The settings window keeps the browser's icon: the program's icon could not be loaded.",
+		"WARN The settings window's taskbar button could not be given the program's name (its property store refused it).",
+		"INFO The settings window got the program's taskbar icon.",
+		"WARN The settings window was not found within 30 s; it gets the program's taskbar icon if it appears later.",
+	}, "\n")
+	if got != want {
+		t.Errorf("log:\n%s\nwant:\n%s", got, want)
+	}
+	if !k.asked.IsZero() {
+		t.Error("an overdue window is reported again")
+	}
+}
+
+// One keeping at a time; StopWindowIcon ends it, and a keeping that starts after it is not taken. The hook's
+// callback and the shell window's procedure reach the current one, with idObject as Windows passes it (a LONG in a
+// pointer-sized argument).
 func TestIconKeeperLifecycle(t *testing.T) {
 	StopWindowIcon()
 	gen := iconGen.Load()
-	f1, k1 := newFakeKeeper(0x10)
-	f2, k2 := newFakeKeeper(0x20)
+	f1, k1 := newFakeKeeper()
+	f1.add(0x10, topWindow{Pid: 10, Visible: true})
+	f2, k2 := newFakeKeeper()
+	f2.add(0x10, topWindow{Pid: 10, Visible: true})
 	if !startKeeper(k1, gen) {
 		t.Fatal("the first keeping did not start")
 	}
 	onWinEvent(0, eventObjectShow, 0x10, 0, 0, 0, 0)
 	onWinEvent(0, eventObjectNameChange, 0x10, uintptr(0xFFFFFFFC), 0, 0, 0) // OBJID_CLIENT: not the window
-	if f1.checked[0x10] != 1 || f1.ended != 0 {
-		t.Errorf("first keeping: %+v", f1)
+	if f1.named[0x10] != 1 || f1.checked[0x10] != 0 {
+		t.Errorf("first keeping: named %d checked %d", f1.named[0x10], f1.checked[0x10])
 	}
 	if !startKeeper(k2, gen) || f1.ended != 1 {
-		t.Errorf("a new keeping did not end the one before: %+v", f1)
-	}
-	onWinEvent(0, eventObjectNameChange, 0x20, 0, 0, 0, 0)
-	if f1.checked[0x10] != 1 || f2.checked[0x20] != 1 {
-		t.Errorf("events went to %+v %+v", f1, f2)
+		t.Error("a new keeping did not end the one before")
 	}
 	m := uint32(shellHookMessage())
 	if m == 0 {
 		t.Fatal("no SHELLHOOK message")
 	}
-	shellWindowProc(0, m, hshellRedraw, 0x20)
-	if f2.checked[0x20] != 2 {
-		t.Errorf("the shell hook's redraw did not reach the keeping: %+v", f2)
+	shellWindowProc(0, m, hshellRedraw, 0x10)
+	if f1.named[0x10] != 1 || f2.named[0x10] != 1 {
+		t.Errorf("the shell hook's redraw went to %v %v", f1.named, f2.named)
 	}
 	k2.stop()
 	k2.stop()
@@ -224,7 +297,7 @@ func TestIconKeeperLifecycle(t *testing.T) {
 		t.Errorf("the keeping ended %d times, want once", f2.ended)
 	}
 	endKeeper(k2)
-	f3, k3 := newFakeKeeper(0x30)
+	f3, k3 := newFakeKeeper()
 	if !startKeeper(k3, gen) {
 		t.Fatal("a third keeping did not start")
 	}
@@ -232,11 +305,42 @@ func TestIconKeeperLifecycle(t *testing.T) {
 	if f3.ended != 1 {
 		t.Error("StopWindowIcon did not end the keeping")
 	}
-	if _, k4 := newFakeKeeper(0x40); startKeeper(k4, gen) {
-		t.Error("a window found before StopWindowIcon was looked after")
+	if _, k4 := newFakeKeeper(); startKeeper(k4, gen) {
+		t.Error("a keeping started after StopWindowIcon")
 	}
+	f3.add(0x30, topWindow{Pid: 10, Visible: true})
 	onWinEvent(0, eventObjectShow, 0x30, 0, 0, 0, 0)
-	if f3.checked[0x30] != 0 {
+	if f3.named[0x30] != 0 {
 		t.Error("an event came through after StopWindowIcon")
 	}
+}
+
+// The window's icons come from the icon built into the program, at the size asked for (or the next larger one).
+func TestIcoImage(t *testing.T) {
+	for _, c := range []struct{ size, want int }{{16, 16}, {32, 32}, {64, 64}, {36, 40}, {20, 24}, {96, 64}} {
+		img := icoImage(assets.Icon, c.size)
+		if img == nil {
+			t.Fatalf("%d px: no image", c.size)
+		}
+		if w := imageWidth(img); w != c.want {
+			t.Errorf("%d px: the %d px image, want %d", c.size, w, c.want)
+		}
+	}
+	for _, bad := range [][]byte{nil, []byte("not an icon"), {0, 0, 1, 0, 1, 0}} {
+		if icoImage(bad, 32) != nil {
+			t.Errorf("an image from %q", bad)
+		}
+	}
+	loadWindowIcons("") // from the built-in icon alone
+	if !haveWindowIcons() {
+		t.Error("the program's icons could not be made from the built-in icon")
+	}
+}
+
+// imageWidth is the width of an .ico image: a PNG's from its header, a bitmap's from its BITMAPINFOHEADER.
+func imageWidth(img []byte) int {
+	if bytes.HasPrefix(img, []byte("\x89PNG")) {
+		return int(binary.BigEndian.Uint32(img[16:]))
+	}
+	return int(binary.LittleEndian.Uint32(img[4:]))
 }
