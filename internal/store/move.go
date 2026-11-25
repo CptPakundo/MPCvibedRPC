@@ -83,7 +83,7 @@ func renameLogs(dir string) {
 }
 
 // joinFiles puts the text of first before that of second, in second (through a temporary file: a failure changes
-// nothing).
+// nothing). It is used only for logs, so a leftover temporary file after a crash does no harm.
 func joinFiles(first, second string) error {
 	tmp := second + ".joining"
 	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
