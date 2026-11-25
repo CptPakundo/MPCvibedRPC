@@ -1,7 +1,7 @@
 # The tests that read documentation. ci.yml skips a change that touches only documentation (top-level .md files, docs/,
 # the issue templates), but these tests check the texts against the code: every setting in docs/config.md, every
-# player named in the texts that list them, every address in SECURITY.md, and the release notes rendered from the
-# changelog. So they run on every push and pull request, with no paths filter. They are quick and need Linux only.
+# player named in the texts that list them, every address in SECURITY.md, every relative link and anchor in the Markdown files, and the release notes rendered
+# from the changelog. So they run on every push and pull request, with no paths filter. They are quick and need Linux only.
 name: docs
 on:
   push:
@@ -28,3 +28,4 @@ jobs:
       - run: go test -count=1 -run 'TestPlayersAreNamedEverywhere' ./cmd/mpcvibedrpc
       - run: go test -count=1 -run 'TestSecurityListsEveryHost|TestEveryHostIsListed' ./internal/core
       - run: go test -count=1 ./tools/relnotes
+      - run: go test -count=1 ./tools/doclinks
