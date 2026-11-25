@@ -247,6 +247,17 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	} else {
 		details = media.Display
 	}
+	// Text lines other than Standard: the two lines (and a film's cover text) come from their layout. Not in the
+	// stream form, which keeps its own layout, nor without the title in the name.
+	var lines *lineSet
+	var vals map[string]string
+	if titleInName && !stream {
+		if lines = linesFor(cfg, media.IsEpisode); lines != nil {
+			vals = lineValues(info, media, cfg, art, title, effSeason)
+			details = Expand(lines.details, vals)
+			seasonLine, infoLine = Expand(lines.state, vals), ""
+		}
+	}
 	if details != "" {
 		a.Details = clip(details)
 	}
@@ -256,6 +267,11 @@ func BuildActivity(info *Info, cfg *Config, now int64, media *Media, art *Art) *
 	}
 	a.State, a.Timestamps = stateAndTimes(info, cfg, now, watching, titleInName, seasonLine, infoLine)
 	a.Assets = buildAssets(media, cfg, art, title, watching, effSeason, specialLabel)
+	if lines != nil && lines.cover != "" && a.Assets != nil && !media.IsEpisode && cfg.ShowArtwork && art != nil && a.Assets.LargeImage == art.Poster && art.Poster != "" {
+		if t := Expand(lines.cover, vals); t != "" {
+			a.Assets.LargeText = clip(t)
+		}
+	}
 
 	if u, site := TitleLink(cfg, art); u != "" && buttonURL(u) {
 		a.Buttons = []Button{{Label: viewOn(site), URL: u}}
@@ -338,11 +354,22 @@ func animeTitle(title string, cfg *Config, art *Art) string {
 // infoParts reads the catalog's extra facts (RichInfo): the genres (at most two), which a film shows in its first
 // line, and the info line after the season line: genres and rating for an episode, rating and director for a film.
 func infoParts(media *Media, cfg *Config, art *Art) (genres, infoLine string) {
+	genres, rating, director := richParts(media, cfg, art)
+	if media.IsEpisode {
+		infoLine = joinNonEmpty(" · ", genres, rating)
+	} else {
+		infoLine = joinNonEmpty(" · ", rating, director)
+	}
+	return genres, infoLine
+}
+
+// richParts are the catalog's extra facts with their marks: the genres (at most two), "★ 7.1" and, for a film,
+// "Dir. Sample Name"; all empty with RichInfo off.
+func richParts(media *Media, cfg *Config, art *Art) (genres, rating, director string) {
 	var inf *ArtInfo
 	if cfg.RichInfo && art != nil && art.Info != nil {
 		inf = art.Info
 	}
-	rating, director := "", ""
 	if inf != nil {
 		if len(inf.Genres) > 0 {
 			g := inf.Genres
@@ -358,12 +385,7 @@ func infoParts(media *Media, cfg *Config, art *Art) (genres, infoLine string) {
 			director = "Dir. " + inf.Director
 		}
 	}
-	if media.IsEpisode {
-		infoLine = joinNonEmpty(" · ", genres, rating)
-	} else {
-		infoLine = joinNonEmpty(" · ", rating, director)
-	}
-	return genres, infoLine
+	return genres, rating, director
 }
 
 // effectiveSeason is the season an episode is shown with: the file's own, else the catalog's, else 1 for a show the
@@ -386,6 +408,31 @@ func effectiveSeason(media *Media, art *Art) int {
 // episodeDetails is the first text line of an episode (label and episode title), the season line that goes in front
 // of the info line, and eraName, which replaces the status name when a Pokémon season or era is recognised ("" if not).
 func episodeDetails(media *Media, cfg *Config, art *Art, title string, effSeason int, specialLabel string, watching bool) (details, seasonLine, eraName string) {
+	p := episodeParts(media, art, title, effSeason)
+	sn, label, epTitle := p.seasonName, p.label, p.epTitle
+	badge := watching && media.Episode != NA && effSeason != NA
+	seasonLine = sn
+	if badge && !cfg.EpisodeInDetails {
+		details = joinNonEmpty(" · ", epTitle)
+	} else {
+		details = joinNonEmpty(" · ", label, epTitle)
+	}
+	if details == "" && sn != "" {
+		details = sn
+		seasonLine = ""
+	}
+	if details == "" {
+		details = specialLabel // a special whose name no catalog has
+	}
+	return details, seasonLine, p.eraName
+}
+
+// epParts are the pieces of an episode's lines: its label ("S01E02", or a special's own words), its title, the name
+// of a named season not already in the title, and the era name that replaces the status name ("" if none).
+type epParts struct{ label, epTitle, seasonName, eraName string }
+
+func episodeParts(media *Media, art *Art, title string, effSeason int) epParts {
+	eraName := ""
 	var em *jsre.Match
 	if art != nil && art.SeasonName != "" && rePokemon.Test(title) {
 		em = reGenre.Exec(art.SeasonName)
@@ -447,33 +494,38 @@ func episodeDetails(media *Media, cfg *Config, art *Art, title string, effSeason
 	case ep != nil:
 		epTitle = ep.Title
 	}
-	badge := watching && media.Episode != NA && effSeason != NA
-	seasonLine = sn
-	if badge && !cfg.EpisodeInDetails {
-		details = joinNonEmpty(" · ", epTitle)
-	} else {
-		details = joinNonEmpty(" · ", label, epTitle)
-	}
-	if details == "" && sn != "" {
-		details = sn
-		seasonLine = ""
-	}
-	if details == "" {
-		details = specialLabel // a special whose name no catalog has
-	}
-	return details, seasonLine, eraName
+	return epParts{label: label, epTitle: epTitle, seasonName: sn, eraName: eraName}
 }
 
 // movieDetails is the first text line of a film: its year (the file's, else the catalog's) and the genres.
 func movieDetails(media *Media, art *Art, genres string) string {
-	year := ""
+	return joinNonEmpty(" · ", filmYear(media, art), genres)
+}
+
+// filmYear is a film's year: the file's, else the catalog's ("" when neither has one).
+func filmYear(media *Media, art *Art) string {
 	switch {
 	case truthy(media.Year):
-		year = itoa(media.Year)
+		return itoa(media.Year)
 	case art != nil && art.Type == "movie" && truthy(art.Year):
-		year = itoa(art.Year)
+		return itoa(art.Year)
 	}
-	return joinNonEmpty(" · ", year, genres)
+	return ""
+}
+
+// badgeEpisode is the episode number Discord's badge shows: the folder's count, else the number inside a split
+// catalog entry, else the file's (NA without one).
+func badgeEpisode(media *Media, art *Art) int {
+	if media.Episode == NA {
+		return NA
+	}
+	switch {
+	case truthy(media.BadgeEpisode):
+		return media.BadgeEpisode
+	case art != nil && art.Split && truthy(art.EpInEntry):
+		return art.EpInEntry
+	}
+	return media.Episode
 }
 
 // StreamProgress is where the video is, for the stream form while it plays: a text progress bar, the length and a
@@ -551,14 +603,7 @@ func buildAssets(media *Media, cfg *Config, art *Art, title string, watching boo
 		return nil
 	}
 	if watching && effSeason != NA && media.Episode != NA {
-		ep := media.Episode
-		switch {
-		case truthy(media.BadgeEpisode):
-			ep = media.BadgeEpisode
-		case art != nil && art.Split && truthy(art.EpInEntry):
-			ep = art.EpInEntry
-		}
-		assets.LargeText = "Season " + itoa(effSeason) + ", Episode " + itoa(ep)
+		assets.LargeText = "Season " + itoa(effSeason) + ", Episode " + itoa(badgeEpisode(media, art))
 		if specialLabel != "" {
 			assets.LargeText = specialLabel
 		}

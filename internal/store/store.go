@@ -376,6 +376,14 @@ func (s *Store) Values() map[string]any {
 		if f.Type == "heading" {
 			continue
 		}
+		if f.Type == "fixes" {
+			fixes := cfg.Fixes() // the legacy lines too, while they are not written as fixes yet
+			if fixes == nil {
+				fixes = []core.MatchFix{}
+			}
+			out[f.Key] = fixes
+			continue
+		}
 		if f.Type == "map" {
 			if o, ok := raw.M[f.Key].(*jsonx.Obj); ok {
 				out[f.Key] = MapToText(o)

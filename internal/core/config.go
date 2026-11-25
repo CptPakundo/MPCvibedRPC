@@ -57,6 +57,10 @@ type Settings struct {
 	TextProgressBar   bool   `json:"textProgressBar" reach:"check"`
 	ProgressWidth     int    `json:"progressWidth" reach:"check"`
 	ShowRemainingTime bool   `json:"showRemainingTime" reach:"check"`
+	// TextLines is the layout of the two text lines (and a film's cover text): "standard" (the built-in lines),
+	// "short", "detailed" or "custom" (CustomLines). See lines.go.
+	TextLines   string            `json:"textLines" reach:"check"`
+	CustomLines map[string]string `json:"customLines" reach:"check"` // episodeDetails, episodeState, movieDetails, movieState, movieCover
 
 	// HideTitle shows only "Watching a video" (no title, cover or details) and looks nothing up online. A change ends
 	// the lookups under way (they go quietly: no title in the log).
@@ -78,8 +82,14 @@ type Settings struct {
 	ShowArtwork    bool     `json:"showArtwork" reach:"lookups"`
 	ArtworkSources []string `json:"artworkSources" reach:"lookups"`
 	// DisabledSources lists services (see Sources) that must never be contacted, whatever the lists below say.
-	DisabledSources  []string          `json:"disabledSources" reach:"lookups"`
-	TmdbAPIKey       string            `json:"tmdbApiKey" reach:"lookups"`
+	DisabledSources []string `json:"disabledSources" reach:"lookups"`
+	TmdbAPIKey      string   `json:"tmdbApiKey" reach:"lookups"`
+	// MatchFixes is Fix a match: what the user said a title (or one file) is. nil when config.json has no
+	// matchFixes key: the legacy maps below are then read as fixes (see Fixes), and the store writes them as
+	// matchFixes once (store.MigrateMatchFixes).
+	MatchFixes []MatchFix `json:"matchFixes" reach:"lookups"`
+	// ArtworkAliases and ArtworkOverrides are the legacy form of Fix a match ("search under another name", "pin a
+	// cover image"), read once into MatchFixes and kept in the file for a downgrade.
 	ArtworkAliases   map[string]string `json:"artworkAliases" reach:"lookups"`
 	ArtworkOverrides map[string]string `json:"artworkOverrides" reach:"lookups"`
 	ArtworkWaitMs    int               `json:"artworkWaitMs" reach:"lookups"`
@@ -165,6 +175,8 @@ func DefaultConfig() Config {
 			TextProgressBar:   true,
 			ProgressWidth:     12,
 			ShowRemainingTime: false,
+			TextLines:         "standard",
+			CustomLines:       map[string]string{},
 
 			SmartFormat:       true,
 			IgnoreBrackets:    true,

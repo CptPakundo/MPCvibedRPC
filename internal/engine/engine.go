@@ -97,6 +97,9 @@ type Status struct {
 	// Why is "Why this title?" for Copy diagnostics: how the title shown was read from the file and found in the
 	// catalogs. Never for a hidden title or a song. Not sent to the window.
 	Why []string `json:"-"`
+	// Match is what the window's Fix this match dialog starts from: the file's name (never its folder), what it was read
+	// as and what it matched. Never for a hidden title or a song.
+	Match *MatchInfo `json:"match,omitempty"`
 }
 
 // run is one start..stop period; a stale run can never touch the newer one's state.
@@ -141,7 +144,8 @@ type Engine struct {
 	wake       chan struct{}      // makes the loop check at once (the window opened)
 	nudges     nudger             // early checks after mpv or IINA reported a change (events.go)
 	nowPlaying *string
-	why        []string // how the title shown was read and found (Status.Why; only while nowPlaying is set)
+	why        []string   // how the title shown was read and found (Status.Why; only while nowPlaying is set)
+	match      *MatchInfo // what the Fix this match dialog starts from (Status.Match; only while nowPlaying is set)
 	preview    *core.Preview
 	paused     bool
 	lastError  *string
@@ -403,7 +407,7 @@ func (e *Engine) Status() Status {
 		s.Player = e.player
 		s.NowPlaying = e.nowPlaying
 		if e.nowPlaying != nil {
-			s.Why = e.why
+			s.Why, s.Match = e.why, e.match
 		}
 		s.PauseCleared = e.pauseCleared
 		s.Hidden = e.hidden

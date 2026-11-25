@@ -14,7 +14,8 @@ import (
 
 // Field is one setting shown in the window. type: bool | int | text | secret | choice | map ("name = value" per line) |
 // sources (a switch per online service; the value is the list of services that are OFF) | lines (one entry per line,
-// stored as a list) | heading (a group title in the window; it has no key and no value)
+// stored as a list) | fixes (Fix a match: a list of fixes, see core.MatchFix) | textlines (the custom text lines: an
+// object of core.CustomLineKeys) | heading (a group title in the window; it has no key and no value)
 type Field struct {
 	Key     string            `json:"key"`
 	Type    string            `json:"type"`
@@ -27,6 +28,8 @@ type Field struct {
 	// OS, when set, limits the field to these systems (runtime.GOOS; "linux" also stands for the other D-Bus systems).
 	// Elsewhere the setting keeps its value but is not shown.
 	OS []string `json:"-"`
+	// Legacy keeps a setting that the window no longer shows: it is still validated and saved like the others.
+	Legacy bool `json:"-"`
 }
 
 // Section groups fields in the window.
@@ -73,6 +76,9 @@ var Sections = []Section{
 		{Key: "richInfo", Type: "bool", Label: "Genres, rating and director", Help: "Extra info line from the catalog match."},
 		{Key: "linkButton", Type: "bool", Label: "Link to the title's page (IMDb, AniList, ...)", Help: `Adds "View on IMDb" style buttons (up to two) and makes the text lines, the cover and the player's logo clickable. Others can click them on your profile; Discord doesn't let you click your own.`},
 		{Key: "letterboxdLink", Type: "bool", Label: "Link to Letterboxd when it has the title", Help: `The link opens the title's Letterboxd page instead of IMDb or another catalog. Asks letterboxd.com once per title.`},
+		// the window shows the five custom lines under the choice while it is Custom (ui.js)
+		{Key: "textLines", Type: "choice", Label: "Text lines", Help: "The two lines under the title.", Options: [][2]string{{"standard", "Standard"}, {"short", "Short"}, {"detailed", "Detailed"}, {"custom", "Custom"}}},
+		{Key: "customLines", Type: "textlines", Label: "Custom lines"},
 		{Key: "episodeInDetails", Type: "bool", Label: "Also show S01E02 in the title line", Help: "Discord already shows a season and episode badge."},
 	}},
 	{ID: "titles", Title: "Titles & art", Fields: []Field{
@@ -81,8 +87,12 @@ var Sections = []Section{
 		{Key: "animeTitles", Type: "choice", Label: "Anime titles", Options: [][2]string{{"auto", "Closest AniList name (auto)"}, {"english", "Always English"}, {"romaji", "Always romaji"}, {"file", "Keep the file's spelling"}}},
 		{Key: "useFolderName", Type: "bool", Label: "Use the folder name when the file is just an episode number"},
 		{Type: "heading", Label: "Fix a match"},
-		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title"},
-		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg"},
+		// the window draws the list of fixes and the Fix this match dialog for it (ui.js)
+		{Key: "matchFixes", Type: "fixes", Label: "Fix a match"},
+		// the legacy form of Fix a match: not in the window any more, but still read and saved as before (a hand-made
+		// config.json, the recorded store tests); the program reads them once into matchFixes (MigrateMatchFixes)
+		{Key: "artworkAliases", Type: "map", Label: "Search under another name", Help: "One per line:  filename title = catalog title", Legacy: true},
+		{Key: "artworkOverrides", Type: "map", Label: "Pin a cover image", Help: "One per line:  title = https://example.com/poster.jpg", Legacy: true},
 		{Type: "heading", Label: "More"},
 		{Key: "tmdbApiKey", Type: "secret", Label: "TMDB API key (optional)", Help: "Free at themoviedb.org/settings/api. Improves matches for some titles."},
 		{Key: "folderEpisodeNumbers", Type: "bool", Label: "Number episodes by their place in the season folder", Help: "For files named with a running production code."},
@@ -115,6 +125,9 @@ func AllFields() []Field {
 
 // ShownOn reports whether the field belongs in the window on the system goos.
 func (f Field) ShownOn(goos string) bool {
+	if f.Legacy {
+		return false
+	}
 	if len(f.OS) == 0 {
 		return true
 	}
@@ -350,6 +363,10 @@ func Clean(f Field, v any) (any, error) {
 			}
 		}
 		return out, nil
+	case "fixes":
+		return cleanFixes(f, v)
+	case "textlines":
+		return cleanTextLines(f, v)
 	case "map":
 		out := jsonx.NewObj()
 		var lines []string

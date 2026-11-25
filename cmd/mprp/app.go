@@ -143,6 +143,11 @@ func run() error {
 		}
 	}
 	winsys.CloseWindowBrowser(a.browserProfile) // a window browser left behind by a crash
+	if n, err := st.MigrateMatchFixes(); err != nil {
+		a.log("WARN", "Could not save the Fix a match lines as fixes ("+err.Error()+"); they still act as before.")
+	} else if n > 0 {
+		a.log("INFO", fmt.Sprintf("Fix a match: the artworkAliases and artworkOverrides lines became fixes (titles: %d). The old lines stay in the settings file.", n))
+	}
 
 	a.eng = engine.New(st.Config(), engine.Options{Log: a.log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath(),
 		MayRest: func() bool { return a.windows.Load() == 0 }, OnRest: winsys.TrimMemory})

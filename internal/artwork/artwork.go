@@ -64,22 +64,8 @@ type Artwork struct {
 	late      map[string]bool
 	warned    map[string]bool
 	runtimes  map[string]int
-	aliases   map[string]string
-	overrides map[string]string
-}
-
-func mapByTitle(m map[string]string) map[string]string {
-	out := map[string]string{}
-	for k, v := range m {
-		out[normTitle(k)] = v
-	}
-	return out
-}
-
-// fixed tells whether the user gave title an alias or a pinned cover (Fix a match).
-func (a *Artwork) fixed(title string) bool {
-	nt := normTitle(title)
-	return a.aliases[nt] != "" || a.overrides[nt] != ""
+	fixes     fixIndex
+	suggested map[string]suggestEntry // Suggest's and Covers' answers of the last minutes (see fixes.go)
 }
 
 // New creates a finder for the given settings.
@@ -92,7 +78,7 @@ func New(cfg *core.Config, opts Options) *Artwork {
 	}
 	a := &Artwork{cfg: cfg, opts: opts, net: newNet(opts.Client, cfg.RequestGapMs), provs: buildProviders(), today: unixDay,
 		disk: map[string]*diskEntry{}, misses: map[string]time.Time{}, soft: map[string]bool{}, closest: map[string][]string{}, inflight: map[string]*lookupFlight{}, late: map[string]bool{},
-		warned: map[string]bool{}, runtimes: map[string]int{}, aliases: mapByTitle(cfg.ArtworkAliases), overrides: mapByTitle(cfg.ArtworkOverrides)}
+		warned: map[string]bool{}, runtimes: map[string]int{}, fixes: newFixIndex(cfg.Fixes()), suggested: map[string]suggestEntry{}}
 	a.net.blocked = blockedHostFilter(cfg)
 	a.net.onLate = a.lateAnswer
 	a.res = newResolver(a)
@@ -670,8 +656,8 @@ func (a *Artwork) searchWith(media *core.Media, query string, contain []string) 
 func (a *Artwork) search(media *core.Media) *core.Art {
 	cfg := a.cfg
 	query := media.Title
-	if v := a.aliases[normTitle(media.Title)]; v != "" {
-		query = v
+	if fx := a.FixFor(media); fx != nil && fx.Search != "" {
+		query = fx.Search
 	}
 	var seen []string
 	spaced := core.Trim(reWS.ReplaceStr(reDashSpace.ReplaceStr(query, " "), " "))
@@ -767,7 +753,7 @@ func (a *Artwork) search(media *core.Media) *core.Art {
 		a.closest[normTitle(media.Title)] = uniq // for Explain
 		a.mu.Unlock()
 	}
-	a.log("INFO", `No artwork match for "`+media.Title+`".`+extra+` You can pin one with "Search under another name" / "Pin a cover image" in the Advanced settings.`)
+	a.log("INFO", `No artwork match for "`+media.Title+`".`+extra+` You can fix it with "Wrong title or cover?" under the preview, or in Titles & art > Fix a match.`)
 	return nil
 }
 
@@ -1173,6 +1159,7 @@ type lookupJob struct {
 	special     *core.Media // the title read as a show's special (core.NamedSpecial), or nil
 	query       string
 	overrideArt *core.Art
+	fix         *core.MatchFix // the user's fix for this title or file (Fix a match), or nil
 	wantEp      bool
 	fullKey     string // the in-flight key: epKey when the episode title is wanted, else key
 	key         string // poster/season info, per show+season
@@ -1182,23 +1169,21 @@ type lookupJob struct {
 	lbKey       string
 }
 
-// newLookupJob works out the keys, the alias query and the override of one title.
+// newLookupJob works out the keys, the query and the pinned cover of one title, from the user's fix if it has one.
 func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 	cfg := a.cfg
 	nt := normTitle(media.Title)
+	fx := a.FixFor(media)
 	query := media.Title
-	if v := a.aliases[nt]; v != "" {
-		query = v
+	if fx != nil && fx.Search != "" {
+		query = fx.Search
 	}
 
+	// a pinned cover without a pinned entry is the whole answer, as a pinned cover always was
 	var overrideArt *core.Art
-	if ov := a.overrides[nt]; ov != "" {
-		if (strings.HasPrefix(ov, "http://") || strings.HasPrefix(ov, "https://")) && u16len(ov) <= 256 {
-			overrideArt = core.NewArt()
-			overrideArt.Poster, overrideArt.Name, overrideArt.Source = ov, media.Title, "override"
-		} else {
-			a.warnOnce("ov:"+nt, `artworkOverrides entry for "`+media.Title+`" must be an http(s) image URL (max 256 chars).`)
-		}
+	if fx != nil && fx.Cover != "" && fx.Entry == "" && a.coverOK(fx, media) {
+		overrideArt = core.NewArt()
+		overrideArt.Poster, overrideArt.Name, overrideArt.Source = fx.Cover, media.Title, "override"
 	}
 
 	// Poster/season info is cached per show+season; the episode's own title per episode.
@@ -1217,7 +1202,7 @@ func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 	if !truthy2(media.Year) && !media.IsEpisode && media.DurationMin != 0 {
 		dur = "|d" + strconv.Itoa(int(jsRound(float64(media.DurationMin)/10)))
 	}
-	key := keyVersion + kind + "|" + nt + "|" + yearS + "|" + normTitle(a.aliases[nt]) + "|" + seasonS + "|" + media.CodePrefix + dur
+	key := keyVersion + kind + "|" + nt + "|" + yearS + "|" + fixKey(fx) + "|" + seasonS + "|" + media.CodePrefix + dur
 	// A leading list number ("02. Show Name") is the episode number if the title turns out to be a series.
 	epNo := media.Index
 	if media.IsEpisode {
@@ -1240,7 +1225,7 @@ func (a *Artwork) newLookupJob(media *core.Media) *lookupJob {
 	if wantEp {
 		fullKey = epKey
 	}
-	return &lookupJob{a: a, media: media, special: special, query: query, overrideArt: overrideArt, wantEp: wantEp,
+	return &lookupJob{a: a, media: media, special: special, query: query, overrideArt: overrideArt, fix: fx, wantEp: wantEp,
 		fullKey: fullKey, key: key, epKey: epKey, infoKey: "info|" + key, aniKey: "ani|" + key, lbKey: "lb|" + key}
 }
 
@@ -1266,6 +1251,9 @@ func (j *lookupJob) merge(base *core.Art, ep *core.ArtEpisode) *core.Art {
 	}
 	if n := j.inEntry(base); n != core.NA {
 		out.EpInEntry = n
+	}
+	if fx := j.fix; base != nil && fx != nil && fx.Cover != "" && fx.Entry != "" && j.a.coverOK(fx, j.media) {
+		out.Poster = fx.Cover // the user's image over the pinned entry's cover
 	}
 	return out
 }
@@ -1327,9 +1315,9 @@ func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	if !cfg.ShowArtwork || media == nil || media.Title == "" {
 		return nil
 	}
-	// A junk name (a camera clip, a bare number such as a Blu-ray's "00062") is not looked up, unless the user named
-	// it in Fix a match: their alias or pinned cover says what it is.
-	if media.Junk && !a.fixed(media.Title) {
+	// A junk name (a camera clip, a bare number such as a Blu-ray's "00062") is not looked up, unless the user fixed it
+	// in Fix a match: their fix says what it is.
+	if media.Junk && a.FixFor(media) == nil {
 		return nil
 	}
 	j := a.newLookupJob(media)
@@ -1455,7 +1443,13 @@ func (j *lookupJob) baseArt() *core.Art {
 
 	if base == nil && !missKey {
 		down := a.unavail.Load()
-		base = a.search(j.media)
+		searchIt := true
+		if j.fix != nil && j.fix.Entry != "" {
+			base, searchIt = a.pinned(j.fix, j.media)
+		}
+		if base == nil && searchIt {
+			base = a.search(j.media)
+		}
 		a.mu.Lock()
 		if base != nil {
 			a.put(j.key, &diskEntry{art: base})
@@ -1597,7 +1591,11 @@ func (j *lookupJob) episode(base *core.Art) *core.ArtEpisode {
 	}
 	var ep *core.ArtEpisode
 	if epMedia != nil {
-		ep = a.res.Find(epMedia, base, j.query, func(k, msg string) { failed = true; a.warnOnce(k, msg) })
+		q := j.query
+		if j.fix != nil && j.fix.Entry != "" && base != nil && base.Name != "" && base.Source != "override" {
+			q = base.Name // episodes are looked up as the pinned entry
+		}
+		ep = a.res.Find(epMedia, base, q, func(k, msg string) { failed = true; a.warnOnce(k, msg) })
 	}
 	a.mu.Lock()
 	if epMedia == nil && base != nil {

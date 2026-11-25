@@ -44,9 +44,10 @@ type built struct {
 	display    string
 	found      *core.Art
 	music      bool
-	noEpTitle  bool     // an episode whose title was wanted but did not come
-	fromFolder bool     // the show's name came from the file's folder
-	why        []string // "Why this title?" (see Status.Why)
+	noEpTitle  bool       // an episode whose title was wanted but did not come
+	fromFolder bool       // the show's name came from the file's folder
+	why        []string   // "Why this title?" (see Status.Why)
+	match      *MatchInfo // see Status.Match
 }
 
 // buildActivity makes the activity for what plays: titles are parsed and looked up (art may be nil) unless the title
@@ -68,7 +69,8 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, fold
 		// a song: shown as it is named, as "Listening to"; never sent to the movie and TV catalogs
 		media := core.MusicMedia(info.File)
 		c := *cfg
-		c.StreamTitle = "off" // a song stays "Listening to": the stream title is for videos
+		c.StreamTitle = "off"    // a song stays "Listening to": the stream title is for videos
+		c.TextLines = "standard" // and its lines stay as they are: text lines are for videos
 		b.activity = core.BuildActivity(info, &c, at.UnixMilli(), media, nil)
 		core.Listening(b.activity)
 		b.display = media.Display
@@ -86,7 +88,11 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, fold
 				media.BadgeEpisode = n
 			}
 		}
+		media.File = baseName(info.File) // for a fix made for this file only (Fix a match)
+		read := media
+		shifted := false
 		if art != nil {
+			media, shifted = art.Offset(media) // a fix's season and episode offset: the catalog's numbers from here on
 			b.found = art.Lookup(media)
 		}
 		b.activity = core.BuildActivity(info, cfg, at.UnixMilli(), media, b.found)
@@ -95,7 +101,12 @@ func buildActivity(info *core.Info, cfg *core.Config, art *artwork.Artwork, fold
 			(b.found == nil || b.found.Episode == nil)
 		b.display = media.Display
 		b.fromFolder = media.FromFolder
-		b.why = append(readAs(info, media), art.Explain(media, b.found)...)
+		b.why = readAs(info, read)
+		if shifted {
+			b.why = append(b.why, "Your fix's offset moved the numbers: looked up as "+media.Label+".")
+		}
+		b.why = append(b.why, art.Explain(media, b.found)...)
+		b.match = matchOf(read, b.found, art)
 	}
 	return b
 }
@@ -441,6 +452,7 @@ func (e *Engine) recordShown(r *run, info *core.Info, cfg *core.Config, b built,
 	}
 	e.nowPlaying = &d
 	e.why = b.why
+	e.match = b.match
 	e.paused = info.State == 1
 	e.preview = core.PreviewOf(sent, cfg) // what Discord actually got (the basic fallback carries less)
 	e.barShown = streamBar(info, cfg)
