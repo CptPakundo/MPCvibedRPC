@@ -86,10 +86,9 @@ func NameWindow(profileDir string) bool {
 			named := setWindowStrings(w.Handle, []windowString{
 				{propAppID, id}, {propRelaunchCommand, command}, {propRelaunchDisplayName, name}, {propRelaunchIcon, icon},
 			})
-			// The browser gives its window the page's icon in a small size, which the taskbar enlarges. It does so
-			// when the page has loaded, which may be after the window was found: the program's icon is set now and
-			// twice more.
-			for _, wait := range []time.Duration{0, time.Second, 3 * time.Second} {
+			// The browser gives its window the page's icon, and may do so again whenever the page's icon loads, which
+			// can be well after the window was found: the program's icon is set now and a few more times.
+			for _, wait := range []time.Duration{0, time.Second, 2 * time.Second, 7 * time.Second, 20 * time.Second} {
 				time.Sleep(wait)
 				setWindowIcons(w.Handle, exe)
 			}

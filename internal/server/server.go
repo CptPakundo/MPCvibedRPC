@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -42,10 +43,11 @@ type Handler struct {
 // Options configures a Server.
 type Options struct {
 	Token    string
-	Page     string // the settings page; __TOKEN__ is replaced by the token (it sits in a meta tag the script reads)
+	Page     string // the settings page; __TOKEN__ is replaced by the token (it sits in a meta tag the script reads), __VERSION__ by Version
 	CSS      string // the page's style sheet, served as /ui.css
 	JS       string // the page's script, served as /ui.js
 	Icon     []byte
+	IconPNG  []byte // the logo as a large PNG (/icon.png): the browser window's own icon, sharp on the taskbar
 	Handlers map[string]Handler
 	Version  string
 	// OnWindow is told when a settings window opens (true) and closes (false): each open window holds /api/alive.
@@ -149,6 +151,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "GET" && p == "/icon.ico":
 		send(w, 200, s.o.Icon, "image/x-icon")
 		return
+	case r.Method == "GET" && p == "/icon.png" && len(s.o.IconPNG) > 0:
+		send(w, 200, s.o.IconPNG, "image/png")
+		return
 	case r.Method == "GET" && p == "/ui.css":
 		send(w, 200, s.o.CSS, "text/css; charset=utf-8")
 		return
@@ -163,7 +168,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		// Without a code the page still comes, with no token in it: a window that reloads has kept its token (the
 		// script takes the code out of its address), and anyone else is told how to open the window.
-		send(w, 200, strings.Replace(s.o.Page, "__TOKEN__", token, 1), "text/html; charset=utf-8")
+		page := strings.ReplaceAll(strings.Replace(s.o.Page, "__TOKEN__", token, 1), "__VERSION__", url.QueryEscape(s.o.Version))
+		send(w, 200, page, "text/html; charset=utf-8")
 		return
 	}
 	if !strings.HasPrefix(p, "/api/") {
