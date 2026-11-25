@@ -150,6 +150,8 @@ type Engine struct {
 	// pause handling: when the current pause began, and whether the status was cleared because of it
 	pausedSince  time.Time
 	pauseCleared bool
+	// carry is what a settings change hands from the stopped run to the next one (see ApplySettings); nil otherwise
+	carry        *carried
 	hidden       bool          // the playing file is on the user's "don't show" list
 	pauseUnit    time.Duration // one "minute" of PauseClearMinutes (shortened in tests)
 	minPoll      time.Duration // the pace (see Options.MinPoll, ReclearEvery and RecheckAfter)
@@ -277,6 +279,10 @@ func (e *Engine) start() {
 	e.cur = r
 	e.basicMode, e.noLinks, e.prev, e.shown, e.warnedDisc, e.player = false, false, nil, false, false, ""
 	e.pausedSince, e.pauseCleared, e.preview, e.hidden = time.Time{}, false, nil, false
+	if c := e.carry; c != nil { // a restart for new settings (ApplySettings): before the first check can run
+		e.prev, e.pausedSince, e.pauseCleared = c.prev, c.pausedSince, c.pauseCleared
+	}
+	e.carry = nil
 	e.vlcProblem, e.kodiProblem, e.discRefused = "", "", false
 	e.lastError, e.nowPlaying, e.why = nil, nil, nil
 	e.resend, e.modeKey, e.sendFails, e.retryAt, e.live, e.missed = false, "", 0, time.Time{}, false, false
@@ -370,15 +376,31 @@ func (e *Engine) ApplySettings(cfg core.Config) {
 	if same {
 		return
 	}
+	var keep *carried
 	if was {
+		// What the player last reported and the pause clock go on into the new run: a settings change is not a change
+		// by the player, so it must not bring back a status cleared after a long pause, nor restart the pause wait.
+		e.mu.Lock()
+		if e.prev != nil {
+			keep = &carried{prev: e.prev, pausedSince: e.pausedSince, pauseCleared: e.pauseCleared}
+		}
+		e.mu.Unlock()
 		e.stop()
 	}
 	e.mu.Lock()
 	e.cfg = cfg
+	e.carry = keep
 	e.mu.Unlock()
 	if was {
 		e.start()
 	}
+}
+
+// carried is the playback state a settings change keeps across the restart of the run.
+type carried struct {
+	prev         *core.Prev
+	pausedSince  time.Time
+	pauseCleared bool
 }
 
 // ClearArtworkCache forgets every cover and title that was looked up (in memory and on disk). While presence is
