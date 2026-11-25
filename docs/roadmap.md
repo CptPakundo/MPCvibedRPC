@@ -141,8 +141,10 @@ Each of these sank or burdened a similar tool, or breaks a principle:
 
 ## Considered and left
 Ideas weighed and not done, each with its reason, so nobody has to weigh them again:
-- **`.gitattributes` with `eol=lf`:** it would change every Windows working copy at once. (`* text=auto` is in place:
-  it keeps the index LF and leaves each system's own line ends in the working copy.)
+- **A `.gitattributes` for line ends:** `eol=lf` would change every Windows working copy at once, and `* text=auto`
+  makes Git use `core.eol` (CRLF on Windows) even where `core.autocrlf` is off, which gave the CI's Windows build a
+  CRLF checkout and broke the reproducible exe (tried once, reverted). Without one, each checkout follows its own
+  `core.autocrlf`.
 - **Pinning the live tests' images and player versions in pull-request runs:** pins need upkeep, and the weekly canary
   tries the newest versions anyway.
 - **Building with `-tags nethttpomithttp2`:** saves about 0.6 MB, not worth the divergence.
