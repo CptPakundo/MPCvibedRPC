@@ -80,7 +80,7 @@ The title read from the file name is looked up online. In the window, **Fix a ma
 | `episodeTitles` | `true` | **Look up episode titles** when the file doesn't have one (`Ep03` becomes `S01E03 · Episode title`). |
 | `catalogTitle` | `true` | **Use the catalog's spelling of titles**, including punctuation a file name can't hold. `false` keeps the title as read from the file name. |
 | `animeTitles` | `"auto"` | **Anime titles**, for anime found on AniList: `"auto"` uses the AniList name (English or romaji) the file name resembles most; `"english"` or `"romaji"` always use that one; `"file"` keeps the file's spelling. |
-| `useFolderName` | `true` | **Use the folder name when the file is just an episode number** (skipping `Season 1` style folders). |
+| `useFolderName` | `true` | **Use the folder name when the file is just an episode number** (skipping `Season 1` style folders). Also names a Blu-ray or DVD from the folder that holds `BDMV` or `VIDEO_TS`, or from the disc's own title or label ([how](how-it-works.md#blu-ray-and-dvd)). |
 | `artworkAliases` | `{}` | **Search under another name**, for example `{"filename title": "Catalog Title"}`. |
 | `artworkOverrides` | `{}` | **Pin a cover image**, for example `{"some title": "https://example.com/poster.jpg"}`. |
 | `tmdbApiKey` | `""` | **TMDB API key**, free at <https://www.themoviedb.org/settings/api>. TMDB is skipped unless this is set. |

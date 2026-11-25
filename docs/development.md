@@ -133,7 +133,7 @@ Example: `MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -count
 | Package | Job |
 |---|---|
 | `engine` | the check loop: asks the players, builds and sends the activity, pause clearing, hide rules, preview, status for the window |
-| | `engine.go` types, Start/Stop, Status · `players.go` `fetchPlayer` and its `picker` · `tick.go` · `discord.go` · `events.go` player events · `remote.go` the Plex, Stremio and Jellyfin watchers, resting · `folder.go` the folder listing for `folderEpisodeNumbers` (read once per file, again when the folder changed) · `stats.go` `stats.json`, counts only (taken under `e.mu`, written after it is released) |
+| | `engine.go` types, Start/Stop, Status · `players.go` `fetchPlayer` and its `picker` · `tick.go` · `discord.go` · `events.go` player events · `remote.go` the Plex, Stremio and Jellyfin watchers, resting · `folder.go` the folder listing for `folderEpisodeNumbers` (read once per file, again when the folder changed) · `disc.go` a disc's own name at a drive's root (`bdmt_*.xml`, the volume label) · `stats.go` `stats.json`, counts only (taken under `e.mu`, written after it is released) |
 | `core` | settings and defaults (`config.go`), file-name parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, catalog services (`sources.go`), every other outside address (`hosts.go`), player logos (`icons.go`), titles written like file names (`names.go`) |
 | `mpvipc`, `pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `discord`) |
 | `mpris`, `dbus` | Linux players through MPRIS (an allowlist of video players) and their signals (`watch.go`); a minimal D-Bus client; `dbus/dbustest` is a fake bus |

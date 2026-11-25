@@ -42,8 +42,11 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 - **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player
   answers is repeated a second later before the status is taken down. *Why:* a player that loads a file or seeks on
   a slow disk misses an answer now and then, and the status should not flicker for it; a second is a small price.
+- **Blu-ray and DVD files are named by themselves** (2026-11-25, the owner: on by default). *Why:* a disc's files are
+  named by number, so without it a disc showed a number and no cover; the folder, the disc's own title or its label
+  says what it is, with nothing to set.
 - **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
-  Discord restarts or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
+  Discord restarts, a setting changes or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
   its own.
 - **Discord's refusals hold for one title.** A title Discord refuses as a Watching status, or with its links, gets
   the simpler form; the next title is tried in full again. *Why:* a refusal can be about one title's text or

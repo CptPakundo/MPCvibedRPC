@@ -154,7 +154,8 @@ the pause bar.
   `[YTS.MX]` (not mistaken for anime), a title that ends in a year-like number, a studio possessive
   (`Studio's Show Name`), daily shows (`Show 2024.05.01 Guest`), four-digit anime episodes (`Show - 1087`,
   `S01E1000`) and Japanese `第28話` / `1000話`.
-- Camera, phone and screen-recording names and bare dates are never looked up.
+- Camera, phone and screen-recording names, bare numbers and bare dates are never looked up, unless you name them in
+  [Fix a match](#fixing-a-match).
 - **Franchise prefixes:** `Franchise Movie 15 - Subtitle` is retried by its subtitle, and a result is only accepted if it
   contains both the subtitle and the franchise name. The other way round, `Title A Franchise Mystery 2025` (from
   `Title: A Franchise Mystery`, which catalogs often list as just `Title`) is retried as `Title` when nothing else
@@ -167,10 +168,20 @@ an episode number (`S01E02.mkv`, `Episode 3.mkv`, `03.mkv`), the folder's name i
 `...\Show Name\Season 1\S01E02.mkv`. `Season N` folders are skipped (and supply the season for bare numbers); generic
 folders like `TV` or `Downloads` are ignored. Folder names get the same cleanup (`Show.Name.2008.1080p`).
 
+### Blu-ray and DVD
+A disc's video files are named by number (`BDMV\STREAM\00062.m2ts`, `BDMV\PLAYLIST\00800.mpls`,
+`VIDEO_TS\VTS_01_1.VOB`). With the folder-name switch above on, the title comes from:
+1. the folder that holds `BDMV` or `VIDEO_TS` (`Sample Movie (2020)\BDMV\...`; a `Disc 1` folder is passed over);
+2. for a disc played from a drive (`E:\BDMV\...`): the disc's own title, which many Blu-rays carry, or else its label
+   (on macOS and Linux the disc's folder under `/Volumes` or `/media` is its label).
+
+A camcorder's discs and cards (`AVCHD`) and labels that say nothing (`BDROM`, `DVD_VIDEO`) are left as they are.
+
 ### Fixing a match
-Still no cover, or the wrong one? `mpcvibedrpc.log` lists what each source returned. Then use **Titles & art > Fix a
-match**: search under another name, or pin your own cover image. A free TMDB key (**Titles & art > More**) improves
-some matches.
+Still no cover, or the wrong one? Use **Titles & art > Fix a match**: search under another name, or pin your own cover
+image. Each line starts with the title as the program read it, which the log shows after `Playing:` (for a Blu-ray
+file named `00062.m2ts` that is `00062`): `00062 = Sample Movie`. A line applies to every file read as that title.
+The log also lists what each catalog returned. A free TMDB key (**Titles & art > More**) improves some matches.
 
 ## On your streams
 When you share your screen, Discord names the stream after your *Playing* status and after no other kind, so
@@ -329,6 +340,7 @@ tried it.
 | PotPlayer, Kodi | Windows | CI: the real players from Chocolatey with a generated test video |
 | Kodi | macOS, Linux, another device | only against a stand-in |
 | mpv, VLC, mpv-mpris, Celluloid | Linux | CI; a real desktop: not yet |
+| Blu-ray and DVD titles | any | made-up disc folders in tests; a real disc: not yet |
 | mpv, IINA | macOS | CI; IINA on a real Mac with the real Discord: once, by a tester |
 | Plex | any | CI: the official Plex Media Server without a Plex account, with a stand-in player; a real Plex account, shared servers and real Plex apps: not yet |
 | Stremio | any | against a stand-in for Stremio's servers built from Stremio's open-source core; a real Stremio account: not yet |
