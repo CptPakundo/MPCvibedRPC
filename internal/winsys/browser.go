@@ -16,7 +16,9 @@ func usesProfile(cmdline, profile string) bool {
 		return false
 	}
 	profile = strings.TrimRight(profile, `\/`)
-	cl := strings.ToLower(cmdline)
+	// A browser that restarts itself (Edge does, on some starts) writes the folder in quotes after the equals sign
+	// (--user-data-dir="C:\...\window"): that form is read like the plain one.
+	cl := strings.ReplaceAll(strings.ToLower(cmdline), `--user-data-dir="`, "--user-data-dir=")
 	flag := "--user-data-dir=" + strings.ToLower(profile)
 	for from := 0; ; {
 		i := strings.Index(cl[from:], flag)
