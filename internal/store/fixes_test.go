@@ -26,9 +26,9 @@ func TestMigrateMatchFixes(t *testing.T) {
 	s := openStore(t, dir)
 	c0 := s.Config()
 	legacy := c0.Fixes() // what the program used before the migration: the maps read as fixes
-	n, err := s.MigrateMatchFixes()
-	if err != nil || n != 3 {
-		t.Fatalf("migrated %d (%v), want 3 titles", n, err)
+	n, wrote, err := s.MigrateMatchFixes()
+	if err != nil || n != 3 || !wrote {
+		t.Fatalf("migrated %d (written %v, %v), want 3 titles", n, wrote, err)
 	}
 	cfg := s.Config()
 	want := []core.MatchFix{
@@ -46,8 +46,8 @@ func TestMigrateMatchFixes(t *testing.T) {
 		t.Errorf("the old keys and other settings must stay: %+v %+v", cfg.ArtworkAliases, cfg.ArtworkOverrides)
 	}
 	b1, _ := os.ReadFile(s.File)
-	if n, err := s.MigrateMatchFixes(); n != 0 || err != nil {
-		t.Errorf("a second run migrated %d (%v)", n, err)
+	if n, wrote, err := s.MigrateMatchFixes(); n != 0 || wrote || err != nil {
+		t.Errorf("a second run migrated %d (written %v, %v)", n, wrote, err)
 	}
 	if b2, _ := os.ReadFile(s.File); string(b1) != string(b2) {
 		t.Error("a second run changed the file")
@@ -62,13 +62,13 @@ func TestMigrateMatchFixes(t *testing.T) {
 
 	// nothing to migrate: the file is not written
 	empty := openStore(t, t.TempDir())
-	if n, err := empty.MigrateMatchFixes(); n != 0 || err != nil || !empty.FirstRun() {
-		t.Errorf("an install without old lines: %d %v, file written: %v", n, err, !empty.FirstRun())
+	if n, wrote, err := empty.MigrateMatchFixes(); n != 0 || wrote || err != nil || !empty.FirstRun() {
+		t.Errorf("an install without old lines: %d %v %v, file written: %v", n, wrote, err, !empty.FirstRun())
 	}
 
 	// lines the window's rules refuse are made to pass, or left out, and that is logged once
 	s, logs := legacyStore(t)
-	if n, err := s.MigrateMatchFixes(); err != nil || n != 3 {
+	if n, _, err := s.MigrateMatchFixes(); err != nil || n != 3 {
 		t.Fatalf("migrated %d (%v), want 3 titles", n, err)
 	}
 	want = []core.MatchFix{
@@ -83,11 +83,12 @@ func TestMigrateMatchFixes(t *testing.T) {
 		t.Errorf("log %q: want one line, 2 changed and 3 left out", *logs)
 	}
 
-	// nothing usable left: an empty list, so the old lines are no longer read (the window could not save them)
+	// nothing usable left: an empty list, so the old lines are no longer read (the window could not save them); the
+	// key counts as written, so the program applies its fixes again
 	none := openStore(t, t.TempDir())
 	os.WriteFile(none.File, []byte(`{"artworkOverrides": {"sample show": "C:/covers/show.jpg"}}`), 0o600)
-	if n, err := none.MigrateMatchFixes(); n != 0 || err != nil {
-		t.Errorf("migrated %d (%v)", n, err)
+	if n, wrote, err := none.MigrateMatchFixes(); n != 0 || !wrote || err != nil {
+		t.Errorf("migrated %d (written %v, %v), want none, written", n, wrote, err)
 	}
 	if c := none.Config(); c.MatchFixes == nil || len(c.Fixes()) != 0 {
 		t.Errorf("fixes after the migration: %+v (matchFixes %v)", c.Fixes(), c.MatchFixes)
@@ -128,7 +129,7 @@ func legacyStore(t *testing.T) (*Store, *[]string) {
 // After a migration of such lines, saving in the window works: it sends the whole list back as it shows it.
 func TestSaveAfterMigratingRefusedLines(t *testing.T) {
 	s, _ := legacyStore(t)
-	if _, err := s.MigrateMatchFixes(); err != nil {
+	if _, _, err := s.MigrateMatchFixes(); err != nil {
 		t.Fatal(err)
 	}
 	fixes := s.Values()["matchFixes"]

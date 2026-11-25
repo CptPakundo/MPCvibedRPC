@@ -249,10 +249,11 @@ func (a *app) startWrites(firstRun bool) {
 			_ = st.Update(p.(*jsonx.Obj))
 		}
 	}
-	if n, err := st.MigrateMatchFixes(); err != nil {
+	if n, wrote, err := st.MigrateMatchFixes(); err != nil {
 		a.log("WARN", "Could not save the Fix a match lines as fixes ("+err.Error()+"); they still act as before.")
-	} else if n > 0 {
+	} else if wrote {
 		a.log("INFO", fmt.Sprintf("Fix a match: the artworkAliases and artworkOverrides lines became fixes (titles: %d). The old lines stay in the settings file.", n))
+		// the engine (running already after an update) drops the old lines, also when none of them could be kept
 		if a.eng != nil {
 			applySettings(st, a.eng)
 		}
