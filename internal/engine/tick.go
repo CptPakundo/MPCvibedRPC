@@ -108,7 +108,7 @@ func (e *Engine) tick(r *run) {
 		return
 	}
 	e.mu.Lock()
-	cfg := e.cfg
+	cfg, st := e.cfg, stamp{cfg: e.cfgGen}
 	save := e.statTime(time.Now(), e.pollInterval(cfg))
 	e.mu.Unlock()
 	e.writeStats(save)
@@ -133,8 +133,10 @@ func (e *Engine) tick(r *run) {
 	}
 
 	e.mu.Lock()
-	if e.cur != r {
-		e.mu.Unlock() // stopped, or started again, while the players were asked: the answer is not this run's
+	if e.cur != r || e.cfgGen != st.cfg {
+		// stopped, or started again, while the players were asked: the answer is not this run's; or the settings changed
+		// (ApplySettings asks for the next check at once)
+		e.mu.Unlock()
 		return
 	}
 	// One check without any answer is not yet "the player is gone": a player that loads a file or seeks on a slow disk
@@ -164,7 +166,8 @@ func (e *Engine) tick(r *run) {
 		e.connectDiscord(r)
 		return
 	}
-	rpc, gen := e.rpc, e.discGen
+	rpc := e.rpc
+	st.disc = e.discGen
 	if live != e.live {
 		// a stream began or ended: the same file goes out again in the other form
 		e.live, e.resend = live, true
@@ -197,8 +200,12 @@ func (e *Engine) tick(r *run) {
 	if !update {
 		return
 	}
-	e.sendUpdate(r, rpc, gen, info, &cfg, art, now)
+	e.sendUpdate(r, rpc, st, info, &cfg, art, now)
 }
+
+// stamp is what a check read its settings (cfgGen) and its Discord connection (discGen) under: a send is let go
+// when either changed meanwhile (ApplySettings).
+type stamp struct{ cfg, disc uint64 }
 
 // notePlayer remembers which player answers (none: "") and logs when it changes. Called with e.mu held; it is
 // released around the log and returned with it held.
@@ -366,17 +373,21 @@ func (e *Engine) clearWhenPausedLong(r *run, rpc *discord.Client, minutes int) {
 // what was shown. A status Discord did not take stays due, but the next try waits: retryAfter, doubling up to twelve
 // times that while Discord keeps failing, so a Discord that refuses everything is not asked at every check (it
 // limits a status to five changes in 20 seconds), and the log names a repeated failure once. Called with e.mu
-// released (it takes it only for the bookkeeping). gen is e.discGen as it was when rpc was taken.
-func (e *Engine) sendUpdate(r *run, rpc *discord.Client, gen uint64, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
+// released (it takes it only for the bookkeeping). st is what the check read cfg and rpc under: nothing is sent with
+// settings that changed meanwhile.
+func (e *Engine) sendUpdate(r *run, rpc *discord.Client, st stamp, info *core.Info, cfg *core.Config, art *artwork.Artwork, at time.Time) {
 	b := buildActivity(info, cfg, art, &e.folders, at)
-	if !e.isCurrent(r) {
-		return
+	e.mu.Lock()
+	stale := e.cur != r || e.cfgGen != st.cfg
+	e.mu.Unlock()
+	if stale {
+		return // the run ended, or the settings changed (a title hidden now must not go out): the next check sends
 	}
 	sent, err := e.sendActivity(rpc, cfg, b.activity, info.Player+"/"+info.File)
 	if err != nil {
 		msg := err.Error()
 		e.mu.Lock()
-		if e.cur != r || e.discGen != gen {
+		if e.cur != r || e.discGen != st.disc {
 			// the run ended while Discord was asked, or a settings change let its connection go (the status goes out again
 			// on the next one): not an error of what runs now
 			e.mu.Unlock()

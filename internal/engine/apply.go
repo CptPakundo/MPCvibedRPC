@@ -68,6 +68,7 @@ func (e *Engine) ApplySettings(cfg core.Config) {
 		e.mu.Unlock()
 		return
 	}
+	e.cfgGen++ // a check under way with the old settings sends nothing (the next one, asked for below, does)
 	if need&reachLookups != 0 {
 		// lookups still under way finish quietly: no title in the log, no refresh (hideTitle may be on now)
 		e.art.Close()
