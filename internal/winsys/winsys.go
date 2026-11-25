@@ -4,7 +4,18 @@
 // default browser) and do without the rest (no registry; no tray icon on Linux).
 package winsys
 
-import "runtime"
+import (
+	"runtime"
+	"sync/atomic"
+)
 
 // IsWindows is true on Windows.
 const IsWindows = runtime.GOOS == "windows"
+
+// programFile is the program file's path once the program has renamed it (SetProgramFile; nil: os.Executable).
+var programFile atomic.Pointer[string]
+
+// SetProgramFile tells this package the program file's new path after the program renamed its own file: on Windows
+// os.Executable goes on naming the file the program was started from, and a pinned settings window must start the
+// file that is there.
+func SetProgramFile(path string) { programFile.Store(&path) }

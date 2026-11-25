@@ -258,7 +258,7 @@ func (a *app) installUpdate(quiet func() bool) error {
 		return errors.New("You already have the latest version.")
 	}
 	a.log("INFO", fmt.Sprintf("Downloading %s...", info.Latest))
-	next, err := updater.Download(nil, info, a.exe)
+	next, err := updater.Download(nil, info, a.exePath())
 	if err != nil {
 		return err
 	}
@@ -279,14 +279,14 @@ func (a *app) installUpdate(quiet func() bool) error {
 			}
 		}
 	}
-	if err := updater.Swap(a.exe, next); err != nil {
+	if err := updater.Swap(a.exePath(), next); err != nil {
 		a.log("ERROR", "Update failed: "+err.Error())
 		goOn()
 		return err
 	}
-	child, err := startCopy(a.exe, "--after-update")
+	child, err := startCopy(a.exePath(), "--after-update")
 	if err != nil {
-		if rerr := updater.Restore(a.exe); rerr != nil {
+		if rerr := updater.Restore(a.exePath()); rerr != nil {
 			a.log("ERROR", "The old version could not be put back: "+rerr.Error())
 		}
 		err = fmt.Errorf("The new version could not be started: %v", err)
@@ -364,7 +364,7 @@ func (a *app) handOverTo(child *os.Process, latest string, auto bool) {
 	case <-gone:
 	case <-time.After(5 * time.Second):
 	}
-	if err := updater.Restore(a.exe); err != nil {
+	if err := updater.Restore(a.exePath()); err != nil {
 		a.log("ERROR", "The old version could not be put back: "+err.Error())
 		leave(1)
 		return
@@ -375,7 +375,7 @@ func (a *app) handOverTo(child *os.Process, latest string, auto bool) {
 	if auto {
 		args = append(args, "--background") // it updated itself in the background, so it comes back there
 	}
-	if _, err := startCopy(a.exe, args...); err != nil {
+	if _, err := startCopy(a.exePath(), args...); err != nil {
 		a.log("ERROR", "The old version is back in place but could not be started: "+err.Error())
 		leave(1)
 		return

@@ -65,14 +65,16 @@ version and the maintainer's go-ahead.
       fake server; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app
       like the Finder does). It writes the `.sha256` files, adds a byte-identical copy of each program file under the
       former name for copies installed before the rename (`tools/ci/former-names.txt`, which says when they go),
-      attests the builds and publishes a **draft**.
+      attests the builds and publishes a **draft**, then labels each former-name copy on the release page (GitHub
+      shows the label in place of the file name; the program finds its file by name).
    6. **`reproduce`** rebuilds the exe and both Linux programs from the tag on another runner at the same time
       (`tools/ci/reproduce.sh`); only `verify` waits for it.
    7. **`verify`** checks that the rebuilt files' checksums equal the release's (byte for byte), then runs
       `tools/ci/verify-release.ps1` on the draft: the eighteen assets (the copies under the former name the same files
-      byte for byte), every checksum and build record, the exe's version. Only if these pass is the release made
-      public (and latest). Then come the checks that need it public: that it is the latest release, and a real
-      self-update from the previous release.
+      byte for byte, with their labels), every checksum and build record, the exe's version. Only if these pass is
+      the release made public (and latest). Then come the checks that need it public: that it is the latest release,
+      and a real self-update from the previous release (from one of the former name: that the updated copy renames its
+      file to `MPRP.exe`, about a minute after it started).
    8. **A draft that fails** stays a draft (nobody's updater sees it): fix, then delete the draft and the tag, or
       publish it by hand once checked.
 4. **Read the `verify` job's log** (`gh run view --log`) and report. Nothing needs re-running locally after a release.

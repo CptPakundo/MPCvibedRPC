@@ -168,7 +168,7 @@ on every system.
 | `macapp_darwin.go` | macOS (cgo only): the menu bar icon, the settings window (WebKit) and the notifications (`UNUserNotificationCenter`, only as an app bundle) |
 | `window.go`, `browser*.go` | the window's browser, opening a URL or folder |
 | `taskbar_windows.go` | the browser window's taskbar button gets the program's name, icon and start command (set from outside: from the first window on, a hook thread gives every taskbar window of a browser process that uses the window profile the identity and the built-in icon whenever it appears, and keeps the icon on it, through the shell hook and WinEvents, which it listens to only while a settings window is there or coming; it logs when the window first has the icon and what failed) |
-| `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`), and carrying an entry of the former name over (`MigrateAutoStart`) |
+| `autostart*.go` | start at login: the registry's Run key, a LaunchAgent, XDG autostart (`autostart_unix.go`), carrying an entry of the former name over (`MigrateAutoStart`), and following the program file's rename (`FollowRename`) |
 | `single_*.go` | single instance (mutex, file lock) |
 | `playersetup.go` (`SetUpPlayers`), `setup_unix.go`, `mpvconf.go`, `vlcconf.go` | **Set up the player connection** |
 
@@ -391,6 +391,15 @@ Playing form while Discord shares the screen ([users' view](how-it-works.md#on-y
   single-instance lock and waits for the new copy's `ipc.json`. If it does not come, it puts the old program file back,
   writes `update-failed` (the version, which is not installed by itself again) and starts itself again with
   `--update-failed`.
+- **The program file's former name** (`selfrename.go`): an install from before the rename keeps its file name across
+  in-app updates (`MPCvibedRPC.exe`, `MPCvibedRPC-linux-amd64`, ...). `followName` gives such a file (exact name; any
+  case on Windows) the current release name, at a normal start, or after an update once the hand-over is over
+  (`afterHandOver`, with the clean-up of the update's leftovers, `proofWait` + 30 s after the start: the old copy can
+  put its own file back until then); never with `--update-failed`, never while an update installs. A different file of
+  the new name in the folder leaves both; the same bytes move the former one aside (`<former>.old`, deleted at the next
+  start). Then the program's path (`a.exe`, `winsys.SetProgramFile` for the window's relaunch command, since Windows'
+  `os.Executable` keeps the old path) and the run-at-login entry that named the old file (`winsys.FollowRename`)
+  follow.
 - **Red dot:** while an update waits, the tray and menu bar icon show a dot (`assets.IconUpdate`, made by
   `tools/mkico -dot`; macOS: `winsys.menuBarIcon`).
 
@@ -554,7 +563,8 @@ Everything below has only run against fakes, or not at all. Anyone with the setu
 - **Start with Windows** after it was switched off in Task Manager's Startup list.
 - **An install from before the rename** on a real system: its data folder moved (or copied while a file is held),
   its run-at-login entry carried over (the Windows registry with a start switched off in Task Manager, a macOS
-  LaunchAgent, a Linux autostart file), and a second start while a copy of the former version still runs.
+  LaunchAgent, a Linux autostart file), and a second start while a copy of the former version still runs. The program
+  file's own rename on a real Linux desktop (its autostart file following it).
 - **Set up the player connection** end to end (it writes MPC-HC's registry values).
 - **MPC-QT's multi-window mode** with a portable build and the live engine test.
 - **mpv on a real Linux desktop.**

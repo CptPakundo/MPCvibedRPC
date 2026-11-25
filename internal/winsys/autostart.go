@@ -197,3 +197,28 @@ func migrateRunValue(r runRegistry, from, to, command string) string {
 	}
 	return note + "."
 }
+
+// FollowRename points the run-at-login entry (Windows: the Run value; macOS, Linux: the login item) of this copy at
+// newExe after the program renamed its own file from oldExe (see the program's renameProgramFile). Only an entry that
+// names oldExe is rewritten, so one switched off stays off and one of another copy is left alone; on Windows the
+// Task Manager switch is not touched. It gives a sentence for the log ("" when no entry named oldExe).
+func FollowRename(oldExe, newExe string) string {
+	home := os.Getenv("MPRP_HOME")
+	if !IsWindows {
+		return followLoginItem(runtime.GOOS, userLoginItem(), oldExe, newExe, home)
+	}
+	return followRunValue(systemRegistry, runName(), oldExe, newExe, home)
+}
+
+// followRunValue rewrites the Run value name to start newExe when its command line names oldExe (case does not
+// matter: Windows paths).
+func followRunValue(r runRegistry, name, oldExe, newExe, home string) string {
+	cur, ok := r.run(name)
+	if !ok || oldExe == "" || !strings.Contains(strings.ToLower(cur), strings.ToLower(oldExe)) {
+		return ""
+	}
+	if !r.setRun(name, runCommand(newExe, home)) {
+		return "Could not point the run-at-login entry " + name + " at " + newExe + "; it still names " + oldExe + "."
+	}
+	return "The run-at-login entry " + name + " now starts " + newExe + "."
+}

@@ -144,7 +144,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   over by itself at its first normal start: its data folder and run-at-login entry are moved to the new name (a start
   switched off in Task Manager stays off; after an in-app update from the former version the folder moves at the
   next start), and every release also publishes its program files under the former names, so copies that update
-  themselves find them, until the maintainer drops those names (`tools/ci/former-names.txt`). Going back to a version
+  themselves find them, until the maintainer drops those names (`tools/ci/former-names.txt`; the release page labels
+  them). Such a copy then renames its own program file to the new release name (`MPCvibedRPC.exe` to `MPRP.exe`, the
+  Linux files alike; never a file with any other name, never the macOS app) and points its run-at-login entry at it;
+  shortcuts made to the old name need making again. Going back to a version
   from before the rename starts it with default settings and signed out: the data stays in the new folder, and the
   next update to a current version uses it again. The upstream credit and MPC-HC's own names are unchanged. *Why:*
   the program long since serves many players and services, not only the MPC family; the new name says what it is, and the maintainer wanted it to apply to everything.

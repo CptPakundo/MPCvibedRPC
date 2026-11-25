@@ -7,7 +7,8 @@ import "os"
 const Name = "MPRP"
 
 // FormerName is the name the program had before it was renamed. Only the steps that carry an existing install over
-// use it: the data folder, the run-at-login entry and the check for a copy of the former version that still runs.
+// use it: the data folder, the run-at-login entry, the program file's name and the check for a copy of the former
+// version that still runs.
 const FormerName = "MPCvibedRPC"
 
 // FormerEnv pairs each environment variable the program reads with the one the former version read for the same

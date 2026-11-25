@@ -1,6 +1,7 @@
 [
   {"version": "0.9.60", "date": "2026-11-25", "items": [
     "✨ MPCvibedRPC is now MPRP, Media Player Rich Presence, with a new logo. Your settings and start-up entry move over by themselves.",
+    "📁 An install from before the rename renames its program file to MPRP.exe too; shortcuts to the old name need making again.",
     "🎮 The status comes from the project's own Discord app: it reads \"Watching MPRP\" when the title is not the name.",
     "🎯 Fix a match is new: search the catalogs as you type, then pick the title, cover and episode offset, for one file or all.",
     "✏️ Text lines on the Look tab: Standard, Short, Detailed, or lines of your own for the status.",

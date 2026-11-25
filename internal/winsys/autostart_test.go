@@ -195,3 +195,56 @@ func TestMigrateLoginItem(t *testing.T) {
 		}
 	}
 }
+
+// After the program renamed its file, the Run value that named the old path starts the new one; any other value, and
+// the Task Manager switch, stay as they are.
+func TestFollowRunValue(t *testing.T) {
+	oldExe, newExe := `C:\Apps\MPCvibedRPC.exe`, `C:\Apps\MPRP.exe`
+	f := &fakeRegistry{runs: map[string]string{"MPRP": `"C:\Apps\mpcvibedrpc.exe" --background`, "Other": `"C:\Other\MPCvibedRPC.exe"`},
+		approvals: map[string][]byte{"MPRP": {3, 0}}}
+	note := followRunValue(f.registry(), "MPRP", oldExe, newExe, "")
+	if f.runs["MPRP"] != `"C:\Apps\MPRP.exe" --background` || !strings.Contains(note, "now starts") {
+		t.Errorf("run %q, note %q", f.runs["MPRP"], note)
+	}
+	if f.runs["Other"] != `"C:\Other\MPCvibedRPC.exe"` || f.approvals["MPRP"][0] != 3 {
+		t.Error("another value or the Task Manager switch was changed")
+	}
+	// a copy with a data folder of its own keeps --home
+	f.runs["MPRP-1"] = `"C:\Apps\MPCvibedRPC.exe" --background --home "D:\Data"`
+	followRunValue(f.registry(), "MPRP-1", oldExe, newExe, `D:\Data`)
+	if f.runs["MPRP-1"] != `"C:\Apps\MPRP.exe" --background --home "D:\Data"` {
+		t.Errorf("with a data folder: %q", f.runs["MPRP-1"])
+	}
+	// a value naming another file, or none at all: nothing to do
+	if note := followRunValue(f.registry(), "Other", `C:\Apps\MPCvibedRPC.exe`, newExe, ""); note != "" || f.runs["Other"] != `"C:\Other\MPCvibedRPC.exe"` {
+		t.Errorf("another file's value: %q", note)
+	}
+	if note := followRunValue(f.registry(), "None", oldExe, newExe, ""); note != "" {
+		t.Errorf("no value: %q", note)
+	}
+	f.runs["MPRP"] = `"C:\Apps\MPCvibedRPC.exe" --background`
+	f.refuse = true
+	if note := followRunValue(f.registry(), "MPRP", oldExe, newExe, ""); !strings.Contains(note, "Could not") {
+		t.Errorf("a write that fails: %q", note)
+	}
+}
+
+func TestFollowLoginItem(t *testing.T) {
+	for _, goos := range []string{"linux", "darwin"} {
+		dir := t.TempDir()
+		p := filepath.Join(dir, "item")
+		oldExe, newExe := "/opt/x/MPCvibedRPC-linux-amd64", "/opt/x/MPRP-linux-amd64"
+		if note := followLoginItem(goos, p, oldExe, newExe, ""); note != "" {
+			t.Errorf("%s: no login item, but %q", goos, note)
+		}
+		os.WriteFile(p, []byte(loginItem(goos, "/opt/y/other", "")), 0o644)
+		if note := followLoginItem(goos, p, oldExe, newExe, ""); note != "" {
+			t.Errorf("%s: another program's login item, but %q", goos, note)
+		}
+		os.WriteFile(p, []byte(loginItem(goos, oldExe, "/data")), 0o644)
+		note := followLoginItem(goos, p, oldExe, newExe, "/data")
+		if b, _ := os.ReadFile(p); string(b) != loginItem(goos, newExe, "/data") || !strings.Contains(note, "now starts") {
+			t.Errorf("%s: login item %q, note %q", goos, b, note)
+		}
+	}
+}
