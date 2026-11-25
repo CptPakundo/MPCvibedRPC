@@ -140,6 +140,15 @@ type Store struct {
 
 	readFile  func(string) ([]byte, error) // os.ReadFile; tests replace it to make reading fail
 	retryWait time.Duration                // the pause between tries to read a file that fails
+
+	// Log, when set, writes a line to the program's log (a sign-in that cannot be decrypted, see secrets.go).
+	Log func(level, msg string)
+
+	sealer     sealer            // encrypts the sign-ins' secrets (nil: they stay plain text)
+	plainOf    map[string]string // encrypted text -> plain, for the values read or written so far
+	sealedOf   map[string]string // plain -> encrypted text
+	unreadable map[string]bool   // encrypted values already logged as undecryptable
+	sealFailed bool              // a failed encryption was logged
 }
 
 // New opens (and creates) the data folder.
@@ -147,7 +156,7 @@ func New(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	return &Store{Dir: dir, File: filepath.Join(dir, "config.json"), readFile: os.ReadFile, retryWait: 50 * time.Millisecond}, nil
+	return &Store{Dir: dir, File: filepath.Join(dir, "config.json"), readFile: os.ReadFile, retryWait: 50 * time.Millisecond, sealer: systemSealer()}, nil
 }
 
 func (s *Store) CachePath() string { return filepath.Join(s.Dir, "artwork-cache.json") }
@@ -189,6 +198,7 @@ func (s *Store) readOrLast() *jsonx.Obj {
 	}
 	if v, err := jsonx.Parse(strings.TrimPrefix(string(s.last), "\ufeff")); err == nil {
 		if o, ok := v.(*jsonx.Obj); ok {
+			s.openSecrets(o)
 			return o
 		}
 	}
@@ -207,7 +217,9 @@ func (s *Store) read() (*jsonx.Obj, error) {
 		return nil, err
 	}
 	s.last = b
-	return s.parse(b), nil
+	o := s.parse(b)
+	s.openSecrets(o)
+	return o, nil
 }
 
 // parse reads config.json's text; text that is not a JSON object is kept as a .broken copy and counts as empty.
@@ -240,10 +252,11 @@ func (s *Store) brokenName() string {
 	return name
 }
 
-// write saves config.json. The caller holds s.mu.
+// write saves config.json, with the sign-ins' secrets encrypted where the system can (sealSecrets). The caller holds
+// s.mu.
 func (s *Store) write(o *jsonx.Obj) error {
 	tmp := s.File + ".tmp"
-	text := []byte(jsonx.Stringify(o, 2))
+	text := []byte(jsonx.Stringify(s.sealSecrets(o), 2))
 	// Flushed before the rename: after a power loss the rename can survive while unflushed data does not, which
 	// would leave an empty config.json.
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)

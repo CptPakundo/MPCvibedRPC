@@ -116,6 +116,10 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   another user or computer cannot be read, so those sign-ins ask to be made again. macOS and Linux keep plain text;
   the full system key store was not chosen. *Why:* it protects a copied or backed-up `config.json` for the price of
   one standard-library call, with no new window or password.
+- **The secrets typed in the window stay plain text** (`vlcPassword`, `kodiPassword`, `tmdbApiKey`; 2026-11-25). *Why:*
+  the user types them and the window shows them back; VLC and Kodi keep the same passwords as plain text in their own
+  settings; only the sign-ins, which the user never sees, are worth taking from a copied file; and the recorded store
+  reference data (frozen) holds `tmdbApiKey` as typed.
 - **The cover cache forgets a title 90 days after it was last played.** *Why:* the cache speeds up lookups, but it
   must not turn into a list of everything ever watched.
 - **Every online service can be switched off**, and one switch makes the program fully offline. *Why:* each lookup

@@ -158,9 +158,12 @@ groups) and finds titles, seasons and episodes. Basic mode only applies the swit
 
 ## Written by the program
 
-Not typed: the sign-ins on the **Players** tab and the window write these. The sign-ins are kept in `config.json` as
-plain text, as other apps keep theirs; the window and **Copy diagnostics** never show them (diagnostics only say
-whether you are signed in).
+Not typed: the sign-ins on the **Players** tab and the window write these. On Windows the sign-ins' tokens and keys
+(`plexToken`, `plexKey`, `stremioKey`, `jellyfinToken`) are kept encrypted with Windows' per-user DPAPI, as `dpapi:`
+and the encrypted bytes in base64: only the same user on the same computer can read them, and a value that cannot be
+decrypted (a `config.json` from another user or computer) counts as signed out. A plain value, as older versions and
+macOS and Linux keep it, is read as it is and encrypted at the next save on Windows. The window and **Copy
+diagnostics** never show them (diagnostics only say whether you are signed in).
 
 | Setting | Default | What it does |
 |---|---|---|
