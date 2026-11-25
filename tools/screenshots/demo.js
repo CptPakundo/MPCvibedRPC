@@ -6,7 +6,7 @@
   window.__realFetch = real;
   const start = Date.now() - 744000; // 12:24 into a 48-minute episode
   const status = {
-    running: true, discord: 'connected', mpc: true, player: 'MPC-HC', nowPlaying: 'Sample Show - S01E02 - Episode title',
+    running: true, discord: 'connected', mpc: true, playerAnswers: true, player: 'MPC-HC', nowPlaying: 'Sample Show - S01E02 - Episode title',
     paused: false, pauseCleared: false, hidden: false, lastError: null, since: start,
     preview: {
       watching: true, name: 'Sample Show', details: 'S01E02 · Episode title', state: 'Drama, Mystery · ★ 8.1',
