@@ -491,9 +491,10 @@ type Media struct {
 	Junk        bool
 
 	// filled in by later stages
-	DurationMin  int // 0 = unknown
-	CodeEpisode  int // NA
-	BadgeEpisode int // NA
+	DurationMin  int    // 0 = unknown
+	CodeEpisode  int    // NA
+	BadgeEpisode int    // NA
+	File         string // the file's base name, set by the engine for Fix a match's "only this file" ("" = none)
 }
 
 func newMedia() *Media {

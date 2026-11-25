@@ -410,8 +410,17 @@ func TestSectionsForEachSystem(t *testing.T) {
 	}
 	// everything else is shown everywhere
 	for _, f := range AllFields() {
-		if len(f.OS) == 0 && f.Key != "" && !(win[f.Key] && mac[f.Key] && linux[f.Key]) {
+		if len(f.OS) == 0 && !f.Legacy && f.Key != "" && !(win[f.Key] && mac[f.Key] && linux[f.Key]) {
 			t.Errorf("%s should be shown everywhere", f.Key)
+		}
+	}
+	// the legacy Fix a match lines are shown nowhere, but still validate
+	for _, k := range []string{"artworkAliases", "artworkOverrides"} {
+		if win[k] || mac[k] || linux[k] {
+			t.Errorf("%s is shown", k)
+		}
+		if _, ok := ByKey(k); !ok {
+			t.Errorf("%s must stay a known setting", k)
 		}
 	}
 	// the hidden settings still validate (a config.json copied between systems keeps them)

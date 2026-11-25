@@ -10,7 +10,7 @@ import (
 
 func TestExplain(t *testing.T) {
 	cfg := core.DefaultConfig()
-	cfg.ArtworkAliases = map[string]string{"Sample Movie": "Sample Film"}
+	cfg.MatchFixes = []core.MatchFix{{Match: "Sample Movie", Search: "Sample Film"}}
 	a := New(&cfg, Options{})
 	movie := core.ParseMedia("Sample Movie (2020).mkv", &cfg, nil)
 	show := core.ParseMedia("Sample Show - S01E02.mkv", &cfg, nil)

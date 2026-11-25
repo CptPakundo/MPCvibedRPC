@@ -1,0 +1,144 @@
+{
+  "note": "Text lines: templates, values and the line each must give. Read by internal/core (Expand) and by the page's test in internal/assets (MPRP_LINES.expand in ui.js), so the two cannot drift.",
+  "values": {
+    "episode": {
+      "title": "Sample Show",
+      "year": "",
+      "genres": "Drama, Comedy",
+      "rating": "★ 8.3",
+      "director": "",
+      "player": "VLC media player",
+      "length": "45:00",
+      "code": "S01E02",
+      "season": "1",
+      "episode": "2",
+      "episodeTitle": "Sample Episode",
+      "seasonName": ""
+    },
+    "movie": {
+      "title": "Sample Movie",
+      "year": "2020",
+      "genres": "Drama, Comedy",
+      "rating": "★ 7.1",
+      "director": "Dir. Sample Name",
+      "player": "VLC media player",
+      "length": "1:52:10"
+    },
+    "bare": {
+      "title": "Sample Movie",
+      "year": "",
+      "genres": "",
+      "rating": "",
+      "director": "",
+      "player": "",
+      "length": ""
+    }
+  },
+  "cases": [
+    {
+      "values": "episode",
+      "tpl": "{episodeTitle}",
+      "want": "Sample Episode"
+    },
+    {
+      "values": "episode",
+      "tpl": "{code} · {episodeTitle}",
+      "want": "S01E02 · Sample Episode"
+    },
+    {
+      "values": "episode",
+      "tpl": "{seasonName} · {genres} · {rating}",
+      "want": "Drama, Comedy · ★ 8.3"
+    },
+    {
+      "values": "episode",
+      "tpl": "{genres} · {rating} · [on {player}]",
+      "want": "Drama, Comedy · ★ 8.3 · on VLC media player"
+    },
+    {
+      "values": "episode",
+      "tpl": "[Season {season}] [{seasonName} arc]",
+      "want": "Season 1"
+    },
+    {
+      "values": "episode",
+      "tpl": "{titel} · {title}",
+      "want": "{titel} · Sample Show"
+    },
+    {
+      "values": "episode",
+      "tpl": "[{titel}]",
+      "want": "{titel}"
+    },
+    {
+      "values": "episode",
+      "tpl": " · {seasonName} · ",
+      "want": ""
+    },
+    {
+      "values": "episode",
+      "tpl": "",
+      "want": ""
+    },
+    {
+      "values": "episode",
+      "tpl": "  {title}  ",
+      "want": "Sample Show"
+    },
+    {
+      "values": "episode",
+      "tpl": "E{episode} of S{season}",
+      "want": "E2 of S1"
+    },
+    {
+      "values": "episode",
+      "tpl": "[no placeholder] {title}",
+      "want": "no placeholder Sample Show"
+    },
+    {
+      "values": "episode",
+      "tpl": "[unclosed {title}",
+      "want": "[unclosed Sample Show"
+    },
+    {
+      "values": "movie",
+      "tpl": "{year} · {genres} · {length}",
+      "want": "2020 · Drama, Comedy · 1:52:10"
+    },
+    {
+      "values": "movie",
+      "tpl": "{rating} · {director} · [on {player}]",
+      "want": "★ 7.1 · Dir. Sample Name · on VLC media player"
+    },
+    {
+      "values": "movie",
+      "tpl": "{title}[ ({year})]",
+      "want": "Sample Movie (2020)"
+    },
+    {
+      "values": "movie",
+      "tpl": "{code} · {title}",
+      "want": "{code} · Sample Movie"
+    },
+    {
+      "values": "bare",
+      "tpl": "{title}[ ({year})]",
+      "want": "Sample Movie"
+    },
+    {
+      "values": "bare",
+      "tpl": "{year} · {genres} · [on {player}]",
+      "want": ""
+    },
+    {
+      "values": "movie",
+      "tpl": "{title} ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★",
+      "want": "Sample Movie ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★..."
+    },
+    {
+      "values": "movie",
+      "tpl": "🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬 {title}",
+      "want": "🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬 ..."
+    }
+  ]
+}

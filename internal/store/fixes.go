@@ -1,0 +1,248 @@
+package store
+
+import (
+	"fmt"
+	"math"
+	"strings"
+
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
+)
+
+// limits for Fix a match and the custom text lines
+const (
+	maxFixes     = 500
+	maxOffset    = 500
+	maxCoverLen  = 256 // the cover finder takes image addresses up to this length
+	maxLineChars = 300
+)
+
+// cleanFixes validates Fix a match's list from the window (see core.MatchFix): each fix needs the title (or file name)
+// it is for, and at most one of a catalog page or another name to search; the cover is an http(s) image address. A
+// second fix for the same title (or file) replaces the first. Stored in a fixed key order, without empty fields.
+func cleanFixes(f Field, v any) (any, error) {
+	var arr []any
+	switch x := v.(type) {
+	case nil:
+	case []any:
+		arr = x
+	default:
+		return nil, &ValidationError{f.Label + ": expected a list of fixes"}
+	}
+	bad := func(msg string) error { return &ValidationError{f.Label + ": " + msg} }
+	var out []*jsonx.Obj
+	at := map[string]int{}
+	for _, e := range arr {
+		o, ok := e.(*jsonx.Obj)
+		if !ok {
+			return nil, bad("every fix must be an object")
+		}
+		text := func(key string, max int) (string, error) {
+			raw, present := o.M[key]
+			if !present || raw == nil {
+				return "", nil
+			}
+			s, ok := raw.(string)
+			if !ok {
+				return "", bad(key + " must be text")
+			}
+			s = jsTrim(s)
+			if hasControl(s) {
+				return "", bad(key + " must not contain control characters")
+			}
+			if len([]rune(s)) > max {
+				return "", bad(fmt.Sprintf("%s is longer than %d characters", key, max))
+			}
+			return s, nil
+		}
+		address := func(key string, max int) (string, error) {
+			s, err := text(key, max)
+			if err == nil && s != "" && !strings.HasPrefix(s, "https://") && !strings.HasPrefix(s, "http://") {
+				err = bad(key + " must be an http(s) address")
+			}
+			return s, err
+		}
+		offset := func(key string) (int, error) {
+			raw, present := o.M[key]
+			if !present || raw == nil || isBlank(raw) {
+				return 0, nil
+			}
+			n := jsNumber(raw)
+			if math.IsNaN(n) || n != math.Trunc(n) || math.Abs(n) > maxOffset {
+				return 0, bad(fmt.Sprintf("an offset must be a whole number from -%d to %d", maxOffset, maxOffset))
+			}
+			return int(n), nil
+		}
+		var fx core.MatchFix
+		var err error
+		if fx.Match, err = text("match", maxLineLen); err != nil {
+			return nil, err
+		}
+		if fx.Match == "" {
+			return nil, bad("every fix needs the title or file name it is for")
+		}
+		fx.File, _ = o.M["file"].(bool)
+		if fx.Entry, err = address("entry", 512); err != nil {
+			return nil, err
+		}
+		if _, ok := core.EntryPage(fx.Entry); fx.Entry != "" && !ok {
+			return nil, bad("the pinned entry must be an IMDb, TMDB, TVmaze, AniList or Kitsu page")
+		}
+		if fx.Search, err = text("search", maxLineLen); err != nil {
+			return nil, err
+		}
+		if fx.Entry != "" {
+			fx.Search = "" // a pinned entry needs no other name
+		}
+		if fx.Cover, err = address("cover", maxCoverLen); err != nil {
+			return nil, err
+		}
+		if fx.SeasonOffset, err = offset("seasonOffset"); err != nil {
+			return nil, err
+		}
+		if fx.EpisodeOffset, err = offset("episodeOffset"); err != nil {
+			return nil, err
+		}
+		if fx.Label, err = text("label", maxLineLen); err != nil {
+			return nil, err
+		}
+		if fx.Poster, err = address("poster", 512); err != nil {
+			return nil, err
+		}
+		key := fmt.Sprint(fx.File, "|", strings.ToLower(fx.Match))
+		if i, dup := at[key]; dup {
+			out[i] = fixObj(fx)
+			continue
+		}
+		at[key] = len(out)
+		out = append(out, fixObj(fx))
+	}
+	if len(out) > maxFixes {
+		return nil, bad(fmt.Sprintf("at most %d fixes", maxFixes))
+	}
+	list := make([]any, len(out))
+	for i, o := range out {
+		list[i] = o
+	}
+	return list, nil
+}
+
+// fixObj is a fix as config.json stores it.
+func fixObj(fx core.MatchFix) *jsonx.Obj {
+	o := jsonx.NewObj()
+	o.Set("match", fx.Match)
+	if fx.File {
+		o.Set("file", true)
+	}
+	for _, kv := range [][2]string{{"entry", fx.Entry}, {"search", fx.Search}, {"cover", fx.Cover}} {
+		if kv[1] != "" {
+			o.Set(kv[0], kv[1])
+		}
+	}
+	if fx.SeasonOffset != 0 {
+		o.Set("seasonOffset", float64(fx.SeasonOffset))
+	}
+	if fx.EpisodeOffset != 0 {
+		o.Set("episodeOffset", float64(fx.EpisodeOffset))
+	}
+	if fx.Label != "" {
+		o.Set("label", fx.Label)
+	}
+	if fx.Poster != "" {
+		o.Set("poster", fx.Poster)
+	}
+	return o
+}
+
+// cleanTextLines validates the custom text lines: an object with the keys of core.CustomLineKeys (others are refused),
+// each a line of text. Empty lines are left out (a missing line is an empty one).
+func cleanTextLines(f Field, v any) (any, error) {
+	out := jsonx.NewObj()
+	if v == nil {
+		return out, nil
+	}
+	o, ok := v.(*jsonx.Obj)
+	if !ok {
+		return nil, &ValidationError{f.Label + ": expected an object"}
+	}
+	known := map[string]bool{}
+	for _, k := range core.CustomLineKeys {
+		known[k] = true
+	}
+	for _, k := range o.Keys {
+		if !known[k] {
+			return nil, &ValidationError{f.Label + ": unknown line " + k}
+		}
+	}
+	for _, k := range core.CustomLineKeys {
+		raw, present := o.M[k]
+		if !present || raw == nil {
+			continue
+		}
+		s, ok := raw.(string)
+		if !ok {
+			return nil, &ValidationError{f.Label + ": every line must be text"}
+		}
+		s = jsTrim(s)
+		if hasControl(s) {
+			return nil, &ValidationError{f.Label + ": a line must not contain line breaks or other control characters"}
+		}
+		if len([]rune(s)) > maxLineChars {
+			return nil, &ValidationError{fmt.Sprintf("%s: a line is longer than %d characters", f.Label, maxLineChars)}
+		}
+		if s != "" {
+			out.Set(k, s)
+		}
+	}
+	return out, nil
+}
+
+// MigrateMatchFixes writes the legacy Fix a match lines (artworkAliases, artworkOverrides) as matchFixes, once: only
+// while config.json has no matchFixes key. Each title becomes one fix (the alias as its search, the pinned cover as
+// its cover), in the file's order. The old keys stay in the file, for a downgrade, and are not read again. It
+// returns how many fixes were written (0: nothing to do).
+func (s *Store) MigrateMatchFixes() (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cur, err := s.read()
+	if err != nil {
+		return 0, err
+	}
+	if _, has := cur.M["matchFixes"]; has {
+		return 0, nil
+	}
+	var order []string
+	fixes := map[string]*core.MatchFix{}
+	for _, src := range []string{"artworkAliases", "artworkOverrides"} {
+		m, ok := cur.M[src].(*jsonx.Obj)
+		if !ok {
+			continue
+		}
+		for _, k := range m.Keys {
+			val, _ := m.M[k].(string)
+			if jsTrim(k) == "" || val == "" {
+				continue
+			}
+			fx := fixes[k]
+			if fx == nil {
+				fx = &core.MatchFix{Match: k}
+				fixes[k] = fx
+				order = append(order, k)
+			}
+			if src == "artworkAliases" {
+				fx.Search = val
+			} else {
+				fx.Cover = val
+			}
+		}
+	}
+	if len(order) == 0 {
+		return 0, nil
+	}
+	list := make([]any, len(order))
+	for i, k := range order {
+		list[i] = fixObj(*fixes[k])
+	}
+	cur.Set("matchFixes", list)
+	return len(order), s.write(cur)
+}

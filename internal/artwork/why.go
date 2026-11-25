@@ -20,8 +20,16 @@ func (a *Artwork) Explain(media *core.Media, found *core.Art) []string {
 	var out []string
 	add := func(s string) { out = append(out, s) }
 	nt := normTitle(media.Title)
-	if alias := a.aliases[nt]; alias != "" {
-		add(`Searched as "` + alias + `" (Fix a match > Search under another name).`)
+	fx := a.FixFor(media)
+	if fx != nil {
+		scope := `every file read as "` + fx.Match + `"`
+		if fx.File {
+			scope = "only this file"
+		}
+		add("Fixed by you in Fix a match (" + scope + ").")
+		if fx.Search != "" && fx.Entry == "" {
+			add(`Searched as "` + fx.Search + `".`)
+		}
 	}
 	if found == nil {
 		j := a.newLookupJob(media)
@@ -42,9 +50,12 @@ func (a *Artwork) Explain(media *core.Media, found *core.Art) []string {
 		return out
 	}
 	if found.Source == "override" {
-		add("Cover pinned by you (Fix a match > Pin a cover image).")
+		add("Cover pinned by you (Fix a match).")
 	} else {
 		m := "Matched by " + found.Source + `: "` + found.Name + `"`
+		if fx != nil && isPinned(fx, found) {
+			m = "Matched as you chose: " + found.Source + ` "` + found.Name + `"`
+		}
 		var bits []string
 		if found.Year != core.NA && found.Year != 0 {
 			bits = append(bits, strconv.Itoa(found.Year))

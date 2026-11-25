@@ -88,6 +88,7 @@ func (a *app) handlers() map[string]server.Handler {
 			return a.jellyfin.signInPassword(address, strings.TrimSpace(user), password)
 		}},
 	}
+	a.matchHandlers(h)
 	addAccount(h, "plex", a.plex)
 	addAccount(h, "stremio", a.stremio)
 	addAccount(h, "jellyfin", a.jellyfin)

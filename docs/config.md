@@ -61,7 +61,9 @@ folder on macOS and Linux. A full path or `~/...` is used as it is. See
 | `richInfo` | `true` | **Genres, rating and director** on the extra lines. `false` leaves just the year or episode. |
 | `linkButton` | `true` | **Link to the title's page** (IMDb, AniList, ...): a "View on ..." button, clickable text lines and cover, a second button when there is another page, and the player's logo linking its site. If Discord refuses these links, they are left out from then on. |
 | `letterboxdLink` | `false` | **Link to Letterboxd when it has the title:** with `linkButton` on, the button and lines open the Letterboxd page instead. Asks letterboxd.com once per title (by its IMDb id, or a film's TMDB id); the answer is kept with the cover. |
-| `episodeInDetails` | `false` | **Also show S01E02 in the title line** (Discord already shows a badge when the card is expanded). |
+| `textLines` | `"standard"` | **Text lines:** the two lines under the title, and a film's cover text. `"standard"` (the usual lines), `"short"`, `"detailed"` or `"custom"` (`customLines`). [Details](#textlines). |
+| `customLines` | `{}` | **Custom** text lines: `episodeDetails` and `episodeState` (an episode's first and second line), `movieDetails`, `movieState` and `movieCover` (a film's lines and cover text), for example `{"episodeDetails": "{code} · {episodeTitle}"}`. A missing line is empty; a missing cover text is `{title}[ ({year})]`. [Details](#textlines). |
+| `episodeInDetails` | `false` | **Also show S01E02 in the title line** (Discord already shows a badge when the card is expanded). Only with Standard text lines. |
 
 ### streamTitle
 - `"auto"`: the stream form ("Playing <title>", so viewers see "Streaming <title>") only while Discord shares your
@@ -70,10 +72,29 @@ folder on macOS and Linux. A full path or `~/...` is used as it is. See
 
 What the stream form looks like and how a share is detected: [On your streams](how-it-works.md#on-your-streams).
 
+### textLines
+The two text lines under the title while the title is the activity name, and a film's cover text (shown when you point
+at the cover):
+
+| Choice | Episode | Film |
+|---|---|---|
+| `"standard"` | `Sample Episode` / `Sample Arc · Drama, Comedy · ★ 8.3` | `2020 · Drama, Comedy` / `★ 7.1 · Dir. Sample Name` |
+| `"short"` | `S01E02 · Sample Episode` / nothing | `2020` / `Dir. Sample Name` |
+| `"detailed"` | `S01E02 · Sample Episode` / `Drama, Comedy · ★ 8.3 · on VLC media player` | `2020 · Drama, Comedy · 1:52:10` / `★ 7.1 · Dir. Sample Name · on VLC media player` |
+
+`"custom"` uses `customLines`, written with these placeholders: `{title}`, `{year}`, `{genres}`, `{rating}` (`★ 7.1`),
+`{director}` (`Dir. Sample Name`, films), `{player}`, `{length}`, and for episodes `{code}` (`S01E02`, or a special's own
+words), `{season}`, `{episode}`, `{episodeTitle}` and `{seasonName}`. A part in `[ ]` drops out when a placeholder in it
+is empty, a part between ` · ` separators that ends up empty is dropped with its separator, an unknown name stays as
+typed, and each line is cut to 128 characters. `richInfo` off empties `{genres}`, `{rating}` and `{director}`.
+
+Never shaped: the name ("Watching Sample Show"), the pause line, an episode's cover text (Discord turns it into the
+S1E2 badge), the stream form, a song, a hidden title, and the lines with `titleAsName` off or the Playing style.
+
 ## Titles & art
 
-The title read from the file name is looked up online. In the window, **Fix a match** holds `artworkAliases` and
-`artworkOverrides`, and **More** holds `tmdbApiKey` and `folderEpisodeNumbers`.
+The title read from the file name is looked up online. In the window, **Fix a match** holds `matchFixes`, and **More**
+holds `tmdbApiKey` and `folderEpisodeNumbers`.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -81,8 +102,9 @@ The title read from the file name is looked up online. In the window, **Fix a ma
 | `catalogTitle` | `true` | **Use the catalog's spelling of titles**, including punctuation a file name can't hold. `false` keeps the title as read from the file name. |
 | `animeTitles` | `"auto"` | **Anime titles**, for anime found on AniList: `"auto"` uses the AniList name (English or romaji) the file name resembles most; `"english"` or `"romaji"` always use that one; `"file"` keeps the file's spelling. |
 | `useFolderName` | `true` | **Use the folder name when the file is just an episode number** (skipping `Season 1` style folders). Also names a Blu-ray or DVD from the folder that holds `BDMV` or `VIDEO_TS`, or from the disc's own title or label ([how](how-it-works.md#blu-ray-and-dvd)). |
-| `artworkAliases` | `{}` | **Search under another name**, for example `{"filename title": "Catalog Title"}`. |
-| `artworkOverrides` | `{}` | **Pin a cover image**, for example `{"some title": "https://example.com/poster.jpg"}`. |
+| `matchFixes` | `[]` | **Fix a match:** one fix per title or file, made in the window. Each has `match` (the title read from the file name, or with `"file": true` a file's exact name; a file fix wins), `entry` (a pinned IMDb, TMDB, TVmaze, AniList or Kitsu page) or `search` (another name to search under), `cover` (an image address instead of the catalog's cover), `seasonOffset` and `episodeOffset` (added to the numbers read from the file before the catalogs are asked), and `label` and `poster` (how the window describes the entry). [How it works](how-it-works.md#fixing-a-match). |
+| `artworkAliases` | `{}` | *(legacy)* "Search under another name" lines, such as `{"filename title": "Catalog Title"}`. Read once with `matchFixes` (each title becomes a fix); kept for a downgrade. |
+| `artworkOverrides` | `{}` | *(legacy)* "Pin a cover image" lines, such as `{"some title": "https://example.com/poster.jpg"}`. Read once with `matchFixes`; kept for a downgrade. |
 | `tmdbApiKey` | `""` | **TMDB API key**, free at <https://www.themoviedb.org/settings/api>. TMDB is skipped unless this is set. |
 | `folderEpisodeNumbers` | `false` | **Number episodes by their place in the season folder**, for files with a running production code, instead of the catalog's count. |
 | `artworkSources` | `["tmdb", "imdb", "cinemeta", "tvmaze", "anilist", "kitsu", "wikipedia"]` | *(config.json only)* Cover sources, asked at the same time; the first in this list with an exact title match wins. |

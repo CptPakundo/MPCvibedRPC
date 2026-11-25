@@ -137,7 +137,7 @@ func summarise(key string, v any) string {
 	switch key {
 	case "hideFiles":
 		return fmt.Sprintf("(%d entries)", count(v)) // the user's private list stays private
-	case "artworkOverrides":
+	case "artworkOverrides", "matchFixes":
 		b, _ := json.Marshal(v)
 		return reURL.ReplaceAllString(string(b), "${1}${2}/…") // which titles have a pinned cover, and from which server
 	}
