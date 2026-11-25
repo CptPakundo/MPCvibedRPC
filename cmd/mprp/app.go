@@ -141,24 +141,12 @@ func run() error {
 	} else {
 		updater.CleanupOld(exe)
 	}
-	if !firstRun && !st.App().WelcomeSeen {
-		// an install that existed before the welcome card was added has no need of it
-		if p, err := jsonx.Parse(`{"app":{"welcomeSeen":true}}`); err == nil {
-			_ = st.Update(p.(*jsonx.Obj))
-		}
-	}
 	winsys.CloseWindowBrowser(a.browserProfile) // a window browser left behind by a crash
-	if n, err := st.MigrateMatchFixes(); err != nil {
-		a.log("WARN", "Could not save the Fix a match lines as fixes ("+err.Error()+"); they still act as before.")
-	} else if n > 0 {
-		a.log("INFO", fmt.Sprintf("Fix a match: the artworkAliases and artworkOverrides lines became fixes (titles: %d). The old lines stay in the settings file.", n))
-	}
+	a.writeEarly(firstRun)
 
 	a.eng = engine.New(st.Config(), engine.Options{Log: a.log, CacheFile: st.CachePath(), Version: version, StatsFile: st.StatsPath(),
 		MayRest: func() bool { return a.windows.Load() == 0 }, OnRest: winsys.TrimMemory})
 	a.plex = &plexAccount{st: st, eng: a.eng, log: a.log}
-	// renews a 7-day Plex token (plexJwt) in time; nothing otherwise
-	engine.Go(a.log, "The Plex sign-in renewal", func() { a.plex.keepFresh(context.Background(), 0) })
 	a.stremio = &stremioAccount{st: st, eng: a.eng, log: a.log}
 	a.jellyfin = &jellyfinAccount{st: st, eng: a.eng, log: a.log}
 
@@ -174,8 +162,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	a.writeIPC(port)
+	a.announce(port, firstRun)
 	a.log("INFO", fmt.Sprintf("Settings available at http://127.0.0.1:%d/", port))
+	// renews a 7-day Plex token (plexJwt) in time; nothing otherwise (it saves the new token: so only once this copy
+	// has shown that it runs, see announce)
+	engine.Go(a.log, "The Plex sign-in renewal", func() { a.plex.keepFresh(context.Background(), 0) })
 
 	t := a.startTray()
 	a.mu.Lock()
@@ -227,6 +218,45 @@ func (a *app) getTray() *winsys.Tray {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.tray
+}
+
+// The start's own changes to config.json (startWrites) are made before this copy announces itself (writeIPC), except
+// after an update: every write encrypts the sign-ins (on Windows), and if this copy does not show in time that it runs,
+// the version before is put back and starts again on the same file, and may not read them (a version from before the
+// encryption would take the encrypted text for its tokens). So after an update nothing is written until then.
+func (a *app) writeEarly(firstRun bool) {
+	if !afterUpdate {
+		a.startWrites(firstRun)
+	}
+}
+
+// announce writes ipc.json, which shows that this copy runs, then makes the writes that waited for it (writeEarly).
+func (a *app) announce(port int, firstRun bool) {
+	a.writeIPC(port)
+	if afterUpdate {
+		a.startWrites(firstRun)
+	}
+}
+
+// startWrites are the changes the start makes to config.json: the welcome card marked as seen for an install from
+// before it, and the old Fix a match lines written as fixes. With the engine running already (after an update) it is
+// given the fixes.
+func (a *app) startWrites(firstRun bool) {
+	st := a.st
+	if !firstRun && !st.App().WelcomeSeen {
+		// an install that existed before the welcome card was added has no need of it
+		if p, err := jsonx.Parse(`{"app":{"welcomeSeen":true}}`); err == nil {
+			_ = st.Update(p.(*jsonx.Obj))
+		}
+	}
+	if n, err := st.MigrateMatchFixes(); err != nil {
+		a.log("WARN", "Could not save the Fix a match lines as fixes ("+err.Error()+"); they still act as before.")
+	} else if n > 0 {
+		a.log("INFO", fmt.Sprintf("Fix a match: the artworkAliases and artworkOverrides lines became fixes (titles: %d). The old lines stay in the settings file.", n))
+		if a.eng != nil {
+			applySettings(st, a.eng)
+		}
+	}
 }
 
 func (a *app) writeIPC(port int) {
