@@ -27,13 +27,18 @@ var (
 
 const swRestore = 9
 
-// topWindow is what the choice of a window to bring forward needs to know about a top-level window.
+// topWindow is what the choice of a window to bring forward, or to give the program's icon (taskbarWindow), needs to
+// know about a top-level window.
 type topWindow struct {
 	Handle    uintptr
 	Pid       uint32
 	Visible   bool
 	Titled    bool
 	Minimised bool
+	Child     bool // WS_CHILD: not a top-level window after all (a WinEvent can be about one)
+	Owned     bool // it has an owner window (a bubble, a dialog)
+	Tool      bool // WS_EX_TOOLWINDOW: never on the taskbar
+	AppWindow bool // WS_EX_APPWINDOW: on the taskbar even when owned
 }
 
 // pickWindow takes the first window (EnumWindows lists them from the top of the stacking order) that belongs to one
@@ -50,13 +55,47 @@ func pickWindow(wins []topWindow, pids map[uint32]bool) (topWindow, bool) {
 
 // collectWindow is the EnumWindows callback: it notes each top-level window; returning 1 goes on with the next.
 func collectWindow(hwnd uintptr, _ uintptr) uintptr {
+	enumFound = append(enumFound, describeWindow(hwnd))
+	return 1
+}
+
+const (
+	gwOwner        = 4
+	wsChild        = 0x40000000
+	wsExToolWindow = 0x00000080
+	wsExAppWindow  = 0x00040000
+)
+
+var (
+	pGetWindow        = user32.NewProc("GetWindow")
+	pGetWindowLongPtr = user32.NewProc("GetWindowLongPtrW")
+	gwlStyle          = ^uintptr(15) // GWL_STYLE (-16)
+	gwlExStyle        = ^uintptr(19) // GWL_EXSTYLE (-20)
+)
+
+// describeWindow reads what topWindow holds about the window hwnd (a window that is gone has pid 0).
+func describeWindow(hwnd uintptr) topWindow {
 	var pid uint32
 	pGetWindowThreadProcessID.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
 	vis, _, _ := pIsWindowVisible.Call(hwnd)
 	n, _, _ := pGetWindowTextLengthW.Call(hwnd)
 	ic, _, _ := pIsIconic.Call(hwnd)
-	enumFound = append(enumFound, topWindow{Handle: hwnd, Pid: pid, Visible: vis != 0, Titled: n > 0, Minimised: ic != 0})
-	return 1
+	owner, _, _ := pGetWindow.Call(hwnd, gwOwner)
+	style, _, _ := pGetWindowLongPtr.Call(hwnd, gwlStyle)
+	ex, _, _ := pGetWindowLongPtr.Call(hwnd, gwlExStyle)
+	return topWindow{Handle: hwnd, Pid: pid, Visible: vis != 0, Titled: n > 0, Minimised: ic != 0,
+		Child: style&wsChild != 0, Owned: owner != 0, Tool: ex&wsExToolWindow != 0, AppWindow: ex&wsExAppWindow != 0}
+}
+
+// topWindows lists the top-level windows, from the top of the stacking order.
+func topWindows() []topWindow {
+	enumMu.Lock()
+	defer enumMu.Unlock()
+	enumFound = nil
+	pEnumWindows.Call(enumWindowsCallback, 0)
+	wins := enumFound
+	enumFound = nil
+	return wins
 }
 
 // FocusWindow brings the settings window that is already open to the front (restoring it when minimised). It looks
@@ -77,6 +116,11 @@ func FocusWindow(profileDir string) bool {
 
 // findWindow finds the settings window: the top-level window of the browser processes that use profileDir.
 func findWindow(profileDir string) (topWindow, bool) {
+	return findWindowWith(profileDir, pickWindow)
+}
+
+// findWindowWith finds a top-level window of the browser processes that use profileDir, chosen by pick.
+func findWindowWith(profileDir string, pick func([]topWindow, map[uint32]bool) (topWindow, bool)) (topWindow, bool) {
 	if profileDir == "" {
 		return topWindow{}, false
 	}
@@ -88,13 +132,7 @@ func findWindow(profileDir string) (topWindow, bool) {
 	if len(pids) == 0 {
 		return topWindow{}, false
 	}
-	enumMu.Lock()
-	enumFound = nil
-	pEnumWindows.Call(enumWindowsCallback, 0)
-	wins := enumFound
-	enumFound = nil
-	enumMu.Unlock()
-	return pickWindow(wins, pids)
+	return pick(topWindows(), pids)
 }
 
 // AllowForeground lets the process pid take the foreground. A second start of the program was launched by the user
