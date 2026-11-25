@@ -103,6 +103,7 @@ Maintainers have a few more rules (outward-facing steps, release-file downloads)
 ## Where to find what
 | You want | Read |
 |---|---|
+| Every page of the documentation, by topic | [docs/README.md](docs/README.md) |
 | Rules for AI coding tools | [AGENTS.md](AGENTS.md) |
 | Building, running safely, the package map, how players are read, the engine, testing, CI, adding a player, setting, catalog or host | [docs/development.md](docs/development.md) |
 | Releasing, screenshots, downloading release files | [docs/maintaining.md](docs/maintaining.md) |

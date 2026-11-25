@@ -1,4 +1,4 @@
-# Settings reference
+# All settings
 
 Every setting with its default and what it does, grouped by the settings window's tabs. The window covers the main
 ones and saves them as you change them. The others go in `config.json`:
@@ -9,7 +9,7 @@ ones and saves them as you change them. The others go in `config.json`:
 `config.json` is JSON: use the names below and write values as the Default column does, for example
 `{"artworkSources": ["imdb", "tvmaze"]}`. The settings of the General tab go inside `"app"`:
 `{"app": {"checkUpdates": false}}`. Anything missing falls back to its default. Settings marked *(config.json only)*
-are not in the window.
+are not in the window. Every other page is listed in the [docs index](README.md).
 
 ## General
 
@@ -183,8 +183,8 @@ groups) and finds titles, seasons and episodes. Basic mode only applies the swit
 Not typed: the sign-ins on the **Players** tab and the window write these. On Windows the sign-ins' tokens and keys
 (`plexToken`, `plexKey`, `stremioKey`, `jellyfinToken`) are kept encrypted with Windows' per-user DPAPI, as `dpapi:`
 and the encrypted bytes in base64: only the same user on the same computer can read them, and a value that cannot be
-decrypted (a `config.json` from another user or computer) counts as signed out. A plain value, as older versions and
-macOS and Linux keep it, is read as it is and encrypted at the next save on Windows. The window and **Copy
+decrypted (a `config.json` from another user or computer) counts as signed out. A plain value (macOS and Linux
+keep it that way) is read as it is, and on Windows encrypted at the next save. The window and **Copy
 diagnostics** never show them (diagnostics only say whether you are signed in).
 
 | Setting | Default | What it does |
