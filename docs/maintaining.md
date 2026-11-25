@@ -10,9 +10,7 @@ the rules for everyone are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 - **The maintainer's product decisions** are recorded in [decisions.md](decisions.md); the open ones are in the
   roadmap's [Open decisions](roadmap.md#open-decisions-the-maintainers). Don't change listed behaviour without saying which
   decision it touches.
-- **Release files are only downloaded through `tools/ci/dev-download.sh`** ([how](#downloading-release-files)). The
-  one exception is `tools/downloads/reset-counts.sh`, which downloads every asset to upload it again; its counts start
-  from 0 anyway ([how](#resetting-the-download-counts)).
+- **Release files are only downloaded through `tools/ci/dev-download.sh`** ([how](#downloading-release-files)).
 - **Dependabot pull requests** are reported (what they change, whether CI is green) and merged only with the
   maintainer's yes.
 - **A release with new features** also updates the repository description and topics ([step 5](#releasing)).
@@ -98,15 +96,6 @@ browser or curl. It records the download in a ledger on the `stats` branch, so t
 To check a release without downloading anything, GitHub lists each file's sha256 as `digest`
 (`gh api repos/OWNER/REPO/releases/tags/vX.Y.Z`). How users check a download:
 [SECURITY.md](../SECURITY.md#checking-a-download).
-
-### Resetting the download counts
-`tools/downloads/reset-counts.sh` starts the counts of the release files again from 0 by replacing each file with its
-identical bytes (names, links, checksums and build records stay the same). It rewrites every asset of the releases it
-is given, so it needs `gh` signed in with write access, and it is run only deliberately, never from CI. For about a second per file the file's name does not exist, so a download
-in that moment gets a 404 and tries again later. With immutable releases on, published files cannot be replaced, so
-the script could no longer work ([research](research/immutable-releases.md)). After it, run
-the `downloads` workflow by hand with `baseline` ticked ([CI](development.md#ci)). Its header says what each step
-checks.
 
 ## Screenshots
 The README's pictures (`docs/images/window-main.jpg`, `window-privacy.jpg`; `window-plex.jpg` is used by

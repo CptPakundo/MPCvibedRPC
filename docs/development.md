@@ -178,7 +178,6 @@ on every system.
 | `tools/doclinks` | only a test: every relative link and anchor in the Markdown files resolves |
 | `tools/screenshots` | `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
 | `tools/downloads` | the project's own download count (on the `stats` branch; see [CI](#ci)) |
-| `tools/downloads/reset-counts.sh` | starts the release files' download counts again from 0 (rewrites every asset; [how](maintaining.md#resetting-the-download-counts)) |
 | `tools/ci` | the CI scripts; see the list below |
 | `docs/` | user docs (`how-it-works.md`, `config.md`, `troubleshooting.md`), `roadmap.md`, `decisions.md`, `ai.md`, `design/` (design proposals and the window's look), `research/` (reports on Discord's card and on immutable releases), this file, `maintaining.md`, images and player logos (`players/`, named by `core/icons.go`; sources in `THIRD-PARTY-NOTICES.md`). **Every install fetches the logos from `docs/players/<name>.png` on the `master` branch** (`PlayerIconBase`): never move, rename or delete a logo or rename `master`; adding one is fine |
 
@@ -482,8 +481,7 @@ Other workflows:
 - **`downloads.yml`** (every three hours, and ten minutes after each release): the project's own download count
   (people downloading the program files, not checksums or notices, without the project's own downloads), written to
   the `stats` branch only; `master` is never written by a workflow. The README's badge shows GitHub's own count ([decision](decisions.md#releases)); the exact one is
-  `summary.json` on `stats`. It counts from `baseline.json` (GitHub's counts were reset on 2026-10-18; after another
-  reset, run the workflow by hand with `baseline` ticked) minus the ledger of development downloads
+  `summary.json` on `stats`. It counts from `baseline.json` (run the workflow by hand with `baseline` ticked to start it again from the counts now) minus the ledger of development downloads
   ([dev-download.sh](maintaining.md#downloading-release-files)). `notCountedYet` in its summary is a recorded download
   GitHub has not counted yet (it lags by minutes); if it stays above 0, a recorded download never happened.
 

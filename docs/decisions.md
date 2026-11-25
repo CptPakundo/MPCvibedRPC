@@ -113,7 +113,7 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   comes back only if that code has to grow materially.
 
 ## Releases
-- **Versions are three-part, and stay 0.9.x until 1.0.** *Why:* the updater compares three numbers, so a fix takes the next number; the roadmap's [goal 4](roadmap.md#4-reach-the-people-it-is-for-calmly) names the 1.0 that promises calm maintenance.
+- **Versions are three-part, and stay 0.9.x until 1.0.** *Why:* the updater compares three numbers, so a fix takes the next number.
 - **The README shows GitHub's own download count** (2026-10-25); the project's exact count of people (without its own
   downloads) stays on the `stats` branch ([how](development.md#ci)). The program itself never reports anything. *Why:*
   the badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page.

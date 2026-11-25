@@ -2,7 +2,7 @@
 
 Read 2026-11-11 against GitHub's documentation ("Preventing changes to your releases" and the concept page "Immutable
 releases"). The setting is off; this page is the background for the roadmap's
-[open decision 3](../roadmap.md#open-decisions-the-maintainers).
+[open decision 2](../roadmap.md#open-decisions-the-maintainers).
 
 ## Answer
 They fit. The release flow already does what GitHub recommends: `release.yml` uploads every file to a **draft**
@@ -32,8 +32,6 @@ releases stay as they are.
 4. A re-run of a release job that already created the draft replaces the draft's files: still fine, drafts are not
    locked.
 5. Releases published before the setting is on are not made immutable.
-6. With immutable releases on, published files cannot be replaced, so `tools/downloads/reset-counts.sh` could no
-   longer work.
 
 ## The switch
 The repository belongs to a personal account, not an organization. Either:
