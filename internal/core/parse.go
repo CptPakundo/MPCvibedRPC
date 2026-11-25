@@ -797,6 +797,47 @@ func markerLen(base string, n int) int {
 	return used
 }
 
+var (
+	discGenericRe = re(`^(?:bd[ _-]?rom|dvd(?:[ _-]?(?:rom|video))?|blu[ _-]?ray|cd[ _-]?rom|disc|disk|video|untitled|new volume|volume|certificate|backup)[ _-]*\d*$`, "i")
+	discPartRe    = re(`^(?:dis[ck]|cd|dvd|bd|d)[ _-]?\d{1,2}$`, "i")
+	discSuffixRe  = re(`[ _-]+(?:dis[ck]|d)[ _-]?\d{1,2}$`, "i")
+)
+
+// DiscTitle names a Blu-ray or DVD from its folders, nearest first (dirs as dirOf gives them). A disc plays files
+// whose names are only numbers: BDMV\STREAM\00062.m2ts, BDMV\PLAYLIST\00800.mpls, VIDEO_TS\VTS_01_1.VOB. Its title is
+// the folder that holds BDMV or VIDEO_TS: a rip's folder ("Sample Movie (2020)"), on macOS and Linux the disc's
+// mount point (its volume label), or the name the engine read from the disc itself. "Disc 1" folders are passed
+// over; a camcorder's AVCHD folders are home videos, not a title. Returns the name, with dots and underscores as
+// spaces, and true; or "", false.
+func DiscTitle(dirs []string) (string, bool) {
+	at := -1
+	switch {
+	case len(dirs) >= 2 && (strings.EqualFold(dirs[0], "STREAM") || strings.EqualFold(dirs[0], "PLAYLIST")) && strings.EqualFold(dirs[1], "BDMV"):
+		at = 2
+	case len(dirs) >= 1 && strings.EqualFold(dirs[0], "VIDEO_TS"):
+		at = 1
+	default:
+		return "", false
+	}
+	for ; at < len(dirs); at++ {
+		d := trim(dirs[at])
+		if strings.EqualFold(d, "AVCHD") || strings.EqualFold(d, "PRIVATE") {
+			return "", false // a camcorder's card or disc
+		}
+		if !discPartRe.Test(d) {
+			break
+		}
+	}
+	if at >= len(dirs) {
+		return "", false
+	}
+	name := trim(reDotUnder.ReplaceStr(discSuffixRe.ReplaceStr(trim(dirs[at]), ""), " "))
+	if name == "" || discGenericRe.Test(name) || genericDir.Test(name) {
+		return "", false
+	}
+	return name, true
+}
+
 // withFolder prepends the folder's show name to a nameless filename. Returns the new base name and true, or "", false.
 func withFolder(base string, dirs []string) (string, bool) {
 	m := namelessRe.Exec(reDotUnder.ReplaceStr(base, " "))
@@ -889,7 +930,10 @@ func ParseMedia(file string, cfg *Config, dirs []string) *Media {
 	}
 	fromFolder := false
 	if cfg.UseFolderName && dirs != nil {
-		if w, ok := withFolder(base, dirs); ok {
+		if t, ok := DiscTitle(dirs); ok {
+			base = t
+			fromFolder = true
+		} else if w, ok := withFolder(base, dirs); ok {
 			base = w
 			fromFolder = true
 		}
