@@ -25,7 +25,7 @@ var Hosts = []HostInfo{
 	{"api.github.com", "GitHub", HostAsked, "Check for updates is on: asks for the newest release."},
 	{"github.com", "GitHub", HostAsked, "Check for updates is on: the release page when the API's hourly limit is used up, and the download."},
 	{"release-assets.githubusercontent.com", "GitHub", HostAsked, "An update is installed: GitHub sends the download from here."},
-	{"plex.tv", "Plex", HostAsked, "Signing in to Plex, and while signed in (your servers)."},
+	{"plex.tv", "Plex", HostAsked, "Signing in to Plex, while signed in (your servers), and signing out (ends the sign-in on Plex's side)."},
 	{"clients.plex.tv", "Plex", HostAsked, "While signed in to Plex: your servers and their addresses."},
 	{"link.stremio.com", "Stremio", HostAsked, "Signing in to Stremio (the link code)."},
 	{"api.strem.io", "Stremio", HostAsked, "While signed in to Stremio: your library every 20 seconds, and signing out."},

@@ -138,9 +138,9 @@ default is in [docs/config.md](config.md).
 
 To uninstall:
 
-1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Players** tab first. For Stremio and Jellyfin / Emby that
-   ends the session on their side. Plex's sign-out only removes the sign-in from this computer; to remove it from your
-   account too, delete this program's entry on Plex's own *Authorized Devices* page (in your Plex account settings).
+1. Sign out of Plex, Stremio and Jellyfin / Emby on the **Players** tab first. That ends the sign-in on their
+   side too (Plex: as far as plex.tv answers). This program may still be listed on Plex's *Authorized Devices* page
+   (in your Plex account settings); you can delete its entry there.
 2. Turn off "Start with Windows" / "Start at login" (General tab).
 3. Quit the program, then delete the program and the settings folder above.
 4. The player settings that **Set up the player connection** switched on are left as they are: the MPC-HC and MPC-BE

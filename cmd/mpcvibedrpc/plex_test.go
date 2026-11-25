@@ -20,10 +20,11 @@ import (
 // fakePlexTV hands out a sign-in code that is approved on the third check (or never, when approve is false).
 type fakePlexTV struct {
 	*httptest.Server
-	mu      sync.Mutex
-	checks  int
-	approve bool
-	client  string // the X-Plex-Client-Identifier of the last request
+	mu       sync.Mutex
+	checks   int
+	approve  bool
+	client   string   // the X-Plex-Client-Identifier of the last request
+	signouts []string // "token client" of each sign-out (DELETE /api/v2/users/signout)
 }
 
 func newFakePlexTV(t *testing.T) *fakePlexTV {
@@ -43,6 +44,9 @@ func newFakePlexTV(t *testing.T) *fakePlexTV {
 			} else {
 				fmt.Fprint(w, `{"id":77,"code":"samplecode","authToken":null}`)
 			}
+		case r.Method == "DELETE" && r.URL.Path == "/api/v2/users/signout" && tok == "account-token":
+			f.signouts = append(f.signouts, tok+" "+r.Header.Get("X-Plex-Client-Identifier"))
+			w.WriteHeader(204)
 		case r.URL.Path == "/api/v2/user" && tok == "account-token":
 			fmt.Fprint(w, `{"id":12345,"username":"SampleUser","title":"Sample User"}`)
 		case r.URL.Path == "/api/v2/resources" && tok == "account-token":
@@ -127,6 +131,12 @@ func TestPlexSignInFlow(t *testing.T) {
 	}
 	if err := p.signOut(); err != nil {
 		t.Fatal(err)
+	}
+	tv.mu.Lock()
+	gotOut := append([]string(nil), tv.signouts...)
+	tv.mu.Unlock()
+	if len(gotOut) != 1 || gotOut[0] != "account-token "+id {
+		t.Errorf("plex.tv was told to end the sign-in: %q", gotOut)
 	}
 	c = st.Config()
 	if c.PlexToken != "" || c.PlexUser != "" || c.PlexServer != "" || c.PlexClient != id || p.eng.Config().PlexToken != "" {
@@ -265,5 +275,32 @@ func TestPlexKeySignInAndRenewal(t *testing.T) {
 	}
 	if c = st.Config(); c.PlexKey != "" || c.PlexToken != "" {
 		t.Errorf("after signing out: key %v, token %v", c.PlexKey != "", c.PlexToken != "")
+	}
+}
+
+// plex.tv not answering does not keep the sign-out (or Restore defaults) from forgetting the sign-in here.
+func TestPlexSignOutWhenPlexTVIsDown(t *testing.T) {
+	tv := newFakePlexTV(t)
+	p, st, logs := plexTestAccount(t, tv)
+	if err := st.SetHidden([]string{"plexToken", "plexClient"}, map[string]any{"plexToken": "account-token", "plexClient": "sample-client"}); err != nil {
+		t.Fatal(err)
+	}
+	p.tv = "http://127.0.0.1:1"
+	p.openURL("https://app.plex.tv/auth#?") // nothing opens in this test
+	if err := p.signOut(); err != nil {
+		t.Fatal(err)
+	}
+	if c := st.Config(); c.PlexToken != "" || c.PlexClient != "sample-client" {
+		t.Errorf("after signing out %+v", c)
+	}
+	warned := false
+	for _, l := range *logs {
+		warned = warned || strings.HasPrefix(l, "WARN plex.tv did not confirm")
+		if strings.Contains(l, "account-token") {
+			t.Errorf("log line %q", l)
+		}
+	}
+	if !warned {
+		t.Errorf("no warning in %q", *logs)
 	}
 }

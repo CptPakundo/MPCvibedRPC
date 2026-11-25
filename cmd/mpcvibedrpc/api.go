@@ -156,6 +156,7 @@ func (a *app) save(body *jsonx.Obj) (any, error) {
 func (a *app) reset() (any, error) {
 	a.plex.stopWaiting() // a sign-in waiting for approval must not save a token after the reset
 	a.stremio.stopWaiting()
+	a.plex.revoke()
 	a.stremio.revoke() // the reset forgets the Stremio key: end its session too
 	a.jellyfin.stopWaiting()
 	a.jellyfin.revoke() // and the Jellyfin or Emby sign-in

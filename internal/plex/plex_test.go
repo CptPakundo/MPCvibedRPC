@@ -390,3 +390,27 @@ func TestWatcherReconnects(t *testing.T) {
 	eventually(t, "noticed", func() bool { return w.Now() == nil })
 	eventually(t, "back", func() bool { pms.mu.Lock(); defer pms.mu.Unlock(); return pms.streams == 2 && w.Now() != nil })
 }
+
+func TestSignOut(t *testing.T) {
+	var method, path, token, client, query string
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, path, query = r.Method, r.URL.Path, r.URL.RawQuery
+		token, client = r.Header.Get("X-Plex-Token"), r.Header.Get("X-Plex-Client-Identifier")
+		if token != "account-token" {
+			w.WriteHeader(401)
+			return
+		}
+		w.WriteHeader(204)
+	}))
+	defer s.Close()
+	c := &Client{ClientID: "test-client", Version: "0.0.1", TVBase: s.URL}
+	if err := c.SignOut(context.Background(), "account-token"); err != nil {
+		t.Fatal(err)
+	}
+	if method != "DELETE" || path != "/api/v2/users/signout" || token != "account-token" || client != "test-client" || query != "" {
+		t.Errorf("sign-out request: %s %s?%s token %q client %q", method, path, query, token, client)
+	}
+	if err := c.SignOut(context.Background(), "old-token"); !errors.Is(err, ErrToken) {
+		t.Errorf("a refused token: %v", err)
+	}
+}
