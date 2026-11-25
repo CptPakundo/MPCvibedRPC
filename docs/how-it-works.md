@@ -308,8 +308,8 @@ What was tried with which player, and how, is in [What has been tried](#what-has
   where you are already signed in (profile > Quick Connect). The program waits up to 10 minutes.
 - **Use a password instead** is the way for Emby (no Quick Connect) or a Jellyfin server with Quick Connect off. The
   password goes to your own server once and is never stored.
-- **What is kept:** only the server's access token, in `config.json` as plain text like other apps keep theirs; the
-  window and **Copy diagnostics** never show it. **Sign out** and **Restore defaults** end the session on the server
+- **What is kept:** only the server's access token, in `config.json` (encrypted for your user account on Windows,
+  plain text on macOS and Linux); the window and **Copy diagnostics** never show it. **Sign out** and **Restore defaults** end the session on the server
   and forget the sign-in.
 - **What it reads:** the server's session list, every 5 seconds while you are signed in. Only your own sessions count
   (an administrator would see everyone's); music, audiobooks and photos are skipped; a playing session beats a paused

@@ -95,6 +95,7 @@ func run() error {
 	}
 	lg := newLogger(st.LogPath())
 	defer lg.close()
+	st.Log = lg.log
 	a := &app{st: st, lg: lg, log: lg.log, exe: exe, ipcFile: ipcFile, browserProfile: filepath.Join(st.Dir, "window"),
 		token: server.NewToken(), quitDone: make(chan struct{})}
 	a.busy()

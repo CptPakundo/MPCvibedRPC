@@ -53,8 +53,11 @@ the image host the catalog named for it (`image.tmdb.org` for TMDB), and the pla
 | The player's site, from its logo on your status | `github.com` (the MPC players), `mpv.io`, `www.videolan.org`, `iina.io`, `kodi.tv`, `www.smplayer.info`, `www.plex.tv`, `www.stremio.com`, `jellyfin.org`, `emby.media` |
 
 ## What is kept, and what to know
-The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json` as plain text. A password you type goes to
-your own server once and is never stored. Kodi's password is kept in `config.json` as plain text too, as VLC's is.
+The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json`. On Windows they are encrypted with Windows'
+own per-user encryption (DPAPI): only your user account on this computer can read them, so a copied or backed-up
+`config.json` holds no usable sign-in (on another account or computer they count as signed out). On macOS and Linux
+they are plain text. A password you type goes to your own server once and is never stored. Kodi's and VLC's passwords
+and a TMDB key are kept in `config.json` as plain text on every system.
 
 Your Plex sign-in goes only to plex.tv and to a server that has first shown, without it, that it is the server you
 chose. A server shared with you gets the key plex.tv made for it, never your account's.
