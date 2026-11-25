@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // newFakeKodi is Kodi's JSON-RPC web server playing a library episode (user kodi, password secret).

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 // mpv's macOS and Linux layout: ~/.config/mpv (or $XDG_CONFIG_HOME/mpv), and the socket written as a full path.

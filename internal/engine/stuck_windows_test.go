@@ -11,7 +11,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // A Discord that answers the handshake and then stops reading, on an unbuffered pipe: our next write blocks inside

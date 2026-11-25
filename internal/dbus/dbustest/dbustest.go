@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/dbus"
 )
 
 // Reply is what a handler answers: values with their signature, or an error name.

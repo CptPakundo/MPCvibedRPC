@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
+	"github.com/CptPakundo/MPRP/internal/proc"
 )
 
 type result struct {

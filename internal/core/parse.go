@@ -3,7 +3,7 @@ package core
 import (
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 // ---- MPC-HC variables.html ---------------------------------------------------------

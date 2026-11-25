@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
 type valErr struct{}
@@ -62,7 +62,7 @@ func TestServer(t *testing.T) {
 	_ = s
 	tok := map[string]string{"X-Token": "tok"}
 
-	if c, b, h := do(t, "GET", base+"/api/ping", "", nil, ""); c != 200 || b != fmt.Sprintf(`{"app":"MPCvibedRPC","pid":%d,"version":"9.9.9"}`, os.Getpid()) || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") == "" {
+	if c, b, h := do(t, "GET", base+"/api/ping", "", nil, ""); c != 200 || b != fmt.Sprintf(`{"app":"MPRP","pid":%d,"version":"9.9.9"}`, os.Getpid()) || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") == "" {
 		t.Fatal(c, b)
 	}
 	if c, b, _ := do(t, "GET", base+"/icon.ico", "", nil, ""); c != 200 || b != "ICO" {

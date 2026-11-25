@@ -12,13 +12,13 @@ if ($env:GITHUB_ACTIONS -ne 'true') { Write-Host 'smoke.ps1 only runs on a GitHu
 $work = Join-Path $env:RUNNER_TEMP ('smoke-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Path $work | Out-Null
 $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out-Null
-$app = Join-Path $work 'MPCvibedRPC.exe'
+$app = Join-Path $work 'MPRP.exe'
 Copy-Item $Exe $app
-$env:MPCRPC_HOME = $home_
+$env:MPRP_HOME = $home_
 # A copy with its own data folder gets its own run-at-login value (see winsys/autostart.go), so this test can never touch an installed program's.
-$runName = 'MPCvibedRPC-' + ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($home_.TrimEnd('\','/').ToLower()))).Replace('-','').Substring(0,8).ToLower())
+$runName = 'MPRP-' + ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($home_.TrimEnd('\','/').ToLower()))).Replace('-','').Substring(0,8).ToLower())
 $port = 13591
-$env:MPCRPC_UPDATE_API = "http://127.0.0.1:$port"
+$env:MPRP_UPDATE_API = "http://127.0.0.1:$port"
 $stateFile = Join-Path $work 'state.txt'; Set-Content $stateFile '2'
 $discordLog = Join-Path $work 'discord.log'
 $failures = New-Object System.Collections.ArrayList
@@ -39,7 +39,7 @@ function Api([string]$method, [string]$name, $body = $null) {
   if ($method -eq 'Post') { $args_.Body = if ($null -eq $body) { '{}' } else { $body | ConvertTo-Json -Depth 6 }; $args_.ContentType = 'application/json' }
   Invoke-RestMethod @args_
 }
-function Dump { Write-Host '--- app log ---'; Get-Content (Join-Path $home_ 'mpcvibedrpc.log') -ErrorAction SilentlyContinue | Write-Host; Write-Host '--- fake discord log ---'; Get-Content $discordLog -ErrorAction SilentlyContinue | Write-Host }
+function Dump { Write-Host '--- app log ---'; Get-Content (Join-Path $home_ 'mprp.log') -ErrorAction SilentlyContinue | Write-Host; Write-Host '--- fake discord log ---'; Get-Content $discordLog -ErrorAction SilentlyContinue | Write-Host }
 
 Add-Type -Namespace W -Name U -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string c, string t);
@@ -47,7 +47,7 @@ Add-Type -Namespace W -Name U -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("shcore.dll")] public static extern int GetProcessDpiAwareness(System.IntPtr p, out int a);
 '@
 function StartFakeDiscord { Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-discord.ps1'), '-Log', $discordLog }
-function AppLog { Get-Content (Join-Path $home_ 'mpcvibedrpc.log') -Raw -ErrorAction SilentlyContinue }
+function AppLog { Get-Content (Join-Path $home_ 'mprp.log') -Raw -ErrorAction SilentlyContinue }
 
 try {
   # fakes
@@ -63,7 +63,7 @@ try {
 
   # the program carries its version details and icon
   $vi = (Get-Item $app).VersionInfo
-  Check ($vi.ProductVersion -eq $Version -and $vi.ProductName -eq 'MPCvibedRPC' -and $vi.FileDescription -like 'MPCvibedRPC*') "exe carries version details ($($vi.ProductVersion))"
+  Check ($vi.ProductVersion -eq $Version -and $vi.ProductName -eq 'MPRP' -and $vi.FileDescription -like 'MPRP*') "exe carries version details ($($vi.ProductVersion))"
   Add-Type -AssemblyName System.Drawing
   $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($app)
   $bmp = $ico.ToBitmap(); $px = @(); foreach ($pt in @(@(8, 8), @(16, 16), @(24, 24), @(8, 24))) { $px += $bmp.GetPixel($pt[0], $pt[1]).ToArgb() }
@@ -76,7 +76,7 @@ try {
   Check (WaitFor { $null -ne (Ipc) } 20 'ipc.json') 'program started and published ipc.json'
   $i = Ipc
   $ping = Invoke-RestMethod "http://127.0.0.1:$($i.port)/api/ping"
-  Check ($ping.app -eq 'MPCvibedRPC' -and $ping.version -eq $Version) 'ping answers with the version'
+  Check ($ping.app -eq 'MPRP' -and $ping.version -eq $Version) 'ping answers with the version'
   $aware = -1; [void][W.U]::GetProcessDpiAwareness($p.Handle, [ref]$aware)
   Check ($aware -eq 2) "the program is per-monitor DPI-aware (awareness $aware)"
   $state = Api 'Get' 'state'
@@ -108,7 +108,7 @@ try {
   Set-Content $stateFile '2'
 
   # tray: its hidden window exists and understands the menu commands (1 open, 2 toggle, 3 quit)
-  $hwnd = [W.U]::FindWindow('MPCvibedRPC.Tray', [NullString]::Value)
+  $hwnd = [W.U]::FindWindow('MPRP.Tray', [NullString]::Value)
   Check ($hwnd -ne [IntPtr]::Zero) 'tray window exists'
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]2, [IntPtr]::Zero)
   Check (WaitFor { -not (Api 'Get' 'status').running } 10 'toggle off') 'tray menu "Stop showing on Discord" works'
@@ -116,15 +116,15 @@ try {
   Check (WaitFor { (Api 'Get' 'status').running } 10 'toggle on') 'tray menu "Show on Discord" works'
 
   # run at login
-  $plainBefore = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
+  $plainBefore = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPRP 2>&1) -join "`n"
   Api 'Post' 'save' @{ app = @{ autoStart = $true } } | Out-Null
   $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
-  Check ($reg -match 'MPCvibedRPC\.exe" --background --home "') 'autostart writes the Run entry (under the name for this data folder, passing that folder on)'
+  Check ($reg -match 'MPRP\.exe" --background --home "') 'autostart writes the Run entry (under the name for this data folder, passing that folder on)'
   Check ((Api 'Get' 'state').autoStart -eq $true) 'state reports autostart on'
   Api 'Post' 'save' @{ app = @{ autoStart = $false } } | Out-Null
   $reg = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v $runName 2>&1) -join "`n"
-  Check ($reg -notmatch 'MPCvibedRPC\.exe') 'autostart removes the Run entry'
-  $plain = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPCvibedRPC 2>&1) -join "`n"
+  Check ($reg -notmatch 'MPRP\.exe') 'autostart removes the Run entry'
+  $plain = (reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v MPRP 2>&1) -join "`n"
   # compared without regard to whitespace: PowerShell orders the lines of a failed lookup differently from run to run
   Check (($plain -replace '\s+',' ').Trim() -eq ($plainBefore -replace '\s+',' ').Trim()) ("the plain (installed program) Run value was never touched (before=[$($plainBefore -replace '\s+',' ')] after=[$($plain -replace '\s+',' ')])")
 
@@ -169,10 +169,10 @@ try {
   Check (WaitFor { ([regex]::Matches((Get-Content $discordLog -Raw), '(?<!DIS)CONNECTED')).Count -gt $connectsBefore } 30 'reconnected') 'new version reconnects to Discord'
 
   # quit from the tray menu
-  $hwnd = [W.U]::FindWindow('MPCvibedRPC.Tray', [NullString]::Value)
+  $hwnd = [W.U]::FindWindow('MPRP.Tray', [NullString]::Value)
   [void][W.U]::PostMessage($hwnd, 0x0111, [UIntPtr]3, [IntPtr]::Zero)
   Check (WaitFor { $null -eq (Ipc) } 15 'ipc gone') 'tray menu "Quit" shuts the program down'
-  Check (WaitFor { -not (Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue) } 15 'process gone') 'no program process is left'
+  Check (WaitFor { -not (Get-Process -Name 'MPRP' -ErrorAction SilentlyContinue) } 15 'process gone') 'no program process is left'
 
   # an update that does not start: the copy that installed it must put the old version back and start it again
   $brokenDir = Join-Path $work 'broken'; New-Item -ItemType Directory -Path $brokenDir | Out-Null
@@ -186,8 +186,8 @@ try {
   $port2 = 13592
   [void]$procs.Add((Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile', '-File', (Join-Path $PSScriptRoot 'fake-http.ps1'), '-Port', $port2, '-StateFile', $stateFile, '-NewExe', $broken, '-Tag', '99.0.0'))
   Check (WaitFor { (Invoke-WebRequest "http://127.0.0.1:$port2/variables.html" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } 20 'second fake http up') 'the server with the broken update is up'
-  $env:MPCRPC_UPDATE_API = "http://127.0.0.1:$port2"
-  $env:MPCRPC_BROWSER = 'none'  # the old version comes back as started by hand: it must not open a window here
+  $env:MPRP_UPDATE_API = "http://127.0.0.1:$port2"
+  $env:MPRP_BROWSER = 'none'  # the old version comes back as started by hand: it must not open a window here
   $p3 = Start-Process $app -ArgumentList '--background' -PassThru
   Check (WaitFor { $null -ne (Ipc) } 20 'ipc again') 'the program starts again'
   $pidBefore = (Ipc).pid
@@ -202,12 +202,12 @@ try {
   Check ((AppLog) -match 'The new version 99\.0\.0 did not start') 'the log says that the new version did not start'
   Api 'Post' 'quit' | Out-Null
   Check (WaitFor { $null -eq (Ipc) } 15 'ipc gone again') 'the old version quits'
-  Check (WaitFor { -not (Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue) } 15 'process gone again') 'no program process is left after the rollback'
+  Check (WaitFor { -not (Get-Process -Name 'MPRP' -ErrorAction SilentlyContinue) } 15 'process gone again') 'no program process is left after the rollback'
 }
 catch { Write-Host "ERROR $_"; [void]$failures.Add("exception: $_") }
 finally {
   Dump
-  Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue | Stop-Process -Force
+  Get-Process -Name 'MPRP' -ErrorAction SilentlyContinue | Stop-Process -Force
   foreach ($x in $procs) { try { if (-not $x.HasExited) { $x.Kill() } } catch {} }
 }
 function Annotate([string]$title, [string[]]$lines) {
@@ -216,7 +216,7 @@ function Annotate([string]$title, [string[]]$lines) {
   Write-Host "::error title=$title::$t"
 }
 if ($failures.Count) {
-  $log = @(Get-Content (Join-Path $home_ 'mpcvibedrpc.log') -ErrorAction SilentlyContinue) + @('--- fake discord ---') + @(Get-Content $discordLog -ErrorAction SilentlyContinue)
+  $log = @(Get-Content (Join-Path $home_ 'mprp.log') -ErrorAction SilentlyContinue) + @('--- fake discord ---') + @(Get-Content $discordLog -ErrorAction SilentlyContinue)
   Annotate 'Smoke test failed' (@($failures | ForEach-Object { "FAILED: $_" }) + $log)
 }
 if ($failures.Count) { Write-Host "`n$($failures.Count) check(s) failed:"; $failures | ForEach-Object { Write-Host " - $_" }; exit 1 }

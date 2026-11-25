@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/assets"
+	"github.com/CptPakundo/MPRP/internal/updater"
 )
 
 // The changelog's newest entry is this version (a release cannot ship without one), the entries run newest first,

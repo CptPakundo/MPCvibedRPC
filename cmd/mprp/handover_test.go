@@ -10,22 +10,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/updater"
 )
 
-// TestCopyStandIn is not a test of its own: started with MPCRPC_TEST_COPY set, the test program plays a new copy of
+// TestCopyStandIn is not a test of its own: started with MPRP_TEST_COPY set, the test program plays a new copy of
 // the program after an update. "up" writes ipc.json as a copy that came up does, "exit" ends at once, "hang" neither
 // ends nor comes up.
 func TestCopyStandIn(t *testing.T) {
-	switch os.Getenv("MPCRPC_TEST_COPY") {
+	switch os.Getenv("MPRP_TEST_COPY") {
 	case "exit":
 		os.Exit(3)
 	case "hang":
 		time.Sleep(time.Minute)
 		os.Exit(0)
 	case "up":
-		os.WriteFile(os.Getenv("MPCRPC_TEST_IPC"), []byte(fmt.Sprintf(`{"port":1,"token":"x","pid":%d}`, os.Getpid())), 0o600)
+		os.WriteFile(os.Getenv("MPRP_TEST_IPC"), []byte(fmt.Sprintf(`{"port":1,"token":"x","pid":%d}`, os.Getpid())), 0o600)
 		time.Sleep(time.Minute)
 		os.Exit(0)
 	}
@@ -35,7 +35,7 @@ func TestCopyStandIn(t *testing.T) {
 func standIn(t *testing.T, mode, ipcFile string) *os.Process {
 	t.Helper()
 	c := exec.Command(os.Args[0], "-test.run=^TestCopyStandIn$")
-	c.Env = append(os.Environ(), "MPCRPC_TEST_COPY="+mode, "MPCRPC_TEST_IPC="+ipcFile)
+	c.Env = append(os.Environ(), "MPRP_TEST_COPY="+mode, "MPRP_TEST_IPC="+ipcFile)
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}

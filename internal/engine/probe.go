@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
-	"github.com/CptPakundo/MPCvibedRPC/internal/potplayer"
-	"github.com/CptPakundo/MPCvibedRPC/internal/vlchttp"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/kodi"
+	"github.com/CptPakundo/MPRP/internal/potplayer"
+	"github.com/CptPakundo/MPRP/internal/vlchttp"
 )
 
 // Probe states of a player that answers.

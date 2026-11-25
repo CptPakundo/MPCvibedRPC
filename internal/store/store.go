@@ -13,23 +13,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 // DataDir is where everything lives:
 //
-//	Windows: %LOCALAPPDATA%\MPCvibedRPC      (override with MPCRPC_HOME)
-//	macOS:   ~/Library/Application Support/MPCvibedRPC
-//	Linux:   $XDG_DATA_HOME/MPCvibedRPC, else ~/.local/share/MPCvibedRPC
-//	config.json  settings    mpcvibedrpc.log  log    artwork-cache.json  cover cache
+//	Windows: %LOCALAPPDATA%\MPRP      (override with MPRP_HOME)
+//	macOS:   ~/Library/Application Support/MPRP
+//	Linux:   $XDG_DATA_HOME/MPRP, else ~/.local/share/MPRP
+//	config.json  settings    mprp.log  log    artwork-cache.json  cover cache
 //	stats.json   local counts    ipc.json  the running copy's port and token    instance.lock  single instance (macOS, Linux)
 func DataDir() string {
-	if v := os.Getenv("MPCRPC_HOME"); v != "" {
+	if v := os.Getenv("MPRP_HOME"); v != "" {
 		return v
 	}
-	const name = "MPCvibedRPC"
+	const name = "MPRP"
 	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "windows":
@@ -54,7 +54,7 @@ type App struct {
 	StartPresence  bool   `json:"startPresence"`  // begin sending presence as soon as the app opens
 	CheckUpdates   bool   `json:"checkUpdates"`   // look for a newer release at start, then every six hours
 	AutoUpdate     bool   `json:"autoUpdate"`     // install a found update by itself at a quiet moment (needs checkUpdates; Windows and Linux)
-	UpdateRepo     string `json:"updateRepo"`     // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
+	UpdateRepo     string `json:"updateRepo"`     // "owner/repo" on GitHub that publishes releases with MPRP.exe
 	WelcomeSeen    bool   `json:"welcomeSeen"`    // the first-run welcome card was dismissed (existing installs count as having seen it)
 	OpenWindow     bool   `json:"openWindow"`     // show the window when the program is started by hand (it always starts in the tray at login)
 	MinimizeToTray bool   `json:"minimizeToTray"` // a minimised settings window goes to the tray instead of the taskbar (Windows)
@@ -62,7 +62,7 @@ type App struct {
 }
 
 // DefaultUpdateRepo is where releases of this program are published.
-const DefaultUpdateRepo = "CptPakundo/MPCvibedRPC"
+const DefaultUpdateRepo = "CptPakundo/MPRP"
 
 var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "autoUpdate", "updateRepo", "openWindow", "minimizeToTray", "welcomeSeen", "seenVersion"}
 
@@ -126,7 +126,7 @@ func New(dir string) (*Store, error) {
 }
 
 func (s *Store) CachePath() string { return filepath.Join(s.Dir, "artwork-cache.json") }
-func (s *Store) LogPath() string   { return filepath.Join(s.Dir, "mpcvibedrpc.log") }
+func (s *Store) LogPath() string   { return filepath.Join(s.Dir, "mprp.log") }
 func (s *Store) IPCPath() string   { return filepath.Join(s.Dir, "ipc.json") }
 func (s *Store) StatsPath() string { return filepath.Join(s.Dir, "stats.json") }
 

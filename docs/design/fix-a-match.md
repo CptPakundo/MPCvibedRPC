@@ -135,7 +135,7 @@ fix saved by a new version is not seen by an older one; the changelog says so.
    not Wikipedia, Jikan or Bulbapedia; deduplicated; cached); page addresses resolved by ID so episode titles work from
    the pinned entry; `Covers(entry)`; fixes still read before the `media.Junk` return; the offset applied where season
    and episode reach the catalogs.
-3. `cmd/mpcvibedrpc` API: POST `match-search` and `match-covers`, each answer carrying a request number so the window
+3. `cmd/mprp` API: POST `match-search` and `match-covers`, each answer carrying a request number so the window
    drops answers to older keystrokes; the status carries the read title, the file's base name, season, episode and the
    closest results (no folders); the Tell the project text is built from the same data.
 4. `internal/assets`: the dialog and the list replace the two text boxes; `why.go` says "Matched as you chose: ...".

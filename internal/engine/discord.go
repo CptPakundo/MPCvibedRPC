@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/discord"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/discord"
 )
 
 func (e *Engine) connectDiscord(r *run) {

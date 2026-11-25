@@ -1,6 +1,6 @@
-# Publishes a release when a version tag is pushed:   git tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z" && git push origin vX.Y.Z
-# The tag must match the version in cmd/mpcvibedrpc/main.go. The program's own updater looks for its file
-# (MPCvibedRPC.exe, MPCvibedRPC-linux-amd64, ...) and the .sha256 next to it on the latest release; on macOS it links to
+# Publishes a release when a version tag is pushed:   git tag -a vX.Y.Z -m "MPRP X.Y.Z" && git push origin vX.Y.Z
+# The tag must match the version in cmd/mprp/main.go. The program's own updater looks for its file
+# (MPRP.exe, MPRP-linux-amd64, ...) and the .sha256 next to it on the latest release; on macOS it links to
 # the release page. The release is first a draft; it is made public only once its files check out, and then the update
 # path is tried on it (tools/ci/verify-release.ps1).
 name: release
@@ -86,23 +86,23 @@ jobs:
         id: sums
         shell: pwsh
         run: |
-          foreach ($f in 'MPCvibedRPC.exe', 'MPCvibedRPC-linux-amd64', 'MPCvibedRPC-linux-arm64', 'MPCvibedRPC-macos.zip') {
+          foreach ($f in 'MPRP.exe', 'MPRP-linux-amd64', 'MPRP-linux-arm64', 'MPRP-macos.zip') {
             $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
             Set-Content -LiteralPath "dist/$f.sha256" -Value "$h  $f`n" -NoNewline
-            $key = @{ 'MPCvibedRPC.exe' = 'exe'; 'MPCvibedRPC-linux-amd64' = 'linux_amd64'; 'MPCvibedRPC-linux-arm64' = 'linux_arm64' }[$f]
+            $key = @{ 'MPRP.exe' = 'exe'; 'MPRP-linux-amd64' = 'linux_amd64'; 'MPRP-linux-arm64' = 'linux_arm64' }[$f]
             if ($key) { Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "$key=$h" }
           }
           Get-ChildItem dist | Format-Table Name, Length
       # A signed statement that these files were built from this repository by this workflow (no certificate needed).
-      # Check a download with:   gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC
+      # Check a download with:   gh attestation verify MPRP.exe --repo CptPakundo/MPRP
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            dist/MPCvibedRPC.exe
-            dist/MPCvibedRPC-linux-amd64
-            dist/MPCvibedRPC-linux-arm64
-            dist/MPCvibedRPC-macos.zip
+            dist/MPRP.exe
+            dist/MPRP-linux-amd64
+            dist/MPRP-linux-arm64
+            dist/MPRP-macos.zip
       # A re-run after the release went public would turn it back into a draft and replace its files: refuse. A draft
       # (or no release at all) is fine. (gh finds a release by its tag only once it is public.)
       - name: The release must not be public yet
@@ -123,14 +123,14 @@ jobs:
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: |
-            dist/MPCvibedRPC.exe
-            dist/MPCvibedRPC.exe.sha256
-            dist/MPCvibedRPC-linux-amd64
-            dist/MPCvibedRPC-linux-amd64.sha256
-            dist/MPCvibedRPC-linux-arm64
-            dist/MPCvibedRPC-linux-arm64.sha256
-            dist/MPCvibedRPC-macos.zip
-            dist/MPCvibedRPC-macos.zip.sha256
+            dist/MPRP.exe
+            dist/MPRP.exe.sha256
+            dist/MPRP-linux-amd64
+            dist/MPRP-linux-amd64.sha256
+            dist/MPRP-linux-arm64
+            dist/MPRP-linux-arm64.sha256
+            dist/MPRP-macos.zip
+            dist/MPRP-macos.zip.sha256
             dist/LICENSE
             dist/THIRD-PARTY-NOTICES.md
           body_path: ${{ runner.temp }}/release-notes.md
@@ -191,9 +191,9 @@ jobs:
       - name: The rebuild matches the release
         shell: bash
         run: |
-          ./tools/ci/reproduce.sh same MPCvibedRPC.exe '${{ needs.release.outputs.exe }}' '${{ needs.reproduce.outputs.exe }}'
-          ./tools/ci/reproduce.sh same MPCvibedRPC-linux-amd64 '${{ needs.release.outputs.linux_amd64 }}' '${{ needs.reproduce.outputs.linux_amd64 }}'
-          ./tools/ci/reproduce.sh same MPCvibedRPC-linux-arm64 '${{ needs.release.outputs.linux_arm64 }}' '${{ needs.reproduce.outputs.linux_arm64 }}'
+          ./tools/ci/reproduce.sh same MPRP.exe '${{ needs.release.outputs.exe }}' '${{ needs.reproduce.outputs.exe }}'
+          ./tools/ci/reproduce.sh same MPRP-linux-amd64 '${{ needs.release.outputs.linux_amd64 }}' '${{ needs.reproduce.outputs.linux_amd64 }}'
+          ./tools/ci/reproduce.sh same MPRP-linux-arm64 '${{ needs.release.outputs.linux_arm64 }}' '${{ needs.reproduce.outputs.linux_arm64 }}'
       - name: Check the draft
         shell: pwsh
         run: ./tools/ci/verify-release.ps1 -Version $env:VERSION -Stage draft

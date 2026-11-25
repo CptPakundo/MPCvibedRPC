@@ -12,20 +12,20 @@ import (
 // TestLiveJellyfin runs against a real Jellyfin or Emby server (tools/ci/live-jellyfin.sh starts the official images on
 // CI, with a stand-in player that plays a sample episode). It only runs on request:
 //
-//	MPCRPC_LIVE_JELLYFIN_ADDRESS=http://127.0.0.1:8096 MPCRPC_LIVE_JELLYFIN_USER=... MPCRPC_LIVE_JELLYFIN_PASSWORD=...
-//	MPCRPC_LIVE_JELLYFIN_PRODUCT=Jellyfin MPCRPC_LIVE_TITLE="Sample Show" go test -run TestLiveJellyfin ./internal/jellyfin
+//	MPRP_LIVE_JELLYFIN_ADDRESS=http://127.0.0.1:8096 MPRP_LIVE_JELLYFIN_USER=... MPRP_LIVE_JELLYFIN_PASSWORD=...
+//	MPRP_LIVE_JELLYFIN_PRODUCT=Jellyfin MPRP_LIVE_TITLE="Sample Show" go test -run TestLiveJellyfin ./internal/jellyfin
 //
 // It signs in with the password (and, on Jellyfin, with Quick Connect, approved with the first sign-in), follows what
 // the user plays, and signs out again.
 func TestLiveJellyfin(t *testing.T) {
-	addr := os.Getenv("MPCRPC_LIVE_JELLYFIN_ADDRESS")
+	addr := os.Getenv("MPRP_LIVE_JELLYFIN_ADDRESS")
 	if addr == "" {
-		t.Skip("set MPCRPC_LIVE_JELLYFIN_ADDRESS to run against a real Jellyfin or Emby server")
+		t.Skip("set MPRP_LIVE_JELLYFIN_ADDRESS to run against a real Jellyfin or Emby server")
 	}
-	user, pw, product := os.Getenv("MPCRPC_LIVE_JELLYFIN_USER"), os.Getenv("MPCRPC_LIVE_JELLYFIN_PASSWORD"), os.Getenv("MPCRPC_LIVE_JELLYFIN_PRODUCT")
+	user, pw, product := os.Getenv("MPRP_LIVE_JELLYFIN_USER"), os.Getenv("MPRP_LIVE_JELLYFIN_PASSWORD"), os.Getenv("MPRP_LIVE_JELLYFIN_PRODUCT")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	c := &Client{Base: addr, DeviceID: "ci-mpcvibedrpc", Version: "0.0.0"}
+	c := &Client{Base: addr, DeviceID: "ci-mprp", Version: "0.0.0"}
 	srv, err := c.Find(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func TestLiveJellyfin(t *testing.T) {
 	t.Logf("signed in as %s (%s)", a.UserName, a.UserID)
 
 	if srv.Product == "Jellyfin" {
-		qc := &Client{Base: c.Base, DeviceID: "ci-mpcvibedrpc-qc", Version: "0.0.0"}
+		qc := &Client{Base: c.Base, DeviceID: "ci-mprp-qc", Version: "0.0.0"}
 		p, err := qc.StartQuickConnect(ctx)
 		if err != nil {
 			t.Fatalf("Quick Connect: %v", err)
@@ -86,7 +86,7 @@ func TestLiveJellyfin(t *testing.T) {
 		}
 	}
 	w := &Watcher{Client: c, Token: a.Token, UserID: a.UserID, Product: srv.Product}
-	title := os.Getenv("MPCRPC_LIVE_TITLE")
+	title := os.Getenv("MPRP_LIVE_TITLE")
 	for {
 		if err := w.poll(ctx); err != nil {
 			t.Fatal(err)

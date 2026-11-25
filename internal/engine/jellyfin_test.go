@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakeJellyfin is a Jellyfin (or Emby) server whose session list shows the user's episode, shaped like Jellyfin's

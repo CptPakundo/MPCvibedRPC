@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // The weekly canary (.github/workflows/canary.yml) asks every keyless catalog about one long-known title, through the
 // same search and episode code the program uses, and fails when a service stops answering or changes the shape of
 // its answer: no match, a wrong year, no link, no cover, no episode names. It contacts the real services, so it is
-// opt-in (MPCRPC_LIVE_CATALOGS=1). TMDB needs a key and the public Jikan closed, so neither is asked.
+// opt-in (MPRP_LIVE_CATALOGS=1). TMDB needs a key and the public Jikan closed, so neither is asked.
 //
 // A catalog check needs real titles: these are chosen because they are old, listed by every catalog, and unlikely to
 // be renamed.
@@ -29,8 +29,8 @@ var (
 )
 
 func TestLiveCatalogs(t *testing.T) {
-	if os.Getenv("MPCRPC_LIVE_CATALOGS") != "1" {
-		t.Skip("set MPCRPC_LIVE_CATALOGS=1 to ask the real catalog services")
+	if os.Getenv("MPRP_LIVE_CATALOGS") != "1" {
+		t.Skip("set MPRP_LIVE_CATALOGS=1 to ask the real catalog services")
 	}
 	cfg := core.DefaultConfig()
 	// ask retries a service that is down or slow twice, half a minute apart, each time with a fresh finder (a failing

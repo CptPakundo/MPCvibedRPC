@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 func TestFuzzAgainstJS(t *testing.T) {

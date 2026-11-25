@@ -3,7 +3,7 @@ package artwork
 import (
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // blockedHostFilter returns a function that reports whether a host belongs to a service switched off in the

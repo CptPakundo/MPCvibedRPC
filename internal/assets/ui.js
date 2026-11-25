@@ -303,7 +303,7 @@
   }
   function leavesBox() {
     const all = el('li', {}, document.createTextNode('Every address the program reaches is listed in '),
-      el('a', { href: 'https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md#where-it-connects', target: '_blank', rel: 'noopener', textContent: 'SECURITY.md' }),
+      el('a', { href: 'https://github.com/CptPakundo/MPRP/blob/master/SECURITY.md#where-it-connects', target: '_blank', rel: 'noopener', textContent: 'SECURITY.md' }),
       document.createTextNode('.'));
     // MPC-HC is Windows-only; its web interface answers every web page (no password, any origin)
     const mpc = osText() ? [] : ["MPC-HC's web interface has no password, and web pages you open can read it and control the player while it is on. Switch it off in MPC-HC when you stop using this program."];
@@ -628,7 +628,7 @@
     const on = !!(u && u.newer);
     updInfo = on ? u : null;
     $('updBanner').classList.toggle('hidden', !on);
-    if (on) $('updBannerText').textContent = 'MPCvibedRPC ' + u.latest + ' is available.';
+    if (on) $('updBannerText').textContent = 'MPRP ' + u.latest + ' is available.';
   }
   $('updBannerBtn').onclick = async () => { if (!await askUpdate(updInfo, true)) { showTab('general'); $('updates').scrollIntoView({ block: 'start' }); } };
 
@@ -636,7 +636,7 @@
   // port that another program, or the next start, may listen on by then).
   function closeWindow() {
     gone = true; timers.forEach(clearInterval);
-    document.body.innerHTML = '<main><p>MPCvibedRPC has quit. You can close this window.</p></main>';
+    document.body.innerHTML = '<main><p>MPRP has quit. You can close this window.</p></main>';
     try { window.close(); } catch (_) {}
   }
   let polling = false;
@@ -793,7 +793,7 @@
       const self = install && model && model.os !== 'darwin' && model.app.checkUpdates && model.app.autoUpdate;
       const hint = el('p', { textContent: 'Not now: it installs by itself later, once nothing is playing and the app runs without this window.' });
       if (self) body.append(hint);
-      await modal('MPCvibedRPC ' + u.latest + ' is available', body, [['Not now'], [install ? 'Update now' : 'Open the download page', 'primary']], true, {
+      await modal('MPRP ' + u.latest + ' is available', body, [['Not now'], [install ? 'Update now' : 'Open the download page', 'primary']], true, {
         focus: 1,
         hold: async (i) => {
           if (i !== 1) return true;
@@ -808,7 +808,7 @@
   }
   // Install: download, check, swap, restart. say gets the progress, and the reason when it fails.
   async function installUpdate(say) {
-    $('installUpd').disabled = true; say('Downloading… MPCvibedRPC restarts by itself.');
+    $('installUpd').disabled = true; say('Downloading… MPRP restarts by itself.');
     try { await api('update-install', {}); return true; } catch (e) { say('Could not update: ' + e.message); $('installUpd').disabled = false; return false; }
   }
   $('checkUpd').onclick = async () => {
@@ -841,7 +841,7 @@
       msg.textContent = ok ? 'Copied. Look it over before you post it: it names what you played (folder paths, sign-ins and keys are left out).' : 'Select the text below and copy it (' + (osText() ? osText().copyKey : 'Ctrl+C') + ').';
     } catch (e) { msg.textContent = 'Could not build it: ' + e.message; }
   };
-  $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose', '_blank', 'noopener');
+  $('reportBtn').onclick = () => window.open('https://github.com/CptPakundo/MPRP/issues/new/choose', '_blank', 'noopener');
   $('ver').onclick = () => showChangelog(true);
   // the preview's "Wrong title or cover?": the place where a match is fixed (another name to search under, a pinned cover)
   $('fixMatch').onclick = () => {
@@ -853,9 +853,9 @@
     if (!await ask('Reset your stats?', 'The counts start again from today.', 'Reset', true)) return;
     try { paintStats(await api('stats-reset', {})); } catch (e) { note(e.message, true); }
   };
-  $('quit').onclick = async () => { if (await ask('Quit MPCvibedRPC?', 'Discord stops showing what you watch.', 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
+  $('quit').onclick = async () => { if (await ask('Quit MPRP?', 'Discord stops showing what you watch.', 'Quit', true)) { try { await api('quit', {}); } catch (_) {} closeWindow(); } };
 
-  if (!TOKEN) { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Open MPCvibedRPC from its tray icon or by launching the program again.' }))); return; }
+  if (!TOKEN) { document.body.replaceChildren(el('main', {}, el('p', { textContent: 'Open MPRP from its tray icon or by launching the program again.' }))); return; }
   watchAlive();
   api('state').then((m) => {
     fill(m); paint(m.status);

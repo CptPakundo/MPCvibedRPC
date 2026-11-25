@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 // Product is how the program introduces itself to Plex (it is shown in the account's list of authorized devices).
-const Product = "MPCvibedRPC"
+const Product = "MPRP"
 
 var (
 	// ErrPinExpired means the sign-in code ran out before it was approved (or plex.tv no longer knows it).

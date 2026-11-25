@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // cacheTestFinder makes a finder on a temp file whose clock is the returned day.

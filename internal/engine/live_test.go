@@ -10,70 +10,70 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jellyfin"
-	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
-	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/jellyfin"
+	"github.com/CptPakundo/MPRP/internal/kodi"
+	"github.com/CptPakundo/MPRP/internal/mpris"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 // TestLivePlayer runs against a real player on this computer (MPC-QT, mpv, VLC, IINA or a Linux player that offers
 // MPRIS, set up as their docs say) and the test's own fake Discord. It only runs on request:
 //
-//	MPCRPC_LIVE_PLAYER=mpv MPCRPC_LIVE_TITLE="Sample Movie" go test -run TestLivePlayer ./internal/engine
+//	MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -run TestLivePlayer ./internal/engine
 //
-// MPCRPC_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
-// MPCRPC_LIVE_VLC_PASSWORD (and MPCRPC_LIVE_VLC_PORT when it is not 8080). MPCRPC_LIVE_MPV_PIPE and
-// MPCRPC_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. For Plex, MPCRPC_LIVE_PLEX_ADDRESS is the
-// server (followed without plex.tv; MPCRPC_LIVE_PLEX_TOKEN is its token, if it needs one). For Jellyfin or
-// Emby, MPCRPC_LIVE_JELLYFIN_ADDRESS, MPCRPC_LIVE_JELLYFIN_USER and MPCRPC_LIVE_JELLYFIN_PASSWORD sign in to the server. For Kodi, MPCRPC_LIVE_KODI_PASSWORD
-// (and MPCRPC_LIVE_KODI_ADDRESS when it is not 127.0.0.1:8080; the user is kodi). PotPlayer needs nothing. MPCRPC_LIVE_PLAYER is the
+// MPRP_LIVE_PORT optionally names a web-interface port to ask first (default: none). For VLC, set
+// MPRP_LIVE_VLC_PASSWORD (and MPRP_LIVE_VLC_PORT when it is not 8080). MPRP_LIVE_MPV_PIPE and
+// MPRP_LIVE_IINA_PIPE replace the default connection names of mpv and IINA. For Plex, MPRP_LIVE_PLEX_ADDRESS is the
+// server (followed without plex.tv; MPRP_LIVE_PLEX_TOKEN is its token, if it needs one). For Jellyfin or
+// Emby, MPRP_LIVE_JELLYFIN_ADDRESS, MPRP_LIVE_JELLYFIN_USER and MPRP_LIVE_JELLYFIN_PASSWORD sign in to the server. For Kodi, MPRP_LIVE_KODI_PASSWORD
+// (and MPRP_LIVE_KODI_ADDRESS when it is not 127.0.0.1:8080; the user is kodi). PotPlayer needs nothing. MPRP_LIVE_PLAYER is the
 // name the player is shown under: MPC-QT, mpv, VLC, IINA, PotPlayer, Kodi, Celluloid, Plex, ...
 func TestLivePlayer(t *testing.T) {
-	want := os.Getenv("MPCRPC_LIVE_PLAYER")
+	want := os.Getenv("MPRP_LIVE_PLAYER")
 	if want == "" {
-		t.Skip("set MPCRPC_LIVE_PLAYER to run against a real player")
+		t.Skip("set MPRP_LIVE_PLAYER to run against a real player")
 	}
 	port := deadPort(t)
-	if p := os.Getenv("MPCRPC_LIVE_PORT"); p != "" {
+	if p := os.Getenv("MPRP_LIVE_PORT"); p != "" {
 		port = atoiOr(p, port)
 	}
 	e, d, l := pipeEngine(t, port, nil)
 	e.opts.Pipes, e.opts.MPRIS, e.opts.PotPlayer, e.opts.KodiEvents = nil, nil, nil, "" // the real ones: MPC-QT's, mpv's, IINA's (macOS), MPRIS (Linux), PotPlayer (Windows)
-	if p := os.Getenv("MPCRPC_LIVE_MPV_PIPE"); p != "" {
+	if p := os.Getenv("MPRP_LIVE_MPV_PIPE"); p != "" {
 		e.cfg.MpvPipe = p
 	}
-	if p := os.Getenv("MPCRPC_LIVE_IINA_PIPE"); p != "" {
+	if p := os.Getenv("MPRP_LIVE_IINA_PIPE"); p != "" {
 		e.cfg.IinaPipe = p
 	}
-	if a := os.Getenv("MPCRPC_LIVE_PLEX_ADDRESS"); a != "" {
-		e.cfg.PlexAddress, e.cfg.PlexToken = a, os.Getenv("MPCRPC_LIVE_PLEX_TOKEN")
+	if a := os.Getenv("MPRP_LIVE_PLEX_ADDRESS"); a != "" {
+		e.cfg.PlexAddress, e.cfg.PlexToken = a, os.Getenv("MPRP_LIVE_PLEX_TOKEN")
 		if e.cfg.PlexToken == "" {
 			e.cfg.PlexToken = "none" // a server that lets this computer in without signing in ignores it
 		}
 	}
-	if a := os.Getenv("MPCRPC_LIVE_JELLYFIN_ADDRESS"); a != "" {
+	if a := os.Getenv("MPRP_LIVE_JELLYFIN_ADDRESS"); a != "" {
 		c := &jellyfin.Client{Base: a, DeviceID: "ci-engine", Version: "0.0.0"}
 		srv, err := c.Find(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		auth, err := c.SignIn(context.Background(), os.Getenv("MPCRPC_LIVE_JELLYFIN_USER"), os.Getenv("MPCRPC_LIVE_JELLYFIN_PASSWORD"))
+		auth, err := c.SignIn(context.Background(), os.Getenv("MPRP_LIVE_JELLYFIN_USER"), os.Getenv("MPRP_LIVE_JELLYFIN_PASSWORD"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		e.cfg.JellyfinAddress, e.cfg.JellyfinToken, e.cfg.JellyfinUser, e.cfg.JellyfinProduct, e.cfg.JellyfinDevice = c.Base, auth.Token, auth.UserID, srv.Product, c.DeviceID
 	}
-	if pw := os.Getenv("MPCRPC_LIVE_KODI_PASSWORD"); pw != "" {
+	if pw := os.Getenv("MPRP_LIVE_KODI_PASSWORD"); pw != "" {
 		e.cfg.KodiPassword = pw
-		if a := os.Getenv("MPCRPC_LIVE_KODI_ADDRESS"); a != "" {
+		if a := os.Getenv("MPRP_LIVE_KODI_ADDRESS"); a != "" {
 			e.cfg.KodiAddress = a
 		}
 	}
-	if pw := os.Getenv("MPCRPC_LIVE_VLC_PASSWORD"); pw != "" {
+	if pw := os.Getenv("MPRP_LIVE_VLC_PASSWORD"); pw != "" {
 		e.cfg.VlcPassword = pw
-		if p := os.Getenv("MPCRPC_LIVE_VLC_PORT"); p != "" {
+		if p := os.Getenv("MPRP_LIVE_VLC_PORT"); p != "" {
 			e.cfg.VlcPort = atoiOr(p, e.cfg.VlcPort)
 		}
 	}
@@ -85,7 +85,7 @@ func TestLivePlayer(t *testing.T) {
 	act := d.list()[len(d.list())-1]["activity"].(map[string]any)
 	t.Logf("status: player=%s playing=%v paused=%v", s.Player, *s.NowPlaying, s.Paused)
 	t.Logf("activity: %v", act)
-	if title := os.Getenv("MPCRPC_LIVE_TITLE"); title != "" && !strings.Contains(*s.NowPlaying, title) {
+	if title := os.Getenv("MPRP_LIVE_TITLE"); title != "" && !strings.Contains(*s.NowPlaying, title) {
 		t.Errorf("expected %q in %q", title, *s.NowPlaying)
 	}
 	if !l.has(want + " detected.") {
@@ -101,15 +101,15 @@ func TestLivePlayer(t *testing.T) {
 	if !l.has(`(` + want + `: "`) {
 		t.Error("the log should name what the player played")
 	}
-	if how := os.Getenv("MPCRPC_LIVE_EVENTS"); how != "" {
+	if how := os.Getenv("MPRP_LIVE_EVENTS"); how != "" {
 		livePauseEvent(t, e, d, want, how)
 	}
 }
 
 // livePauseEvent pauses the real player and wants the pause shown at once, from the player's own event, while the
 // regular checks are a minute apart. how says how the player is paused: "pipe" (mpv, IINA: their IPC), "kodi" (its
-// JSON-RPC, as user kodi with MPCRPC_LIVE_KODI_PASSWORD) or "mpris" (D-Bus). It changes the player's state, so it is
-// opt-in (MPCRPC_LIVE_EVENTS; CI sets it for its throwaway players), and it resumes the player afterwards.
+// JSON-RPC, as user kodi with MPRP_LIVE_KODI_PASSWORD) or "mpris" (D-Bus). It changes the player's state, so it is
+// opt-in (MPRP_LIVE_EVENTS; CI sets it for its throwaway players), and it resumes the player afterwards.
 func livePauseEvent(t *testing.T, e *Engine, d *disc, name, how string) {
 	e.Stop()
 	e.cfg.PollInterval = 60000
@@ -212,6 +212,6 @@ func livePauser(t *testing.T, cfg core.Config, name, how string) func(paused boo
 			t.Fatalf("%s is not on the bus", name)
 		}
 	}
-	t.Fatalf("MPCRPC_LIVE_EVENTS=%q: want pipe, kodi or mpris", how)
+	t.Fatalf("MPRP_LIVE_EVENTS=%q: want pipe, kodi or mpris", how)
 	return nil
 }

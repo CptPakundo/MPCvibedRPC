@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 var (

@@ -1,4 +1,4 @@
-# Discord Rich Presence: what the card can show and what MPCvibedRPC sends
+# Discord Rich Presence: what the card can show and what MPRP sends
 
 A research report, written 2026-11-21 and checked against the code on 2026-11-25. Its sources are Discord's public
 developer documentation, what was seen on real profiles and streams, and this repository. Nothing here comes from

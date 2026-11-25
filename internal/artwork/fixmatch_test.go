@@ -3,7 +3,7 @@ package artwork
 import (
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // A junk name (a bare number such as a Blu-ray's "00062") is never looked up, unless the user gave it a pinned

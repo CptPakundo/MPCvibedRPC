@@ -13,14 +13,14 @@ function Check([bool]$ok, [string]$what) {
   if ($ok) { Write-Host "PASS  $what" } else { Write-Host "FAIL  $what"; [void]$failures.Add($what) }
 }
 # only the copies started from this check's folder (an installed program is never touched)
-function Ours { Get-Process -Name 'MPCvibedRPC' -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($work) } }
+function Ours { Get-Process -Name 'MPRP' -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($work) } }
 function WaitFor([scriptblock]$cond, [int]$seconds, [string]$what) {
   $end = (Get-Date).AddSeconds($seconds)
   while ((Get-Date) -lt $end) { try { if (& $cond) { return $true } } catch {}; Start-Sleep -Milliseconds 500 }
   Write-Host "timed out: $what"; return $false
 }
 
-$programs = 'MPCvibedRPC.exe', 'MPCvibedRPC-linux-amd64', 'MPCvibedRPC-linux-arm64', 'MPCvibedRPC-macos.zip'
+$programs = 'MPRP.exe', 'MPRP-linux-amd64', 'MPRP-linux-arm64', 'MPRP-macos.zip'
 $rel = Join-Path $work 'release'
 # every download of a release file is recorded in the download ledger, so the download counter leaves it out
 $ledger = Join-Path $PSScriptRoot 'dev-download.sh'
@@ -41,7 +41,7 @@ try {
       gh attestation verify $path --repo $repo --signer-workflow "$repo/.github/workflows/release.yml" | Out-Host
       Check ($LASTEXITCODE -eq 0) "$f has a valid build record from this repository"
     }
-    $vi = (Get-Item (Join-Path $rel 'MPCvibedRPC.exe')).VersionInfo
+    $vi = (Get-Item (Join-Path $rel 'MPRP.exe')).VersionInfo
     Check ($vi.ProductVersion -eq $Version -and $vi.FileVersion -like "$Version*") "the exe's version details say $Version ($($vi.FileVersion))"
   } else {
     $latest = gh release view --repo $repo --json tagName --jq .tagName
@@ -51,12 +51,12 @@ try {
     $prev = gh release list --repo $repo --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' | Where-Object { $_ -ne $tag } | Select-Object -First 1
     Write-Host "previous release: $prev"
     $dir = Join-Path $work 'update'
-    Fetch $prev $dir 'MPCvibedRPC.exe'
-    $app = Join-Path $dir 'MPCvibedRPC.exe'
+    Fetch $prev $dir 'MPRP.exe'
+    $app = Join-Path $dir 'MPRP.exe'
     $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out-Null
     Set-Content (Join-Path $home_ 'config.json') '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}'
-    $env:MPCRPC_HOME = $home_
-    $env:MPCRPC_BROWSER = 'none'
+    $env:MPRP_HOME = $home_
+    $env:MPRP_BROWSER = 'none'
     function Ipc { $f = Join-Path $home_ 'ipc.json'; if (Test-Path $f) { try { return Get-Content $f -Raw | ConvertFrom-Json } catch {} }; return $null }
     function Api([string]$name) {
       $i = Ipc
@@ -70,14 +70,14 @@ try {
     Api 'update-install' | Out-Null
     $exited = $p.WaitForExit(60000)
     # the updater downloads the exe and its checksum file (both before it exits)
-    if ($exited) { bash $ledger record "release check $tag self-update" "$tag/MPCvibedRPC.exe" "$tag/MPCvibedRPC.exe.sha256" }
+    if ($exited) { bash $ledger record "release check $tag self-update" "$tag/MPRP.exe" "$tag/MPRP.exe.sha256" }
     Check $exited "$prev exits to update"
     Check (WaitFor { (Ping) -eq $Version } 60 'new version up') "$Version runs after the update"
-    Check ((Get-FileHash $app).Hash -eq (Get-FileHash (Join-Path $rel 'MPCvibedRPC.exe')).Hash) 'the updated file is the released exe'
+    Check ((Get-FileHash $app).Hash -eq (Get-FileHash (Join-Path $rel 'MPRP.exe')).Hash) 'the updated file is the released exe'
     try { Api 'quit' | Out-Null } catch {}
     Check (WaitFor { -not (Ours) } 20 'quit') 'the updated program quits'
     Write-Host '--- log of the updated copy ---'
-    Get-Content (Join-Path $home_ 'mpcvibedrpc.log') -ErrorAction SilentlyContinue | Write-Host
+    Get-Content (Join-Path $home_ 'mprp.log') -ErrorAction SilentlyContinue | Write-Host
   }
 }
 catch { Write-Host "ERROR $_"; [void]$failures.Add("exception: $_") }

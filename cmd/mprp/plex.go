@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/plex"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/plex"
+	"github.com/CptPakundo/MPRP/internal/store"
 )
 
 // plexSignIn are the settings a Plex sign-in writes and a sign-out forgets; plexClient, this install's identifier on

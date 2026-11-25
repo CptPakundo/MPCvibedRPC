@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
-	"github.com/CptPakundo/MPCvibedRPC/internal/server"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/server"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // approval is the part the Plex, Stremio and Jellyfin sign-ins share: a sign-in that waits until the user approves it

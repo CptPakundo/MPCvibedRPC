@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 var (

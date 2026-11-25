@@ -179,12 +179,12 @@ func TestEndToEnd(t *testing.T) {
 	rel = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/releases/latest"):
-			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC.exe.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPCvibedRPC-linux-amd64","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC-linux-amd64.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPCvibedRPC-linux-arm64","browser_download_url":"%[1]s/dl"},{"name":"MPCvibedRPC-linux-arm64.sha256","browser_download_url":"%[1]s/sha"}]}`, rel.URL)
+			fmt.Fprintf(w, `{"tag_name":"v3.0.1","body":"notes","html_url":"x","assets":[{"name":"MPRP.exe","browser_download_url":"%[1]s/dl"},{"name":"MPRP.exe.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPRP-linux-amd64","browser_download_url":"%[1]s/dl"},{"name":"MPRP-linux-amd64.sha256","browser_download_url":"%[1]s/sha"},{"name":"MPRP-linux-arm64","browser_download_url":"%[1]s/dl"},{"name":"MPRP-linux-arm64.sha256","browser_download_url":"%[1]s/sha"}]}`, rel.URL)
 		case r.URL.Path == "/dl":
 			w.Write(newBytes)
 		case r.URL.Path == "/sha": // the program only installs a release with a checksum file
 			sum := sha256.Sum256(newBytes)
-			fmt.Fprintf(w, "%x  MPCvibedRPC\n", sum)
+			fmt.Fprintf(w, "%x  MPRP\n", sum)
 		}
 	}))
 	defer rel.Close()
@@ -194,7 +194,7 @@ func TestEndToEnd(t *testing.T) {
 	cfg := fmt.Sprintf(`{"port":%d,"pollInterval":250,"showArtwork":false,"clientId":"1","app":{"autoUpdate":false}}`, mpcPort)
 	os.WriteFile(filepath.Join(home, "config.json"), []byte(cfg), 0o644)
 
-	env := append(os.Environ(), "MPCRPC_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPCRPC_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPCRPC_BROWSER=none", "MPCRPC_FOREGROUND=1")
+	env := append(os.Environ(), "MPRP_HOME="+home, "XDG_RUNTIME_DIR="+xdg, "MPRP_UPDATE_API="+rel.URL, "DISPLAY=", "PATH=/nonexistent", "MPRP_BROWSER=none", "MPRP_FOREGROUND=1")
 	cmd := exec.Command(exe, "--background")
 	cmd.Env = env
 	var out bytes.Buffer
@@ -270,7 +270,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if code, dg := a.call(t, "GET", "diagnostics", ""); code != 200 {
 		t.Fatalf("diagnostics: %d", code)
-	} else if text, _ := dg["text"].(string); !strings.Contains(text, "MPCvibedRPC diagnostics") || !strings.Contains(text, "pollInterval = 2000") ||
+	} else if text, _ := dg["text"].(string); !strings.Contains(text, "MPRP diagnostics") || !strings.Contains(text, "pollInterval = 2000") ||
 		!strings.Contains(text, `"Sample.Movie.2001.1080p.mkv"`) || strings.Contains(text, "/movies/") || strings.Contains(text, home) {
 		// the file name is kept (a wrong title is traced back to it); its folder path and the data folder are not
 		t.Fatalf("diagnostics text is wrong or leaks: %s", text)

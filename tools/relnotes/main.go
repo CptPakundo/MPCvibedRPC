@@ -70,7 +70,7 @@ func build(version, changelogPath, advisoryPath string) (string, error) {
 // render lays the text out: heading, the changelog's lines as a list, the hand-written block, the footer.
 func render(e entry, extra string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "## MPCvibedRPC %s\n\n", e.Version)
+	fmt.Fprintf(&b, "## MPRP %s\n\n", e.Version)
 	b.WriteString("### What's new\n")
 	for _, it := range e.Items {
 		b.WriteString("- " + strings.TrimSpace(it) + "\n")
@@ -87,13 +87,13 @@ Nothing to do: the update installs itself (Windows and Linux, unless you switche
 sign-ins are kept.
 
 ### Get it
-- **Windows:** download **` + "`MPCvibedRPC.exe`" + `** and run it, or install it from the Updates section of the version you
+- **Windows:** download **` + "`MPRP.exe`" + `** and run it, or install it from the Updates section of the version you
   have. Your settings are kept.
-- **macOS 13 or later:** download **` + "`MPCvibedRPC-macos.zip`" + `** and move the app to Applications (the first time,
+- **macOS 13 or later:** download **` + "`MPRP-macos.zip`" + `** and move the app to Applications (the first time,
   System Settings > Privacy & Security > **Open Anyway**).
-- **Linux:** download **` + "`MPCvibedRPC-linux-amd64`" + `** (or ` + "`-arm64`" + `), ` + "`chmod +x`" + ` it and run it.
+- **Linux:** download **` + "`MPRP-linux-amd64`" + `** (or ` + "`-arm64`" + `), ` + "`chmod +x`" + ` it and run it.
 
 Every system needs the Discord desktop app with User Settings > Activity Privacy > "Share my activity" on (Activity
 Privacy is in the Games & Apps section, called Activity Settings in older Discord versions). To check a download, see
-[SECURITY.md](https://github.com/CptPakundo/MPCvibedRPC/blob/master/SECURITY.md).
+[SECURITY.md](https://github.com/CptPakundo/MPRP/blob/master/SECURITY.md).
 `

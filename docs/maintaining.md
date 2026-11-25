@@ -1,6 +1,6 @@
 # Maintaining
 
-For maintainers: how MPCvibedRPC is released, how its screenshots are taken, how the README is previewed and how
+For maintainers: how MPRP is released, how its screenshots are taken, how the README is previewed and how
 release files are downloaded. Building, testing and running the program safely are in [development.md](development.md);
 the rules for everyone are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -26,7 +26,7 @@ Steps 1-2 are done where the change was made. Steps 3-4 (from the merge to the v
 version and the maintainer's go-ahead.
 
 1. **Branch and change.**
-   - Bump `var version` in `cmd/mpcvibedrpc/main.go`. Nothing else carries the version: the workflows run
+   - Bump `var version` in `cmd/mprp/main.go`. Nothing else carries the version: the workflows run
      `tools/ci/version.sh`, which reads it from `main.go`, works out `NEXT` (the next patch version, which the smoke
      test's self-update installs) and, on a tag, fails when the tag does not match. Docs use `X.Y.Z`.
    - Add the version's entry at the top of `internal/assets/changelog.json` (short lines, one emoji each, at most 130
@@ -53,7 +53,7 @@ version and the maintainer's go-ahead.
       commits (seen once with merged helper branches): use `--merge` then, or rebase the branch locally first.
    3. **Tag** the merged commit with an annotated tag and push it. An annotated tag stores the tagger's name and email,
       so tag with the same neutral identity used for commits, never a personal email:
-      `git -c user.name="<name>" -c user.email="<noreply address>" tag -a vX.Y.Z -m "MPCvibedRPC X.Y.Z"`, then
+      `git -c user.name="<name>" -c user.email="<noreply address>" tag -a vX.Y.Z -m "MPRP X.Y.Z"`, then
       `git push origin vX.Y.Z`.
    4. **The release workflow** (`.github/workflows/release.yml`) checks the tag against `main.go`, runs the tests,
       builds the programs on Windows, Linux and macOS runners and smoke-tests each on its own system (Windows: tray,

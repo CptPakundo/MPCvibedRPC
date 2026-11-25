@@ -2,9 +2,9 @@
 
 Every setting with its default and what it does, grouped by the settings window's tabs. The window covers the main
 ones and saves them as you change them. The others go in `config.json`:
-- Windows: `%LOCALAPPDATA%\MPCvibedRPC\config.json`
-- macOS: `~/Library/Application Support/MPCvibedRPC/config.json`
-- Linux: `~/.local/share/MPCvibedRPC/config.json`
+- Windows: `%LOCALAPPDATA%\MPRP\config.json`
+- macOS: `~/Library/Application Support/MPRP/config.json`
+- Linux: `~/.local/share/MPRP/config.json`
 
 `config.json` is JSON: use the names below and write values as the Default column does, for example
 `{"artworkSources": ["imdb", "tvmaze"]}`. The settings of the General tab go inside `"app"`:
@@ -23,7 +23,7 @@ These live under `"app"` in `config.json`. The update switches and **Check now**
 | `startPresence` | `true` | **Show on Discord when the app opens.** Otherwise it waits until you press Show on Discord. |
 | `checkUpdates` | `true` | **Check for updates automatically:** as the program starts, then every six hours ([how updates work](troubleshooting.md#updates)). |
 | `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update installs itself once nothing is playing and no settings window is open (the program runs minimised to the tray or started at login; closing the window quits it on Windows and Linux). Off: the window and a tray notice offer it, and **Install** installs it. |
-| `updateRepo` | `"CptPakundo/MPCvibedRPC"` | *(config.json only)* The GitHub repository (`owner/repo`) that publishes releases. A release is only installed when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
+| `updateRepo` | `"CptPakundo/MPRP"` | *(config.json only)* The GitHub repository (`owner/repo`) that publishes releases. A release is only installed when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
 
 ## Players
 

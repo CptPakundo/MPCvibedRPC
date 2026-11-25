@@ -15,21 +15,21 @@ func TestAllowedHost(t *testing.T) {
 	APIBase, WebBase = "http://127.0.0.1:5555", "http://127.0.0.1:5555"
 	defer func() { APIBase, WebBase = oldAPI, oldWeb }()
 	for addr, want := range map[string]bool{
-		"https://github.com/o/r/releases/download/v1/MPCvibedRPC.exe": true,
-		"https://GitHub.com/o/r/releases/download/v1/MPCvibedRPC.exe": true,
-		"https://objects.githubusercontent.com/x":                     true,
-		"https://release-assets.githubusercontent.com/x":              true,
-		"http://127.0.0.1:5555/dl":                                    true, // the base itself is plain http
-		"http://127.0.0.1:6666/dl":                                    false,
-		"https://127.0.0.1:5555/dl":                                   false, // another scheme than the base
-		"http://github.com/o/r/x":                                     false, // not https
-		"https://evil.example/github.com":                             false,
-		"https://github.com.evil.example/x":                           false,
-		"https://evilgithubusercontent.com/x":                         false,
-		"https://githubusercontent.com/x":                             false,
-		"https://github.com:8443/x":                                   false,
-		"https://user:pw@github.com/x":                                false,
-		"https://api.github.com/repos/o/r/releases/assets/1":          false, // not a base here
+		"https://github.com/o/r/releases/download/v1/MPRP.exe": true,
+		"https://GitHub.com/o/r/releases/download/v1/MPRP.exe": true,
+		"https://objects.githubusercontent.com/x":              true,
+		"https://release-assets.githubusercontent.com/x":       true,
+		"http://127.0.0.1:5555/dl":                             true, // the base itself is plain http
+		"http://127.0.0.1:6666/dl":                             false,
+		"https://127.0.0.1:5555/dl":                            false, // another scheme than the base
+		"http://github.com/o/r/x":                              false, // not https
+		"https://evil.example/github.com":                      false,
+		"https://github.com.evil.example/x":                    false,
+		"https://evilgithubusercontent.com/x":                  false,
+		"https://githubusercontent.com/x":                      false,
+		"https://github.com:8443/x":                            false,
+		"https://user:pw@github.com/x":                         false,
+		"https://api.github.com/repos/o/r/releases/assets/1":   false, // not a base here
 	} {
 		u, err := url.Parse(addr)
 		if err != nil {
@@ -55,7 +55,7 @@ func TestDownloadRefusesForeignHosts(t *testing.T) {
 	otherHost := strings.TrimPrefix(other.URL, "http://")
 	// the "API" lives under a name that differs from the other server's host, though both are local
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `{"tag_name":"v3.1.0","html_url":"https://example/rel","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"%s/exe"},{"name":"MPCvibedRPC.exe.sha256","browser_download_url":"%s/sha"}]}`, other.URL, other.URL)
+		fmt.Fprintf(w, `{"tag_name":"v3.1.0","html_url":"https://example/rel","assets":[{"name":"MPRP.exe","browser_download_url":"%s/exe"},{"name":"MPRP.exe.sha256","browser_download_url":"%s/sha"}]}`, other.URL, other.URL)
 	}))
 	defer api.Close()
 	old := APIBase
@@ -117,7 +117,7 @@ func TestCheckIsConditional(t *testing.T) {
 			return
 		}
 		w.Header().Set("ETag", `"abc"`)
-		fmt.Fprint(w, `{"tag_name":"v3.1.0","body":"Notes.","html_url":"https://example/rel","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"x"},{"name":"MPCvibedRPC.exe.sha256","browser_download_url":"y"}]}`)
+		fmt.Fprint(w, `{"tag_name":"v3.1.0","body":"Notes.","html_url":"https://example/rel","assets":[{"name":"MPRP.exe","browser_download_url":"x"},{"name":"MPRP.exe.sha256","browser_download_url":"y"}]}`)
 	}))
 	defer srv.Close()
 	old := APIBase

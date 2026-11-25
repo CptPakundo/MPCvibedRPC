@@ -33,7 +33,7 @@ type asset struct {
 	Count int    `json:"download_count"`
 }
 
-// baseline is the count of every release file when counting started ("v0.9.38/MPCvibedRPC.exe": 3).
+// baseline is the count of every release file when counting started ("v0.9.38/MPRP.exe": 3).
 type baseline struct {
 	At     string         `json:"at"`
 	Counts map[string]int `json:"counts"`
@@ -57,7 +57,7 @@ type summary struct {
 
 // isProgram: the files people download to run the program.
 func isProgram(name string) bool {
-	return strings.HasPrefix(name, "MPCvibedRPC") && !strings.HasSuffix(name, ".sha256")
+	return strings.HasPrefix(name, "MPRP") && !strings.HasSuffix(name, ".sha256")
 }
 
 func readJSON(path string, v any) error {

@@ -2,22 +2,22 @@
 
 <img src="docs/images/icon.png" width="96" height="96" alt="">
 
-# MPCvibedRPC
+# MPRP
 
 **Show what you're watching on Discord.**<br>
 A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, Stremio, Jellyfin and Emby, with clean titles, cover art and a real progress bar.
 
 <p>
-<a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
-<a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC-macos.zip"><img alt="Download for macOS" src="https://img.shields.io/badge/Download_for_macOS-5865f2?style=for-the-badge"></a>
-<a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC-linux-amd64"><img alt="Download for Linux" src="https://img.shields.io/badge/Download_for_Linux-5865f2?style=for-the-badge"></a>
+<a href="https://github.com/CptPakundo/MPRP/releases/latest/download/MPRP.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-5865f2?style=for-the-badge"></a>
+<a href="https://github.com/CptPakundo/MPRP/releases/latest/download/MPRP-macos.zip"><img alt="Download for macOS" src="https://img.shields.io/badge/Download_for_macOS-5865f2?style=for-the-badge"></a>
+<a href="https://github.com/CptPakundo/MPRP/releases/latest/download/MPRP-linux-amd64"><img alt="Download for Linux" src="https://img.shields.io/badge/Download_for_Linux-5865f2?style=for-the-badge"></a>
 </p>
 
-<sub>Linux on ARM: <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest/download/MPCvibedRPC-linux-arm64">MPCvibedRPC-linux-arm64</a> · <a href="https://github.com/CptPakundo/MPCvibedRPC/releases/latest">All files and what's new</a></sub>
+<sub>Linux on ARM: <a href="https://github.com/CptPakundo/MPRP/releases/latest/download/MPRP-linux-arm64">MPRP-linux-arm64</a> · <a href="https://github.com/CptPakundo/MPRP/releases/latest">All files and what's new</a></sub>
 
 <p>
-<a href="https://github.com/CptPakundo/MPCvibedRPC/releases"><img alt="Downloads" title="GitHub's count of release downloads (it includes the project's own release checks)" src="https://img.shields.io/github/downloads/CptPakundo/MPCvibedRPC/total?color=444"></a>
-<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/CptPakundo/MPCvibedRPC?color=444"></a>
+<a href="https://github.com/CptPakundo/MPRP/releases"><img alt="Downloads" title="GitHub's count of release downloads (it includes the project's own release checks)" src="https://img.shields.io/github/downloads/CptPakundo/MPRP/total?color=444"></a>
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/CptPakundo/MPRP?color=444"></a>
 </p>
 
 <p>
@@ -47,19 +47,19 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 Every system needs the **Discord desktop app** with *User Settings > Activity Privacy > "Share my activity"* turned on (Activity Privacy is in the *Games & Apps* section, called *Activity Settings* in older Discord versions).
 
 **Windows 10/11**
-1. Download **MPCvibedRPC.exe** and run it. There is nothing to install. SmartScreen may warn, because the program
+1. Download **MPRP.exe** and run it. There is nothing to install. SmartScreen may warn, because the program
    isn't code-signed: choose *More info > Run anyway*.
 2. Play something. If your player isn't found yet, press **Set up the player connection** in the window.
 3. Optional: **Start with Windows** (General tab) starts it quietly in the tray when you log in.
 
 **macOS 13 or later** (Apple silicon and Intel)
-1. Download **MPCvibedRPC-macos.zip**, open it and move the app to Applications.
+1. Download **MPRP-macos.zip**, open it and move the app to Applications.
 2. The app isn't notarized by Apple, so the first time it won't open: go to *System Settings > Privacy & Security* and
    choose **Open Anyway**.
 3. It lives in the menu bar. For IINA, press **Set up the player connection** once and reopen IINA.
 
 **Linux** (x64 and ARM64)
-1. Download **MPCvibedRPC-linux-amd64** (or `-arm64`), run `chmod +x` on it and start it.
+1. Download **MPRP-linux-amd64** (or `-arm64`), run `chmod +x` on it and start it.
 2. VLC, Celluloid, Haruna and most other video players are found by themselves. mpv: press **Set up the player
    connection** (it adds one line to `mpv.conf`); the mpv-mpris script works too.
 3. There's no tray icon, and closing the window with its X quits the program. Keep the window open or minimised, or
@@ -121,7 +121,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 4. The status line at the top of the window says what is missing, for example "No player found".
 
 **Reporting a problem:** on the **Help** tab, **Copy diagnostics** copies a report to paste into a
-[new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose); what it contains is in [Troubleshooting](docs/troubleshooting.md#reporting-a-problem).
+[new issue](https://github.com/CptPakundo/MPRP/issues/new/choose); what it contains is in [Troubleshooting](docs/troubleshooting.md#reporting-a-problem).
 
 More problems, by player and service, plus updates and uninstalling: [Troubleshooting](docs/troubleshooting.md).
 

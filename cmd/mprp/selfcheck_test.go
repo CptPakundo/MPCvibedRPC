@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/updater"
 )
 
 // checkApp is an app whose engine sees no player, no Discord and no catalog on this computer.

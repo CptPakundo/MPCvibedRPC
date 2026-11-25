@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // "Why this title?" names the file and what was read from it while it shows, never the folder path, and is gone

@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod, cache: false }
       - name: Live catalog check
-        run: MPCRPC_LIVE_CATALOGS=1 ./tools/ci/run-annotated.sh "live catalogs" ./tools/ci/must-pass.sh TestLiveCatalogs go test -count=1 -run TestLiveCatalogs -v ./internal/artwork
+        run: MPRP_LIVE_CATALOGS=1 ./tools/ci/run-annotated.sh "live catalogs" ./tools/ci/must-pass.sh TestLiveCatalogs go test -count=1 -run TestLiveCatalogs -v ./internal/artwork
         shell: bash
 
   # mpv, VLC and Celluloid as their makers release them (Flathub), with the live engine test and a pause from their events.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 // "Set up the player connection" on macOS and Linux. There is no MPC-HC or MPC-BE there. mpv gets input-ipc-server

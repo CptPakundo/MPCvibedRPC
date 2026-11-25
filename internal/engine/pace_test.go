@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // A Discord that refuses every status is not asked at every check: the engine waits longer after each failure, names

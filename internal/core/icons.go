@@ -4,7 +4,7 @@ import "strings"
 
 // PlayerIconBase is where the player logos in docs/players are served from. Discord fetches the small icon of a
 // status by its address (through its own image proxy), so nothing is uploaded and nothing about the user is sent.
-const PlayerIconBase = "https://raw.githubusercontent.com/CptPakundo/MPCvibedRPC/master/docs/players/"
+const PlayerIconBase = "https://raw.githubusercontent.com/CptPakundo/MPRP/master/docs/players/"
 
 // playerIcons names the logo file of each player that has one. The MPC family has its own too: the default Discord
 // application has no mpc-hc image (its assets are default, pause_small, play_small, stop_small and mpcbe_logo, checked

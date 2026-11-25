@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
-	"github.com/CptPakundo/MPCvibedRPC/internal/kodi"
-	"github.com/CptPakundo/MPCvibedRPC/internal/mpris"
-	"github.com/CptPakundo/MPCvibedRPC/internal/mpvipc"
-	"github.com/CptPakundo/MPCvibedRPC/internal/pipe"
+	"github.com/CptPakundo/MPRP/internal/conns"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/kodi"
+	"github.com/CptPakundo/MPRP/internal/mpris"
+	"github.com/CptPakundo/MPRP/internal/mpvipc"
+	"github.com/CptPakundo/MPRP/internal/pipe"
 )
 
 var (

@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
-	"github.com/CptPakundo/MPCvibedRPC/internal/server"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/assets"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/server"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // app is the running program: the settings, the engine, the local server the window talks to, and the tray.
@@ -94,7 +94,7 @@ func run() error {
 		token: server.NewToken(), quitDone: make(chan struct{})}
 	a.busy()
 
-	msg := fmt.Sprintf("MPCvibedRPC %s starting", version)
+	msg := fmt.Sprintf("MPRP %s starting", version)
 	// An automatic update leaves a marker for the copy it starts: that copy starts quietly in the tray and says so once.
 	// A start without --after-update that finds one is a start by hand after that copy never got going: the marker is
 	// stale and goes, so a later update by hand is not taken for an automatic one.
@@ -163,10 +163,10 @@ func run() error {
 	a.tray = t
 	a.mu.Unlock()
 	if failedUpdate != "" && t != nil {
-		t.Balloon("MPCvibedRPC could not update to "+failedUpdate, "The new version did not start, so "+version+" is back.")
+		t.Balloon("MPRP could not update to "+failedUpdate, "The new version did not start, so "+version+" is back.")
 	}
 	if autoFrom != "" && t != nil {
-		if !t.Balloon("MPCvibedRPC updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
+		if !t.Balloon("MPRP updated to "+version, "Installed by itself (you had "+autoFrom+"). Click here to see what's new.") {
 			a.log("INFO", "No notice of the automatic update was shown (no tray notifications here).")
 		}
 	}

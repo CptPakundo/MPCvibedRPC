@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with: { go-version-file: go.mod, cache: false }
       - run: go test -count=1 -run 'TestEverySettingIsDocumented' ./internal/store
-      - run: go test -count=1 -run 'TestPlayersAreNamedEverywhere' ./cmd/mpcvibedrpc
+      - run: go test -count=1 -run 'TestPlayersAreNamedEverywhere' ./cmd/mprp
       - run: go test -count=1 -run 'TestSecurityListsEveryHost|TestEveryHostIsListed' ./internal/core
       - run: go test -count=1 ./tools/relnotes
       - run: go test -count=1 ./tools/doclinks

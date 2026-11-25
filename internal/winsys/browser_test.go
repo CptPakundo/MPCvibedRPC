@@ -10,7 +10,7 @@ import (
 )
 
 func TestUsesProfile(t *testing.T) {
-	const p = `C:\Users\Someone\AppData\Local\MPCvibedRPC\window`
+	const p = `C:\Users\Someone\AppData\Local\MPRP\window`
 	cases := []struct {
 		cmd  string
 		want bool
@@ -19,7 +19,7 @@ func TestUsesProfile(t *testing.T) {
 		{`msedge.exe --type=gpu-process --user-data-dir=` + p + ` --lang=en-GB`, true},
 		{`msedge.exe --user-data-dir=` + p, true},
 		{`msedge.exe --user-data-dir=` + p + `\`, true},
-		{`msedge.exe --USER-data-DIR=` + `c:\users\someone\appdata\local\mpcvibedrpc\WINDOW`, true},
+		{`msedge.exe --USER-data-DIR=` + `c:\users\someone\appdata\local\mprp\WINDOW`, true},
 		{`msedge.exe --user-data-dir=` + p + `2 --lang=en`, false},   // a different folder with the same prefix
 		{`msedge.exe --user-data-dir=` + p + `-old`, false},          // likewise
 		{`msedge.exe --user-data-dir=C:\Users\Someone\Other`, false}, // another profile

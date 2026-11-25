@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // The settings window's X quits the program, and minimising it sends it to the tray (minimizeToTray, Windows).

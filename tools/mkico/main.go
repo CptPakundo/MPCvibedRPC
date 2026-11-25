@@ -2,7 +2,7 @@
 // size Windows asks for from 100% to 250% scaling (16, 24, 32, 40, 48, 64 pixels, 32-bit BMP frames).
 //
 //	go run ./tools/mkico -out internal/assets/icon.ico
-//	go run ./tools/mkico -icns MPCvibedRPC.icns     (the macOS app icon, made when the app is packaged)
+//	go run ./tools/mkico -icns MPRP.icns     (the macOS app icon, made when the app is packaged)
 //	go run ./tools/mkico -png docs/images/icon.png    (a 256-pixel logo for the README)
 //	go run ./tools/mkico -dot -out internal/assets/icon-update.ico   (the tray icon while an update is waiting)
 package main

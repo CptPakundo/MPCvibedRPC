@@ -25,7 +25,7 @@ import (
 // six hours itself.
 
 // userAgent is what every request says it is (Wikipedia answers 403 to Go's default client string).
-const userAgent = "MPCvibedRPC (Discord Rich Presence for video players; https://github.com/CptPakundo/MPCvibedRPC)"
+const userAgent = "MPRP (Discord Rich Presence for media players; https://github.com/CptPakundo/MPRP)"
 
 const (
 	respTTL    = 10 * time.Minute

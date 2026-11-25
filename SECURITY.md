@@ -79,7 +79,7 @@ limits it to this computer, which keeps other devices out but not web pages you 
 
 ## Reporting a problem
 If you find a security problem, please report it **privately** through
-[GitHub's private vulnerability reporting](https://github.com/CptPakundo/MPCvibedRPC/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/CptPakundo/MPRP/security/advisories/new)
 rather than in a public issue. There is no guaranteed response time or fix, but reports are read.
 
 ## How updates are checked
@@ -92,14 +92,14 @@ manifest, immutable releases) is an open decision in the
 
 ## Checking a download
 Release files come with a SHA-256 checksum and a signed build record from GitHub. To check that a downloaded
-`MPCvibedRPC.exe` (or `MPCvibedRPC-macos.zip`, `MPCvibedRPC-linux-amd64`, ...) was built from this repository by its
+`MPRP.exe` (or `MPRP-macos.zip`, `MPRP-linux-amd64`, ...) was built from this repository by its
 release workflow:
 
 ```
-gh attestation verify MPCvibedRPC.exe --repo CptPakundo/MPCvibedRPC --signer-workflow CptPakundo/MPCvibedRPC/.github/workflows/release.yml
+gh attestation verify MPRP.exe --repo CptPakundo/MPRP --signer-workflow CptPakundo/MPRP/.github/workflows/release.yml
 ```
 
-You can also rebuild `MPCvibedRPC.exe` and the Linux programs yourself and compare: every release is published only
+You can also rebuild `MPRP.exe` and the Linux programs yourself and compare: every release is published only
 after a second runner rebuilt them from the tag byte for byte. Check out the tag with the files as committed (LF line
 endings, for example `git clone -c core.autocrlf=false`), install the Go version named in
 `go.mod` (the `go` line), run `tools/ci/reproduce.sh X.Y.Z out` and compare the files' SHA-256 with the

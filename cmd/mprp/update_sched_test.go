@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/updater"
 )
 
 // The check by itself follows the wall clock: due at once when none went out yet, six hours after one that

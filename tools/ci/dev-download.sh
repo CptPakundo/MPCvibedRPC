@@ -6,7 +6,7 @@
 #   dev-download.sh record BY TAG/FILE[=N] ...      records downloads made another way (the program's own updater)
 # BY says who downloaded ("release check v0.9.39 draft", "an automated agent"). Needs gh signed in with write access.
 set -euo pipefail
-repo="${GITHUB_REPOSITORY:-CptPakundo/MPCvibedRPC}"
+repo="${GITHUB_REPOSITORY:-CptPakundo/MPRP}"
 
 record() {
   local by="$1"; shift

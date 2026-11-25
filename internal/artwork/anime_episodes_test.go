@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // fakeAnimeCatalogs answers like TVmaze, Jikan (MyAnimeList) and Cinemeta for a long-running anime, "Sample Saga"

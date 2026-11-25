@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/proc"
+	"github.com/CptPakundo/MPRP/internal/proc"
 )
 
 // findBrowser returns Edge/Chrome/Brave/Vivaldi if installed.
@@ -50,17 +50,17 @@ func start(c *exec.Cmd) bool {
 // OpenWindow shows the page in an app-style window (no tabs or address bar) when Edge/Chrome is there, else in the
 // default browser. It returns "app", "browser" or "" (nothing could be started). With a profileDir the window
 // gets a browser profile of its own, so the user's regular profile is left alone and no background browser outlives
-// the window; CloseWindowBrowser(profileDir) ends it. MPCRPC_BROWSER names the browser to use instead, or "none".
+// the window; CloseWindowBrowser(profileDir) ends it. MPRP_BROWSER names the browser to use instead, or "none".
 func OpenWindow(url, profileDir string) string {
 	b := findBrowser()
-	switch v := os.Getenv("MPCRPC_BROWSER"); v {
+	switch v := os.Getenv("MPRP_BROWSER"); v {
 	case "":
 	case "none":
 		return "" // no window (a computer without a screen, a test)
 	default:
 		b = v // a browser of the user's choice; it has to understand --app
 	}
-	if macApp && os.Getenv("MPCRPC_BROWSER") == "" && openNativeWindow(url) {
+	if macApp && os.Getenv("MPRP_BROWSER") == "" && openNativeWindow(url) {
 		return "app" // the macOS app shows the page in a window of its own
 	}
 	if b != "" {

@@ -124,8 +124,8 @@ jobs:
         with: { version: "${{ env.VERSION }}", next: "${{ env.NEXT }}" }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: MPCvibedRPC-windows
-          path: dist/MPCvibedRPC.exe
+          name: MPRP-windows
+          path: dist/MPRP.exe
 
   # The exe again, built on Linux from the same files: it must be the same, byte for byte, so anyone can rebuild a
   # release and check it (release.yml does that for every release before it is published).
@@ -143,11 +143,11 @@ jobs:
         shell: bash
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: MPCvibedRPC-windows
+          name: MPRP-windows
           path: windows
       - name: Rebuild and compare
         shell: bash
-        run: ./tools/ci/reproduce.sh "$VERSION" rebuilt && ./tools/ci/reproduce.sh compare windows/MPCvibedRPC.exe rebuilt/MPCvibedRPC.exe
+        run: ./tools/ci/reproduce.sh "$VERSION" rebuilt && ./tools/ci/reproduce.sh compare windows/MPRP.exe rebuilt/MPRP.exe
 
   # The Linux programs and the macOS app as a release builds them (.github/actions/build-unix), started for real in
   # throwaway folders.
@@ -178,7 +178,7 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: MPCvibedRPC-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
+          name: MPRP-${{ runner.os == 'macOS' && 'macos' || 'linux' }}
           path: dist/*
 
   # The live jobs below run once per pull request (opened, reopened or marked ready), by hand, and from the canary: not

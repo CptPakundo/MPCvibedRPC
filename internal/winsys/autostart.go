@@ -8,15 +8,15 @@ import (
 )
 
 // runNameBase is the name of the registry value that starts the program at login.
-const runNameBase = "MPCvibedRPC"
+const runNameBase = "MPRP"
 
-// runName is the registry value for run-at-login. A copy that uses a data folder of its own (MPCRPC_HOME: a portable
+// runName is the registry value for run-at-login. A copy that uses a data folder of its own (MPRP_HOME: a portable
 // setup, a test, a development build) gets a value of its own, derived from that folder, so it can never switch the
 // installed program's run-at-login on or off.
-func runName() string { return runNameFor(os.Getenv("MPCRPC_HOME")) }
+func runName() string { return runNameFor(os.Getenv("MPRP_HOME")) }
 
 // runCommand is the registry value's command line. A copy with its own data folder passes it on with --home, so the
-// copy started at login uses that folder too (the registry cannot set MPCRPC_HOME the way a LaunchAgent can).
+// copy started at login uses that folder too (the registry cannot set MPRP_HOME the way a LaunchAgent can).
 func runCommand(exe, home string) string {
 	cmd := `"` + exe + `" --background`
 	if home = strings.TrimRight(strings.TrimSpace(home), `\/`); home != "" {
@@ -74,7 +74,7 @@ func runEntryNames(command, exe string) bool {
 // writeRunValue makes the Run value name start exe. A value that is already right is left alone: no helper process
 // at every start of the program.
 func writeRunValue(name, exe string) bool {
-	want := runCommand(exe, os.Getenv("MPCRPC_HOME"))
+	want := runCommand(exe, os.Getenv("MPRP_HOME"))
 	if cur, found := registryRunValue(name); found && cur == want {
 		return true
 	}

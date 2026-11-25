@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/assets"
-	"github.com/CptPakundo/MPCvibedRPC/internal/conns"
-	"github.com/CptPakundo/MPCvibedRPC/internal/diag"
-	"github.com/CptPakundo/MPCvibedRPC/internal/engine"
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
-	"github.com/CptPakundo/MPCvibedRPC/internal/server"
-	"github.com/CptPakundo/MPCvibedRPC/internal/store"
-	"github.com/CptPakundo/MPCvibedRPC/internal/updater"
-	"github.com/CptPakundo/MPCvibedRPC/internal/winsys"
+	"github.com/CptPakundo/MPRP/internal/assets"
+	"github.com/CptPakundo/MPRP/internal/conns"
+	"github.com/CptPakundo/MPRP/internal/diag"
+	"github.com/CptPakundo/MPRP/internal/engine"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/server"
+	"github.com/CptPakundo/MPRP/internal/store"
+	"github.com/CptPakundo/MPRP/internal/updater"
+	"github.com/CptPakundo/MPRP/internal/winsys"
 )
 
 // fn adapts a handler that needs no request body and cannot fail.

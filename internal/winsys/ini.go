@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 var (
@@ -112,7 +112,7 @@ func writeFileAtomic(file string, data []byte) error {
 			return os.WriteFile(file, data, perm)
 		}
 	}
-	tmp := file + ".mpcvibedrpc.tmp"
+	tmp := file + ".mprp.tmp"
 	if err := os.WriteFile(tmp, data, perm); err != nil {
 		_ = os.Remove(tmp) // a part may have been written
 		return os.WriteFile(file, data, perm)

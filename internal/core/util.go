@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsre"
+	"github.com/CptPakundo/MPRP/internal/jsre"
 )
 
 // NA marks "no value" for the optional numbers (season, episode, year, ...), like null/undefined in JavaScript.

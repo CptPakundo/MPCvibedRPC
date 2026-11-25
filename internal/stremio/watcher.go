@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
-	"github.com/CptPakundo/MPCvibedRPC/internal/remote"
+	"github.com/CptPakundo/MPRP/internal/core"
+	"github.com/CptPakundo/MPRP/internal/remote"
 )
 
 // How often Stremio's player updates the library entry of what it plays (stremio-core's PUSH_TO_LIBRARY_EVERY):

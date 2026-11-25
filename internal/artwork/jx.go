@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/jsonx"
+	"github.com/CptPakundo/MPRP/internal/jsonx"
 )
 
 // OMap is an order-preserving JSON object (see jsonx).

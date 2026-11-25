@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func init() { Asset, Magic = "MPCvibedRPC.exe", "MZ" } // the Windows release, whatever system runs the tests
+func init() { Asset, Magic = "MPRP.exe", "MZ" } // the Windows release, whatever system runs the tests
 
 func TestCompare(t *testing.T) {
 	cases := []struct {
@@ -40,17 +40,17 @@ func setup(t *testing.T, exe []byte, sha string, notes string) (*httptest.Server
 	mux := http.NewServeMux()
 	var srv *httptest.Server
 	mux.HandleFunc("/repos/o/r/releases/latest", func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("User-Agent") != "MPCvibedRPC" {
+		if r.Header.Get("User-Agent") != "MPRP" {
 			t.Error("missing UA")
 		}
 		shaAsset := ""
 		if sha != "" {
-			shaAsset = fmt.Sprintf(`,{"name":"MPCvibedRPC.exe.sha256","browser_download_url":"%s/sha"}`, srv.URL)
+			shaAsset = fmt.Sprintf(`,{"name":"MPRP.exe.sha256","browser_download_url":"%s/sha"}`, srv.URL)
 		}
-		fmt.Fprintf(w, `{"tag_name":"v3.1.0","body":%q,"html_url":"https://example/rel","assets":[{"name":"other.zip","browser_download_url":"x"},{"name":"MPCvibedRPC.exe","browser_download_url":"%s/exe"}%s]}`, notes, srv.URL, shaAsset)
+		fmt.Fprintf(w, `{"tag_name":"v3.1.0","body":%q,"html_url":"https://example/rel","assets":[{"name":"other.zip","browser_download_url":"x"},{"name":"MPRP.exe","browser_download_url":"%s/exe"}%s]}`, notes, srv.URL, shaAsset)
 	})
 	mux.HandleFunc("/exe", func(w http.ResponseWriter, r *http.Request) { w.Write(exe) })
-	mux.HandleFunc("/sha", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, sha+"  MPCvibedRPC.exe\n") })
+	mux.HandleFunc("/sha", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, sha+"  MPRP.exe\n") })
 	srv = httptest.NewServer(mux)
 	old := APIBase
 	APIBase = srv.URL
@@ -249,9 +249,9 @@ func TestRestorePutsTheOldProgramBack(t *testing.T) {
 
 func TestAssetFor(t *testing.T) {
 	cases := map[[2]string]string{
-		{"windows", "amd64"}: "MPCvibedRPC.exe",
-		{"linux", "amd64"}:   "MPCvibedRPC-linux-amd64",
-		{"linux", "arm64"}:   "MPCvibedRPC-linux-arm64",
+		{"windows", "amd64"}: "MPRP.exe",
+		{"linux", "amd64"}:   "MPRP-linux-amd64",
+		{"linux", "arm64"}:   "MPRP-linux-arm64",
 		{"linux", "386"}:     "",
 		{"darwin", "arm64"}:  "", // an app bundle: the release page is offered instead
 		{"freebsd", "amd64"}: "",
@@ -266,7 +266,7 @@ func TestAssetFor(t *testing.T) {
 // Where the program cannot install a release itself, Check still reports it, with only the page to go to.
 func TestCheckWithoutAsset(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"tag_name":"v3.1.0","html_url":"https://example/rel","assets":[{"name":"MPCvibedRPC.exe","browser_download_url":"x"}]}`)
+		fmt.Fprint(w, `{"tag_name":"v3.1.0","html_url":"https://example/rel","assets":[{"name":"MPRP.exe","browser_download_url":"x"}]}`)
 	}))
 	defer srv.Close()
 	old, oldAPI := Asset, APIBase
@@ -311,7 +311,7 @@ func TestCheckFallsBackToTheWebsite(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !info.Newer || info.Latest != "3.1.0" || !info.CanInstall || info.Page != srv.URL+"/o/r/releases/tag/v3.1.0" ||
-		info.URL != srv.URL+"/o/r/releases/download/v3.1.0/MPCvibedRPC.exe" || info.ShaURL != info.URL+".sha256" {
+		info.URL != srv.URL+"/o/r/releases/download/v3.1.0/MPRP.exe" || info.ShaURL != info.URL+".sha256" {
 		t.Fatalf("got %+v", info)
 	}
 	if info, err := Check(nil, "o/r", "3.1.0"); err != nil || info.Newer {
@@ -326,7 +326,7 @@ func TestCheckFallsBackToTheWebsite(t *testing.T) {
 }
 
 func TestWhatsNew(t *testing.T) {
-	notes := "## MPCvibedRPC 9.9.9\r\n\r\n**Sample feature.**\r\n\r\n- One thing.\r\n- Another.\r\n\r\n### Get it\r\n- Download it.\r\n\r\n### Good to know\r\n- More."
+	notes := "## MPRP 9.9.9\r\n\r\n**Sample feature.**\r\n\r\n- One thing.\r\n- Another.\r\n\r\n### Get it\r\n- Download it.\r\n\r\n### Good to know\r\n- More."
 	if got := whatsNew(notes); got != "**Sample feature.**\n\n- One thing.\n- Another." {
 		t.Errorf("got %q", got)
 	}

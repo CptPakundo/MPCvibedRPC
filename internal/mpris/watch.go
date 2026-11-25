@@ -3,7 +3,7 @@ package mpris
 import (
 	"time"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/dbus"
+	"github.com/CptPakundo/MPRP/internal/dbus"
 )
 
 // changeProps are the player properties whose change is news: playing or paused, another file, another speed.

@@ -15,7 +15,7 @@ import (
 
 	"net/http"
 
-	"github.com/CptPakundo/MPCvibedRPC/internal/core"
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // Options configures an Artwork finder.
