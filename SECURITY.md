@@ -75,7 +75,7 @@ record of which program is capturing the screen. Nothing of either is sent anywh
 MPC-HC's web interface has no password and lets any web page read it (it answers every origin). While it is on, a
 website open in your browser could see what you play and send the player commands. "Set up the player connection"
 limits it to this computer, which keeps other devices out but not web pages you open here. Switch it off in MPC-HC
-(**Options > Player > Web Interface**) when you stop using this program.
+(**Options > Player > Web Interface**) when you stop using this program. The missing password is MPC-HC's own design.
 
 ## Reporting a problem
 If you find a security problem, please report it **privately** through

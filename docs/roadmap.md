@@ -74,20 +74,11 @@ The updater checks a checksum from the same release, so anyone able to publish a
   that rebuilds the Windows and Linux files from the tag and compares them byte for byte.
 - *Status:* done: the pins, read-only workflows by default, and the rebuild (`tools/ci/reproduce.sh`; a release is only
   published when every program file matches).
-- *Left:* the signed manifest (needs the maintainer's key) and immutable releases (open decision 3).
+- *Left:* the signed manifest (needs the maintainer's key) and immutable releases (open decision 2).
 - Not planned: checking GitHub's build attestations inside the program (much security code, a moving format, narrow
   benefit). The attestations stay available to check by hand.
 
-### 4. Reach the people it is for, calmly
-Trust on Windows is built per file: SmartScreen reputation starts again with every build, SignPath approves every
-release by hand, and winget needs one pull request per version. Frequent releases work against all three.
-- Steps: a stable release about once a month, pre-releases in between, and a 1.0 that promises calm maintenance;
-  a Homebrew tap of the project's own (Homebrew's official cask list does not accept unsigned apps since 2026-09-01);
-  winget and a Scoop bucket come after signing ([why they wait](#considered-and-left)); announcements written by hand in the communities
-  of the supported players; then SignPath Foundation's free signing once the project is visibly used (it declines
-  projects without independent references).
-
-### 5. Private by design, and provably so
+### 4. Private by design, and provably so
 - One list of every host the program may contact, used by the Privacy tab and SECURITY.md, and a test that fails when
   the code contacts a host not on it.
   - *Status:* done: `core.Hosts` with `core.Sources`, the table in SECURITY.md (linked from the Privacy tab), and
@@ -96,11 +87,10 @@ release by hand, and winget needs one pull request per version. Frequent release
   - *Status:* done (Privacy tab; every request through Go's default transport is counted by host, in memory only).
 - MPC-HC's web interface answers any web page once switched on (no password, open to all origins). The Privacy tab and
   SECURITY.md say so.
-  - *Left:* offer MPC-HC's maintainers a fix (open decision 6).
 - Possibly, keep sign-ins in the system's key store (Windows DPAPI, the macOS Keychain, the Secret Service on Linux)
   instead of plain text in `config.json`.
 
-### 6. Readable by a human, decisions in the open
+### 5. Readable by a human, decisions in the open
 - A public record of the product decisions and of the non-goals below, with the reason for each.
   - *Status:* done: `docs/decisions.md` (the non-goals stay below).
 - A short note on how AI was used (a file, not a banner) and an AI and pull-request section in CONTRIBUTING.md.
@@ -109,7 +99,7 @@ release by hand, and winget needs one pull request per version. Frequent release
   - *Status:* two code analysers (staticcheck, deadcode) run on every change, and the four longest functions (the
     activity builder, the engine's check, the player order and the player setup) are split into named steps.
 
-### 7. Depth in the core, not breadth
+### 6. Depth in the core, not breadth
 - Sturdier catalog services, without losing coverage. The many catalogs are there on purpose (the maintainer's
   intent, 2026-10-18): every show, film, special or the like should be found. Never drop a catalog that finds titles
   the others miss; make each one more reliable, and fill gaps (such as specials) where a catalog has the data.
@@ -149,9 +139,6 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
   tries the newest versions anyway.
 - **Building with `-tags nethttpomithttp2`:** saves about 0.6 MB, not worth the divergence.
 - **UPX compression:** antivirus programs flag compressed executables.
-- **Scoop or winget manifests before the exe is signed:** they wait for signing (the last step of goal 4). *Why:*
-  trust on Windows is built per file and winget needs a pull request per version, so frequent unsigned releases work
-  against both; the signing decision is under [Releases](decisions.md#releases).
 - **Fetching episode lists less often than every 10 minutes:** that is the cache's life; a longer one delays a new
   episode's title.
 - **MPRIS keeping its bus connection** instead of opening one per check: a kept connection adds states that only CI
@@ -164,23 +151,19 @@ Ideas weighed and not done, each with its reason, so nobody has to weigh them ag
 - **An episode number in the basic fallback status:** the recorded golden data pins it without one.
 
 ## Open decisions (the maintainer's)
-1. Release rhythm: monthly stable releases with pre-releases in between? Since 2026-11-11 releases are bundles of
-   several changes, and only a fix for something broken ships alone (`docs/decisions.md`). A fixed rhythm and
-   pre-releases are not decided.
-2. Register a project-owned Discord application.
-3. Turn on immutable releases (a repository setting; [how they fit the release flow](research/immutable-releases.md)).
-4. Keep an offline signing key and sign each stable release (one manual step each).
-5. Going public: announcements, asking the original project for a link, package-manager listings.
-6. Raise the open MPC-HC web interface with its maintainers.
-7. Keep sign-ins in the system's key store (see goal 5). It changes how existing installs store them.
-8. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2).
-9. Presence templates: a user-written layout of the two status lines.
-10. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
-    tray notice when automatic installs are off.
-11. The Fix a match redesign ([design](design/fix-a-match.md)) waits on four decisions: scope, sharing, covers in the
-    first version, and a season and episode offset ([the questions](design/fix-a-match.md#open-decisions)). Once they are
-    settled the first version is work for Next up; it is done when the dialog and the list replace the two text boxes,
-    with the tests the design names.
+1. Register a project-owned Discord application.
+2. Turn on immutable releases (a repository setting; [how they fit the release flow](research/immutable-releases.md)).
+3. Keep an offline signing key and sign each stable release (one manual step each).
+4. Keep sign-ins in the system's key store (see goal 4). It changes how existing installs store them.
+5. Turn `plexJwt` on by default. It needs one real Plex sign-in to test it first (goal 2), which needs someone with a Plex
+   account to try it; the maintainer has none.
+6. Presence templates: a user-written layout of the two status lines.
+7. A popup for a found update when no settings window is open. Today the program updates itself silently, or shows the
+   tray notice when automatic installs are off.
+8. The Fix a match redesign ([design](design/fix-a-match.md)) waits on four decisions: scope, sharing, covers in the
+   first version, and a season and episode offset ([the questions](design/fix-a-match.md#open-decisions)). Once they are
+   settled the first version is work for Next up; it is done when the dialog and the list replace the two text boxes,
+   with the tests the design names.
 
 Settled: the macOS minimum is 13.
 
@@ -197,7 +180,6 @@ Outside facts the program depends on, with the date they were last checked.
 | Stremio | Saves playback every 180 s in newer apps (90 s in older ones); both handled. stremio-core-web 0.65.1 (2026-10-12) says it "pushes library items every 180 seconds"; the constant itself was not read (checked 2026-11-11). | Another change to `PUSH_TO_LIBRARY_EVERY` in stremio-core. |
 | Catalog services | The public Jikan API closed on 2026-10-01: `jikan` left the default source lists, and a self-hosted Jikan still works (`jikanBase`). IMDb's suggestion endpoint is unofficial; Wikimedia and AniList rate-limit; TMDB and TVmaze require credit (given). On 2026-10-17 TVmaze's search took 30 to 55 s for any query it had not cached (then cached for an hour; an aborted request does not warm it; shows and episodes answered at once): the program waits for it in the background. And Bulbapedia refused GitHub's runners (HTTP 403), so the canary cannot check it. | A service failing the weekly check (goal 1). |
 | Players | VLC 4 still unreleased; Kodi 22 in release candidates (RC2 on 2026-11-10); IINA 1.5 has a new settings window (1.5.1 on 2026-11-06). Newest releases seen 2026-11-11: MPC-HC 2.8.5, MPC-BE 1.9.3, mpv 0.42.0, MPC-QT 26.07. | New majors of any supported player. |
-| Distribution | Homebrew rejects unsigned casks (2026-09-01); SignPath asks for visible reputation; Flathub requires disclosure of AI-generated code. | Policy changes at these channels. |
 | Discord alternatives | Fluxer, Stoat and Matrix have no presence API for local apps; Vesktop and similar clients offer Discord's local connection. | An official, sign-in-free presence API elsewhere. |
 
 ## Sources
@@ -213,8 +195,5 @@ Outside facts the program depends on, with the date they were last checked.
   [Jellyfin 12](https://github.com/jellyfin/jellyfin/releases/tag/v12.0),
   [TMDB attribution](https://developer.themoviedb.org/docs/faq),
   [MPC-HC web server note](https://github.com/clsid2/mpc-hc/pull/4053)
-- Distribution: [SignPath Foundation terms](https://signpath.org/terms.html),
-  [Homebrew and unsigned casks](https://github.com/Homebrew/brew/issues/20755),
-  [GitHub immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases),
+- Distribution: [GitHub immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases),
   [Flathub requirements](https://docs.flathub.org/docs/for-app-authors/requirements),
-  [winget portable installs](https://github.com/microsoft/winget-cli)
