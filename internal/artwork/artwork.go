@@ -76,6 +76,12 @@ func mapByTitle(m map[string]string) map[string]string {
 	return out
 }
 
+// fixed tells whether the user gave title an alias or a pinned cover (Fix a match).
+func (a *Artwork) fixed(title string) bool {
+	nt := normTitle(title)
+	return a.aliases[nt] != "" || a.overrides[nt] != ""
+}
+
 // New creates a finder for the given settings.
 func New(cfg *core.Config, opts Options) *Artwork {
 	if opts.Log == nil {
@@ -1318,7 +1324,12 @@ func (j *lookupJob) miss(key string, d time.Duration) {
 // is not there by then it returns nil and OnResolved fires when it arrives.
 func (a *Artwork) Lookup(media *core.Media) *core.Art {
 	cfg := a.cfg
-	if !cfg.ShowArtwork || media == nil || media.Title == "" || media.Junk {
+	if !cfg.ShowArtwork || media == nil || media.Title == "" {
+		return nil
+	}
+	// A junk name (a camera clip, a bare number such as a Blu-ray's "00062") is not looked up, unless the user named
+	// it in Fix a match: their alias or pinned cover says what it is.
+	if media.Junk && !a.fixed(media.Title) {
 		return nil
 	}
 	j := a.newLookupJob(media)
