@@ -13,8 +13,8 @@ import (
 	"github.com/CptPakundo/MPRP/internal/proc"
 )
 
-// WebResult is the answer of EnableMpcWebInterface.
-type WebResult struct {
+// SetupResult is the answer of SetUpPlayers.
+type SetupResult struct {
 	OK         bool     `json:"ok"`
 	NeedsClose bool     `json:"needsClose,omitempty"`
 	Message    string   `json:"message"`
@@ -140,31 +140,31 @@ var (
 // setupLock lets one player setup run at a time (Windows and the other systems alike).
 var setupLock sync.Mutex
 
-// EnableMpcWebInterface switches the web interface of MPC-HC and MPC-BE on (whichever is installed), sets mpv up to
+// SetUpPlayers switches the web interface of MPC-HC and MPC-BE on (whichever is installed), sets mpv up to
 // accept our connection (mpvPipe; empty skips mpv) and switches VLC's web interface on (vlcPort, vlcPassword: used
 // unless VLC already has its own). MPC-HC, MPC-BE and VLC rewrite their settings when they exit, so they have to be
-// closed while those change (VLC only when something changes); without closeMpc the caller is told (needsClose) and
+// closed while those change (VLC only when something changes); without mayClose the caller is told (needsClose) and
 // can ask the user. mpv is never closed: it reads mpv.conf when it next starts. MPC-QT needs nothing. On macOS and
-// Linux, enableUnix does the same for the players there (iinaPipe: IINA's connection on macOS).
+// Linux, setUpUnix does the same for the players there (iinaPipe: IINA's connection on macOS).
 //
 // The steps run in this order: look for the running players, close them, set up MPC-HC and MPC-BE, reopen them, set
 // up mpv, set up VLC (and reopen it), and word the result.
-func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) WebResult {
+func SetUpPlayers(port int, mayClose bool, mpvPipe string, vlcPort int, vlcPassword string, iinaPipe string) SetupResult {
 	// A double click sends two requests: a second setup would close and reopen the players again and write the same
 	// files at the same time.
 	if !setupLock.TryLock() {
-		return WebResult{Message: "Player setup is already running. Wait a moment and look at the result."}
+		return SetupResult{Message: "Player setup is already running. Wait a moment and look at the result."}
 	}
 	defer setupLock.Unlock()
 	if !IsWindows {
-		return enableUnix(port, closeMpc, mpvPipe, vlcPort, vlcPassword, iinaPipe)
+		return setUpUnix(port, mayClose, mpvPipe, vlcPort, vlcPassword, iinaPipe)
 	}
 	exes := runningPlayers()
 	others := runningExes(otherPlayers)
 	vlcAt := findVlc(others)
 	closeVlc := vlcAt.file != "" && !vlcReady(vlcAt.text) && len(vlcAt.exes) > 0
-	if (len(exes) > 0 || closeVlc) && !closeMpc {
-		return WebResult{NeedsClose: true, Message: openPlayersMessage(len(exes) > 0, closeVlc)}
+	if (len(exes) > 0 || closeVlc) && !mayClose {
+		return SetupResult{NeedsClose: true, Message: openPlayersMessage(len(exes) > 0, closeVlc)}
 	}
 	if !closeVlc {
 		vlcAt.exes = nil // left alone
@@ -187,7 +187,7 @@ func EnableMpcWebInterface(port int, closeMpc bool, mpvPipe string, vlcPort int,
 	}
 
 	message, ok := describeSetup(port, mpc, len(exes) > 0, mpv, vlc, qtFound)
-	return WebResult{OK: ok, Message: message, Edited: edited, MpvPipe: mpv.Using, VlcPort: vlc.Port, VlcPassword: vlc.Password}
+	return SetupResult{OK: ok, Message: message, Edited: edited, MpvPipe: mpv.Using, VlcPort: vlc.Port, VlcPassword: vlc.Password}
 }
 
 // vlcSpot is the VLC found on this PC before the setup: its running programs, the vlcrc it reads and that file's text.

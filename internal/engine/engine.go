@@ -75,12 +75,12 @@ type Options struct {
 
 // Status is what the settings window shows.
 type Status struct {
-	Running    bool    `json:"running"`
-	Discord    string  `json:"discord"` // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
-	MPC        bool    `json:"mpc"`     // some player answers (the name is historic; it is not only MPC)
-	Player     string  `json:"player"`  // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, PotPlayer, a Linux player found through MPRIS, Kodi, Plex, Jellyfin, Emby or Stremio
-	NowPlaying *string `json:"nowPlaying"`
-	Paused     bool    `json:"paused"`
+	Running       bool    `json:"running"`
+	Discord       string  `json:"discord"`       // off | standby (nothing played yet) | waiting (Discord not found yet) | connected
+	PlayerAnswers bool    `json:"playerAnswers"` // some player answers
+	Player        string  `json:"player"`        // which one: MPC-HC, MPC-BE, MPC-QT, mpv, VLC, IINA, PotPlayer, a Linux player found through MPRIS, Kodi, Plex, Jellyfin, Emby or Stremio
+	NowPlaying    *string `json:"nowPlaying"`
+	Paused        bool    `json:"paused"`
 	// PauseCleared is true while the status is hidden because the video stayed paused (see Config.PauseClearMinutes).
 	PauseCleared bool `json:"pauseCleared"`
 	// Hidden is true while the playing file is on the user's "don't show" list (nothing is shown or looked up).
@@ -437,7 +437,7 @@ func (e *Engine) Status() Status {
 			s.DiscordProblem = "Discord refused the connection. It is probably running as administrator: start it normally."
 		}
 		s.Paused = e.paused
-		s.MPC = e.player != ""
+		s.PlayerAnswers = e.player != ""
 		s.Player = e.player
 		s.NowPlaying = e.nowPlaying
 		if e.nowPlaying != nil {

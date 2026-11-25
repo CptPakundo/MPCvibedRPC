@@ -38,19 +38,19 @@ func (a *app) handlers() map[string]server.Handler {
 				Config: eng.Config(), App: a.st.App(), Status: eng.Status(), Log: a.lg.last(100),
 			})}
 		})},
-		"start":       {Fn: fn(func() any { eng.Start(); return eng.Status() })},
-		"stop":        {Fn: fn(func() any { eng.Stop(); return eng.Status() })},
-		"open":        {Fn: fn(func() any { a.openWindow(); return nil })},
-		"quit":        {Fn: fn(func() any { time.AfterFunc(100*time.Millisecond, a.quit); return nil })},
-		"open-folder": {Fn: fn(func() any { winsys.OpenFolder(a.st.Dir); return nil })},
-		"clear-cache": {Fn: fn(func() any { eng.ClearArtworkCache(); log("INFO", "Cover cache cleared."); return nil })},
-		"stats":       {Get: true, Fn: fn(func() any { return eng.Stats() })},
-		"connections": {Get: true, Fn: fn(func() any { return map[string]any{"hosts": conns.List()} })},
-		"stats-reset": {Fn: fn(func() any { eng.ResetStats(); log("INFO", "Stats reset."); return eng.Stats() })},
-		"save":        {Fn: a.save},
-		"reset":       {Fn: func(*jsonx.Obj) (any, error) { return a.reset() }},
-		"mpc-web":     {Fn: a.setUpPlayers},
-		"selfcheck":   {Fn: a.selfCheck},
+		"start":        {Fn: fn(func() any { eng.Start(); return eng.Status() })},
+		"stop":         {Fn: fn(func() any { eng.Stop(); return eng.Status() })},
+		"open":         {Fn: fn(func() any { a.openWindow(); return nil })},
+		"quit":         {Fn: fn(func() any { time.AfterFunc(100*time.Millisecond, a.quit); return nil })},
+		"open-folder":  {Fn: fn(func() any { winsys.OpenFolder(a.st.Dir); return nil })},
+		"clear-cache":  {Fn: fn(func() any { eng.ClearArtworkCache(); log("INFO", "Cover cache cleared."); return nil })},
+		"stats":        {Get: true, Fn: fn(func() any { return eng.Stats() })},
+		"connections":  {Get: true, Fn: fn(func() any { return map[string]any{"hosts": conns.List()} })},
+		"stats-reset":  {Fn: fn(func() any { eng.ResetStats(); log("INFO", "Stats reset."); return eng.Stats() })},
+		"save":         {Fn: a.save},
+		"reset":        {Fn: func(*jsonx.Obj) (any, error) { return a.reset() }},
+		"player-setup": {Fn: a.setUpPlayers},
+		"selfcheck":    {Fn: a.selfCheck},
 
 		"update-check": {Fn: func(*jsonx.Obj) (any, error) {
 			r, err := a.checkUpdates(true)
@@ -174,9 +174,9 @@ func (a *app) reset() (any, error) {
 // setUpPlayers is "Set up the player connection". A player that was already set up its own way (an mpv or IINA
 // connection name, VLC's password and port) is adopted into the settings.
 func (a *app) setUpPlayers(body *jsonx.Obj) (any, error) {
-	closeMpc, _ := body.M["closeMpc"].(bool)
+	mayClose, _ := body.M["closePlayers"].(bool)
 	cfg := a.eng.Config()
-	r := winsys.EnableMpcWebInterface(cfg.Port, closeMpc, cfg.MpvPipe, cfg.VlcPort, cfg.VlcPassword, cfg.IinaPipe)
+	r := winsys.SetUpPlayers(cfg.Port, mayClose, cfg.MpvPipe, cfg.VlcPort, cfg.VlcPassword, cfg.IinaPipe)
 	take := map[string]any{}
 	var adopted []string
 	if r.MpvPipe != "" && r.MpvPipe != cfg.MpvPipe {

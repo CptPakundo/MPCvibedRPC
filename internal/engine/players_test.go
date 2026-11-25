@@ -149,7 +149,7 @@ func TestMpvOverItsPipe(t *testing.T) {
 	})
 	e, d, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"mpv", m.path}})
 	e.Start()
-	eventually(t, "mpv shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "mpv" && s.MPC })
+	eventually(t, "mpv shown", func() bool { s := e.Status(); return s.NowPlaying != nil && s.Player == "mpv" && s.PlayerAnswers })
 	if !l.has("mpv detected.") {
 		t.Error("the log should name mpv")
 	}
@@ -164,7 +164,7 @@ func TestMpvOverItsPipe(t *testing.T) {
 
 	m.set("idle-active", true)
 	eventually(t, "cleared when mpv goes idle", func() bool { return isClear(d) && e.Status().NowPlaying == nil })
-	if !e.Status().MPC {
+	if !e.Status().PlayerAnswers {
 		t.Error("an idle mpv is still a reachable player")
 	}
 }
@@ -240,7 +240,7 @@ func TestMissingPipesMeanNoPlayer(t *testing.T) {
 	e, _, l := pipeEngine(t, deadPort(t), []PlayerPipe{{"MPC-QT", fakePath(sockDir(t)) + "-none"}})
 	e.Start()
 	time.Sleep(700 * time.Millisecond)
-	if s := e.Status(); s.MPC || s.Player != "" || s.NowPlaying != nil {
+	if s := e.Status(); s.PlayerAnswers || s.Player != "" || s.NowPlaying != nil {
 		t.Errorf("nothing listens, yet %+v", s)
 	}
 	if l.has("detected") {

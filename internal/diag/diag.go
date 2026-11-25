@@ -236,10 +236,10 @@ func Report(in Input) string {
 	w("State")
 	w("  Presence on: %s", yn(in.Status.Running))
 	w("  Discord: %s", in.Status.Discord)
-	if in.Status.MPC && in.Status.Player != "" {
+	if in.Status.PlayerAnswers && in.Status.Player != "" {
 		w("  Player reachable: yes (%s)", in.Status.Player)
 	} else {
-		w("  Player reachable: %s", yn(in.Status.MPC))
+		w("  Player reachable: %s", yn(in.Status.PlayerAnswers))
 	}
 	w("  Something playing: %s (paused: %s, hidden: %s, cleared while paused: %s)", yn(in.Status.NowPlaying != nil), yn(in.Status.Paused), yn(in.Status.Hidden), yn(in.Status.PauseCleared))
 	if in.Status.NowPlaying != nil {

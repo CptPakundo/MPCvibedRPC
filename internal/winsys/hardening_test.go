@@ -49,7 +49,7 @@ func TestWebAddress(t *testing.T) {
 func TestSetupRunsOnceAtATime(t *testing.T) {
 	setupLock.Lock()
 	defer setupLock.Unlock()
-	r := EnableMpcWebInterface(13579, true, "", 0, "", "")
+	r := SetUpPlayers(13579, true, "", 0, "", "")
 	if r.OK || !strings.Contains(r.Message, "already running") {
 		t.Errorf("a second setup gave %+v, want the already-running answer", r)
 	}

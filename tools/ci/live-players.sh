@@ -73,14 +73,14 @@ else
   }
   echo "-- first setup"
   start_app
-  api mpc-web '{"closeMpc":false}' | tee "$work/setup.json"
+  api player-setup '{"closePlayers":false}' | tee "$work/setup.json"
   echo
   stop_app
   defaults read com.colliderli.iina enableAdvancedSettings | grep -qx 1 || { echo "IINA's advanced settings are off"; exit 1; }
   defaults read com.colliderli.iina userOptions | grep -q "input-ipc-server" || { echo "IINA has no input-ipc-server"; exit 1; }
   echo "-- second setup keeps what is there"
   start_app
-  api mpc-web '{"closeMpc":false}' > "$work/setup2.json" || true
+  api player-setup '{"closePlayers":false}' > "$work/setup2.json" || true
   cat "$work/setup2.json"; echo
   stop_app
   grep -q "IINA was already set up" "$work/setup2.json" || { echo "the second setup should find IINA set up"; exit 1; }

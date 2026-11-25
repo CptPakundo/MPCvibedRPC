@@ -91,7 +91,7 @@ func TestPlexPlayback(t *testing.T) {
 	p := newFakePlex(t)
 	e, d, l := plexEngine(t, deadPort(t), p)
 	e.Start()
-	eventually(t, "Plex followed", func() bool { s := e.Status(); return s.Player == "Plex" && s.MPC })
+	eventually(t, "Plex followed", func() bool { s := e.Status(); return s.Player == "Plex" && s.PlayerAnswers })
 	if !l.has("your Plex server") || !l.has("Following the Plex server \"Sample Server\".") {
 		t.Error("the log should say Plex is followed")
 	}
@@ -130,7 +130,7 @@ func TestPlexNotAskedWithoutSignIn(t *testing.T) {
 	e.Start()
 	eventually(t, "a few ticks", func() bool { return l.has("Presence started.") })
 	for i := 0; i < 3; i++ {
-		eventually(t, "no player", func() bool { return !e.Status().MPC })
+		eventually(t, "no player", func() bool { return !e.Status().PlayerAnswers })
 	}
 	if p.count() != 0 || l.has("Plex") {
 		t.Errorf("Plex was asked without a sign-in (%d requests)", p.count())
