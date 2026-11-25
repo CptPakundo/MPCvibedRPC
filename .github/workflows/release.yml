@@ -146,6 +146,7 @@ jobs:
             echo "no release for $TAG yet"
           fi
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        id: draft
         with:
           # the program files with their checksums, under the current and the former names (verify-release.ps1
           # checks that exactly these are there)
@@ -163,6 +164,24 @@ jobs:
           body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
           draft: true # made public by the verify job, once the files check out
+      # The release page shows a file's label in place of its name: each copy under a former name (and its .sha256) says
+      # what it is. The program finds its file by name, never by label, and verify-release.ps1 checks the labels.
+      - name: Label the copies under the former names
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        run: |
+          assets="$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?per_page=100" --jq '.[] | "\(.id) \(.name)"')"
+          while read -r kind current former; do
+            [ "$kind" = file ] || continue
+            for suffix in "" .sha256; do
+              id="$(awk -v n="$former$suffix" '$2 == n { print $1 }' <<< "$assets")"
+              [ -n "$id" ] || { echo "::error title=release::$former$suffix is not in the draft"; exit 1; }
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$id" -f label="Former name, for copies installed before the rename: the same file as $current$suffix" > /dev/null
+              echo "labelled $former$suffix"
+            done
+          done < <(tr -d '\r' < tools/ci/former-names.txt)
 
   # Every program file again, built on another runner from the tag, at the same time as the release job (it needs nothing
   # from it). Its files' SHA-256 go to the verify job, which compares them with the release's before it publishes the

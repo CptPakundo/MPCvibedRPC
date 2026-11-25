@@ -28,7 +28,7 @@ type app struct {
 	eng            *engine.Engine
 	lg             *logger
 	log            func(level, msg string)
-	exe            string // this program, where the autostart entry and updates point
+	exe            string // this program file, where the autostart entry and updates point (read with exePath)
 	ipcFile        string
 	ipcFormer      string // during an update, ipc.json also goes here (formerIPC; "": nowhere else)
 	browserProfile string // the profile of the browser that shows the settings window
@@ -48,7 +48,7 @@ type app struct {
 	winSys    *windowSys     // nil: the system's window functions (tests stand in for a window)
 	busyUntil atomic.Int64   // until then (Unix nanoseconds) no update installs itself: see settle
 
-	mu       sync.Mutex
+	mu       sync.Mutex // guards tray, notifier and exe
 	tray     *winsys.Tray
 	notifier *notify.Notifier // Linux: the desktop notification service (made at the first notification)
 
@@ -130,15 +130,20 @@ func run() error {
 			a.log("WARN", "The update to "+failedUpdate+" did not start, so "+version+" is back. That version is not installed by itself again; a newer one will be.")
 		}
 	}
-	if afterUpdate {
+	switch whenToRename(afterUpdate, updateFailed) {
+	case renameAfterHandOver:
 		// The copy that started this one keeps the old program file until this one has shown that it runs, to put it
-		// back otherwise. So the leftovers go a little later, once that copy is gone.
+		// back otherwise. So the leftovers go a little later, once that copy is gone, and only then may the program
+		// file get the program's name.
 		engine.Go(a.log, "The clean-up after the update", func() {
 			time.Sleep(proofWait + 30*time.Second)
-			updater.CleanupOld(exe)
-			_ = os.Remove(filepath.Join(st.Dir, failedMarker))
+			a.afterHandOver()
 		})
-	} else {
+	case renameAtStart:
+		a.followName()
+		exe = a.exePath()
+		updater.CleanupOld(exe)
+	default:
 		updater.CleanupOld(exe)
 	}
 	winsys.CloseWindowBrowser(a.browserProfile) // a window browser left behind by a crash
@@ -212,6 +217,28 @@ func run() error {
 	}
 	a.srv.Close()
 	return nil
+}
+
+// afterHandOver is the clean-up once an update's hand-over is over: the old copy has left, or can no longer put its
+// own file back. The update's leftovers go, then the program file gets the program's name if it still has the former
+// one (followName).
+func (a *app) afterHandOver() {
+	updater.CleanupOld(a.exePath())
+	_ = os.Remove(filepath.Join(a.st.Dir, failedMarker))
+	a.followName()
+}
+
+// exePath is the program file (exe).
+func (a *app) exePath() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.exe
+}
+
+func (a *app) setExe(p string) {
+	a.mu.Lock()
+	a.exe = p
+	a.mu.Unlock()
 }
 
 func (a *app) getTray() *winsys.Tray {

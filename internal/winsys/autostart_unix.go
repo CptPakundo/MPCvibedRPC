@@ -106,8 +106,11 @@ func getLoginItem(exe string) bool {
 }
 
 // loginItemExe is how exe appears inside the login item.
-func loginItemExe(exe string) string {
-	if runtime.GOOS == "darwin" {
+func loginItemExe(exe string) string { return loginItemExeFor(runtime.GOOS, exe) }
+
+// loginItemExeFor is how exe appears inside the login item on goos.
+func loginItemExeFor(goos, exe string) string {
+	if goos == "darwin" {
 		return html.EscapeString(exe)
 	}
 	return execQuote(exe)
@@ -159,4 +162,19 @@ func migrateLoginItem(goos, home, xdgConfig, exe, mprpHome string) string {
 		return "Wrote the login item " + to + " but could not remove " + from + ": " + err.Error()
 	}
 	return "Moved the login item " + from + " to " + to + " (the program's new name)."
+}
+
+// followLoginItem rewrites the login item at path to start newExe when it starts oldExe (FollowRename).
+func followLoginItem(goos, path, oldExe, newExe, home string) string {
+	if path == "" || oldExe == "" {
+		return ""
+	}
+	b, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(b), strings.Trim(loginItemExeFor(goos, oldExe), `"`)) {
+		return ""
+	}
+	if os.WriteFile(path, []byte(loginItem(goos, newExe, home)), 0o644) != nil {
+		return "Could not point the login item " + path + " at " + newExe + "; it still names " + oldExe + "."
+	}
+	return "The login item " + path + " now starts " + newExe + "."
 }

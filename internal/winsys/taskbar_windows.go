@@ -106,7 +106,7 @@ func windowIdentity(exe, home string) (id, name, command, icon string) {
 // its own back now and then), until StopWindowIcon. log gets a line when the window first has the program's icon,
 // when something fails, and when the keeping ends. It reports whether the keeping runs.
 func NameWindow(profileDir string, log func(level, msg string)) bool {
-	exe, err := os.Executable()
+	exe, err := executable()
 	if err != nil || profileDir == "" {
 		return false
 	}
@@ -120,6 +120,14 @@ func NameWindow(profileDir string, log func(level, msg string)) bool {
 	}
 	r, _, _ := pPostThreadMessage.Call(k.tid, wmWindowAsked, 0, 0)
 	return r != 0
+}
+
+// executable is the program file: the path SetProgramFile gave, else os.Executable.
+func executable() (string, error) {
+	if p := programFile.Load(); p != nil {
+		return *p, nil
+	}
+	return os.Executable()
 }
 
 // nameWindow gives one window the program's identity and icons; false when the identity was not taken.
@@ -651,15 +659,21 @@ func keepWindowIcons(profileDir, exe string, log func(level, msg string), gen in
 	var m msg
 	pPeekMessage.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0, pmNoRemove) // makes the thread's message queue
 	tid, _, _ := pGetCurrentThread.Call()
-	id, name, command, icon := windowIdentity(exe, os.Getenv("MPRP_HOME"))
-	strs := []windowString{{propAppID, id}, {propRelaunchCommand, command}, {propRelaunchDisplayName, name}, {propRelaunchIcon, icon}}
+	// the identity is made for each window it names: the program may have renamed its file meanwhile (SetProgramFile)
+	identity := func() []windowString {
+		if p, err := executable(); err == nil {
+			exe = p
+		}
+		id, name, command, icon := windowIdentity(exe, os.Getenv("MPRP_HOME"))
+		return []windowString{{propAppID, id}, {propRelaunchCommand, command}, {propRelaunchDisplayName, name}, {propRelaunchIcon, icon}}
+	}
 	k := &iconKeeper{profile: profileDir, tid: tid, self: uint32(os.Getpid()), log: log,
 		visible: func(h uintptr) bool { v, _, _ := pIsWindowVisible.Call(h); return v != 0 },
 		inspect: describeWindow,
 		ours:    func(pid uint32) bool { return processUsesProfile(pid, profileDir) },
 		name: func(h uintptr) bool {
 			loadWindowIcons(exe) // icons that could not be had before are tried again
-			return nameWindow(h, strs)
+			return nameWindow(h, identity())
 		},
 		check:       checkWindowIcons,
 		iconsLoaded: haveWindowIcons,

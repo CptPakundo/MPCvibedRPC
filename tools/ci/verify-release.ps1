@@ -30,7 +30,8 @@ foreach ($line in Get-Content (Join-Path $PSScriptRoot 'former-names.txt')) {
   if ($w[0] -eq 'file') { $formerFile[$w[1]] = $w[2] } elseif ($w[0] -eq 'env') { $formerEnv[$w[1]] = $w[2] }
 }
 $formerPrograms = @($programs | Where-Object { $formerFile.ContainsKey($_) } | ForEach-Object { $formerFile[$_] })
-# the process names of the copies this check starts (a copy updated from the former version keeps its file name)
+# the process names of the copies this check starts (a copy updated from the former version keeps its process name
+# after it renamed its file)
 $procNames = @('MPRP') + @($formerFile.Values | Where-Object { $_ -like '*.exe' } | ForEach-Object { $_ -replace '\.exe$', '' })
 $rel = Join-Path $work 'release'
 # every download of a release file is recorded in the download ledger, so the download counter leaves it out
@@ -50,6 +51,13 @@ try {
       if (-not $formerFile.ContainsKey($f)) { continue }
       $same = (Get-FileHash (Join-Path $rel $f)).Hash -eq (Get-FileHash (Join-Path $rel $formerFile[$f])).Hash
       Check $same "$($formerFile[$f]) is the same file as $f"
+    }
+    # each copy under a former name carries a label that says what it is (release.yml sets it; the release page shows
+    # it in place of the name)
+    $draft = (gh api "repos/$repo/releases?per_page=30") -join "`n" | ConvertFrom-Json | Where-Object { $_.tag_name -eq $tag } | Select-Object -First 1
+    foreach ($n in @($formerPrograms + ($formerPrograms | ForEach-Object { "$_.sha256" }))) {
+      $label = [string](@($draft.assets) | Where-Object { $_.name -eq $n } | Select-Object -First 1).label
+      Check ($label -like 'Former name*') "$n has its label ($label)"
     }
     foreach ($f in $all) {
       $path = Join-Path $rel $f
@@ -107,6 +115,14 @@ try {
     if ($exited) { bash $ledger record "release check $tag self-update" "$tag/$exeName" "$tag/$exeName.sha256" }
     Check $exited "$prev exits to update"
     Check (WaitFor { (Ping) -eq $Version } 60 'new version up') "$Version runs after the update"
+    # a copy of the former file name renames its file to MPRP.exe once the hand-over is over (about a minute after it
+    # started: the old copy can put its own file back until then)
+    if ($exeName -ne 'MPRP.exe') {
+      $renamed = Join-Path $dir 'MPRP.exe'
+      Check (WaitFor { (Test-Path $renamed) -and -not (Test-Path $app) } 150 'rename') "the updated copy renamed $exeName to MPRP.exe"
+      if (Test-Path $renamed) { $app = $renamed }
+      Check ((Ping) -eq $Version) "$Version still runs after the rename"
+    }
     Check ((Get-FileHash $app).Hash -eq (Get-FileHash (Join-Path $rel 'MPRP.exe')).Hash) 'the updated file is the released exe'
     try { Api 'quit' | Out-Null } catch {}
     Check (WaitFor { -not (Ours) } 20 'quit') 'the updated program quits'

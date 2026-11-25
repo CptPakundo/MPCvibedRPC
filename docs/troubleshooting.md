@@ -179,6 +179,11 @@ To uninstall:
   That version is not installed by itself a second time (a newer one is). On Windows 11, Smart App Control (below) can
   be why a new version does not start.
 - **macOS:** the window links to the download.
+- **Installed before the rename to MPRP?** The program file renames itself from `MPCvibedRPC.exe` to `MPRP.exe` (Linux:
+  `MPCvibedRPC-linux-amd64` to `MPRP-linux-amd64`, and the same for arm64), at the next start, or about a minute after
+  the update to this version. Start with Windows follows by itself; a shortcut or a pin you made to the old file needs
+  making again. A file you named yourself keeps its name. If a different `MPRP.exe` is already in that folder, or the
+  folder cannot be written to (Program Files without the rights), the file keeps the old name and still works.
 - After an update the window shows what's new once; the version number at the bottom of the window shows every version.
 
 ## Is the download safe?

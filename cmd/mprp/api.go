@@ -103,7 +103,7 @@ func (a *app) fullState() map[string]any {
 	}
 	return map[string]any{
 		"version": version, "schema": store.SectionsFor(runtime.GOOS), "os": runtime.GOOS, "values": a.st.Values(), "app": a.st.App(),
-		"status": a.eng.Status(), "autoStart": winsys.GetAutoStart(a.exe), "dataDir": a.st.Dir, "update": upd,
+		"status": a.eng.Status(), "autoStart": winsys.GetAutoStart(a.exePath()), "dataDir": a.st.Dir, "update": upd,
 		"changelog": json.RawMessage(assets.Changelog), "stats": a.eng.Stats(),
 		"tray": a.getTray() != nil, // macOS: whether the menu bar icon is there (a build without it runs in the background)
 	}
@@ -130,7 +130,7 @@ func (a *app) save(body *jsonx.Obj) (any, error) {
 	applySettings(a.st, a.eng)
 	after := a.st.App()
 	if pa, ok := body.M["app"].(*jsonx.Obj); ok {
-		if _, has := pa.M["autoStart"]; has && !winsys.SetAutoStart(after.AutoStart, a.exe) {
+		if _, has := pa.M["autoStart"]; has && !winsys.SetAutoStart(after.AutoStart, a.exePath()) {
 			// the switch would only flip back at the next redraw, with "Saved." shown: say so, and keep the saved value
 			// matching the system
 			undo, _ := jsonx.Parse(`{"app":{"autoStart":` + strconv.FormatBool(!after.AutoStart) + `}}`)
@@ -166,7 +166,7 @@ func (a *app) reset() (any, error) {
 		return nil, err
 	}
 	applySettings(a.st, a.eng)
-	winsys.SetAutoStart(a.st.App().AutoStart, a.exe)
+	winsys.SetAutoStart(a.st.App().AutoStart, a.exePath())
 	a.upd.set(nil)
 	a.log("INFO", "Settings restored to their defaults.")
 	return a.fullState(), nil
