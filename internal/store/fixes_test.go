@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -63,6 +64,79 @@ func TestMigrateMatchFixes(t *testing.T) {
 	empty := openStore(t, t.TempDir())
 	if n, err := empty.MigrateMatchFixes(); n != 0 || err != nil || !empty.FirstRun() {
 		t.Errorf("an install without old lines: %d %v, file written: %v", n, err, !empty.FirstRun())
+	}
+
+	// lines the window's rules refuse are made to pass, or left out, and that is logged once
+	s, logs := legacyStore(t)
+	if n, err := s.MigrateMatchFixes(); err != nil || n != 3 {
+		t.Fatalf("migrated %d (%v), want 3 titles", n, err)
+	}
+	want = []core.MatchFix{
+		{Match: "sample long", Search: strings.Repeat("a", maxLineLen)}, // clipped
+		{Match: "sample show", Search: "Sample Series"},                 // its cover is not an http(s) address
+		{Match: "sample movie", Cover: "https://img.example/movie.jpg"}, // trimmed
+	}
+	if got := s.Config().MatchFixes; !reflect.DeepEqual(got, want) {
+		t.Errorf("matchFixes = %+v\nwant %+v", got, want)
+	}
+	if len(*logs) != 1 || !strings.Contains((*logs)[0], "2 of the old") || !strings.Contains((*logs)[0], "and 3 were left out") {
+		t.Errorf("log %q: want one line, 2 changed and 3 left out", *logs)
+	}
+
+	// nothing usable left: an empty list, so the old lines are no longer read (the window could not save them)
+	none := openStore(t, t.TempDir())
+	os.WriteFile(none.File, []byte(`{"artworkOverrides": {"sample show": "C:/covers/show.jpg"}}`), 0o600)
+	if n, err := none.MigrateMatchFixes(); n != 0 || err != nil {
+		t.Errorf("migrated %d (%v)", n, err)
+	}
+	if c := none.Config(); c.MatchFixes == nil || len(c.Fixes()) != 0 {
+		t.Errorf("fixes after the migration: %+v (matchFixes %v)", c.Fixes(), c.MatchFixes)
+	}
+}
+
+// legacyStore is an install with old Fix a match lines that the window's rules refuse: a cover that is not an
+// http(s) address, text over its limits, control characters, and a cover too long for the cover finder.
+func legacyStore(t *testing.T) (*Store, *[]string) {
+	t.Helper()
+	old := map[string]any{
+		"artworkAliases": map[string]string{
+			"sample long":   strings.Repeat("a", maxLineLen+20),
+			"sample show":   "Sample Series",
+			"sample broken": "Sample\u0001Title", // control character, no cover: nothing left
+		},
+		"artworkOverrides": map[string]string{
+			"sample show":   "file:///covers/show.jpg",
+			"sample movie":  "  https://img.example/movie.jpg ",
+			"sample huge":   "https://img.example/" + strings.Repeat("x", maxCoverLen), // too long: nothing left
+			"sample\u0002x": "https://img.example/x.jpg",                               // the title cannot pass
+		},
+	}
+	b, err := json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := openStore(t, dir)
+	var logs []string
+	s.Log = func(level, msg string) { logs = append(logs, level+" "+msg) }
+	return s, &logs
+}
+
+// After a migration of such lines, saving in the window works: it sends the whole list back as it shows it.
+func TestSaveAfterMigratingRefusedLines(t *testing.T) {
+	s, _ := legacyStore(t)
+	if _, err := s.MigrateMatchFixes(); err != nil {
+		t.Fatal(err)
+	}
+	fixes := s.Values()["matchFixes"]
+	if err := s.SetSettings(map[string]any{"matchFixes": fixes, "titleAsName": false}); err != nil {
+		t.Fatalf("the window's save after the migration: %v", err)
+	}
+	if c := s.Config(); len(c.MatchFixes) != 3 || c.TitleAsName {
+		t.Errorf("saved %+v", c.MatchFixes)
 	}
 }
 

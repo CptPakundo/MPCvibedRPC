@@ -199,8 +199,9 @@ func cleanTextLines(f Field, v any) (any, error) {
 
 // MigrateMatchFixes writes the legacy Fix a match lines (artworkAliases, artworkOverrides) as matchFixes, once: only
 // while config.json has no matchFixes key. Each title becomes one fix (the alias as its search, the pinned cover as
-// its cover), in the file's order. The old keys stay in the file, for a downgrade, and are not read again. It
-// returns how many fixes were written (0: nothing to do).
+// its cover), in the file's order. The old keys stay in the file, for a downgrade, and are not read again. Each fix
+// is made to pass the window's rules first (fitFix), since the window saves the whole list: a fix it refuses would make
+// every later save fail. It returns how many fixes were written (0: nothing to do).
 func (s *Store) MigrateMatchFixes() (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -239,10 +240,57 @@ func (s *Store) MigrateMatchFixes() (int, error) {
 	if len(order) == 0 {
 		return 0, nil
 	}
-	list := make([]any, len(order))
-	for i, k := range order {
-		list[i] = fixObj(*fixes[k])
+	var list []any
+	changed, skipped := 0, 0
+	for _, k := range order {
+		fx, ok, ch := fitFix(*fixes[k])
+		switch {
+		case !ok || len(list) == maxFixes:
+			skipped++
+			continue
+		case ch:
+			changed++
+		}
+		list = append(list, fixObj(fx))
+	}
+	if changed+skipped > 0 {
+		s.logf("WARN", fmt.Sprintf("Fix a match: %d of the old artworkAliases and artworkOverrides titles were changed to fit the rules "+
+			"(a cover that is not an http(s) address left out, text over its limit shortened) and %d were left out.", changed, skipped))
+	}
+	// an empty list is written too: the old lines, which the window could not save, are then no longer read
+	if list == nil {
+		list = []any{}
 	}
 	cur.Set("matchFixes", list)
-	return len(order), s.write(cur)
+	return len(list), s.write(cur)
+}
+
+// fitFix makes a fix carried over from the old Fix a match lines one that cleanFixes takes: the text trimmed, text
+// over its limit shortened, a field that still cannot pass (control characters; a cover that is not an http(s)
+// address or is too long, which could never show on Discord anyway) left out. ok is false when nothing is left to
+// act on (no title, or neither another name nor a cover); changed says that a field had to be changed beyond the
+// trimming.
+func fitFix(in core.MatchFix) (fx core.MatchFix, ok, changed bool) {
+	text := func(s string, max int) string {
+		s = jsTrim(s)
+		if hasControl(s) {
+			changed = true
+			return ""
+		}
+		if r := []rune(s); len(r) > max {
+			changed = true
+			s = jsTrim(string(r[:max]))
+		}
+		return s
+	}
+	fx.Match = text(in.Match, maxLineLen)
+	fx.Search = text(in.Search, maxLineLen)
+	if c := jsTrim(in.Cover); c != "" {
+		if hasControl(c) || len([]rune(c)) > maxCoverLen || !(strings.HasPrefix(c, "https://") || strings.HasPrefix(c, "http://")) {
+			changed = true
+		} else {
+			fx.Cover = c
+		}
+	}
+	return fx, fx.Match != "" && (fx.Search != "" || fx.Cover != ""), changed
 }
