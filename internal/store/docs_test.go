@@ -50,8 +50,8 @@ func TestEverySettingIsDocumented(t *testing.T) {
 	check(reflect.ValueOf(defaultApp))
 }
 
-// docDefault reads a default as config.md writes it: in backticks (a remark may follow them), strings in single
-// quotes, lists in brackets, an empty list or map as [] or {}, no value as (none).
+// docDefault reads a default as config.md writes it: in backticks (a remark may follow them), in JSON form (strings in
+// double quotes, lists in brackets, an empty list or map as [] or {}; single quotes are accepted too), no value as (none).
 func docDefault(cell string) string {
 	s := strings.TrimSpace(cell)
 	if m := regexp.MustCompile("`([^`]*)`").FindStringSubmatch(s); m != nil {
@@ -63,7 +63,7 @@ func docDefault(cell string) string {
 	if strings.HasPrefix(s, "[") {
 		s = strings.NewReplacer("[", "", "]", "", ",", " ").Replace(s)
 	}
-	s = strings.ReplaceAll(s, "'", "")
+	s = strings.NewReplacer("\"", "", "'", "").Replace(s)
 	return strings.Join(strings.Fields(s), " ")
 }
 
