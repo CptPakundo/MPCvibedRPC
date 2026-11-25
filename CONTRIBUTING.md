@@ -79,8 +79,9 @@ Optional tools:
 Maintainers have a few more rules (outward-facing steps, release-file downloads): [maintaining.md](docs/maintaining.md#rules-for-maintainers).
 
 ## Working on Windows
-- The repository stores every text file with LF (`.gitattributes`: `* text=auto`). On Windows, Git's defaults
-  (`core.autocrlf`, `core.eol`) give a CRLF working copy; elsewhere it is LF. Some editing tools silently rewrite a
+- The repository stores every text file with LF. With Git for Windows' default `core.autocrlf=true` the working
+  copy is CRLF; with `core.autocrlf` off (as the CI's Windows build sets it, so the exe is reproducible) and
+  elsewhere it is LF. Some editing tools silently rewrite a
   CRLF file as LF: convert it back before committing so diffs stay small (`git ls-files --eol` shows both sides).
 - `gofmt -l` flags every CRLF file on Windows. Check formatting on LF copies (or rely on the Linux CI gate), and never
   `gofmt -w` a CRLF file in place.
