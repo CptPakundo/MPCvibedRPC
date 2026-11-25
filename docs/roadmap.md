@@ -33,20 +33,18 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
 4. **MPC-QT's multi-window mode** with a portable build and the live engine test.
 5. **The stream title on Linux:** research how to tell that Discord shares the screen (PipeWire, the screen-cast
    portal). Today Linux chooses always or never ([decision](decisions.md#behaviour)).
-6. **CI: the Chocolatey Kodi download** (TLS errors from its mirror) fails `players-windows` now and then, and the
-   canary uses it. Add a retry or another source ([known flaky checks](development.md#known-flaky-checks)).
-7. **Fix a match, first version** (settled 2026-11-25; part of version 0.9.60). Build what
+6. **Fix a match, first version** (settled 2026-11-25; part of version 0.9.60). Build what
    [design/fix-a-match.md](design/fix-a-match.md) describes: the dialog and the list with the scope choice, covers from
    the other catalogs, offsets and "Tell the project". *Where:* `internal/artwork`, the `cmd/mprp` API,
    `internal/assets` (the window), `core.Config` and the store schema (`matchFixes`), the docs. Done when the dialog and
    the list replace the two text boxes, old `artworkAliases` and `artworkOverrides` lines still act as before (they
    become fixes once), and the tests the design names pass.
-8. **Presence templates, first version** (settled 2026-11-25; part of version 0.9.60). Build
+7. **Presence templates, first version** (settled 2026-11-25; part of version 0.9.60). Build
    [design/presence-templates.md](design/presence-templates.md): the Text lines row with Standard, Short, Detailed and
    Custom, including a film's cover text. *Where:* `internal/core` (`lines.go`, `BuildActivity`), the store schema
    (`textLines`, `customLines`), `internal/assets` (Look tab), the docs. Done when Standard reproduces the recorded
    golden data byte for byte, Custom lines show on the card, and the tests the design names pass.
-9. **The update notices on Linux and macOS** (settled 2026-11-25; part of version 0.9.60). Windows already shows three
+8. **The update notices on Linux and macOS** (settled 2026-11-25; part of version 0.9.60). Windows already shows three
    native notifications through the tray (`Tray.Balloon`): "updated to <version>" once after an automatic update
    (`cmd/mprp/app.go`, `autoFrom`), "could not update to ..." after a rollback, and "<version> is available"
    when automatic installs are off (`update.go`). Linux and macOS show none (`Balloon` returns false in
@@ -54,15 +52,6 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
    notification service over D-Bus (`org.freedesktop.Notifications`, with `internal/dbus`), macOS through the menu bar
    app (cgo; tested on CI only). A click opens the settings window as on Windows. Done when each system shows the
    three notices, tests cover the D-Bus message against a fake bus, and the docs and changelog say so.
-10. **Sign-ins encrypted on Windows** (settled 2026-11-25; part of version 0.9.60). Encrypt the secrets in `config.json`
-    with the per-user Windows DPAPI (`CryptProtectData` / `CryptUnprotectData` through `syscall`, standard library only):
-    `plexToken`, `plexKey`, `stremioKey` and `jellyfinToken` (the sign-ins, `core.Secrets`), and, to decide while
-    building, the secrets typed in the window (`vlcPassword`, `kodiPassword`, `tmdbApiKey`). *Where:* `internal/store`
-    (load and save), `core.Config`, SECURITY.md, `docs/config.md`. Existing plain values are read as before and
-    encrypted at the next write; a config copied to another user or computer cannot be decrypted, so those sign-ins
-    count as signed out and ask to sign in again; macOS and Linux are unchanged. Done when a saved config holds no
-    plain secret on Windows, a plain one still loads, an undecryptable one reads as signed out (a test with a fake
-    decrypter), and Diagnostics still leaves the values out.
 
 ## Goals
 
@@ -108,8 +97,8 @@ The updater checks a checksum from the same release, so anyone able to publish a
 - MPC-HC's web interface answers any web page once switched on (no password, open to all origins). The Privacy tab and
   SECURITY.md say so.
 - Keep sign-ins out of plain text in `config.json`.
-  - *Status:* settled 2026-11-25 as Windows' per-user DPAPI encryption (Next up 10); macOS and Linux stay as they are,
-    and the full system key store (the macOS Keychain, the Secret Service) is not planned.
+  - *Status:* done on Windows: the sign-ins are encrypted with the per-user DPAPI (settled 2026-11-25). macOS and
+    Linux stay as they are, and the full system key store (the macOS Keychain, the Secret Service) is not planned.
 
 ### 5. Readable by a human, decisions in the open
 - A public record of the product decisions and of the non-goals below, with the reason for each.
