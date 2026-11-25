@@ -73,6 +73,14 @@ Maintainers have a few more rules (outward-facing steps, release-file downloads)
 - `gofmt -l` flags every CRLF file on Windows. Check formatting on LF copies (or rely on the Linux CI gate), and never
   `gofmt -w` a CRLF file in place.
 - Scripts that rewrite many files can damage them silently: read the diff before committing.
+- Git Bash's `sed -i` drops every carriage return of a CRLF file, even when its pattern matches nothing. Use `perl -pi`
+  (it keeps line ends), or `tr -d '\r' < f | sed ... | sed 's/$/\r/'`, then check with `file <name>`.
+- Never write emoji or other non-ASCII text through perl escape sequences: perl then re-encodes every UTF-8 character
+  in the file. Edit such text in an editor (or a tool that writes UTF-8 as it is) and read the diff.
+- Multi-pattern perl one-liners misread code: `$(` in JavaScript, `||` alternations and Go backticks have broken files.
+  Keep scripted edits to exact strings, and `die` when a string is not found.
+- Shell heredocs and quoting can drop backslashes (`\\.\pipe\` became `\.\pipe\`; a `\0` in a commit message became a
+  NUL byte). Write text with Windows paths or backslashes to a file with an editor, then grep for it.
 
 ## Where to find what
 | You want | Read |
@@ -84,3 +92,5 @@ Maintainers have a few more rules (outward-facing steps, release-file downloads)
 | How AI is used and how the work is checked | [docs/ai.md](docs/ai.md) |
 | How it works for users; every setting; troubleshooting | [docs/how-it-works.md](docs/how-it-works.md), [docs/config.md](docs/config.md), [docs/troubleshooting.md](docs/troubleshooting.md) |
 | Every address the program contacts; checking a download | [SECURITY.md](SECURITY.md) |
+| Designs for coming work, and the window's look | [docs/design/](docs/design/) |
+| Research behind decisions (Discord's status card, immutable releases) | [docs/research/](docs/research/) |
