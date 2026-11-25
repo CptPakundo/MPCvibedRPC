@@ -28,6 +28,8 @@ CI runs the rest (the race detector, the lint gates, macOS and Linux for real): 
 3. [docs/maintaining.md](docs/maintaining.md): releasing, screenshots, downloading release files.
 4. [docs/roadmap.md](docs/roadmap.md) before proposing a feature, a service or a distribution change (don't propose a
    listed non-goal without saying so), and [docs/decisions.md](docs/decisions.md) before changing listed behaviour.
+5. [docs/ai.md > Working with AI agents](docs/ai.md#working-with-ai-agents-on-it) if you orchestrate helper agents:
+   what to hand off, how to brief, and how to check what comes back.
 
 ## Picking up work
 The work to do and how to continue what someone else started are in [CONTRIBUTING.md > Picking up work](CONTRIBUTING.md#picking-up-work): the roadmap's [Next up](docs/roadmap.md#next-up) needs no decision; open decisions need the maintainer. Everything the repository needs is in the repository: there are no instructions kept elsewhere.
