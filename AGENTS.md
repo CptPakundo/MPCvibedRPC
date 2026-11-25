@@ -42,7 +42,7 @@ Read the named sections, make the change, then run the tests named with it (and 
 - **A window or UI fix:** [The window and the menu](docs/how-it-works.md#the-window-and-the-menu) and the
   `internal/assets` rows in [Packages](docs/development.md#packages-internal) and the window's look in
   [design/settings-window.md](docs/design/settings-window.md); run `go test ./internal/assets ./cmd/mprp`
-  (`TestPageScriptParses` needs Node.js).
+  (`TestPageScriptParses` and `TestPageBehaviour` need Node.js).
 - **A new player:** [A new player](docs/development.md#a-new-player) and
   [How players are read](docs/development.md#how-players-are-read); run `go test ./internal/engine ./cmd/mprp`.
 - **A new setting:** [A new setting](docs/development.md#a-new-setting); run `go test ./internal/store ./cmd/mprp`

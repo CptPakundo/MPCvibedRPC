@@ -13,7 +13,8 @@ and testing. Bug reports, reviews and pull requests with tests are welcome all t
    a copy with its own data folder (`MPRP_HOME`) leaves your installed copy, Discord and players alone.
 
 Optional tools:
-- **Node.js**: `TestPageScriptParses` checks the settings page's script with `node --check`; without Node.js it skips.
+- **Node.js**: `TestPageScriptParses` checks the settings page's script with `node --check`, and `TestPageBehaviour` runs it
+  in a fake page; without Node.js they skip.
 - **The lint tools** CI runs, at the versions pinned in `.github/workflows/ci.yml`:
 
       go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
