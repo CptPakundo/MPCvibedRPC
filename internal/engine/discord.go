@@ -16,7 +16,7 @@ func (e *Engine) connectDiscord(r *run) {
 		return
 	}
 	e.connecting = true
-	cfg := e.cfg
+	cfg, gen := e.cfg, e.discGen
 	e.mu.Unlock()
 
 	Go(e.log, "The Discord connection", func() {
@@ -24,7 +24,7 @@ func (e *Engine) connectDiscord(r *run) {
 		defer func() {
 			if !tried { // a panic while connecting (Go logs it) must not leave the flag set: nothing would connect again
 				e.mu.Lock()
-				if e.cur == r {
+				if e.cur == r && e.discGen == gen {
 					e.connecting = false
 				}
 				e.mu.Unlock()
@@ -41,13 +41,14 @@ func (e *Engine) connectDiscord(r *run) {
 
 		e.mu.Lock()
 		// A run that ended has had its flag reset by stop; a newer run may be connecting now, so only the current run's
-		// attempt clears it.
+		// attempt clears it, and only while the Discord settings are still the ones it started with (discGen).
+		current := e.cur == r && e.discGen == gen
 		if err != nil {
-			if e.cur == r {
+			if current {
 				e.connecting = false
 				e.discRefused = errors.Is(err, discord.ErrRefused)
 			}
-			warn := !e.warnedDisc && e.cur == r
+			warn := !e.warnedDisc && current
 			if warn {
 				e.warnedDisc = true
 			}
@@ -58,7 +59,7 @@ func (e *Engine) connectDiscord(r *run) {
 			}
 			return
 		}
-		if e.cur != r {
+		if !current {
 			e.mu.Unlock()
 			client.Close()
 			return

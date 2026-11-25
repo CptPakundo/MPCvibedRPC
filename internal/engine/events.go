@@ -134,7 +134,7 @@ func (e *Engine) kodiEvents(cfg core.Config) string {
 // watchPlayers keeps a connection open to each player that reports its changes, so that a pause, a seek or a new
 // file shows at once instead of at the next check. What plays is still read by the checks; a player that is not
 // there is looked for again every watchRetry, and none is while the engine rests.
-func (e *Engine) watchPlayers(r *run) {
+func (e *Engine) watchPlayers(ctx context.Context) {
 	var mu sync.Mutex
 	watching := map[string]bool{}
 	t := time.NewTicker(watchRetry)
@@ -159,20 +159,20 @@ func (e *Engine) watchPlayers(r *run) {
 					delete(watching, s.key)
 					mu.Unlock()
 				}()
-				if r.ctx.Err() != nil {
+				if ctx.Err() != nil {
 					return
 				}
 				c, watch := s.open()
 				if c == nil {
 					return
 				}
-				stop := context.AfterFunc(r.ctx, func() { c.Close() })
+				stop := context.AfterFunc(ctx, func() { c.Close() })
 				defer stop()
 				_ = watch()
 			})
 		}
 		select {
-		case <-r.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-t.C:
 		}

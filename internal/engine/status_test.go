@@ -20,21 +20,26 @@ func TestDiscordOnStandbyUntilSomethingPlays(t *testing.T) {
 	eventually(t, "connected", func() bool { return e.Status().Discord == "connected" })
 }
 
-// Saving settings that did not change for the engine (app-only options) must not restart it.
-func TestUnchangedSettingsDoNotRestart(t *testing.T) {
+// Saving settings that did not change for the engine (app-only options) sends nothing; a real change sends the status
+// again, without a restart.
+func TestUnchangedSettingsSendNothing(t *testing.T) {
 	t.Parallel()
-	e, _, _, l := setup(t)
+	e, _, d, l := setup(t)
 	e.Start()
 	eventually(t, "shown", func() bool { return e.Status().NowPlaying != nil })
+	n := len(d.list())
 	e.ApplySettings(e.Config())
 	time.Sleep(300 * time.Millisecond)
-	if n := strings.Count(strings.Join(l.list(), "\n"), "Presence stopped."); n != 0 || e.Status().NowPlaying == nil {
-		t.Fatalf("restarted %d times for nothing", n)
+	if len(d.list()) != n || e.Status().NowPlaying == nil {
+		t.Fatalf("unchanged settings sent %d requests to Discord", len(d.list())-n)
 	}
 	cfg := e.Config()
 	cfg.ProgressWidth++
 	e.ApplySettings(cfg)
-	eventually(t, "restart for a real change", func() bool { return strings.Contains(strings.Join(l.list(), "\n"), "Presence stopped.") })
+	eventually(t, "sent again for a real change", func() bool { return len(d.list()) > n })
+	if strings.Contains(strings.Join(l.list(), "\n"), "Presence stopped.") {
+		t.Fatal("a settings change restarted the engine")
+	}
 }
 
 func (l *logs) list() []string {

@@ -77,8 +77,10 @@ type disc struct {
 	rejectAll bool
 	// failClears answers a clearing SET_ACTIVITY (no activity) with an error, as if Discord did not take it
 	failClears bool
-	ln         fakeListener
-	conns      []io.ReadWriteCloser
+	// hellos are the application ids of the handshakes, one per connection made
+	hellos []string
+	ln     fakeListener
+	conns  []io.ReadWriteCloser
 	// up is what each live connection shows: the last status it took, until it is cleared or the connection ends
 	// (Discord drops a status with its connection)
 	up map[io.ReadWriteCloser]map[string]any
@@ -138,6 +140,9 @@ func (d *disc) serve(c io.ReadWriteCloser) {
 		var m map[string]any
 		json.Unmarshal(body, &m)
 		if op == 0 {
+			d.mu.Lock()
+			d.hellos = append(d.hellos, fmt.Sprint(m["client_id"]))
+			d.mu.Unlock()
 			reply(c, map[string]any{"cmd": "DISPATCH", "evt": "READY", "data": map[string]any{}})
 			continue
 		}
@@ -421,7 +426,9 @@ func TestDiscordLateAndReconnect(t *testing.T) {
 	eventually(t, "resent", func() bool { return len(d.list()) > n })
 }
 
-func TestApplySettingsRestarts(t *testing.T) {
+// A settings change applies to the running engine without a restart: the status goes out again in the new form, and
+// nothing is stopped or cleared.
+func TestApplySettingsAppliesWithoutARestart(t *testing.T) {
 	t.Parallel()
 	e, _, d, l := setup(t)
 	e.Start()
@@ -429,12 +436,12 @@ func TestApplySettingsRestarts(t *testing.T) {
 	cfg := e.Config()
 	cfg.ActivityType = "playing"
 	e.ApplySettings(cfg)
-	eventually(t, "restart resend", func() bool { return len(d.list()) >= 3 }) // clear + new set
+	eventually(t, "sent again", func() bool { return len(d.list()) >= 2 })
 	last := d.list()[len(d.list())-1]["activity"].(map[string]any)
 	if last["type"] != nil && last["type"] != float64(0) {
 		t.Fatalf("playing mode must not be type 3: %v", last)
 	}
-	if !l.has("Presence stopped") {
+	if l.has("Presence stopped") || isClear(d) {
 		t.Fatal(l.l)
 	}
 	// a stopped engine stays stopped after ApplySettings

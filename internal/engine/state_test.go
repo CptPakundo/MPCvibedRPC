@@ -165,36 +165,50 @@ func TestConnectingSurvivesAPanic(t *testing.T) {
 	eventually(t, "connected at a later check", func() bool { return e.Status().Discord == "connected" && len(d.showing()) == 1 })
 }
 
-// A settings change while a status is on its way to Discord leaves no error from the old run in the new one.
+// A settings change while a status is on its way to Discord leaves no error behind: one that keeps the connection lets
+// the send finish, one that changes the Discord application lets that connection go, and what plays goes out again.
 func TestSettingsChangeDuringASendLeavesNoError(t *testing.T) {
-	t.Parallel()
-	e, m, d, l := setup(t)
-	e.Start()
-	eventually(t, "first status", func() bool { return len(d.showing()) == 1 })
-	d.set(func(d *disc) { d.slow = 12 * testPoll })
-	m.set(func(m *mpc) { m.pos += 600000 }) // a seek: a status goes out and waits for the slow answer
-	n := len(d.list())
-	eventually(t, "the seek on its way", func() bool { return len(d.list()) > n })
-	cfg := e.Config()
-	cfg.TextProgressBar = !cfg.TextProgressBar
-	e.ApplySettings(cfg) // ends the run while the send waits
-	d.set(func(d *disc) { d.slow = 0 })
-	eventually(t, "the new run's status", func() bool {
-		s := e.Status()
-		return s.Discord == "connected" && s.NowPlaying != nil && len(d.showing()) == 1
-	})
-	if s := e.Status(); s.LastError != nil {
-		t.Errorf("the new run shows the old run's error: %s", *s.LastError)
-	}
-	if l.has("Failed to update presence") {
-		t.Errorf("the ended run's send was logged as a failure:\n%s", strings.Join(l.l, "\n"))
+	for _, change := range []string{"textProgressBar", "clientId"} {
+		t.Run(change, func(t *testing.T) {
+			t.Parallel()
+			e, m, d, l := setup(t)
+			e.Start()
+			eventually(t, "first status", func() bool { return len(d.showing()) == 1 })
+			slow := 12 * testPoll
+			if change == "clientId" {
+				slow = 80 * testPoll // longer than closing the old connection waits (1.5 s): the send fails with it
+			}
+			d.set(func(d *disc) { d.slow = slow })
+			m.set(func(m *mpc) { m.pos += 600000 }) // a seek: a status goes out and waits for the slow answer
+			n := len(d.list())
+			eventually(t, "the seek on its way", func() bool { return len(d.list()) > n })
+			cfg := e.Config()
+			if change == "clientId" {
+				cfg.ClientID = "123456789012345678"
+			} else {
+				cfg.TextProgressBar = !cfg.TextProgressBar
+			}
+			e.ApplySettings(cfg) // while the send waits
+			d.set(func(d *disc) { d.slow = 0 })
+			eventually(t, "the status with the new settings", func() bool {
+				s := e.Status()
+				return s.Discord == "connected" && s.NowPlaying != nil && len(d.showing()) == 1
+			})
+			time.Sleep(10 * testPoll)
+			if s := e.Status(); s.LastError != nil {
+				t.Errorf("an error after the change: %s", *s.LastError)
+			}
+			if l.has("Failed to update presence") {
+				t.Errorf("the send was logged as a failure:\n%s", strings.Join(l.list(), "\n"))
+			}
+		})
 	}
 }
 
 // The engine's state is spread over many fields that several goroutines change. Whatever happens in whatever order
 // (the player pauses, seeks, changes file, stops or goes away; Discord refuses, answers late, fails clears or
-// restarts; the settings change; the engine is stopped and started), once things are quiet Discord must show
-// exactly what the player's last state calls for: one status for the file that plays, or none.
+// restarts; the settings change, the Discord application too; the engine is stopped and started), once things are
+// quiet Discord must show exactly what the player's last state calls for: one status for the file that plays, or none.
 //
 // Eight fixed orders run every time. MPRP_CONVERGE_SEEDS=500 tries that many (for a hunt after a change to the tick).
 func TestStatusConverges(t *testing.T) {
@@ -244,6 +258,15 @@ func TestStatusConverges(t *testing.T) {
 				{"settings change", func() {
 					cfg := e.Config()
 					cfg.TextProgressBar = !cfg.TextProgressBar
+					e.ApplySettings(cfg)
+				}},
+				{"another Discord application", func() {
+					cfg := e.Config()
+					if cfg.ClientID == "1" {
+						cfg.ClientID = core.DefaultConfig().ClientID
+					} else {
+						cfg.ClientID = "1"
+					}
 					e.ApplySettings(cfg)
 				}},
 				{"stop and start", func() { e.Stop(); e.Start() }},
