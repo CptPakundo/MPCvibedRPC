@@ -1,7 +1,7 @@
 # Text lines: design proposal
 
-A proposal for "Presence templates: a user-written layout of the status lines", with the research behind it. It is
-not built yet; its [decisions](#decisions) are settled, and the work is in the roadmap's [Next up](../roadmap.md#next-up). The window's look follows
+A proposal for "Presence templates: a user-written layout of the status lines", with the research behind it. The
+first version is built (version 0.9.60), with the differences listed under [As built](#as-built); its [decisions](#decisions) are settled. The window's look follows
 [settings-window.md](settings-window.md). In the window and the docs the feature is called **Text lines**, because
 "template" and "presence" are not words the window uses.
 
@@ -167,3 +167,12 @@ Settled by the maintainer on 2026-11-25; the first version is part of version 0.
 3. **Missing values.** "[ ] sections plus dropped separators."
 4. **Value format.** "With today's marks": `★ 7.1`, `Dir. Sample Name`.
 5. **Presets.** "Standard, Short, Detailed."
+
+## As built
+Where the first version (0.9.60) differs from the plan above:
+- **The Playing style keeps today's lines.** Without the stream form the Playing style has no title in its name (it is
+  "Playing Media Player Classic" with the title as its first line), so it is the same case as "Show the title as the
+  activity name" off: text lines would remove the title.
+- **Custom starts from the choice before** only while its lines are empty; lines written earlier are kept.
+- **The shared table** is `internal/core/testdata/lines.json`; the page's test (`TestPageBehaviour`) runs it through the
+  page's own code.

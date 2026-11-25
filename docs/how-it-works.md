@@ -22,7 +22,7 @@ minimised, or let the program start at login; running it again brings the window
 |---|---|
 | General | starting with the system, showing on Discord when the app opens, updates |
 | Players | the players on this computer, and the Plex, Stremio and Jellyfin / Emby sign-ins |
-| Look | how the status looks: style, progress bar, info lines, links, streams |
+| Look | how the status looks: style, progress bar, info lines, text lines, links, streams |
 | Titles & art | episode titles, title spelling, anime titles, folder names, **Fix a match**, a TMDB key |
 | Privacy | hiding titles and files, clearing after a pause, which online services may see a title, Recent connections |
 | Advanced | the Discord application ID, how often players are checked, Maintenance (Restore defaults, Open settings folder) |
@@ -39,6 +39,11 @@ tray.
 - **The second line** shows the season and episode with the episode's title (`S01E03 · Episode title`), or the year
   for a movie. For an episode with a known season, the image tooltip reads "Season 1, Episode 3", which Discord turns
   into S1E3.
+- **Text lines.** **Look > Text lines** chooses the two lines under the title: **Standard** (as above), **Short**
+  (`S01E02 · Episode title`, a film's year and director), **Detailed** (adds the length and `on <player>`) or
+  **Custom**, five lines of your own written with placeholders such as `{episodeTitle}` or `[on {player}]`, with a sample
+  as you type. Custom can also shape a film's cover text. The name, the pause line, an episode's cover text (the badge),
+  the stream form and songs stay as they are. [Details](config.md#textlines).
 - **Clickable title and cover.** With **Look > Link to the title's page** on (the default) and the title found in a
   catalog that has a page (IMDb, AniList, ...), both text lines and the cover open that page, next to a "View on IMDb"
   style button. A second button opens another page of the title when there is one (IMDb next to Letterboxd or
@@ -52,7 +57,7 @@ tray.
 - **Preview.** While a status shows, the block at the top of the window shows how it looks on Discord: the title
   lines, the cover with the player's logo, the progress bar and the link buttons, built from what was actually sent
   (so it also shows the basic fallback). The second line is underlined (dotted) when it is a link. **Wrong title or
-  cover?** below it leads to **Titles & art > Fix a match**.
+  cover?** below it opens [Fix this match](#fixing-a-match) for what plays.
 - **Music.** A song played in a video player (`.mp3`, `.flac` and the like) shows as "Listening to <file name>" (with
   the title hidden: "Listening to music"). It is never looked up in the catalogs and is not counted in the stats. A
   video playing in another player comes first.
@@ -178,10 +183,26 @@ A disc's video files are named by number (`BDMV\STREAM\00062.m2ts`, `BDMV\PLAYLI
 A camcorder's discs and cards (`AVCHD`) and labels that say nothing (`BDROM`, `DVD_VIDEO`) are left as they are.
 
 ### Fixing a match
-Still no cover, or the wrong one? Use **Titles & art > Fix a match**: search under another name, or pin your own cover
-image. Each line starts with the title as the program read it, which the log shows after `Playing:` (for a Blu-ray
-file named `00062.m2ts` that is `00062`): `00062 = Sample Movie`. A line applies to every file read as that title.
-The log also lists what each catalog returned. A free TMDB key (**Titles & art > More**) improves some matches.
+Wrong title or cover? Choose **Wrong title or cover?** under the preview while it plays. **Fix this match** says what
+the file was read as and what it matched, and searches the catalogs that are on under Privacy as you type (at most
+three, after a short pause), with each entry's cover, year, kind and catalog. Pick the right one and **Use this**:
+- The fix pins that catalog entry, so the cover, the catalog's spelling and the episode titles come from it. The last
+  row, **Search as ... instead**, searches under another name without pinning an entry.
+- It applies to **every file read as that title** (all episodes follow), or to **only this file** (its exact name; it
+  stops matching if the file is renamed). A fix for the file wins.
+- **Fixed** then offers the cover: the entry's own, one of the same title from the other catalogs, or an image address
+  of your own. **Episodes don't line up?** adds a season and episode offset to the numbers read from the file before
+  the catalogs are asked (a second season numbered from 1 in the files but from 13 in the catalog needs +12); the card
+  then shows the catalog's numbers. **Undo** takes the fix back.
+- **Tell the project about this** (only if you choose it) shows a short report: the file name (never its folder), what
+  it was read as, the automatic match, your fix, the catalogs on and the version. You copy it, look it over and post it
+  on GitHub yourself; the program sends nothing.
+
+**Titles & art > Fix a match** lists every fix with **Edit** and **Remove** (the bar offers Undo), and **Add a fix** makes
+one for a title that is not playing: type it as the log shows it after `Playing:` (for a Blu-ray file named
+`00062.m2ts` that is `00062`). Lines in the old `artworkAliases` and `artworkOverrides` settings became fixes once and act
+as before; an older version of the program does not see fixes made since. The log also lists what each catalog
+returned. A free TMDB key (**Titles & art > More**) improves some matches.
 
 ## On your streams
 When you share your screen, Discord names the stream after your *Playing* status and after no other kind, so
