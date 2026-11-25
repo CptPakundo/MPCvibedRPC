@@ -1,0 +1,18 @@
+# The program's former name, where releases still need it. The one list: release.yml and verify-release.ps1 read it.
+#
+# file <current name> <former name>
+#   Copies installed before the rename look for their update under the former file name, so every release also
+#   publishes a byte-identical copy of each program file under that name, with its own .sha256 and build record.
+#   The program itself looks only for the current names.
+# env <current name> <former name>
+#   The environment variables the former version reads: the release check runs the release before this one, which
+#   may still be one of the former name.
+#
+# The maintainer decides when the former names are dropped (when no copy that needs them is in use any more). Then
+# delete the file lines (or this whole file and its uses in release.yml and verify-release.ps1).
+file MPRP.exe MPCvibedRPC.exe
+file MPRP-linux-amd64 MPCvibedRPC-linux-amd64
+file MPRP-linux-arm64 MPCvibedRPC-linux-arm64
+file MPRP-macos.zip MPCvibedRPC-macos.zip
+env MPRP_HOME MPCRPC_HOME
+env MPRP_BROWSER MPCRPC_BROWSER
