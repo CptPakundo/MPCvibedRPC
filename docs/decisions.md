@@ -28,9 +28,16 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
   *Playing* status and no other kind, so while Discord shares the screen the status is sent as "Playing <title>", and
   as the usual Watching status the rest of the time. On Windows the program tells that from the threads Discord's app
   runs while it shares, and from Windows' record of screen captures where that can be read; where it cannot tell
-  (macOS, Linux) the choice is always or never. *Why:* a switch to remember
-  before every stream is friction; the Watching status with its progress bar is what belongs on a profile; showing
-  both at once would put two cards there. It is on by default because it changes nothing until a stream starts.
+  (macOS, Linux) the choice is always or never. *Why:* a switch to remember before every stream is friction, and the
+  Watching status with its progress bar is what belongs on a profile. It is on by default because it changes nothing
+  until a stream starts.
+  - **Not two statuses at once** (tried on a real stream, 2026-11-21, and not kept). *Why:* Discord shows one card per
+    application and lists Playing before Watching, so a second, Playing status from the same application hides the
+    Watching one; a second registered application would put three cards on the profile (the stream, Playing and
+    Watching).
+  - **Which of two Playing statuses names the stream is left to Discord.** When a game or an emulator also has one,
+    Discord may name the stream after it. *Why:* nothing public documents Discord's choice, and nothing the program
+    could set is known to change it.
 - **One missed answer is not a closed player** (2026-11-11). While a status is up, a check in which no player
   answers is repeated a second later before the status is taken down. *Why:* a player that loads a file or seeks on
   a slow disk misses an answer now and then, and the status should not flicker for it; a second is a small price.
@@ -101,12 +108,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-o
 
 ## Releases
 - **Versions stay 0.9.x, three-part.** *Why:* the updater compares three numbers; a fix takes the next number.
-- **The README shows GitHub's own download count** (2026-10-25); the project keeps its exact count of people on the
-  side. Since 2026-10-18 the `stats` branch holds that count: program downloads only (not checksums or notices), from a
-  reset of GitHub's counts, minus every download the project makes itself (release checks and Claude agents record
-  theirs in a ledger there). The program never reports anything; your own copy behaves like everyone's. *Why:* the
-  badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page; the exact
-  count stays readable (`summary.json` on the `stats` branch) for when it matters.
+- **The README shows GitHub's own download count** (2026-10-25); the project's exact count of people (without its own
+  downloads) stays on the `stats` branch ([how](development.md#ci)). The program itself never reports anything. *Why:*
+  the badge every repository shows is GitHub's, and a number of its own is not worth explaining on the front page.
 - **Downloads are linked from the README, with no download page of its own.** *Why:* a README cannot run scripts, so
   it cannot pick the visitor's system for them, and a separate page was not wanted.
 - **Releases are bundles** (2026-11-11): a version collects several changes; only a fix for something broken, or a
