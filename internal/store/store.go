@@ -251,8 +251,13 @@ func (s *Store) write(o *jsonx.Obj) error {
 	return err
 }
 
+// deviceIDs are this install's identifiers towards Plex and Jellyfin / Emby. They are not settings: signing out keeps
+// them, and so does Reset, so a sign-in afterwards is the same device again and not one more in the account's list.
+var deviceIDs = []string{"plexClient", "jellyfinDevice"}
+
 // Reset puts every setting, including the program's own, back to its default (the welcome card shows again). Which
-// version's news was last shown is kept: it is not a setting, and the same news must not pop up again.
+// version's news was last shown is kept: it is not a setting, and the same news must not pop up again. So are the
+// device identifiers (deviceIDs).
 func (s *Store) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -270,6 +275,11 @@ func (s *Store) Reset() error {
 		}
 		if len(keep.M) > 0 {
 			fresh.Set("app", keep)
+		}
+	}
+	for _, k := range deviceIDs {
+		if v, ok := old.M[k]; ok {
+			fresh.Set(k, v)
 		}
 	}
 	return s.write(fresh)
