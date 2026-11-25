@@ -112,8 +112,8 @@ Each of these sank or burdened a similar tool, or breaks a principle:
   an allowlist, if ever.
 - Built-in scrobbling (Trakt, Simkl, AniList); at most a local event hook that other tools can read.
 - Watch-together features (they need servers) and a stored history of titles (the stats stay counts only).
-- A Microsoft Store edition (its sandbox breaks the MPC-HC setup and self-update) and Flathub (its rules on
-  AI-generated apps and its sandbox), unless real demand appears.
+- A Microsoft Store edition (its sandbox breaks the MPC-HC setup and self-update) and Flathub (its manifests and
+  submissions must not be AI-written, which this project's are, and its sandbox), unless real demand appears.
 
 ## Considered and left
 Ideas weighed and not done, each with its reason, so nobody has to weigh them again:

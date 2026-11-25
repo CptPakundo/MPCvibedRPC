@@ -43,6 +43,11 @@ in the [docs index](README.md).
   and enter the same on the **Players** tab (the address too, for a Kodi on another device). The window says when Kodi
   refuses the password, or when something else answers at the address.
 - Kodi's web server uses port 8080, like VLC's: if both run, change one of them.
+
+**Smart App Control** (Windows 11, under Windows Security > App & browser control) blocks programs that are not
+code-signed until Microsoft's reputation service knows them, without a *Run anyway* choice, and each new version
+starts unknown. Where it is on, the program may not start, and an update may fail and put the old version back.
+Microsoft describes it in [SmartScreen reputation](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation).
 - On Linux, Kodi is also found through MPRIS without any of this.
 - A pause in Kodi shows at once when Kodi's *Allow remote control from applications on this system* is on (the
   default; *on other systems* for a Kodi on another device): its notifications come on port 9090. Without it, the
@@ -131,6 +136,10 @@ entry, and the fix applies to every file read as that title or to that file only
 TMDB key (**Titles & art > More**) improves some matches. A show found only by TVmaze can take about a minute to get its
 cover the first time: TVmaze answers a search slowly until it has it cached.
 
+Text but no pictures on the card in a third-party Discord app (Vesktop, Legcord and the like): such apps may not show
+cover images from outside addresses; the official Discord app does. This was reported for a similar program and has
+not been tried with MPRP.
+
 ## Where are my settings? How do I remove it?
 
 Everything is in `%LOCALAPPDATA%\MPRP` (macOS: `~/Library/Application Support/MPRP`; Linux:
@@ -167,7 +176,8 @@ To uninstall:
   tray icon (macOS: the menu bar icon) shows a red dot. **Update now** in the window does it at once.
 - **Safety:** every update is checked against its checksum. The copy that installed it waits until the new version has
   come up; if it has not within half a minute, the old version is put back and started again, and a notice says so.
-  That version is not installed by itself a second time (a newer one is).
+  That version is not installed by itself a second time (a newer one is). On Windows 11, Smart App Control (below) can
+  be why a new version does not start.
 - **macOS:** the window links to the download.
 - After an update the window shows what's new once; the version number at the bottom of the window shows every version.
 
