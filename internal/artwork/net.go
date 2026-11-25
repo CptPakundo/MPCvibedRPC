@@ -24,8 +24,21 @@ import (
 // text (fetchText), which has none of that (no cache, spacing, retry or breaker); the Resolver keeps the page for
 // six hours itself.
 
-// userAgent is what every request says it is (Wikipedia answers 403 to Go's default client string).
-const userAgent = "MPRP (Discord Rich Presence for media players; https://github.com/CptPakundo/MPRP)"
+// userAgent is what every request says it is (Wikipedia answers 403 to Go's default client string). It names the
+// program's version as Wikimedia's User-Agent policy shows (name/version, then a link); SetVersion fills it in.
+var userAgent = agentFor("")
+
+// agentFor is the User-Agent of version v ("": none known, as in the tests).
+func agentFor(v string) string {
+	name := "MPRP"
+	if v != "" {
+		name += "/" + v
+	}
+	return name + " (Discord Rich Presence for media players; https://github.com/CptPakundo/MPRP)"
+}
+
+// SetVersion puts the program's version in the User-Agent. Call it once at the start, before any request.
+func SetVersion(v string) { userAgent = agentFor(v) }
 
 const (
 	respTTL    = 10 * time.Minute
