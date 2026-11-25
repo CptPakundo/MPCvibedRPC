@@ -54,3 +54,14 @@ func TestCommittedUpdateIconMatchesGenerator(t *testing.T) {
 		t.Fatal("the update icon has no dot")
 	}
 }
+
+// The README's logo is generated too.
+func TestCommittedLogoPNGMatchesGenerator(t *testing.T) {
+	have, err := os.ReadFile("../../docs/images/icon.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(have, pngOf(256)) {
+		t.Fatal("docs/images/icon.png is out of date: run go run ./tools/mkico -png docs/images/icon.png")
+	}
+}

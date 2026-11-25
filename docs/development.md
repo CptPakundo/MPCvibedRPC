@@ -154,6 +154,7 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 | `winsys` | the operating system; see the next table |
 | `diag` | **Copy diagnostics**: keeps titles and file names, leaves out folder paths, URL paths and queries, server names, sign-ins, keys and the Never show list |
 | `updater` | GitHub release check, download, checksum, swap and restore of the program file |
+| `logo` | the program's icon (a play triangle over a progress bar), drawn in whole numbers so every system makes the same pixels: `tools/mkico` and the macOS menu bar (`Template`) use it |
 
 `internal/winsys`, by topic. The macOS and Linux parts live in untagged files where possible, so their logic is tested
 on every system.
@@ -173,7 +174,7 @@ on every system.
 | Path | Job |
 |---|---|
 | `tools/mkrsrc` | exe resources (version info, icon, DPI manifest) |
-| `tools/mkico` | the icon generator (`-icns`: the macOS app icon; `-dot`: the update dot) |
+| `tools/mkico` | writes the icons from `internal/logo`: `internal/assets/icon.ico`, `icon-update.ico` (`-dot`), `docs/images/icon.png` (`-png`) and the macOS app icon (`-icns`); a test fails when a committed one is out of date |
 | `tools/relnotes` | the release text, rendered from the changelog |
 | `tools/doclinks` | only a test: every relative link and anchor in the Markdown files resolves |
 | `tools/screenshots` | `demo.js` for the README pictures ([Screenshots](maintaining.md#screenshots)) |
