@@ -54,7 +54,12 @@ type app struct {
 }
 
 func run() error {
-	st, err := store.New(store.DataDir())
+	dir, other, moved := chooseDataDir(store.DataDir(), store.FormerDataDir(), afterUpdate || updateFailed, pingExisting)
+	if other != nil {
+		handOver(other) // a copy of the former version runs: it is the one to show
+		return nil
+	}
+	st, err := store.New(dir)
 	if err != nil {
 		return err
 	}
@@ -110,6 +115,9 @@ func run() error {
 		msg += " in the background"
 	}
 	a.log("INFO", msg+".")
+	if moved != "" {
+		a.log("INFO", moved)
+	}
 	failedUpdate := ""
 	if updateFailed {
 		if failedUpdate = failedVersion(st.Dir); failedUpdate != "" {
@@ -172,9 +180,15 @@ func run() error {
 	}
 
 	// The registry is the source of truth for "start with Windows"; keep its path pointing at this copy of the program.
-	if st.App().AutoStart {
-		engine.Go(a.log, "The run-at-login entry", func() { winsys.RefreshAutoStart(exe) })
-	}
+	// An entry of the program's former name is carried over first (it does nothing when there is none).
+	engine.Go(a.log, "The run-at-login entry", func() {
+		if note := winsys.MigrateAutoStart(exe); note != "" {
+			a.log("INFO", note)
+		}
+		if st.App().AutoStart {
+			winsys.RefreshAutoStart(exe)
+		}
+	})
 	if st.App().StartPresence {
 		a.eng.Start()
 	}

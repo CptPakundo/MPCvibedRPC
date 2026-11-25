@@ -29,7 +29,20 @@ func DataDir() string {
 	if v := os.Getenv("MPRP_HOME"); v != "" {
 		return v
 	}
-	const name = "MPRP"
+	return dataDirNamed(core.Name)
+}
+
+// FormerDataDir is the data folder the program used under its former name (core.FormerName), which MoveFormerData
+// carries over; "" for a copy with a data folder of its own (MPRP_HOME), which never moves anything.
+func FormerDataDir() string {
+	if os.Getenv("MPRP_HOME") != "" {
+		return ""
+	}
+	return dataDirNamed(core.FormerName)
+}
+
+// dataDirNamed is the system's place for the data folder of a program called name.
+func dataDirNamed(name string) string {
 	home, _ := os.UserHomeDir()
 	switch runtime.GOOS {
 	case "windows":
@@ -63,6 +76,18 @@ type App struct {
 
 // DefaultUpdateRepo is where releases of this program are published.
 const DefaultUpdateRepo = "CptPakundo/MPRP"
+
+// formerUpdateRepo is the default update source under the program's former name. config.json holds the default once
+// any program setting was saved, so an install from before the rename has it; it reads as DefaultUpdateRepo.
+const formerUpdateRepo = "CptPakundo/" + core.FormerName
+
+// updateRepo is the update source as saved, with the former default read as the current one.
+func updateRepo(saved string) string {
+	if strings.EqualFold(saved, formerUpdateRepo) {
+		return DefaultUpdateRepo
+	}
+	return saved
+}
 
 var appKeys = []string{"autoStart", "startPresence", "checkUpdates", "autoUpdate", "updateRepo", "openWindow", "minimizeToTray", "welcomeSeen", "seenVersion"}
 
@@ -126,7 +151,7 @@ func New(dir string) (*Store, error) {
 }
 
 func (s *Store) CachePath() string { return filepath.Join(s.Dir, "artwork-cache.json") }
-func (s *Store) LogPath() string   { return filepath.Join(s.Dir, "mprp.log") }
+func (s *Store) LogPath() string   { return filepath.Join(s.Dir, logName) }
 func (s *Store) IPCPath() string   { return filepath.Join(s.Dir, "ipc.json") }
 func (s *Store) StatsPath() string { return filepath.Join(s.Dir, "stats.json") }
 
@@ -320,7 +345,7 @@ func (s *Store) App() App {
 		StartPresence:  boolOr(cur, "startPresence", d.StartPresence),
 		CheckUpdates:   boolOr(cur, "checkUpdates", d.CheckUpdates),
 		AutoUpdate:     boolOr(cur, "autoUpdate", d.AutoUpdate),
-		UpdateRepo:     strOr(cur, "updateRepo", d.UpdateRepo),
+		UpdateRepo:     updateRepo(strOr(cur, "updateRepo", d.UpdateRepo)),
 		WelcomeSeen:    boolOr(cur, "welcomeSeen", d.WelcomeSeen),
 		OpenWindow:     boolOr(cur, "openWindow", d.OpenWindow),
 		MinimizeToTray: boolOr(cur, "minimizeToTray", d.MinimizeToTray),

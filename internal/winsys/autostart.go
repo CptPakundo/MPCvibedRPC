@@ -4,11 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"runtime"
 	"strings"
+
+	"github.com/CptPakundo/MPRP/internal/core"
 )
 
 // runNameBase is the name of the registry value that starts the program at login.
-const runNameBase = "MPRP"
+const runNameBase = core.Name
 
 // runName is the registry value for run-at-login. A copy that uses a data folder of its own (MPRP_HOME: a portable
 // setup, a test, a development build) gets a value of its own, derived from that folder, so it can never switch the
@@ -25,13 +28,19 @@ func runCommand(exe, home string) string {
 	return cmd
 }
 
-func runNameFor(home string) string {
+func runNameFor(home string) string { return nameFor(runNameBase, home) }
+
+// formerRunName is the run-at-login value (and login item) of this copy under the program's former name.
+func formerRunName() string { return nameFor(core.FormerName, os.Getenv("MPRP_HOME")) }
+
+// nameFor is the name base, for the copy with the data folder home ("": the default one).
+func nameFor(base, home string) string {
 	home = strings.ToLower(strings.TrimRight(strings.TrimSpace(home), `\/`))
 	if home == "" {
-		return runNameBase
+		return base
 	}
 	sum := sha256.Sum256([]byte(home))
-	return runNameBase + "-" + hex.EncodeToString(sum[:4])
+	return base + "-" + hex.EncodeToString(sum[:4])
 }
 
 // runKey is the registry key whose values start programs at login.
@@ -111,4 +120,80 @@ func SetAutoStart(enabled bool, exe string) bool {
 		run("reg", "delete", startupApprovedKey, "/v", name, "/f") // nothing of ours is left behind
 	}
 	return true
+}
+
+// runRegistry is what the run-at-login migration needs of the registry: the Run values and Windows' own startup
+// switch for each (StartupApproved\Run). systemRegistry is the real one; the tests pass a map.
+type runRegistry struct {
+	run            func(name string) (string, bool)
+	approved       func(name string) ([]byte, bool)
+	setRun         func(name, command string) bool
+	setApproved    func(name string, data []byte) bool
+	deleteRun      func(name string) bool
+	deleteApproved func(name string) bool
+}
+
+var systemRegistry = runRegistry{
+	run:      registryRunValue,
+	approved: registryStartupApproved,
+	setRun: func(name, command string) bool {
+		return run("reg", "add", runKey, "/v", name, "/t", "REG_SZ", "/d", command, "/f").ok
+	},
+	setApproved: func(name string, data []byte) bool {
+		return run("reg", "add", startupApprovedKey, "/v", name, "/t", "REG_BINARY", "/d", hex.EncodeToString(data), "/f").ok
+	},
+	deleteRun:      func(name string) bool { return run("reg", "delete", runKey, "/v", name, "/f").ok },
+	deleteApproved: func(name string) bool { return run("reg", "delete", startupApprovedKey, "/v", name, "/f").ok },
+}
+
+// MigrateAutoStart carries run-at-login over from the program's former name: the Run value (Windows), the
+// LaunchAgent (macOS) or the autostart entry (Linux) of that name is replaced by one of the current name that starts
+// this program file. On Windows a start switched off in Task Manager stays switched off. The program calls it at every
+// start; it does nothing when there is no entry of the former name. It gives a sentence for the log ("" when there was
+// nothing to do).
+func MigrateAutoStart(exe string) string {
+	home := os.Getenv("MPRP_HOME")
+	if !IsWindows {
+		h, _ := os.UserHomeDir()
+		return migrateLoginItem(runtime.GOOS, h, os.Getenv("XDG_CONFIG_HOME"), exe, home)
+	}
+	return migrateRunValue(systemRegistry, formerRunName(), runName(), runCommand(exe, home))
+}
+
+// migrateRunValue moves the Run value from (and its startup switch) to the name to, with command as its command line.
+// A value of that name that is there already is kept. When the new entry cannot be written, the former one is left as
+// it is: a start at login that still works beats none.
+func migrateRunValue(r runRegistry, from, to, command string) string {
+	_, hasRun := r.run(from)
+	approved, hasApproved := r.approved(from)
+	if !hasRun && !hasApproved {
+		return ""
+	}
+	if !hasRun { // a switch left without its value: Windows' leftover
+		r.deleteApproved(from)
+		return "Removed the leftover Task Manager entry " + from + " of the program's former name."
+	}
+	// the switch first: a start the user switched off must never come back on, even for a moment
+	wroteApproved := false
+	if _, has := r.approved(to); hasApproved && len(approved) > 0 && !has {
+		if !r.setApproved(to, approved) {
+			return "Could not carry the run-at-login entry " + from + " over to " + to + "; it is left as it was."
+		}
+		wroteApproved = true
+	}
+	if _, has := r.run(to); !has && !r.setRun(to, command) {
+		if wroteApproved {
+			r.deleteApproved(to)
+		}
+		return "Could not carry the run-at-login entry " + from + " over to " + to + "; it is left as it was."
+	}
+	r.deleteRun(from)
+	if hasApproved {
+		r.deleteApproved(from)
+	}
+	note := "Moved the run-at-login entry " + from + " to " + to + " (the program's new name)"
+	if startupDisabled(approved) {
+		note += "; it stays switched off in Task Manager"
+	}
+	return note + "."
 }
