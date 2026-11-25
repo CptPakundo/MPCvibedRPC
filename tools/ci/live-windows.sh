@@ -7,11 +7,25 @@ here="$(cd "$(dirname "$0")" && pwd)"
 work="$RUNNER_TEMP/live-windows"
 mkdir -p "$work"
 
+# choco_install PACKAGE... [OPTION...]: choco install, tried up to three times, 30 seconds apart (a download
+# from Chocolatey's mirrors fails now and then, for example with a TLS error for Kodi).
+choco_install() {
+  local try
+  for try in 1 2 3; do
+    if choco install -y --no-progress "$@" >> "$work/choco.log"; then return 0; fi
+    echo "choco install $* failed (try $try of 3)"
+    [ "$try" = 3 ] || sleep 30
+  done
+  cat "$work/choco.log"
+  return 1
+}
+
 echo "::group::install"
-choco install -y --no-progress kodi ffmpeg > "$work/choco.log" || { cat "$work/choco.log"; exit 1; }
+: > "$work/choco.log"
+choco_install kodi ffmpeg
 # PotPlayer replaces the installer at its fixed download address, so the package's recorded checksum goes stale; on
 # this throwaway runner it is installed without that check.
-choco install -y --no-progress --ignore-checksums potplayer >> "$work/choco.log" || { cat "$work/choco.log"; exit 1; }
+choco_install potplayer --ignore-checksums
 tail -5 "$work/choco.log"
 echo "::endgroup::"
 
