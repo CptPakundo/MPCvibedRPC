@@ -105,7 +105,7 @@ They start filled with the lines of the choice that was on before. The cover tex
 4. Spaces are trimmed, the line is cut to 128 and padded to two; an empty line is left out.
 
 **Saving.** As everywhere, the change saves itself, but a text field saves when it loses focus or after a pause of a
-second, not on each key: a save restarts the run (see Risks).
+second, not on each key: each save sends the status again (see Risks).
 
 **What it touches.** Genres, rating and director still empties `{genres}`, `{rating}` and `{director}` when off. "Also
 show S01E02 in the title line" only applies to Standard and hides itself for the others, because the other choices
@@ -153,8 +153,8 @@ included). **Later:** a music line (`{title}` only, for "Listening to"); text li
 with "Show the title as the activity name" off.
 
 **Risks.**
-- A save restarts the engine and reconnects to Discord (roadmap Next up 1). The save on blur or pause limits it; Next up
-  1 removes it.
+- Each save sends the status again (no restart: `ApplySettings` redoes what a setting reaches), and Discord takes about
+  five changes in 20 seconds. The save on blur or pause limits it.
 - A custom second line can hide what the badge shows or repeat it: the help says so through the sample, not a warning.
 - A later change to Standard does not move custom lines with it: custom lines are the user's.
 - Users can write odd lines. That is the feature; the 128 cut and the empty-line rule keep Discord from refusing them.
