@@ -52,7 +52,7 @@ func DataDir() string {
 type App struct {
 	AutoStart      bool   `json:"autoStart"`      // run at login (the registry value, login item or autostart entry is the source of truth; this mirrors it)
 	StartPresence  bool   `json:"startPresence"`  // begin sending presence as soon as the app opens
-	CheckUpdates   bool   `json:"checkUpdates"`   // look for a newer release at start, then daily
+	CheckUpdates   bool   `json:"checkUpdates"`   // look for a newer release at start, then every six hours
 	AutoUpdate     bool   `json:"autoUpdate"`     // install a found update by itself at a quiet moment (needs checkUpdates; Windows and Linux)
 	UpdateRepo     string `json:"updateRepo"`     // "owner/repo" on GitHub that publishes releases with MPCvibedRPC.exe
 	WelcomeSeen    bool   `json:"welcomeSeen"`    // the first-run welcome card was dismissed (existing installs count as having seen it)

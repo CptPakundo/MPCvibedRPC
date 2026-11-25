@@ -82,6 +82,14 @@ If you find a security problem, please report it **privately** through
 [GitHub's private vulnerability reporting](https://github.com/CptPakundo/MPCvibedRPC/security/advisories/new)
 rather than in a public issue. There is no guaranteed response time or fix, but reports are read.
 
+## How updates are checked
+An update is checked against the `.sha256` file published in the same release, and installed only when the download
+matches it. That is not a signature and not the build record described below: the program does not verify either. So
+whoever can publish a release in the repository the program updates from decides what installs, and so does a user who
+points `updateRepo` (a setting in `config.json`) at another repository. Reducing this trust (a signed release
+manifest, immutable releases) is an open decision in the
+[roadmap](docs/roadmap.md#3-updates-you-can-trust-without-a-personal-signature).
+
 ## Checking a download
 Release files come with a SHA-256 checksum and a signed build record from GitHub. To check that a downloaded
 `MPCvibedRPC.exe` (or `MPCvibedRPC-macos.zip`, `MPCvibedRPC-linux-amd64`, ...) was built from this repository by its

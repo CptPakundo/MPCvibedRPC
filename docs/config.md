@@ -22,7 +22,7 @@ These live under `"app"` in `config.json`. The update switches and **Check now**
 | `minimizeToTray` | `true` | **Minimize to the tray** (Windows): minimizing the window closes it, and the program stays in the tray. Off: it minimizes to the taskbar. Either way, the window's X quits the program (on macOS it closes to the menu bar). |
 | `startPresence` | `true` | **Show on Discord when the app opens.** Otherwise it waits until you press Show on Discord. |
 | `checkUpdates` | `true` | **Check for updates automatically:** as the program starts, then every six hours ([how updates work](troubleshooting.md#updates)). |
-| `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update installs itself once nothing is playing and the window is closed. Off: the window and a tray notice offer it, and **Install** installs it. |
+| `autoUpdate` | `true` | **Install updates automatically** (Windows and Linux, with `checkUpdates` on): a found update installs itself once nothing is playing and no settings window is open (the program runs minimised to the tray or started at login; closing the window quits it on Windows and Linux). Off: the window and a tray notice offer it, and **Install** installs it. |
 | `updateRepo` | `"CptPakundo/MPCvibedRPC"` | *(config.json only)* The GitHub repository (`owner/repo`) that publishes releases. A release is only installed when it carries a `.sha256` checksum file for the download; otherwise the window links to its page. |
 
 ## Players
@@ -164,14 +164,16 @@ whether you are signed in).
 
 | Setting | Default | What it does |
 |---|---|---|
-| `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `""` / `0` | **Sign in to Plex:** the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient`. |
+| `plexToken`, `plexAccount`, `plexUser`, `plexServer`, `plexServerName`, `plexClient` | `""` / `0` | **Sign in to Plex:** the account's sign-in, its id and name, the server followed (its machine identifier and name) and this install's identifier towards Plex. Empty `plexToken`: Plex is not followed and plex.tv is never contacted. **Sign out** removes all but `plexClient` (it only forgets the sign-in on this computer; it does not contact plex.tv). **Restore defaults** removes `plexClient` too. |
 | `plexKey` | `""` | The `plexJwt` sign-in: this install's private signing key for Plex. A secret, like `plexToken`; removed by **Sign out**. |
 | `stremioKey` | `""` | **Sign in to Stremio:** the key of the account's session. Empty: Stremio is not followed and its servers are never contacted. **Sign out** ends the session on Stremio's side and removes it. |
-| `jellyfinToken`, `jellyfinUser`, `jellyfinUserName`, `jellyfinServerName`, `jellyfinProduct`, `jellyfinDevice` | `""` | **Jellyfin / Emby** sign-in: the server's access token, the user's id and name, the server's name, whether it is Jellyfin or Emby, and this install's device id (made at the first sign-in, kept after signing out). Empty `jellyfinToken`: the server is never contacted. **Sign out** and **Restore defaults** end the session on the server and remove the sign-in (`jellyfinDevice` is kept). A password is sent to your own server once and never stored. |
+| `jellyfinToken`, `jellyfinUser`, `jellyfinUserName`, `jellyfinServerName`, `jellyfinProduct`, `jellyfinDevice` | `""` | **Jellyfin / Emby** sign-in: the server's access token, the user's id and name, the server's name, whether it is Jellyfin or Emby, and this install's device id (made at the first sign-in, kept after signing out, removed by **Restore defaults**). Empty `jellyfinToken`: the server is never contacted. **Sign out** and **Restore defaults** end the session on the server and remove the sign-in (**Sign out** keeps `jellyfinDevice`; **Restore defaults** removes it). A password is sent to your own server once and never stored. |
 | `seenVersion` | (none) | Under `"app"`: the version whose changes the window last showed; a different version (an update, a new install) shows its changes once. **Restore defaults** keeps it. |
 | `welcomeSeen` | `false` | Under `"app"`: whether the first-run welcome card was closed. **Restore defaults** shows the card again. |
 
 ## For testing
+**Warning:** the `*Base` addresses redirect where titles and requests are sent. Only point them at a server you run
+yourself.
 
 These point the online lookups somewhere else (a test server or a mirror), or are read only by tests. They are not in
 the window, and a service switched off on the Privacy tab stays off whatever address it has here.

@@ -62,7 +62,8 @@ Every system needs the **Discord desktop app** with *User Settings > Activity Pr
 1. Download **MPCvibedRPC-linux-amd64** (or `-arm64`), run `chmod +x` on it and start it.
 2. VLC, Celluloid, Haruna and most other video players are found by themselves. mpv: press **Set up the player
    connection** (it adds one line to `mpv.conf`); the mpv-mpris script works too.
-3. There's no tray icon: run the program again to show its window.
+3. There's no tray icon, and closing the window with its X quits the program. Keep the window open or minimised, or
+   let the program start at login (**General** tab), and run it again to bring the window back.
 
 **Plex** (any system): sign in on the **Players** tab. Whatever you play with your Plex account then shows up, on any device.
 

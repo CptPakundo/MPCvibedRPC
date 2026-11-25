@@ -29,6 +29,19 @@ CI runs the rest (the race detector, the lint gates, macOS and Linux for real): 
 4. [docs/roadmap.md](docs/roadmap.md) before proposing a feature, a service or a distribution change (don't propose a
    listed non-goal without saying so), and [docs/decisions.md](docs/decisions.md) before changing listed behaviour.
 
+## Your first change
+Read the named sections, make the change, then run the tests named with it (and always `go vet ./...` and
+`go test -count=1 ./...`).
+- **A title or file-name parsing fix:** [Titles and covers](docs/how-it-works.md#titles-and-covers) and `core` in
+  [Packages](docs/development.md#packages-internal); run `go test ./internal/core` (the golden data must still pass).
+- **A window or UI fix:** [The window and the menu](docs/how-it-works.md#the-window-and-the-menu) and the
+  `internal/assets` rows in [Packages](docs/development.md#packages-internal); run `go test ./internal/assets ./cmd/mpcvibedrpc`
+  (`TestPageScriptParses` needs Node.js).
+- **A new player:** [A new player](docs/development.md#a-new-player) and
+  [How players are read](docs/development.md#how-players-are-read); run `go test ./internal/engine ./cmd/mpcvibedrpc`.
+- **A new setting:** [A new setting](docs/development.md#a-new-setting); run `go test ./internal/store ./cmd/mpcvibedrpc`
+  (`TestEverySettingIsDocumented` fails until `docs/config.md` has its row).
+
 ## Invariants: never break these
 - **Player order.** The first player that plays a video wins, then music, then paused, then the first that answers
   ([how it works](docs/how-it-works.md#players-in-detail); code order:
