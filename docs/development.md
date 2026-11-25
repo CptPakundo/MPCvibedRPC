@@ -444,6 +444,10 @@ run a copy or a real player without touching an installed setup: [Running the pr
 - `TestEveryHostIsListed` and `TestSecurityListsEveryHost` (`internal/core`): every outside address the code and the
   page name is in `core.Hosts` or `core.Sources`, and `SECURITY.md` names each.
 - `TestPageScriptParses` (`internal/assets`): `node --check` on `ui.js` (skips without Node.js).
+- `TestPageBehaviour` (`internal/assets`): runs `ui.js` in a small fake DOM with a stubbed `fetch`
+  (`testdata/page_test.js`): the saver, the status sync, Text lines and Fix a match; it also runs the shared text-lines
+  table (`internal/core/testdata/lines.json`, which `TestExpandFollowsTheSharedTable` runs through the program's own
+  code), so the page's sample and the card fill a line alike. Skips without Node.js.
 - `TestChangelog` (`cmd/mprp`): the newest changelog entry is the version in `main.go`.
 - `tools/relnotes`'s test: the release text renders from `internal/assets/changelog.json`.
 - `TestLinksResolve` (`tools/doclinks`): every relative link and `#anchor` in every Markdown file resolves (GitHub's
@@ -464,7 +468,8 @@ run a copy or a real player without touching an installed setup: [Running the pr
   folder under /tmp there (`sockDir`).
 - Run `go test -race` somewhere that supports it (Linux CI) after concurrency changes.
 - **Window script changes need the real page opened** ([how](#running-the-program-safely)): unit tests cover the
-  server side only, and `TestPageScriptParses` only catches a script that does not parse.
+  server side, `TestPageScriptParses` only catches a script that does not parse, and `TestPageBehaviour` checks a
+  few behaviours in a fake DOM, not the look.
 
 ## CI
 The workflows are in `.github/workflows/`. **CI is the only place macOS and Linux run for real**, so read those logs
