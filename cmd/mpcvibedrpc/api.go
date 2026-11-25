@@ -111,12 +111,13 @@ func (a *app) fullState() map[string]any {
 // status is what the window polls every second.
 type status struct {
 	engine.Status
-	HideTitle bool          `json:"hideTitle"` // the window follows a switch made from the tray or the menu bar
-	Update    *updater.Info `json:"update,omitempty"`
+	HideTitle   bool          `json:"hideTitle"`   // the window follows a switch made from the tray or the menu bar
+	StreamTitle string        `json:"streamTitle"` // and "Show the title on my streams" (auto, always or off)
+	Update      *updater.Info `json:"update,omitempty"`
 }
 
 func (a *app) statusNow() status {
-	return status{Status: a.eng.Status(), HideTitle: a.eng.Config().HideTitle, Update: a.upd.newer()}
+	return status{Status: a.eng.Status(), HideTitle: a.eng.Config().HideTitle, StreamTitle: a.eng.Config().StreamTitle, Update: a.upd.newer()}
 }
 
 // save stores what the window changed (one setting at a time) and hands it to the engine.

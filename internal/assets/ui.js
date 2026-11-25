@@ -583,6 +583,11 @@
       const box = document.querySelector('input[data-key="hideTitle"]');
       if (box) box.checked = s.hideTitle;
     }
+    if (typeof s.streamTitle === 'string' && model && !saving && model.values.streamTitle !== s.streamTitle) {
+      model.values.streamTitle = s.streamTitle; // switched from the tray or the menu bar
+      const sel = document.querySelector('select[data-key="streamTitle"]');
+      if (sel && [...sel.options].some((o) => o.value === s.streamTitle)) sel.value = s.streamTitle;
+    }
     // One line says whether the status is on; while it is, a second says how Discord and the player answer (a word as
     // well as a dot), and a third what plays when the preview does not already show it.
     running = !!s.running;
