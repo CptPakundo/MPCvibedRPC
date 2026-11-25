@@ -21,6 +21,7 @@ import (
 
 	"github.com/CptPakundo/MPRP/internal/capture"
 	"github.com/CptPakundo/MPRP/internal/conns"
+	"github.com/CptPakundo/MPRP/internal/core"
 	"github.com/CptPakundo/MPRP/internal/engine"
 	"github.com/CptPakundo/MPRP/internal/store"
 	"github.com/CptPakundo/MPRP/internal/updater"
@@ -123,7 +124,7 @@ func pingExisting(ipcFile string) *ipcInfo {
 		App string `json:"app"`
 		Pid int    `json:"pid"`
 	}
-	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&p) != nil || p.App != "MPRP" {
+	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&p) != nil || !isOurApp(p.App) {
 		return nil
 	}
 	// A file left by a copy that crashed can name a port that another copy (one with its own data folder) answers on
@@ -207,4 +208,35 @@ func setHideTitle(st *store.Store, eng *engine.Engine, log func(level, msg strin
 	} else {
 		log("INFO", "Hide what I'm watching turned off from the menu.")
 	}
+}
+
+// isOurApp says whether the app name a local server gave (/api/ping) is this program's, under its current name or
+// its former one: a copy of the former version that still runs is another copy of this program.
+func isOurApp(name string) bool { return name == core.Name || name == core.FormerName }
+
+// chooseDataDir picks the data folder at the start: dir, the folder of the program's name, unless only the former
+// name's folder (former; "" for a copy with a data folder of its own) is there. Then:
+//   - after an update (updating), the former version that started this copy watches ipc.json in that folder to see
+//     that this copy came up, so the folder is used where it is this time and moved at a later start;
+//   - when a copy that uses it still runs (ping finds it), that copy is given back (other), to be shown as for any
+//     second start, and nothing is moved;
+//   - otherwise it is moved (or copied) to dir, and note says so for the log.
+func chooseDataDir(dir, former string, updating bool, ping func(ipcFile string) *ipcInfo) (use string, other *ipcInfo, note string) {
+	if former == "" {
+		return dir, nil, ""
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return dir, nil, ""
+	}
+	if fi, err := os.Stat(former); err != nil || !fi.IsDir() {
+		return dir, nil, ""
+	}
+	if updating {
+		return former, nil, "The data folder " + former + " is used where it is during the update; a later start moves it to " + dir + "."
+	}
+	if o := ping(filepath.Join(former, "ipc.json")); o != nil {
+		return dir, o, ""
+	}
+	use, note = store.MoveFormerData(former, dir)
+	return use, nil, note
 }

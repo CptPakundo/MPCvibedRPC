@@ -58,3 +58,39 @@ func TestAutostartRegistryRoundTrip(t *testing.T) {
 		t.Error("still on after removing it")
 	}
 }
+
+// The migration from the former name against the real registry: opt-in like the test above, and only with the values
+// of a throwaway data folder (never the plain "MPRP" or former-name values).
+func TestAutostartMigrationRegistry(t *testing.T) {
+	if os.Getenv("MPRP_TEST_REGISTRY") != "1" {
+		t.Skip("set MPRP_TEST_REGISTRY=1 to write and remove Run values for a throwaway data folder")
+	}
+	t.Setenv("MPRP_HOME", t.TempDir())
+	from, to := formerRunName(), runName()
+	if to == runNameBase || !strings.Contains(from, "-") {
+		t.Fatal("the test must use value names of its own")
+	}
+	exe := `C:\Test\MPRP.exe`
+	r := systemRegistry
+	t.Cleanup(func() {
+		for _, n := range []string{from, to} {
+			r.deleteRun(n)
+			r.deleteApproved(n)
+		}
+	})
+	if !r.setRun(from, `"C:\Test\Old.exe" --background`) || !r.setApproved(from, []byte{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}) {
+		t.Fatal("could not write the former values")
+	}
+	if note := MigrateAutoStart(exe); !strings.Contains(note, "stays switched off") {
+		t.Errorf("note %q", note)
+	}
+	if _, ok := registryRunValue(from); ok {
+		t.Error("the former Run value is still there")
+	}
+	if data, ok := registryRunValue(to); !ok || data != runCommand(exe, os.Getenv("MPRP_HOME")) {
+		t.Errorf("new Run value %q (%v)", data, ok)
+	}
+	if !startupDisabled(approvedData(to)) || GetAutoStart(exe) {
+		t.Error("the start switched off in Task Manager came back on")
+	}
+}
