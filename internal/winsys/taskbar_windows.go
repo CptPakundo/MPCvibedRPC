@@ -2,6 +2,7 @@ package winsys
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -57,6 +58,17 @@ const (
 	// changed its icon and an event was missed
 	keepSettle      = 10 * time.Second
 	keepSettleEvery = 250 * time.Millisecond
+
+	// The keeping listens to the shell hook (every program's taskbar windows) only while it may have something to do:
+	// while a window is taken on, for keepAskFor after a window was asked for, and for keepLinger after the last
+	// window taken on went (a browser that replaces its window, or restarts itself, shows the new one within that).
+	keepAskFor = 2 * time.Minute
+	keepLinger = 30 * time.Second
+
+	// a window whose icon had to be set again more than keepFixesMax times within keepFixesPer is left alone: its
+	// browser puts its own back each time (or answers for it), and correcting it would never end
+	keepFixesMax = 20
+	keepFixesPer = 10 * time.Second
 
 	keepForgetAll = 4096 // more windows remembered than this: forget them all (they are looked up again)
 )
@@ -240,15 +252,17 @@ func iconEvent(event uint32, idObject, idChild int32) keepAction {
 }
 
 // keepWait says how long the keeping may wait for an event before it looks at all windows again: often in the first
-// seconds after a window was asked for (at asked; zero: none), less often until it appears, and for a while after a
-// window was taken on (until settleEnd); otherwise until an event comes (negative). overdue: the window asked for has
-// not appeared within nameWindowWarn.
-func keepWait(now, asked, settleEnd time.Time) (wait time.Duration, overdue bool) {
+// seconds after a window was asked for (at asked; zero: none), less often until it appears or nameWindowWarn has
+// passed, and for a while after a window was taken on (until settleEnd); otherwise until an event comes (negative).
+// overdue: the window asked for has not appeared within nameWindowWarn, and that was not reported yet (warned).
+func keepWait(now, asked, settleEnd time.Time, warned bool) (wait time.Duration, overdue bool) {
 	wait = -1
 	if !asked.IsZero() {
 		switch since := now.Sub(asked); {
 		case since >= nameWindowWarn:
-			return 0, true
+			if !warned {
+				return 0, true
+			}
 		case since < nameWindowFast:
 			wait = nameWindowFastEvery
 		default:
@@ -263,35 +277,89 @@ func keepWait(now, asked, settleEnd time.Time) (wait time.Duration, overdue bool
 	return wait, false
 }
 
+// keepIdle says whether the keeping has nothing to listen for now (named windows taken on, a window asked for at
+// asked, the last window taken on gone at gone; zero: none), else how long until it may have (negative: not by
+// itself, a window is taken on).
+func keepIdle(now time.Time, named int, asked, gone time.Time) (idle bool, until time.Duration) {
+	if named > 0 {
+		return false, -1
+	}
+	var end time.Time
+	if !asked.IsZero() {
+		end = asked.Add(keepAskFor)
+	}
+	if !gone.IsZero() && gone.Add(keepLinger).After(end) {
+		end = gone.Add(keepLinger)
+	}
+	if left := end.Sub(now); left > 0 {
+		return false, left
+	}
+	return true, 0
+}
+
+// fixCount counts the times a window's icon had to be set again.
+type fixCount struct {
+	since time.Time
+	n     int
+}
+
+// add counts one at now, and says whether there were more than keepFixesMax within keepFixesPer.
+func (c *fixCount) add(now time.Time) bool {
+	if now.Sub(c.since) > keepFixesPer {
+		c.since, c.n = now, 0
+	}
+	c.n++
+	return c.n > keepFixesMax
+}
+
+// iconState is what checkWindowIcons found.
+type iconState int
+
+const (
+	iconsUnknown iconState = iota // they could not be read (or the program's are not loaded)
+	iconsOurs                     // the window has the program's icons
+	iconsSet                      // it had others: the program's were set again
+)
+
 // iconKeeper gives the program's identity and icon to every taskbar window of a browser process that uses the
 // window profile, and keeps the icon on it. Its functions are Windows' (tests give fakes): visible and inspect read a
 // window, ours tells whether a process uses the profile, name gives a window the identity and icons (false: the
-// identity was refused), check sets the icons again where the window has others (true: it had the program's),
-// iconsLoaded tells whether the program's icons could be read, hook and unhook follow one process's WinEvents, end
-// stops the hook thread (once, through stop). Everything else belongs to the hook thread.
+// identity was refused), check sets the icons again where the window has others, iconsLoaded tells whether the
+// program's icons could be read, hook and unhook follow one process's WinEvents, listen and unlisten register and
+// deregister the shell hook, end stops the hook thread (once, through stop). armed and done may be read by others
+// (done is closed when the thread has ended); everything else belongs to the hook thread.
 type iconKeeper struct {
 	profile     string
 	tid         uintptr
 	self        uint32
+	hidden      uintptr // the hidden window that gets the shell hook's notifications
 	visible     func(hwnd uintptr) bool
 	inspect     func(hwnd uintptr) topWindow
 	ours        func(pid uint32) bool
 	name        func(hwnd uintptr) bool
-	check       func(hwnd uintptr) bool
+	check       func(hwnd uintptr) iconState
 	iconsLoaded func() bool
 	hook        func(pid uint32) []uintptr
 	unhook      func(hooks []uintptr)
+	listen      func() bool
+	unlisten    func()
 	log         func(level, msg string)
 	end         func()
 	once        sync.Once
+	armed       atomic.Bool // the shell hook is registered
+	done        chan struct{}
 
 	verdict   map[uintptr]bool     // taskbar windows looked up: whether their process uses the profile
 	named     map[uintptr]uint32   // the windows given the identity, and their process
 	hooks     map[uint32][]uintptr // the WinEvent hooks of the processes with a window taken on
 	asked     time.Time            // when a window was asked for that has not appeared yet (zero: none)
+	late      bool                 // that it has not appeared within nameWindowWarn was reported
+	gone      time.Time            // when the last window taken on went (zero: one is there, or none was)
 	settleEnd time.Time            // until when all windows are looked at now and then
-	confirmed bool                 // a window was seen with the program's icon (reported once)
-	warned    map[string]bool      // failures reported (once each)
+	fixes     map[uintptr]*fixCount
+	given     map[uintptr]bool // windows whose icon is no longer corrected (too many times)
+	confirmed bool             // a window was seen with the program's icon (reported once)
+	warned    map[string]bool  // failures reported (once each)
 }
 
 // event handles a WinEvent.
@@ -336,13 +404,41 @@ func (k *iconKeeper) consider(w topWindow) {
 		return
 	}
 	if _, done := k.named[w.Handle]; done {
-		if k.check(w.Handle) && !k.confirmed {
-			k.confirmed = true
-			k.log("INFO", "The settings window got the program's taskbar icon.")
-		}
+		k.keepIcon(w.Handle)
 		return
 	}
 	k.adopt(w)
+}
+
+// keepIcon checks the icons of a window taken on, and stops correcting them when that happened too often.
+func (k *iconKeeper) keepIcon(hwnd uintptr) {
+	if k.given[hwnd] {
+		return
+	}
+	switch k.check(hwnd) {
+	case iconsOurs:
+		if !k.confirmed {
+			k.confirmed = true
+			k.log("INFO", "The settings window got the program's taskbar icon.")
+		}
+	case iconsSet:
+		if k.fixes == nil {
+			k.fixes = map[uintptr]*fixCount{}
+		}
+		c := k.fixes[hwnd]
+		if c == nil {
+			c = &fixCount{}
+			k.fixes[hwnd] = c
+		}
+		if c.add(time.Now()) {
+			if k.given == nil {
+				k.given = map[uintptr]bool{}
+			}
+			k.given[hwnd] = true
+			k.warn("loop", fmt.Sprintf("The settings window keeps the browser's icon: the browser put it back more than %d times in %d s.",
+				keepFixesMax, int(keepFixesPer/time.Second)))
+		}
+	}
 }
 
 // adopt gives the window w the identity and icons, and follows its process's events.
@@ -363,7 +459,7 @@ func (k *iconKeeper) adopt(w topWindow) {
 	if _, ok := k.hooks[w.Pid]; !ok {
 		k.hooks[w.Pid] = k.hook(w.Pid)
 	}
-	k.asked = time.Time{}
+	k.asked, k.late, k.gone = time.Time{}, false, time.Time{}
 	k.settleEnd = time.Now().Add(keepSettle)
 }
 
@@ -375,6 +471,11 @@ func (k *iconKeeper) forget(hwnd uintptr) {
 		return
 	}
 	delete(k.named, hwnd)
+	delete(k.fixes, hwnd)
+	delete(k.given, hwnd)
+	if len(k.named) == 0 {
+		k.gone = time.Now()
+	}
 	for _, p := range k.named {
 		if p == pid {
 			return
@@ -393,13 +494,35 @@ func (k *iconKeeper) sweep(hwnds []uintptr) {
 	}
 }
 
-// windowAsked notes that a window was asked for (NameWindow).
-func (k *iconKeeper) windowAsked(now time.Time) { k.asked = now }
+// windowAsked notes that a window was asked for (NameWindow), and listens for it.
+func (k *iconKeeper) windowAsked(now time.Time) {
+	k.asked, k.late = now, false
+	k.setListening(true)
+}
 
-// overdue reports the window asked for that has not appeared.
+// overdue reports the window asked for that has not appeared (it is still taken on if it does, for a while).
 func (k *iconKeeper) overdue() {
-	k.asked = time.Time{}
-	k.log("WARN", "The settings window was not found within 30 s; it gets the program's taskbar icon if it appears later.")
+	k.late = true
+	k.log("WARN", "The settings window was not found within 30 s; it gets the program's taskbar icon if it appears in the next minutes.")
+}
+
+// setListening registers the shell hook, or deregisters it and drops what the keeping knew (with the hook off, the
+// handles of windows that go are not heard of, and may be given to others).
+func (k *iconKeeper) setListening(on bool) {
+	switch {
+	case on && !k.armed.Load():
+		if k.listen() {
+			k.armed.Store(true)
+		} else {
+			k.warn("hook", "The settings window's icon is only set while it opens: the shell hook could not be set up.")
+		}
+	case !on && k.armed.Load():
+		k.unlisten()
+		k.armed.Store(false)
+		k.unhookAll()
+		k.verdict, k.named, k.fixes, k.given = nil, nil, nil, nil
+		k.asked, k.late, k.gone, k.settleEnd = time.Time{}, false, time.Time{}, time.Time{}
+	}
 }
 
 // warn logs a failure once.
@@ -542,33 +665,44 @@ func keepWindowIcons(profileDir, exe string, log func(level, msg string), gen in
 		iconsLoaded: haveWindowIcons,
 		hook:        hookProcess,
 		unhook:      unhookProcess,
-		end:         func() { pPostThreadMessage.Call(tid, wmQuit, 0, 0) }}
+		end:         func() { pPostThreadMessage.Call(tid, wmQuit, 0, 0) },
+		done:        make(chan struct{})}
+	defer close(k.done)
+	if cls := shellWindowClass(); cls != nil && shellHookMessage() != 0 {
+		inst, _, _ := pGetModuleHandle.Call(0)
+		k.hidden, _, _ = pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(cls)), 0, wsPopup, 0, 0, 0, 0, 0, 0, inst, 0)
+	}
+	k.listen = func() bool {
+		r, _, _ := pRegisterShellHook.Call(k.hidden)
+		return k.hidden != 0 && r != 0
+	}
+	k.unlisten = func() { pDeregisterShellHook.Call(k.hidden) }
+	if k.hidden != 0 {
+		defer pDestroyWindow.Call(k.hidden)
+	}
 	if !startKeeper(k, gen) {
 		ready <- nil
 		return
 	}
 	defer endKeeper(k)
-	defer k.unhookAll()
-	shellHooked := false
-	if cls := shellWindowClass(); cls != nil && shellHookMessage() != 0 {
-		inst, _, _ := pGetModuleHandle.Call(0)
-		if w, _, _ := pCreateWindowEx.Call(0, uintptr(unsafe.Pointer(cls)), 0, wsPopup, 0, 0, 0, 0, 0, 0, inst, 0); w != 0 {
-			defer pDestroyWindow.Call(w)
-			if r, _, _ := pRegisterShellHook.Call(w); r != 0 {
-				shellHooked = true
-				defer pDeregisterShellHook.Call(w)
-			}
-		}
-	}
-	if !shellHooked {
-		k.warn("hook", "The settings window's icon is only set while it opens: the shell hook could not be set up.")
-	}
+	defer k.setListening(false)
 	ready <- k
 	for {
-		wait, overdue := keepWait(time.Now(), k.asked, k.settleEnd)
+		now := time.Now()
+		if k.armed.Load() {
+			if idle, _ := keepIdle(now, len(k.named), k.asked, k.gone); idle {
+				k.setListening(false) // no settings window, none coming: the program rests
+			}
+		}
+		wait, overdue := keepWait(now, k.asked, k.settleEnd, k.late)
 		if overdue {
 			k.overdue()
 			continue
+		}
+		if k.armed.Load() {
+			if _, until := keepIdle(now, len(k.named), k.asked, k.gone); until >= 0 && (wait < 0 || until < wait) {
+				wait = until
+			}
 		}
 		ms := uintptr(infinite)
 		if wait >= 0 {
@@ -580,7 +714,9 @@ func keepWindowIcons(profileDir, exe string, log func(level, msg string), gen in
 			log("INFO", "The settings window's icon is no longer looked after: waiting for events failed.")
 			return
 		case waitTimeout:
-			k.sweep(topWindowHandles())
+			if k.armed.Load() {
+				k.sweep(topWindowHandles())
+			}
 			continue
 		}
 		for {
@@ -724,27 +860,27 @@ func haveWindowIcons() bool {
 	return windowIcons[0] != 0 && windowIcons[1] != 0
 }
 
-// checkWindowIcons gives the window the icons loadWindowIcons made again where it has others, and reports whether it
-// had the program's already. (Setting them when it has them already would make the taskbar button redraw, which the
-// shell hook reports: it would never end.)
-func checkWindowIcons(hwnd uintptr) bool {
+// checkWindowIcons gives the window the icons loadWindowIcons made again where it has others, and says what it found.
+// (Setting them when it has them already would make the taskbar button redraw, which the shell hook reports: it would
+// never end.)
+func checkWindowIcons(hwnd uintptr) iconState {
 	windowIconMu.Lock()
 	want := windowIcons
 	windowIconMu.Unlock()
-	ok := true
+	state := iconsOurs
 	for i, icon := range want {
 		var has uintptr
 		r, _, _ := pSendMessageTimeout.Call(hwnd, wmGetIcon, uintptr(i), 0, smtoAbortIfHung, 200, uintptr(unsafe.Pointer(&has)))
 		if icon == 0 || r == 0 {
-			ok = false
+			state = iconsUnknown
 			continue
 		}
 		if has != icon {
 			applyWindowIcons(hwnd)
-			return false
+			return iconsSet
 		}
 	}
-	return ok
+	return state
 }
 
 // applyWindowIcons gives the window the icons loadWindowIcons made.
