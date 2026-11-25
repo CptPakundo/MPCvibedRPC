@@ -51,25 +51,29 @@ version and the maintainer's go-ahead.
       would merge at once.
    2. **Merge:** `gh pr merge <n> --rebase --delete-branch`. GitHub may refuse to rebase a branch that holds merge
       commits (seen once with merged helper branches): use `--merge` then, or rebase the branch locally first.
-   3. **Tag** the merged commit with an annotated tag and push it. An annotated tag stores the tagger's name and email,
+   3. **Rename the repository first if the name changed** (repository settings; the maintainer's go-ahead). The code
+      names the repository it updates from (`DefaultUpdateRepo` in `internal/store/store.go`, and the player logos'
+      address), and the release workflow's first step fails unless the repository already has that name.
+   4. **Tag** the merged commit with an annotated tag and push it. An annotated tag stores the tagger's name and email,
       so tag with the same neutral identity used for commits, never a personal email:
       `git -c user.name="<name>" -c user.email="<noreply address>" tag -a vX.Y.Z -m "MPRP X.Y.Z"`, then
       `git push origin vX.Y.Z`.
-   4. **The release workflow** (`.github/workflows/release.yml`) checks the tag against `main.go`, runs the tests,
-      builds the programs on Windows, Linux and macOS runners and smoke-tests each on its own system (Windows: tray,
+   5. **The release workflow** (`.github/workflows/release.yml`) checks the repository's name and the tag against
+      `main.go`, runs the tests, builds the programs on Windows, Linux and macOS runners and smoke-tests each on its
+      own system (Windows: tray,
       Discord pipe, resting while Discord is closed, DPI awareness, version details, autostart, a self-update against a
       fake server; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app
       like the Finder does). It writes the `.sha256` files, adds a byte-identical copy of each program file under the
       former name for copies installed before the rename (`tools/ci/former-names.txt`, which says when they go),
       attests the builds and publishes a **draft**.
-   5. **`reproduce`** rebuilds the exe and both Linux programs from the tag on another runner at the same time
+   6. **`reproduce`** rebuilds the exe and both Linux programs from the tag on another runner at the same time
       (`tools/ci/reproduce.sh`); only `verify` waits for it.
-   6. **`verify`** checks that the rebuilt files' checksums equal the release's (byte for byte), then runs
+   7. **`verify`** checks that the rebuilt files' checksums equal the release's (byte for byte), then runs
       `tools/ci/verify-release.ps1` on the draft: the eighteen assets (the copies under the former name the same files
       byte for byte), every checksum and build record, the exe's version. Only if these pass is the release made
       public (and latest). Then come the checks that need it public: that it is the latest release, and a real
       self-update from the previous release.
-   7. **A draft that fails** stays a draft (nobody's updater sees it): fix, then delete the draft and the tag, or
+   8. **A draft that fails** stays a draft (nobody's updater sees it): fix, then delete the draft and the tag, or
       publish it by hand once checked.
 4. **Read the `verify` job's log** (`gh run view --log`) and report. Nothing needs re-running locally after a release.
 5. **Repository details.** A release with new features also updates the repository description and topics
