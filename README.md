@@ -40,7 +40,7 @@ A tiny app for MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer, IINA, Kodi, Plex, St
 - 🔗 **Clickable**: both text lines and the cover open the title's page (IMDb, AniList, ...), next to up to two "View on ..." buttons, and the player's logo opens its site. Or "View on Letterboxd", if you switch that on. **Hide what I'm watching** is also in the tray / menu bar menu.
 - 📡 **On your streams**: while you share your screen, Discord says "Streaming Sample Show" instead of showing a stream without a name (Windows; elsewhere it is a switch).
 - 🔒 **Private by design**: hide titles or whole folders, choose which services may see a title, or stay fully offline. No tracking.
-- 🪶 **Tiny and tidy**: one file of under 10 MB, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it rests and asks no player at all.
+- 🪶 **Tiny and tidy**: one file of under 10 MB, nothing to install, updates itself on Windows and Linux (on macOS it links to the new download). While Discord is closed it waits quietly and asks no player at all.
 
 ## 🚀 Getting started
 
@@ -84,7 +84,7 @@ name and password; enter the password (and the address, for a Kodi on another de
 | VLC | ✓ | ✓ | ✓ | one click on Windows and macOS (its web interface); none on Linux |
 | IINA | | ✓ | | one click, then reopen IINA |
 | PotPlayer | ✓ | | | none |
-| Kodi | ✓ | ✓ | ✓ | its web server on, then its address, user name and password under Advanced |
+| Kodi | ✓ | ✓ | ✓ | its web server on, then its address, user name and password on the Players tab |
 | Celluloid, Haruna, SMPlayer, GNOME Videos, Clapper and more | | | ✓ | none |
 | Plex (TV, phone, Plex Web, desktop app) | ✓ | ✓ | ✓ | sign in on the Players tab |
 | Stremio (desktop app, Stremio Web, TV, phone) | ✓ | ✓ | ✓ | sign in on the Players tab |
@@ -103,7 +103,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 - **Hide what I'm watching** shows just "Watching a video". **Never show these files** hides folders, names or a whole Plex library completely.
 - Music played in a video player shows as "Listening to" and is never looked up in the movie and TV catalogs.
 - Your status clears itself after a long pause (30 minutes, adjustable).
-- **Your stats** (General tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
+- **Your stats** (Help tab) count videos and watch time on your computer only. Nothing is ever sent anywhere: no
   analytics, no tracking. The download count above is GitHub's public count of release downloads.
 - With Plex, the program talks to plex.tv and your Plex server only while you're signed in, and only reads. The same
   goes for Stremio and Stremio's servers, and for Jellyfin / Emby and your own server.
@@ -115,7 +115,7 @@ after you confirm. Exactly what each player needs, and how it is read, is in
 **Nothing shows on Discord?** Check these first:
 
 1. The Discord desktop app (not the browser) is running.
-2. *User Settings > Activity Privacy > "Share my activity"* is turned on (under *Games & Apps*, or *Activity Settings* in older Discord versions).
+2. "Share my activity" is turned on in Discord (where: see [Getting started](#-getting-started)).
 3. Discord runs normally, not as administrator.
 4. The status line at the top of the window says what is missing, for example "No player found".
 
@@ -132,6 +132,6 @@ More problems, by player and service, plus updates and uninstalling: [Troublesho
 - [Security](SECURITY.md): every address the program connects to, how to verify a download, and how to report a
   security problem.
 - [Contributing](CONTRIBUTING.md): bug reports, building and testing.
-- [Development](docs/development.md): building, testing, CI and how the code is laid out; [Maintaining](docs/maintaining.md): releasing and running it safely.
+- [Development](docs/development.md): building, running it safely, testing, CI and how the code is laid out; [Maintaining](docs/maintaining.md): releasing.
 - [Roadmap](docs/roadmap.md): where the program is heading, and what it leaves out on purpose.
 - [Decisions](docs/decisions.md): why the program behaves the way it does.

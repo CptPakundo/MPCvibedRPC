@@ -1,10 +1,12 @@
 # Security
 
-This program has not been audited, so please treat it accordingly. It runs on your own
-computer, talks to Discord and the player (MPC-HC, MPC-BE, MPC-QT, mpv, VLC, PotPlayer or IINA, or on Linux a video player
-over D-Bus) locally, and to Kodi at the address you enter once you set its password (this computer by default): its
-web server, and port 9090 there for its notifications.
-Every other address it reaches is in the list below; a test fails when the code names one that is not. The
+This program has not had a security audit, so please treat it accordingly.
+
+It runs on your own computer. There it talks to Discord and to your player: MPC-HC, MPC-BE, MPC-QT, mpv, VLC,
+PotPlayer or IINA, or on Linux a video player over D-Bus. Once you set Kodi's password, it also talks to Kodi at the
+address you enter (this computer by default): its web server, and port 9090 there for its notifications.
+
+Every other address it reaches is in the list below, and a test fails when the code names one that is not. The
 **Privacy** tab's **Recent connections** shows which of them it actually asked since it started, how often and when.
 
 ## Where it connects
@@ -42,17 +44,20 @@ entered (Players tab): to sign in, to read its session list and to sign out.
 the image host the catalog named for it (`image.tmdb.org` for TMDB), and the player's logo from this repository on
 `raw.githubusercontent.com`.
 
-**Only linked**, opened in your browser or shown as a button on your status: `app.plex.tv` (approving the Plex
-sign-in), `stremio.com` (entering the Stremio link code), and the title's page on `www.imdb.com`,
-`www.themoviedb.org`, `www.tvmaze.com`, `kitsu.io` or the catalog that found it (and `letterboxd.com` with Link to Letterboxd), and the
-player's own site from its logo on your status: `github.com` (the MPC players), `mpv.io`, `www.videolan.org`,
-`iina.io`, `kodi.tv`, `www.smplayer.info`, `www.plex.tv`, `www.stremio.com`, `jellyfin.org` or `emby.media`.
+**Only linked**, opened in your browser or shown as a button on your status:
+
+| What | Addresses |
+|---|---|
+| Approving a sign-in | `app.plex.tv` (Plex), `stremio.com` (the Stremio link code) |
+| The title's page | `www.imdb.com`, `www.themoviedb.org`, `www.tvmaze.com`, `kitsu.io` or the catalog that found it; `letterboxd.com` with Link to Letterboxd |
+| The player's site, from its logo on your status | `github.com` (the MPC players), `mpv.io`, `www.videolan.org`, `iina.io`, `kodi.tv`, `www.smplayer.info`, `www.plex.tv`, `www.stremio.com`, `jellyfin.org`, `emby.media` |
 
 ## What is kept, and what to know
-The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json` as plain text; a password you type goes to your
-own server once and is never stored. The Plex sign-in goes only to plex.tv and to a server that has first shown, without
-it, that it is the chosen server; a server shared with you gets the key plex.tv made for it, never your account's.
-Kodi's password is kept in `config.json` as plain text too, as VLC's is.
+The Plex, Stremio, Jellyfin and Emby sign-ins are kept in `config.json` as plain text. A password you type goes to
+your own server once and is never stored. Kodi's password is kept in `config.json` as plain text too, as VLC's is.
+
+Your Plex sign-in goes only to plex.tv and to a server that has first shown, without it, that it is the server you
+chose. A server shared with you gets the key plex.tv made for it, never your account's.
 
 The cover cache (`artwork-cache.json`) holds the looked-up answers for the titles played in the last 90 days, at most
 2000; **Clear cover cache** (Privacy tab) empties it.

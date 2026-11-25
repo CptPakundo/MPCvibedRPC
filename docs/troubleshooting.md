@@ -1,7 +1,7 @@
 # Troubleshooting
 
-Problems and questions, by player and service. The [README](../README.md) has the first checks, and every setting is
-listed in [All settings](config.md). **Help > Run a check** tells you in a few lines what works and what does not
+Problems and questions, by player and service. The [README](../README.md#-help) has the first checks, and every setting
+is listed in [All settings](config.md). **Help > Run a check** tells you in a few lines what works and what does not
 (Discord, your players, the cover catalogs and updates); it never shows a title.
 
 ## Nothing shows on Discord
@@ -10,28 +10,28 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
   connection**. mpv and IINA read their settings when they start, so restart them afterwards.
 - IINA isn't found: after setting it up, quit IINA completely (IINA > Quit IINA) and open it again.
 - MPC-QT needs no setup (it is read through its own connection); MPC-BE is set up like MPC-HC, with the same button.
-- macOS 15 or later: a Plex, Jellyfin, Emby or Kodi server on your home network can't be reached until you allow
-  it. Answer **Allow** when macOS asks, or turn MPCvibedRPC on under System Settings > Privacy & Security > Local
-  Network.
-- "Discord on standby" is normal until something plays. If it stays on "Waiting for Discord" while a video plays, use
-  the Discord desktop app (not the browser) and check that "Share my activity" is on (User Settings > Activity Privacy, in the Games & Apps section; Activity
-  Settings in older Discord versions).
-- "Discord refused the connection": Discord runs as administrator and this program doesn't, so Windows keeps them apart.
-  Close Discord and start it normally (not with "Run as administrator", and without that setting in its shortcut).
+- macOS 15 or later: a Plex, Jellyfin, Emby or Kodi server on your home network can't be reached until you allow it.
+  Answer **Allow** when macOS asks, or turn MPCvibedRPC on under System Settings > Privacy & Security > Local Network.
+- "Discord on standby" is normal: showing is on, and the program contacts Discord only once something plays. If it
+  stays on "Waiting for Discord" while a video plays, use the Discord desktop app (not the browser) and check that
+  "Share my activity" is on ([where](../README.md#-getting-started)).
+- "Discord refused the connection": Discord runs as administrator and this program doesn't, so Windows keeps them
+  apart. Close Discord and start it normally (not with "Run as administrator", and without that setting in its
+  shortcut).
 - More than one Discord (Stable, PTB, Canary) open: the status goes to the one that started first, which may be signed
   in to another account. Close the ones you don't use.
 - You can't click your own "View on ..." button or links on your profile; that's how Discord works. Others can.
-- "Watching Media Player Classic" instead of the title: turn on **Look > Show the title as the activity name**. The name
-  after "Watching" is the Discord application's name unless that switch puts the title there.
+- "Watching Media Player Classic" instead of the title: turn on **Look > Show the title as the activity name**. The
+  name after "Watching" is the Discord application's name unless that switch puts the title there.
 - mpv-based players (mpv.net, for example) can be read like mpv when they open the same connection: add
-  `input-ipc-server=mpvsocket` to that player's own `mpv.conf` (not tested with each of them). Players that drive MPC-HC,
-  mpv or VLC, such as Syncplay, work as those players do. Streaming websites in a browser are not read.
+  `input-ipc-server=mpvsocket` to that player's own `mpv.conf` (not tested with each of them). Players that drive
+  MPC-HC, mpv or VLC, such as Syncplay, work as those players do. Streaming websites in a browser are not read.
 - VLC: the window says when VLC refuses the password, or another program uses its port (8080). Change the port in VLC
-  and in **Advanced > VLC web interface port**.
+  and in **Players > VLC web interface port**.
 - Linux: a player that isn't found probably doesn't offer MPRIS, or isn't on the list yet (music players and browsers
   are left out on purpose). Please report it.
-- Music (a song in a video player: `.mp3`, `.flac` and the like) shows as "Listening to" with the file's name; it is not
-  looked up in the catalogs, so it gets no cover.
+- Music (a song in a video player: `.mp3`, `.flac` and the like) shows as "Listening to" with the file's name; it is
+  not looked up in the catalogs, so it gets no cover.
 
 ## PotPlayer and Kodi
 
@@ -39,14 +39,15 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
   PotPlayer that doesn't send the file's path is named from its window title instead, so the Never show list can only
   match the file name there, not its folder.
 - Kodi: turn on *Settings > Services > Control > Allow remote control via HTTP* in Kodi, with a user name and password,
-  and enter the same under the **Players** tab (the address too, for a Kodi on another device). The window says when
-  Kodi refuses the password, or when something else answers at the address. Kodi's web server uses port 8080, like
-  VLC's: if both run, change one of them. On Linux, Kodi is also found through MPRIS without any of this. A pause in
-  Kodi shows at once when Kodi's *Allow remote control from applications on this system* is on (the default; *on
-  other systems* for a Kodi on another device): its notifications come on port 9090. Without it, the pause shows at
-  the next check, within 5 seconds.
-- Both are tested with the real players on GitHub's Windows test machines (a fresh install, a test video playing),
-  not yet on a real desktop. Kodi on macOS, on Linux and on another device was only tried against a stand-in.
+  and enter the same on the **Players** tab (the address too, for a Kodi on another device). The window says when Kodi
+  refuses the password, or when something else answers at the address.
+- Kodi's web server uses port 8080, like VLC's: if both run, change one of them.
+- On Linux, Kodi is also found through MPRIS without any of this.
+- A pause in Kodi shows at once when Kodi's *Allow remote control from applications on this system* is on (the
+  default; *on other systems* for a Kodi on another device): its notifications come on port 9090. Without it, the
+  pause shows at the next check, within 5 seconds.
+- Both are tested with the real players on GitHub's Windows test machines (a fresh install, a test video playing), not
+  yet on a real desktop. Kodi on macOS, on Linux and on another device was only tried against a stand-in.
 
 ## Plex
 
@@ -69,7 +70,8 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
   the status goes after about four minutes.
 - Only videos with a catalog entry are in the library; local files and add-ons without one aren't shown.
 - Newer Stremio apps can show a Discord status of their own. Turn that off in Stremio's settings, or you may see two.
-- Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are welcome.
+- Tried against a stand-in for Stremio's servers only. A real Stremio account hasn't been tried yet; reports are
+  welcome.
 
 ## Jellyfin and Emby
 
@@ -85,10 +87,12 @@ listed in [All settings](config.md). **Help > Run a check** tells you in a few l
 
 ## The status stays after I stop watching
 
-The status is taken down at the next check after the player stops or stays paused at the very end of the file (a
-player that was closed, or does not answer, is asked once more a second later first), and while nothing plays it is cleared again once a minute, so a clear Discord missed (it was busy, or answered
-too late) cannot linger. Quitting the program always takes it down too: Discord drops a program's status when it
-disconnects. If one stays anyway:
+The status goes at the next check after the player stops, or stays paused at the very end of the file. A player that
+was closed, or does not answer, is asked once more a second later first. While nothing plays, the status is cleared
+again once a minute, so a clear that Discord missed cannot linger. Quitting the program always takes it down too:
+Discord drops a program's status when it disconnects.
+
+If one stays anyway:
 - **Another player still answers.** The program shows the first player that plays, else the first that is paused. A
   second player left paused on a file keeps showing as paused (until **Clear my status when paused for N minutes**).
   The window's status card names the player.
@@ -98,36 +102,32 @@ disconnects. If one stays anyway:
 
 ## My stream doesn't say what I watch
 
-When you share your screen, Discord names the stream after your **Playing** status and after no other kind. So while
-Discord shares your screen the program sends "Playing Sample Show" instead of "Watching Sample Show", and viewers see
-"Streaming Sample Show". If they do not:
-- **Look > Show the title on my streams** must be *While Discord shares my screen* or *Always* (it also has a tick
-  in the tray menu).
+While Discord shares your screen, the program sends "Playing Sample Show" so that viewers see "Streaming Sample Show"
+([why and how](how-it-works.md#on-your-streams)). If they do not:
+- **Look > Show the title on my streams** must be *While Discord shares my screen* or *Always* (it also has a tick in
+  the tray menu).
 - **Help > Run a check** says in its Streams line whether the program can tell here, and whether Discord is sharing
-  now. It tells that from the Discord app's own threads, which Windows lists by name. If the line says Discord is
-  not sharing while it is, a new Discord version may name them differently: choose *Always* until the program is
-  updated, and please report it. On macOS and Linux the program cannot tell, so the choice there is *Always* or
-  *Never*.
-- The change takes a few seconds after the stream starts: Discord's own preview pictures in the share dialog count
-  as captures too, so the program waits three seconds before it believes one.
-- If a game or an emulator is running as well, Discord may name the stream after it instead. Discord does not say
-  which Playing status wins when there are two (nothing public says, and the program cannot choose): once a stream
-  was named after an emulator's status about four minutes older than this program's. Closing the other program, or
-  starting the video first and the other program after, is the only thing that can help.
+  now. If it says Discord is not sharing while it is, a new Discord version may name its threads differently: choose
+  *Always* until the program is updated, and please report it. On macOS and Linux the program cannot tell, so the
+  choice there is *Always* or *Never*.
+- The change takes a few seconds after the stream starts: Discord's own preview pictures in the share dialog count as
+  captures too, so the program waits three seconds before it believes one.
+- **A game or an emulator is running too:** Discord may name the stream after its Playing status instead, and nothing
+  the program can set changes that. Close the other program, or start the video first and the other program after.
 
 ## The window doesn't open
 
 Run the program again, or right-click its tray icon > Open settings. On macOS, click the menu bar icon > Open settings
-or open the app again; on Linux, run the program again. Closing the window with its X quits the program (macOS: it stays in the menu bar); minimizing it on Windows sends it to the tray.
+or open the app again; on Linux, run the program again. Closing the window with its X quits the program (macOS: it
+stays in the menu bar); minimizing it on Windows sends it to the tray.
 
 ## Wrong title or no cover
 
-The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) shows each title next to the file name it was
-read from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each
-catalog returned. Under
-**Titles & art > Fix a match** you can search under another name or pin your own cover image. A free TMDB key
-(**Titles & art > More**) improves some matches. A show found only by TVmaze can take about a minute to get its cover
-the first time: TVmaze answers a search slowly until it has it cached.
+The log (**Help** tab, or `mpcvibedrpc.log` in the settings folder) shows each title next to the file name it was read
+from, for example `Playing: Sample Show · S01E02 (MPC-HC: "Sample.Show.S01E02.1080p.mkv")`, and lists what each catalog
+returned. Under **Titles & art > Fix a match** you can search under another name or pin your own cover image. A free
+TMDB key (**Titles & art > More**) improves some matches. A show found only by TVmaze can take about a minute to get its
+cover the first time: TVmaze answers a search slowly until it has it cached.
 
 ## Where are my settings? How do I remove it?
 
@@ -147,29 +147,30 @@ To uninstall:
 
 ## Updates
 
-The program checks for new versions as it starts and every six hours while it runs (switch it off under
-**General > Updates**). When it finds one while the settings window is open, the window asks at once: what is new,
-**Update now** or **Not now**. It asks once for each version; after **Not now** a line at the top of the window keeps
-saying so, and its **See what's new** button brings the question back. While
-an update waits, the tray icon (macOS: the menu bar icon) shows a red dot. On Windows and Linux it installs the update
-by itself as soon as nothing is playing and the settings window is closed, restarts in the tray and says so once
-(**Install updates automatically**, on by default); **Update now** in the window does it at once. Every update is checked
-against its checksum. The copy that installed it waits until the new version has come up; if it has not within half
-a minute, the old version is put back and started again, a notice says so, and that version is not installed by
-itself a second time (a newer one is). On macOS the window links to
-the download. After
-an update the window shows what's new once; the version number at the top of the window shows every version.
+- **When it checks:** as the program starts, and every six hours while it runs. Switch it off under
+  **General > Updates**.
+- **With the window open:** the window asks at once, with what is new: **Update now** or **Not now**. It asks once for
+  each version; after **Not now** a line at the top of the window keeps saying so, and its **See what's new** button
+  brings the question back.
+- **Automatic install** (Windows and Linux; **Install updates automatically**, on by default): the update installs
+  itself as soon as nothing is playing and the window is closed, restarts in the tray and says so once. Until then the
+  tray icon (macOS: the menu bar icon) shows a red dot. **Update now** in the window does it at once.
+- **Safety:** every update is checked against its checksum. The copy that installed it waits until the new version has
+  come up; if it has not within half a minute, the old version is put back and started again, and a notice says so.
+  That version is not installed by itself a second time (a newer one is).
+- **macOS:** the window links to the download.
+- After an update the window shows what's new once; the version number at the top of the window shows every version.
 
 ## Is the download safe?
 
 The program isn't code-signed, so Windows may say "Windows protected your PC" the first time (More info > Run anyway),
-and an antivirus program may flag a new version for a while. Check the file as below before you allow it.
-
-Each release file has a `.sha256` checksum and a signed build record. How to check them: [SECURITY.md](../SECURITY.md#checking-a-download).
+and an antivirus program may flag a new version for a while. Check the file before you allow it: each release file has
+a `.sha256` checksum and a signed build record, and [SECURITY.md](../SECURITY.md#checking-a-download) says how to check
+them.
 
 ## Reporting a problem
 
-On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the current title was
-found (the file name, what was read from it, which catalog matched) and the recent log. It names
-the titles and file names you played (that is how a wrong title is traced); folder paths, sign-ins and keys are left
-out. Paste it into a [new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
+On the **Help** tab, **Copy diagnostics** copies the version, the settings you changed, how the current title was found
+(the file name, what was read from it, which catalog matched) and the recent log. It names the titles and file names you
+played (that is how a wrong title is traced); folder paths, sign-ins and keys are left out. Paste it into a
+[new issue](https://github.com/CptPakundo/MPCvibedRPC/issues/new/choose).
