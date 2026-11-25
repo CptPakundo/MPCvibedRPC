@@ -54,13 +54,14 @@ done. (Work in progress is a branch and pull request: [CONTRIBUTING](../CONTRIBU
     Custom, including a film's cover text. *Where:* `internal/core` (`lines.go`, `BuildActivity`), the store schema
     (`textLines`, `customLines`), `internal/assets` (Look tab), the docs. Done when Standard reproduces the recorded
     golden data byte for byte, Custom lines show on the card, and the tests the design names pass.
-12. **A notice after an automatic update** (settled 2026-11-25; part of version 0.9.60). After an update has installed
-    itself, one native notification, "Updated to <version>. Click to see what's new", once per update, on Windows first,
-    **on by default** (a deliberate change for existing users, decided by the maintainer). *Where:*
-    `cmd/mpcvibedrpc/app.go` (a tray notice `Tray.Balloon` for `autoFrom` is already there, and `update.go` shows one for
-    a found update) and `internal/winsys`. Check first what that notice does today and make it once per update, with a
-    setting to turn it off, and the changelog says it. Later: macOS (the menu bar app has no notifications) and Linux
-    (D-Bus desktop notifications). Done when an automatic update shows the notice once and a test covers the "once".
+12. **The update notices on Linux and macOS** (settled 2026-11-25; part of version 0.9.60). Windows already shows three
+    native notifications through the tray (`Tray.Balloon`): "updated to <version>" once after an automatic update
+    (`cmd/mpcvibedrpc/app.go`, `autoFrom`), "could not update to ..." after a rollback, and "<version> is available"
+    when automatic installs are off (`update.go`). Linux and macOS show none (`Balloon` returns false in
+    `internal/winsys/tray_other.go` and `macapp_darwin.go`). Bring the same three there: Linux through the desktop
+    notification service over D-Bus (`org.freedesktop.Notifications`, with `internal/dbus`), macOS through the menu bar
+    app (cgo; tested on CI only). A click opens the settings window as on Windows. Done when each system shows the
+    three notices, tests cover the D-Bus message against a fake bus, and the docs and changelog say so.
 13. **Sign-ins encrypted on Windows** (settled 2026-11-25; part of version 0.9.60). Encrypt the secrets in `config.json`
     with the per-user Windows DPAPI (`CryptProtectData` / `CryptUnprotectData` through `syscall`, standard library only):
     `plexToken`, `plexKey`, `stremioKey` and `jellyfinToken` (the sign-ins), and, to decide while building, the secrets

@@ -56,9 +56,9 @@ roadmap; open questions are its [Open decisions](roadmap.md#open-decisions-the-m
   Standard, Short, Detailed and Custom; `[ ]` sections and dropped separators for missing values; today's marks on
   values. An episode's cover text stays fixed because it makes Discord's S1E2 badge. *Why:* most people want another
   look, not a language, and Standard stays today's code.
-- **A notice after an automatic update is on by default** (2026-11-25, Windows first). "Updated to <version>. Click to
-  see what's new", once per update. *Why:* an update that installs itself should say so. This is a deliberate change for
-  existing users.
+- **Update notices on every system** (2026-11-25). The notices Windows shows (an update installed itself, an update
+  failed and was rolled back, an update is available) come to Linux and macOS too, on as on Windows. *Why:* an update
+  that installs itself should say so on every system, not only on Windows.
 - **A status cleared after a long pause comes back only through the player** (resume, seek, another file), not when
   Discord restarts, a setting changes or a cover arrives late. *Why:* the user left it cleared; Discord restarts for every update of
   its own.
