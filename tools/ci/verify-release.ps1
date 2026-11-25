@@ -1,5 +1,6 @@
 # Checks a release the way a user gets it, in two stages (release.yml runs both, making the release public between them).
-#   -Stage draft:  the ten files, each program's checksum and build record, the exe's version details.
+#   -Stage draft:  the eighteen files (the program files also under the former name), each program's checksum and
+#                  build record, the exe's version details.
 #   -Stage public: that it is the latest release, and a real self-update from the release before it (in a data folder
 #                  of its own, with no window and presence off); this needs the release to be public.
 param([Parameter(Mandatory)][string]$Version, [ValidateSet('draft', 'public')][string]$Stage = 'public')
@@ -13,7 +14,7 @@ function Check([bool]$ok, [string]$what) {
   if ($ok) { Write-Host "PASS  $what" } else { Write-Host "FAIL  $what"; [void]$failures.Add($what) }
 }
 # only the copies started from this check's folder (an installed program is never touched)
-function Ours { Get-Process -Name 'MPRP' -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($work) } }
+function Ours { Get-Process -Name $procNames -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($work) } }
 function WaitFor([scriptblock]$cond, [int]$seconds, [string]$what) {
   $end = (Get-Date).AddSeconds($seconds)
   while ((Get-Date) -lt $end) { try { if (& $cond) { return $true } } catch {}; Start-Sleep -Milliseconds 500 }
@@ -21,6 +22,16 @@ function WaitFor([scriptblock]$cond, [int]$seconds, [string]$what) {
 }
 
 $programs = 'MPRP.exe', 'MPRP-linux-amd64', 'MPRP-linux-arm64', 'MPRP-macos.zip'
+# the program's former name (tools/ci/former-names.txt): each program file is published under it too, and the release
+# before this one may still read the former environment variables
+$formerFile = @{}; $formerEnv = @{}
+foreach ($line in Get-Content (Join-Path $PSScriptRoot 'former-names.txt')) {
+  $w = $line.Trim() -split '\s+'
+  if ($w[0] -eq 'file') { $formerFile[$w[1]] = $w[2] } elseif ($w[0] -eq 'env') { $formerEnv[$w[1]] = $w[2] }
+}
+$formerPrograms = @($programs | Where-Object { $formerFile.ContainsKey($_) } | ForEach-Object { $formerFile[$_] })
+# the process names of the copies this check starts (a copy updated from the former version keeps its file name)
+$procNames = @('MPRP') + @($formerFile.Values | Where-Object { $_ -like '*.exe' } | ForEach-Object { $_ -replace '\.exe$', '' })
 $rel = Join-Path $work 'release'
 # every download of a release file is recorded in the download ledger, so the download counter leaves it out
 $ledger = Join-Path $PSScriptRoot 'dev-download.sh'
@@ -30,10 +41,17 @@ function Fetch([string]$t, [string]$dir, [string]$pattern) {
 try {
   Fetch $tag $rel ''
   if ($Stage -eq 'draft') {
-    $want = @($programs + ($programs | ForEach-Object { "$_.sha256" }) + 'LICENSE', 'THIRD-PARTY-NOTICES.md') | Sort-Object
+    $all = @($programs + $formerPrograms)
+    $want = @($all + ($all | ForEach-Object { "$_.sha256" }) + 'LICENSE', 'THIRD-PARTY-NOTICES.md') | Sort-Object
     $got = @(Get-ChildItem $rel | ForEach-Object Name) | Sort-Object
     Check (($want -join ',') -eq ($got -join ',')) "the release has its $($want.Count) files ($($got -join ', '))"
+    # the copies under the former names are the program files byte for byte (so the rebuild comparison covers them)
     foreach ($f in $programs) {
+      if (-not $formerFile.ContainsKey($f)) { continue }
+      $same = (Get-FileHash (Join-Path $rel $f)).Hash -eq (Get-FileHash (Join-Path $rel $formerFile[$f])).Hash
+      Check $same "$($formerFile[$f]) is the same file as $f"
+    }
+    foreach ($f in $all) {
       $path = Join-Path $rel $f
       $line = (Get-Content "$path.sha256" -Raw).Trim()
       $hash = (Get-FileHash $path -Algorithm SHA256).Hash.ToLower()
@@ -51,12 +69,21 @@ try {
     $prev = gh release list --repo $repo --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' | Where-Object { $_ -ne $tag } | Select-Object -First 1
     Write-Host "previous release: $prev"
     $dir = Join-Path $work 'update'
-    Fetch $prev $dir 'MPRP.exe'
-    $app = Join-Path $dir 'MPRP.exe'
+    # the previous release may still be one of the former name: its exe then has the former file name, and it fetches
+    # this release's copy under that name when it updates itself
+    $exeName = 'MPRP.exe'
+    $prevFiles = @(gh release view $prev --repo $repo --json assets --jq '.assets[].name')
+    if ($prevFiles -notcontains $exeName -and $formerFile.ContainsKey($exeName)) { $exeName = $formerFile[$exeName] }
+    Write-Host "previous release's exe: $exeName"
+    Fetch $prev $dir $exeName
+    $app = Join-Path $dir $exeName
     $home_ = Join-Path $work 'home'; New-Item -ItemType Directory -Path $home_ | Out-Null
     Set-Content (Join-Path $home_ 'config.json') '{"app":{"openWindow":false,"startPresence":false,"checkUpdates":false,"welcomeSeen":true}}'
-    $env:MPRP_HOME = $home_
-    $env:MPRP_BROWSER = 'none'
+    # the same data folder for the previous version and the updated one, under both names of each variable
+    foreach ($v in @{ MPRP_HOME = $home_; MPRP_BROWSER = 'none' }.GetEnumerator()) {
+      Set-Item "env:$($v.Key)" $v.Value
+      if ($formerEnv.ContainsKey($v.Key)) { Set-Item "env:$($formerEnv[$v.Key])" $v.Value }
+    }
     function Ipc { $f = Join-Path $home_ 'ipc.json'; if (Test-Path $f) { try { return Get-Content $f -Raw | ConvertFrom-Json } catch {} }; return $null }
     function Api([string]$name) {
       $i = Ipc
@@ -70,14 +97,15 @@ try {
     Api 'update-install' | Out-Null
     $exited = $p.WaitForExit(60000)
     # the updater downloads the exe and its checksum file (both before it exits)
-    if ($exited) { bash $ledger record "release check $tag self-update" "$tag/MPRP.exe" "$tag/MPRP.exe.sha256" }
+    if ($exited) { bash $ledger record "release check $tag self-update" "$tag/$exeName" "$tag/$exeName.sha256" }
     Check $exited "$prev exits to update"
     Check (WaitFor { (Ping) -eq $Version } 60 'new version up') "$Version runs after the update"
     Check ((Get-FileHash $app).Hash -eq (Get-FileHash (Join-Path $rel 'MPRP.exe')).Hash) 'the updated file is the released exe'
     try { Api 'quit' | Out-Null } catch {}
     Check (WaitFor { -not (Ours) } 20 'quit') 'the updated program quits'
     Write-Host '--- log of the updated copy ---'
-    Get-Content (Join-Path $home_ 'mprp.log') -ErrorAction SilentlyContinue | Write-Host
+    # (the previous version logs under its own name, which may be the former one)
+    Get-ChildItem $home_ -Filter '*.log' | ForEach-Object { Write-Host "[$($_.Name)]"; Get-Content $_.FullName | Write-Host }
   }
 }
 catch { Write-Host "ERROR $_"; [void]$failures.Add("exception: $_") }

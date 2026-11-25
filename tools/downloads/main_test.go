@@ -72,3 +72,21 @@ func TestFiles(t *testing.T) {
 		t.Errorf("people %d, development %d; want 3, 3", s.People, s.Development)
 	}
 }
+
+// The files of the releases before the rename, and the copies under the former name that later releases carry, count
+// as the program like the current files; their checksums never do.
+func TestFormerNamesCount(t *testing.T) {
+	for name, want := range map[string]bool{
+		"MPRP.exe": true, "MPRP-linux-arm64": true, "MPRP-macos.zip": true,
+		"MPCvibedRPC.exe": true, "MPCvibedRPC-linux-amd64": true, "MPCvibedRPC-macos.zip": true,
+		"MPRP.exe.sha256": false, "MPCvibedRPC.exe.sha256": false, "LICENSE": false, "THIRD-PARTY-NOTICES.md": false,
+	} {
+		if got := isProgram(name); got != want {
+			t.Errorf("isProgram(%q) = %v, want %v", name, got, want)
+		}
+	}
+	s := count([]release{rel("v1.0.0", "MPRP.exe", 3, "MPCvibedRPC.exe", 2, "MPCvibedRPC.exe.sha256", 9)}, baseline{}, nil)
+	if s.People != 5 || s.ByFile["MPRP.exe"] != 3 || s.ByFile["MPCvibedRPC.exe"] != 2 {
+		t.Errorf("people %d, by file %v", s.People, s.ByFile)
+	}
+}

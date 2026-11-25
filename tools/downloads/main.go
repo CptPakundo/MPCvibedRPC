@@ -55,9 +55,21 @@ type summary struct {
 	ByRelease     map[string]int `json:"byRelease"`
 }
 
+// programPrefixes start the names of the program files: the current name, and the former one (the files of every
+// release before the rename, and the copies under that name that later releases carry for installs from before it).
+var programPrefixes = []string{"MPRP", "MPCvibedRPC"}
+
 // isProgram: the files people download to run the program.
 func isProgram(name string) bool {
-	return strings.HasPrefix(name, "MPRP") && !strings.HasSuffix(name, ".sha256")
+	if strings.HasSuffix(name, ".sha256") {
+		return false
+	}
+	for _, p := range programPrefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func readJSON(path string, v any) error {

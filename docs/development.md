@@ -188,6 +188,8 @@ on every system.
 - `reproduce.sh`: rebuilds the programs from a tag and compares them byte for byte (`sums` and `same` give the release
   workflow's comparison).
 - `verify-release.ps1`: checks a release, first its draft, then the public one.
+- `former-names.txt`: the release file names (and environment variables) of the program's former name, which every
+  release still carries for copies installed before the rename, until the maintainer drops them.
 - `version.sh`: the version from `main.go` (see [maintaining.md](maintaining.md#releasing)).
 - `dev-download.sh`: every development download of a release file, recorded in the ledger.
 - `canary-report.sh`: the canary's issue. `package-macos.sh`: the .app.

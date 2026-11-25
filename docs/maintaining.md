@@ -59,13 +59,16 @@ version and the maintainer's go-ahead.
       builds the programs on Windows, Linux and macOS runners and smoke-tests each on its own system (Windows: tray,
       Discord pipe, resting while Discord is closed, DPI awareness, version details, autostart, a self-update against a
       fake server; macOS and Linux: the API, login item, player setup, a second start, and on macOS opening the app
-      like the Finder does). It writes the `.sha256` files, attests the builds and publishes a **draft**.
+      like the Finder does). It writes the `.sha256` files, adds a byte-identical copy of each program file under the
+      former name for copies installed before the rename (`tools/ci/former-names.txt`, which says when they go),
+      attests the builds and publishes a **draft**.
    5. **`reproduce`** rebuilds the exe and both Linux programs from the tag on another runner at the same time
       (`tools/ci/reproduce.sh`); only `verify` waits for it.
    6. **`verify`** checks that the rebuilt files' checksums equal the release's (byte for byte), then runs
-      `tools/ci/verify-release.ps1` on the draft: the ten assets, every checksum and build record, the exe's version.
-      Only if these pass is the release made public (and latest). Then come the checks that need it public: that it is
-      the latest release, and a real self-update from the previous release.
+      `tools/ci/verify-release.ps1` on the draft: the eighteen assets (the copies under the former name the same files
+      byte for byte), every checksum and build record, the exe's version. Only if these pass is the release made
+      public (and latest). Then come the checks that need it public: that it is the latest release, and a real
+      self-update from the previous release.
    7. **A draft that fails** stays a draft (nobody's updater sees it): fix, then delete the draft and the tag, or
       publish it by hand once checked.
 4. **Read the `verify` job's log** (`gh run view --log`) and report. Nothing needs re-running locally after a release.
