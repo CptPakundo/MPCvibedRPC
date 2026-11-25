@@ -8,7 +8,16 @@ import (
 
 	"github.com/CptPakundo/MPRP/internal/dbus"
 	"github.com/CptPakundo/MPRP/internal/dbus/dbustest"
+	"github.com/CptPakundo/MPRP/internal/logo"
 )
+
+func keys(m map[string]any) []string {
+	var out []string
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
 
 // fakeService puts a notification service on the fake bus and records what it is asked.
 type fakeService struct {
@@ -63,10 +72,31 @@ func TestShowSendsNotify(t *testing.T) {
 	if m.Flags&dbus.FlagNoAutoStart != 0 {
 		t.Error("Notify must let the bus start a notification service that starts on demand")
 	}
+	hints, _ := m.Body[6].(map[string]any)
+	img, _ := hints["image-data"].([]any)
+	if len(hints) != 1 || len(img) != 7 {
+		t.Fatalf("hints %v: want image-data alone", keys(hints))
+	}
+	// the logo as the specification's raw image: width, height, row stride, has alpha, 8 bits per sample, 4 channels
+	if !reflect.DeepEqual(img[:6], []any{int32(128), int32(128), int32(512), true, int32(8), int32(4)}) {
+		t.Errorf("image-data header %v", img[:6])
+	}
+	pix := logo.Image(128, false).Pix
+	data, _ := img[6].([]any)
+	if len(data) != len(pix) {
+		t.Fatalf("%d bytes of pixels, want %d", len(data), len(pix))
+	}
+	for i, b := range data {
+		if b != any(pix[i]) {
+			t.Fatalf("pixel byte %d = %v, want %d (the logo, RGBA)", i, b, pix[i])
+		}
+	}
+	body := append([]any(nil), m.Body...)
+	body[6] = nil
 	want := []any{"MPRP", uint32(0), "", "MPRP 9.9.9 is available", "You have 9.9.8. Click here to see what's new and install it.",
-		[]any{"default", "Open settings"}, map[string]any{}, int32(-1)}
-	if !reflect.DeepEqual(m.Body, want) {
-		t.Errorf("body\n got %#v\nwant %#v", m.Body, want)
+		[]any{"default", "Open settings"}, nil, int32(-1)}
+	if !reflect.DeepEqual(body, want) {
+		t.Errorf("body\n got %#v\nwant %#v", body, want)
 	}
 	// the connection is kept for the next one (and for the clicks)
 	if !n.Show("second", "text") || len(f.messages()) != 2 {

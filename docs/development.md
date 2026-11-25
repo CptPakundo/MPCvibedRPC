@@ -137,7 +137,7 @@ Example: `MPRP_LIVE_PLAYER=mpv MPRP_LIVE_TITLE="Sample Movie" go test -count=1 -
 | `core` | settings and defaults (`config.go`), file-name parsing (`parse.go`), the activity (`activity.go`), preview, privacy rules, catalog services (`sources.go`), every other outside address (`hosts.go`), player logos (`icons.go`), titles written like file names (`names.go`) |
 | `mpvipc`, `pipe` | mpv JSON IPC (mpv, MPC-QT, IINA); named pipes on Windows, Unix sockets elsewhere (shared with `discord`) |
 | `mpris`, `dbus` | Linux players through MPRIS (an allowlist of video players) and their signals (`watch.go`); a minimal D-Bus client (`Receive` reads a connection in the background, for calls and signals at once); `dbus/dbustest` is a fake bus |
-| `notify` | Linux: the update notices through the desktop's notification service (`org.freedesktop.Notifications` on the session bus); a click calls back to open the window |
+| `notify` | Linux: the update notices through the desktop's notification service (`org.freedesktop.Notifications` on the session bus), with the logo as pixels (the `image-data` hint); a click calls back to open the window |
 | `vlchttp` | VLC's web interface, read-only |
 | `potplayer` | PotPlayer (Windows): window messages from its control header `InternalSimpleCmd.h`, read-only |
 | `kodi` | Kodi's JSON-RPC and its notifications on TCP 9090 (`watch.go`), read-only |
@@ -543,8 +543,8 @@ Everything below has only run against fakes, or not at all. Anyone with the setu
 - A viewer seeing "Streaming <title>" with no other Playing program running.
 - The **update dialog** in the real settings window, the tray's update notice, and the tray icon's sharpness at 200 %
   display scaling.
-- The **update notices on Linux and macOS**: a real desktop's notification service (GNOME, KDE Plasma, dunst) and its
-  click, and the macOS notification centre for the ad-hoc signed app (its permission prompt and click). The D-Bus
+- The **update notices on Linux and macOS**: a real desktop's notification service (GNOME, KDE Plasma, dunst), its
+  click and how it shows the logo, and the macOS notification centre for the ad-hoc signed app (its permission prompt and click). The D-Bus
   messages are tested against a fake bus; the macOS code is only compiled on CI.
 - **Copy diagnostics** in a normal browser window (not the `--app=` window).
 - **Start with Windows** after it was switched off in Task Manager's Startup list.
