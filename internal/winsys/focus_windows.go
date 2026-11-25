@@ -3,6 +3,7 @@
 package winsys
 
 import (
+	"os"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -78,7 +79,13 @@ func describeWindow(hwnd uintptr) topWindow {
 	var pid uint32
 	pGetWindowThreadProcessID.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
 	vis, _, _ := pIsWindowVisible.Call(hwnd)
-	n, _, _ := pGetWindowTextLengthW.Call(hwnd)
+	// GetWindowTextLength sends a message to a window of this process, and waits for the thread that owns it: when
+	// that thread is the one waiting for this list (the icon keeper's), both would wait for good. The program's own
+	// windows are never the settings window, so their titles are not asked for.
+	var n uintptr
+	if pid != ownPid {
+		n, _, _ = pGetWindowTextLengthW.Call(hwnd)
+	}
 	ic, _, _ := pIsIconic.Call(hwnd)
 	owner, _, _ := pGetWindow.Call(hwnd, gwOwner)
 	style, _, _ := pGetWindowLongPtr.Call(hwnd, gwlStyle)
@@ -86,6 +93,9 @@ func describeWindow(hwnd uintptr) topWindow {
 	return topWindow{Handle: hwnd, Pid: pid, Visible: vis != 0, Titled: n > 0, Minimised: ic != 0,
 		Child: style&wsChild != 0, Owned: owner != 0, Tool: ex&wsExToolWindow != 0, AppWindow: ex&wsExAppWindow != 0}
 }
+
+// ownPid is this process's id (describeWindow leaves this process's own windows' titles alone).
+var ownPid = uint32(os.Getpid())
 
 // topWindows lists the top-level windows, from the top of the stacking order.
 func topWindows() []topWindow {
