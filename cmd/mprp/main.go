@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CptPakundo/MPRP/internal/artwork"
 	"github.com/CptPakundo/MPRP/internal/capture"
 	"github.com/CptPakundo/MPRP/internal/conns"
 	"github.com/CptPakundo/MPRP/internal/core"
@@ -43,6 +44,7 @@ var (
 )
 
 func main() {
+	artwork.SetVersion(version)
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
