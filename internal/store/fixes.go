@@ -201,16 +201,17 @@ func cleanTextLines(f Field, v any) (any, error) {
 // while config.json has no matchFixes key. Each title becomes one fix (the alias as its search, the pinned cover as
 // its cover), in the file's order. The old keys stay in the file, for a downgrade, and are not read again. Each fix
 // is made to pass the window's rules first (fitFix), since the window saves the whole list: a fix it refuses would make
-// every later save fail. It returns how many fixes were written (0: nothing to do).
-func (s *Store) MigrateMatchFixes() (int, error) {
+// every later save fail. It returns how many fixes were written, and whether the matchFixes key was written (also
+// with no fix in it, when every old line was left out): then the program's fixes have changed.
+func (s *Store) MigrateMatchFixes() (n int, wrote bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cur, err := s.read()
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	if _, has := cur.M["matchFixes"]; has {
-		return 0, nil
+		return 0, false, nil
 	}
 	var order []string
 	fixes := map[string]*core.MatchFix{}
@@ -238,7 +239,7 @@ func (s *Store) MigrateMatchFixes() (int, error) {
 		}
 	}
 	if len(order) == 0 {
-		return 0, nil
+		return 0, false, nil
 	}
 	var list []any
 	changed, skipped := 0, 0
@@ -262,7 +263,10 @@ func (s *Store) MigrateMatchFixes() (int, error) {
 		list = []any{}
 	}
 	cur.Set("matchFixes", list)
-	return len(list), s.write(cur)
+	if err := s.write(cur); err != nil {
+		return 0, false, err
+	}
+	return len(list), true, nil
 }
 
 // fitFix makes a fix carried over from the old Fix a match lines one that cleanFixes takes: the text trimmed, text
