@@ -791,7 +791,7 @@
       const body = el('div', {}, say);
       if (u.notes) body.append(el('div', { className: 'chg' }, notesOf(u.notes)));
       const self = install && model && model.os !== 'darwin' && model.app.checkUpdates && model.app.autoUpdate;
-      const hint = el('p', { textContent: 'Not now: it installs by itself later, when nothing is playing and this window is closed.' });
+      const hint = el('p', { textContent: 'Not now: it installs by itself later, when nothing is playing and the window is closed while the app runs in the tray or in the background.' });
       if (self) body.append(hint);
       await modal('MPCvibedRPC ' + u.latest + ' is available', body, [['Not now'], [install ? 'Update now' : 'Open the download page', 'primary']], true, {
         focus: 1,
