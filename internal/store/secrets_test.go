@@ -150,6 +150,34 @@ func TestUndecryptableSecretReadsAsSignedOut(t *testing.T) {
 	if n.Config().PlexToken != "" {
 		t.Error("no encryption: the encrypted value reads as signed out")
 	}
+
+	// a save of something else keeps the encrypted text in the file (with and without encryption here)
+	for _, st := range []*Store{s, n} {
+		if err := st.SetSettings(map[string]any{"pollInterval": 4000}); err != nil {
+			t.Fatal(err)
+		}
+		b, _ := os.ReadFile(st.File)
+		if !strings.Contains(string(b), `"plexToken": "dpapi:b3RoZXI="`) || !strings.Contains(string(b), `"jellyfinToken": "dpapi:%%%"`) {
+			t.Errorf("a save of another setting dropped the undecryptable values:\n%s", b)
+		}
+		if c := st.Config(); c.PlexToken != "" || c.JellyfinToken != "" || c.PollInterval != 4000 {
+			t.Errorf("after the save: %+v", c)
+		}
+	}
+	// a new sign-in replaces it; a sign-out removes it
+	if err := s.SetHidden([]string{"plexToken", "jellyfinToken"}, map[string]any{"plexToken": "sample-token"}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(s.File)
+	if strings.Contains(string(b), "b3RoZXI") || strings.Contains(string(b), "jellyfinToken") || s.Config().PlexToken != "sample-token" {
+		t.Errorf("after a sign-in and a sign-out:\n%s", b)
+	}
+	if err := s.SetSettings(map[string]any{"pollInterval": 5000}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(s.File); strings.Contains(string(b), "jellyfinToken") || strings.Contains(string(b), "b3RoZXI") {
+		t.Errorf("a value replaced or removed came back:\n%s", b)
+	}
 }
 
 func TestSecretsStayPlainWithoutEncryption(t *testing.T) {

@@ -148,6 +148,7 @@ type Store struct {
 	plainOf    map[string]string // encrypted text -> plain, for the values read or written so far
 	sealedOf   map[string]string // plain -> encrypted text
 	unreadable map[string]bool   // encrypted values already logged as undecryptable
+	unopened   map[string]string // secret key -> its encrypted text in config.json as last read, which cannot be decrypted
 	sealFailed bool              // a failed encryption was logged
 }
 
@@ -304,6 +305,7 @@ func (s *Store) Reset() error {
 	if err != nil {
 		return err
 	}
+	s.unopened = nil // the sign-ins go with the settings
 	if cur, ok := old.M["app"].(*jsonx.Obj); ok {
 		keep := jsonx.NewObj()
 		for _, k := range []string{"seenVersion"} {
@@ -500,6 +502,7 @@ func (s *Store) SetHidden(keys []string, values map[string]any) error {
 		}
 		if v := values[k]; v == nil {
 			cur.Delete(k)
+			delete(s.unopened, k) // a sign-out removes a value that could not be decrypted too
 		} else {
 			cur.Set(k, v)
 		}

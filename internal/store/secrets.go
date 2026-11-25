@@ -33,10 +33,12 @@ var secretKeys = func() []string {
 }()
 
 // openSecrets decrypts the encrypted secrets of a configuration just read, in place. A value that cannot be decrypted
-// (config.json copied from another user or computer, or a system without the encryption) is removed, so that sign-in
-// reads as signed out; it is logged once. The caller holds s.mu.
+// (config.json copied from another user or computer, or a system without the encryption) is taken out of o, so that
+// sign-in reads as signed out, and logged once; the file keeps it (s.unopened, put back by sealSecrets) until a new
+// sign-in or a sign-out replaces it, so a save of something else does not lose it. The caller holds s.mu.
 func (s *Store) openSecrets(o *jsonx.Obj) {
 	for _, k := range secretKeys {
+		delete(s.unopened, k)
 		v, ok := o.M[k].(string)
 		if !ok || !strings.HasPrefix(v, sealedPrefix) {
 			continue
@@ -48,6 +50,10 @@ func (s *Store) openSecrets(o *jsonx.Obj) {
 		plain, err := s.openValue(v)
 		if err != nil {
 			o.Delete(k)
+			if s.unopened == nil {
+				s.unopened = map[string]string{}
+			}
+			s.unopened[k] = v
 			if !s.unreadable[v] {
 				if s.unreadable == nil {
 					s.unreadable = map[string]bool{}
@@ -81,12 +87,32 @@ func (s *Store) openValue(v string) (string, error) {
 // sealSecrets gives the configuration to write with its secrets encrypted (o itself is left as it is). A secret that
 // did not change keeps the encrypted text it had, so config.json does not change for nothing. When the encryption
 // fails the value is written as plain text, as before the encryption, and that is logged once: a lost sign-in would be
-// worse. The caller holds s.mu.
+// worse. A value that could not be decrypted (s.unopened) is written back as it was, unless o has a new one. The caller
+// holds s.mu.
 func (s *Store) sealSecrets(o *jsonx.Obj) *jsonx.Obj {
-	if s.sealer == nil {
-		return o
-	}
 	var out *jsonx.Obj
+	copyOnce := func() {
+		if out == nil {
+			out = jsonx.NewObj()
+			for _, key := range o.Keys {
+				out.Set(key, o.M[key])
+			}
+		}
+	}
+	for _, k := range secretKeys {
+		if v, kept := s.unopened[k]; kept {
+			if _, has := o.M[k]; !has {
+				copyOnce()
+				out.Set(k, v)
+			}
+		}
+	}
+	if s.sealer == nil {
+		if out == nil {
+			return o
+		}
+		return out
+	}
 	for _, k := range secretKeys {
 		v, ok := o.M[k].(string)
 		if !ok || v == "" || strings.HasPrefix(v, sealedPrefix) {
@@ -105,12 +131,7 @@ func (s *Store) sealSecrets(o *jsonx.Obj) *jsonx.Obj {
 			sealed = sealedPrefix + base64.StdEncoding.EncodeToString(b)
 			s.remember(sealed, v)
 		}
-		if out == nil {
-			out = jsonx.NewObj()
-			for _, key := range o.Keys {
-				out.Set(key, o.M[key])
-			}
-		}
+		copyOnce()
 		out.Set(k, sealed)
 	}
 	if out == nil {
