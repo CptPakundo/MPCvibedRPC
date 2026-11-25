@@ -33,15 +33,17 @@ func TestEverySettingIsDocumented(t *testing.T) {
 		}
 	}
 	check := func(v reflect.Value) {
-		rt := v.Type()
-		for i := 0; i < rt.NumField(); i++ {
-			key := strings.Split(rt.Field(i).Tag.Get("json"), ",")[0]
+		for _, f := range reflect.VisibleFields(v.Type()) {
+			if f.Anonymous {
+				continue // a group of core.Config: its settings come next
+			}
+			key := strings.Split(f.Tag.Get("json"), ",")[0]
 			cell, ok := rows[key]
 			if !ok {
 				t.Errorf("%s has no row in docs/config.md", key)
 				continue
 			}
-			if want, got := docDefault(cell), codeDefault(v.Field(i)); want != got && got != "?" && cell != "?" {
+			if want, got := docDefault(cell), codeDefault(v.FieldByIndex(f.Index)); want != got && got != "?" && cell != "?" {
 				t.Errorf("%s: docs/config.md says the default is %q, the code says %q", key, want, got)
 			}
 		}
